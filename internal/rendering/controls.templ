@@ -272,7 +272,7 @@ templ formInput(id, name, kind, options, value string, required bool) {
 // input producing identical output a MUST; it also makes any byte-level comparison of this page -- a render
 // diff, an ETag, a cache key -- unreliable in a way nothing would report.
 templ searchBox(path, q, placeholder string, hidden map[string]string) {
-	<form method="get" action={ templ.SafeURL(path) } role="search" class="flex items-center gap-2">
+	<form method="get" action={ templ.SafeURL(path) } role="search" class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 		for _, k := range sortedKeys(hidden) {
 			<input type="hidden" name={ k } value={ hidden[k] }/>
 		}

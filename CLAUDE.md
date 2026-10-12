@@ -984,6 +984,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   surfaced a box the Callout gate had never seen: the leave guard's warning, now a floor with its reason.
   `TestRadii_followTheThemeAtMigratedSites` covers R9. Mutation-proved: a literal put back, a lowered floor, and
   the rewrite removed, which fails three gates.
+- `TestHandWrittenLadderGapsOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2a). `gap-2` through `gap-5`
+  are the Theme's gap ladder (`GapTight`..`GapLoose`). That ladder, unlike `xtight` and `region`, carries no meaning
+  beyond size, so **every authenticated site reads `layoutGap`**. 137 moved, the audit's number exactly. Two checks
+  were byte-identical: 106 router pages, and 17 component renders for the sites the fixture does not reach. Only
+  pre-auth screens keep literals (12 across 4 files). The layout ratchet's counts did not move. That was measured,
+  not assumed, because its patterns do not key on the gap literal, so no reader rewrite was needed (unlike radius).
+  `TestLadderGaps_followTheThemeAtMigratedSites` covers R9. Mutation-proved both ways.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

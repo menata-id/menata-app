@@ -111,7 +111,7 @@ templ workspaceFileEditor(view WorkspaceFilesView) {
 
 templ workspaceFileReview(view WorkspaceFilesView) {
 	@sectionLayout(domain.GapComfortable) {
-		<div class="flex items-center gap-2">
+		<div class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 			@statusBadge(view.Review.VerdictLabel, view.Review.Tone, domain.BadgeRegular)
 		</div>
 		if view.Review.Reason != "" {

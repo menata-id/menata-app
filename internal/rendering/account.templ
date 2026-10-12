@@ -22,10 +22,10 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 		if errorMsg != "" {
 			@callout(errorMsg, domain.ToneBad)
 		}
-		<form method="POST" action="/account-profile" class="flex flex-col gap-4">
+		<form method="POST" action="/account-profile" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
-				<div class="flex flex-col gap-2">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					<label for="profile-name" class="text-sm font-medium">Full name</label>
 					<input
 						id="profile-name"
@@ -36,7 +36,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
 					/>
 				</div>
-				<div class="flex flex-col gap-2">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					<label for="profile-email" class="text-sm font-medium">Email</label>
 					<input
 						id="profile-email"
@@ -71,7 +71,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 			@staticText(domain.StaticHeading, "Notifications")
 			<div class="text-sm text-slate-500">Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
 		</div>
-		<form method="POST" action="/account-notifications" class="flex flex-col gap-4">
+		<form method="POST" action="/account-notifications" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapTight) {
 				@staticText(domain.StaticPanelHeading, "Document Approval")
@@ -89,7 +89,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 }
 
 templ notificationToggle(name, label string, checked bool) {
-	<label class={ "flex items-center justify-between gap-4 border-t", borderClass(ctx, domain.BorderDivider), "py-3 first:border-t-0 first:pt-0" }>
+	<label class={ "flex items-center justify-between", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderDivider), "py-3 first:border-t-0 first:pt-0" }>
 		<span class="text-sm text-slate-900">{ label }</span>
 		<span class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
 			<input
@@ -132,7 +132,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			if passwordOK != "" {
 				@callout(passwordOK, domain.ToneGood)
 			}
-			<form method="POST" action="/account-security/change-password" class="flex flex-col gap-4">
+			<form method="POST" action="/account-security/change-password" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 				@csrfHiddenInput()
 				@authField("current-password", "current_password", "Current password", "password", "current-password", false)
 				@authPasswordField("new-password", "new_password", "New password", "new-password", false)
@@ -162,7 +162,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			</div>
 			<div><a href="/account-delete" class="text-sm font-medium text-red-700 hover:text-red-800">Delete my account</a></div>
 		}
-		<section class={ "flex items-center justify-between gap-3", surfaceClasses(ctx), "p-5" }>
+		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
 			<div class="flex flex-col gap-1">
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
 				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>

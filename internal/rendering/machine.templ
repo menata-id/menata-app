@@ -433,7 +433,7 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 			for i, m := range machines {
 				<a
 					href={ templ.URL("/machines/" + m.ID) }
-					class={ "flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
 					<span class="grow font-medium">{ m.Name }</span>
 					<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
@@ -458,7 +458,7 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 // honest about it.
 templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
-		<div id="machine-body" class="flex flex-col gap-4">
+		<div id="machine-body" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor, now)
 		</div>
 	}
@@ -765,7 +765,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 				if col.Hint != "" {
 					@staticText(domain.StaticCaption, col.Hint)
 				}
-				<div data-cards class="flex flex-col gap-2">
+				<div data-cards class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					for i, r := range col.Records {
 						@boardCard(m, byRecord[r.ID], actor, CardMove{Field: v.GroupBy, Targets: targets, Current: columnValue(m, v, col), Position: i + 1})
 					}
@@ -889,7 +889,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		if canEdit && mv.Field != "" {
 			draggable="true"
 		}
-		class={ "group/card relative flex flex-col gap-2", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 text-slate-900 hover:shadow-sm" }
+		class={ "group/card relative flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 text-slate-900 hover:shadow-sm" }
 	>
 		if len(c.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
@@ -958,7 +958,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		</span>
 		{{ person := cardRole(c, domain.CardFieldRolePerson) }}
 		if c.Date.Present || person != "" {
-			<span class="flex items-center justify-between gap-2">
+			<span class={ "flex items-center justify-between", layoutGap(ctx, domain.GapTight) }>
 				if c.Date.Present {
 					<span class={ "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, c.Date.Tone) }>
 						if c.Date.Done {
@@ -1013,7 +1013,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 	<details class="group">
 		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs text-slate-500 hover:text-slate-900 group-open:hidden" }>Add a card</summary>
 		<form
-			class="flex flex-col gap-2"
+			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
 			hx-target="#machine-body"
 			hx-swap="innerHTML"
@@ -1031,7 +1031,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 	<details class="relative">
 		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800" }>{ "New " + strings.ToLower(m.Name) }</summary>
 		<form
-			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col gap-3", surfaceClasses(ctx), "p-4 shadow-lg" }
+			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-4 shadow-lg" }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
 			hx-target="#machine-body"
 			hx-swap="innerHTML"

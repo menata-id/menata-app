@@ -61,7 +61,7 @@ templ InstallApplicationPage(templates []InstallableTemplate, workspaceName stri
 				There are no ready-made applications in this installation's template library.
 			</div>
 		}
-		<div class="flex flex-col gap-4">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			for _, t := range templates {
 				@installableCard(t)
 			}

@@ -1347,3 +1347,27 @@ func TestRadii_followTheThemeAtMigratedSites(t *testing.T) {
 		}
 	}
 }
+
+// Rencana 0.2a: the 137 hand-written ladder gaps read layoutGap, so theme.gap moves them (R9). Two sites, under a
+// theme that moves `default` and also puts `comfortable` on the same amount (L12's shape).
+func TestLadderGaps_followTheThemeAtMigratedSites(t *testing.T) {
+	th := domain.Theme{Gap: map[domain.Gap]domain.GapAmount{
+		domain.GapDefault:     domain.GapAmountSix,
+		domain.GapComfortable: domain.GapAmountSix,
+	}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	var buf strings.Builder
+	if err := notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}).Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "flex items-center gap-6") || strings.Contains(buf.String(), "gap-3") {
+		t.Errorf("a moved theme.gap must move the notification row's gap: %s", buf.String())
+	}
+	buf.Reset()
+	if err := appShell("T", "WS", Viewer{}, "/s").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `<main class="mx-auto flex w-full max-w-[1180px] flex-col gap-6`) {
+		t.Error("a moved theme.gap must move the shell's main column gap")
+	}
+}

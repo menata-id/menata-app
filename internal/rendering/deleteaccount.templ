@@ -28,7 +28,7 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 			if passwordErr != "" {
 				@callout(passwordErr, domain.ToneBad)
 			}
-			<form method="POST" action="/account-delete" class="flex flex-col gap-4">
+			<form method="POST" action="/account-delete" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 				@csrfHiddenInput()
 				@authField("delete-password", "password", "Confirm with your password", "password", "current-password", false)
 				<div class="flex justify-end">
@@ -44,11 +44,11 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 templ DeleteAccountInfoPage(done bool) {
 	@authShell("Delete your account", "Menata", "Delete your account") {
 		@authCard("max-w-xl") {
-			<div class="flex flex-col gap-4 px-4 py-5 text-sm sm:p-6">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "px-4 py-5 text-sm sm:p-6" }>
 				if done {
 					@callout("Your account has been deleted and you have been signed out.", domain.ToneGood)
 				}
-				<div class="flex flex-col gap-2">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					<p class="m-0 font-medium">How to delete your account</p>
 					<ol class="m-0 flex list-decimal flex-col gap-1 pl-5 text-slate-700">
 						<li><a href="/login" class="text-blue-600 hover:text-blue-700">Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class="text-blue-600 hover:text-blue-700">reset it</a> first.</li>
@@ -64,7 +64,7 @@ templ DeleteAccountInfoPage(done bool) {
 
 // deletionFacts is the shared statement of what deletion does, shown before and during the request.
 templ deletionFacts() {
-	<div class="flex flex-col gap-3 text-sm text-slate-700">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm text-slate-700" }>
 		<div class="flex flex-col gap-1">
 			<p class="m-0 font-medium">Removed</p>
 			<ul class="m-0 flex list-disc flex-col gap-1 pl-5">

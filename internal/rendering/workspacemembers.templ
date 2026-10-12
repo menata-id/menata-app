@@ -77,25 +77,25 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		@workspaceSettingsFrame(wsSectionMembers) {
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
-			<div class="flex flex-col gap-2">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_members"))
 				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_workspace_members") }</div>
 			</div>
-			<div class="flex items-center gap-4">
+			<div class={ "flex items-center", layoutGap(ctx, domain.GapComfortable) }>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_groups") } →</a>
 				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		}
 		<details class={ surfaceClasses(ctx) }>
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
-			<form method="POST" action="/workspace-members/invite" class={ "flex flex-col gap-4 border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+			<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
 				@csrfHiddenInput()
 				// Email and roles only. The invitee's own name is theirs to state when they accept
 				// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record
 				// created on their behalf is exactly what moving the name onto the identity removed.
 				@authField("invite_email", "email", "Email", "email", "email", false)
 				for _, app := range roleApps {
-					<div class="flex flex-col gap-2">
+					<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 						<label for={ "invite_" + app.ID } class="text-sm font-medium">{ app.Name } role</label>
 						@roleSelect("invite_"+app.ID, app, "")
 					</div>
@@ -108,7 +108,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
 		}
 		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-			<div class={ "hidden items-center gap-4 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+			<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 				<span class="grow">Member</span>
 				<span class="w-28">Workspace role</span>
 				// Each cell names its own Application, one line per Application that declares a vocabulary (board 04).
@@ -119,7 +119,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			</div>
 			for _, m := range members {
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
-					<div class="flex grow items-center gap-3">
+					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials(names[m.UserRecordID], m.Email), avatarLabel(names[m.UserRecordID], m.Email), domain.AvatarInline, domain.AvatarPresent)
 						<span class="flex min-w-0 flex-col gap-0.5">
 							if names[m.UserRecordID] != "" && names[m.UserRecordID] != m.Email {
@@ -165,7 +165,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			}
 			for _, inv := range pending {
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
-					<div class="flex grow items-center gap-3">
+					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials("", inv.Email), inv.Email, domain.AvatarInline, domain.AvatarPending)
 						<span class="truncate text-sm text-slate-500">{ inv.Email }</span>
 					</div>
@@ -225,7 +225,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID(ctx, "nav_workspace_members") }
 		</a>
-		<div class="flex items-center gap-3">
+		<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault) }>
 			@avatar(personInitials(name, m.Email), avatarLabel(name, m.Email), domain.AvatarLead, domain.AvatarPresent)
 			<span class="flex min-w-0 flex-col gap-0.5">
 				if name != "" && name != m.Email {
@@ -241,7 +241,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 				@statusBadge("Active", domain.ToneGood, domain.BadgeRegular)
 			}
 		</div>
-		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="flex flex-col gap-4">
+		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
@@ -263,7 +263,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 					}
 				}
 			}
-			<div class="flex items-center justify-end gap-3">
+			<div class={ "flex items-center justify-end", layoutGap(ctx, domain.GapDefault) }>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
 				@authSubmit("Save changes")
 			</div>
@@ -283,7 +283,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 // their ability to open this Workspace again is what either action changes
 // (data.Store.DeactivateMember/ReactivateMember's own doc comment).
 templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
-	<section class={ "flex flex-col gap-3", radiusClass(ctx, domain.RadiusSurface), "border border-red-200 p-5" }>
+	<section class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-red-200 p-5" }>
 		<div class="flex flex-col gap-1">
 			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
 			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")
@@ -313,7 +313,7 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 // sentence explaining what holding it means, which the board puts under every option rather than
 // leaving "admin" and "member" to speak for themselves.
 templ workspaceRoleChoice(role, description string, selected bool) {
-	<label class={ "flex cursor-pointer items-start gap-3", tileClasses(ctx), "p-3 hover:border-blue-300" }>
+	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3 hover:border-blue-300" }>
 		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
 		<span class="flex flex-col gap-1">
 			<span class="text-sm font-medium">{ displayRole(role) }</span>

@@ -38,20 +38,20 @@ type ConversationTurn struct {
 templ NewApplicationPage(view ConversationView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("New application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="text-xs text-blue-600 hover:text-blue-700">← { titleByID(ctx, "nav_home") }</a>
-		<div class="flex flex-col gap-2">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticOverline, "Step 1 of 2")
 			@staticText(domain.StaticHeading, "New application")
 			<div class="text-sm text-slate-500">Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
-			<section aria-label="Conversation" class={ "flex min-h-96 flex-col gap-4", surfaceClasses(ctx), "p-5" }>
+			<section aria-label="Conversation" class={ "flex min-h-96 flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), "p-5" }>
 				if len(view.Turns) == 0 {
 					@staticText(domain.StaticMessage, "What should this application do? Describe it the way you would explain it to a new colleague.")
 				}
 				for _, t := range view.Turns {
 					@conversationBubble(t)
 				}
-				<div class="mt-auto flex flex-col gap-2 border-t border-slate-100 pt-4">
+				<div class={ "mt-auto flex flex-col", layoutGap(ctx, domain.GapTight), "border-t border-slate-100 pt-4" }>
 					// Auto-submits itself when #msg already holds a value on load -- true only for a
 					// PrefillIdea'd first message (see that field's own doc comment), never for a
 					// redirect back into an existing conversation, since that always renders #msg
@@ -77,7 +77,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 					<form
 						method="post"
 						action="/new-application/message"
-						class="flex gap-2"
+						class={ "flex", layoutGap(ctx, domain.GapTight) }
 						_="on submit add @disabled to #send-btn then add @readonly to #msg then set #send-btn's textContent to 'Sending…' then remove .hidden from #thinking-note
 						   on load if #msg's value is not '' then call me.requestSubmit()"
 					>
@@ -90,7 +90,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 					<p id="thinking-note" class="hidden m-0 text-xs text-slate-400">Menata is thinking — this can take up to a minute.</p>
 				</div>
 			</section>
-			<aside aria-label="What will be built" class={ "flex flex-col gap-4", surfaceClasses(ctx), "p-5" }>
+			<aside aria-label="What will be built" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), "p-5" }>
 				<div class="flex flex-col gap-1">
 					@staticText(domain.StaticPanelHeading, "What will be built")
 					<span class="text-xs text-slate-500">Updated as you answer.</span>
@@ -134,7 +134,7 @@ templ conversationBubble(t ConversationTurn) {
 templ changeSummary(change aiassist.GeneratedChange) {
 	if change.Kind == aiassist.KindNewApplication && change.Application != nil {
 		{{ app := change.Application }}
-		<div class="flex flex-col gap-3 text-sm">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm" }>
 			<div class="flex flex-col gap-1">
 				<span class="text-3xs text-slate-400 uppercase">Name</span>
 				<span>{ app.Name }</span>
@@ -213,7 +213,7 @@ const publishFormID = "publish-application"
 // aiassist.PlanUpdate from the installed Application and the one the conversation proposes -- the
 // same plan the writer recomputes before it touches a file.
 templ updatePlan(plan aiassist.Plan) {
-	<div class="flex flex-col gap-4 text-sm">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "text-sm" }>
 		for _, op := range []string{"add", "change", "remove"} {
 			if items := planItemsFor(plan, op); len(items) > 0 {
 				<div class="flex flex-col gap-1">
@@ -223,7 +223,7 @@ templ updatePlan(plan aiassist.Plan) {
 							<li>
 								{ item.What }
 								if item.Confirm != "" {
-									<label class="mt-1 flex items-center gap-2 text-xs text-slate-600">
+									<label class={ "mt-1 flex items-center", layoutGap(ctx, domain.GapTight), "text-xs text-slate-600" }>
 										<input type="checkbox" name="confirm_remove" value={ item.Confirm } form={ publishFormID }/>
 										Remove it from the Application. Values already stored in records are kept, unseen.
 									</label>
@@ -247,7 +247,7 @@ type GeneratedFilesView struct {
 
 templ generatedFiles(v GeneratedFilesView) {
 	if len(v.Files) > 0 || v.Reason != "" {
-		<div class="flex flex-col gap-3">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
 			@staticText(domain.StaticPanelHeading, "The files this would write")
 			if v.Reason != "" {
 				@staticText(domain.StaticNote, "The files could not be previewed: " + v.Reason)
@@ -263,7 +263,7 @@ templ generatedFiles(v GeneratedFilesView) {
 templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class="text-xs text-blue-600 hover:text-blue-700">← Back to conversation</a>
-		<div class="flex flex-col gap-2">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticOverline, "Step 2 of 2")
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
@@ -284,7 +284,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				}
 				@generatedFiles(files)
 			}
-			<aside class={ "flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
+			<aside class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
 					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
@@ -293,7 +293,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				} else {
 					@staticText(domain.StaticNote, "Nothing that holds records is removed: machines, fields, options, roles and permissions can only be added or relabelled. Who holds which role does not change.")
 				}
-				<form id={ publishFormID } method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
+				<form id={ publishFormID } method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					@csrfHiddenInput()
 					@button("Publish to workspace", domain.ButtonPrimary, "", "")
 				</form>

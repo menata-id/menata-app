@@ -181,7 +181,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 				return templ_7745c5c3_Err
 			}
 			if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-				var templ_7745c5c3_Var5 = []any{"flex flex-col items-center gap-2", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
+				var templ_7745c5c3_Var5 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -204,7 +204,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 					return templ_7745c5c3_Err
 				}
 			} else if len(apps) == 0 {
-				var templ_7745c5c3_Var7 = []any{"flex flex-col items-center gap-2", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
+				var templ_7745c5c3_Var7 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -263,7 +263,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 					return templ_7745c5c3_Err
 				}
 				for i, app := range apps {
-					var templ_7745c5c3_Var12 = []any{"flex items-center gap-3 px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0)}
+					var templ_7745c5c3_Var12 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -484,7 +484,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 				return templ_7745c5c3_Err
 			}
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				var templ_7745c5c3_Var24 = []any{"mt-2 flex items-center gap-3 border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500"}
+				var templ_7745c5c3_Var24 = []any{"mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -824,7 +824,7 @@ func HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) templ
 		ctx = templ.ClearChildren(ctx)
 		for _, r := range rows {
 			if inList {
-				var templ_7745c5c3_Var44 = []any{"flex items-center gap-3 border-t px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider)}
+				var templ_7745c5c3_Var44 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var44...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -897,7 +897,7 @@ func HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) templ
 					return templ_7745c5c3_Err
 				}
 			} else {
-				var templ_7745c5c3_Var48 = []any{"flex items-center gap-3", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5"}
+				var templ_7745c5c3_Var48 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var48...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

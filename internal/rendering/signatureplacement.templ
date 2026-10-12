@@ -94,7 +94,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 		<a href={ templ.URL("/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { v.DocumentTitle }
 		</a>
-		<div class="flex flex-col gap-2">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticEyebrow, "Step 2 of 2")
 			@staticText(domain.StaticHeading, "Signature positions")
 			<div class="text-sm text-slate-500">
@@ -145,7 +145,7 @@ templ placementBody(v PlacementView) {
 			@sectionLayout(domain.GapDefault) {
 				@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 					@staticText(domain.StaticPanelHeading, fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages))
-					<span class="flex items-center gap-3 text-xs">
+					<span class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "text-xs" }>
 						if v.Page > 1 {
 							@staticLink(placementPageHref(ctx, v.DocumentID, v.Page-1), "← Prev")
 						}
@@ -160,7 +160,7 @@ templ placementBody(v PlacementView) {
 				</p>
 				@placementCanvas(v)
 			}
-			<aside class={ "flex h-fit flex-col gap-3", surfaceClasses(ctx), "p-5" }>
+			<aside class={ "flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Approval steps")
 				for _, s := range v.Steps {
 					@placementStepCard(s, v.Page)
@@ -287,7 +287,7 @@ func placementBoxStyle(s PlacementStep) string {
 // placementStepCard is one step in the sidebar: who holds it, of which kind, and where its marker
 // currently sits.
 templ placementStepCard(s PlacementStep, page int) {
-	<div class={ "flex flex-col gap-2", tileClasses(ctx), "p-3" }>
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), "p-3" }>
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<span aria-hidden="true" class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium text-slate-700">{ fmt.Sprint(s.Index) }</span>
 			<span class="truncate text-sm">

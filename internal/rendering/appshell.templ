@@ -200,7 +200,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					@applicationMenuRow(menu, currentApp)
 				}
 			</header>
-			<main class={ "mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pt-6 sm:px-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
+			<main class={ "mx-auto flex w-full max-w-[1180px] flex-col", layoutGap(ctx, domain.GapComfortable), "px-4 pt-6 sm:px-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
 				{ children... }
 			</main>
 			if hasAppMenu {
@@ -369,7 +369,7 @@ func anyActive(items []navMenuItem) bool {
 // which would have been a worse lie than the gap.
 templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
-		<span class="mr-1 flex items-center gap-2">
+		<span class={ "mr-1 flex items-center", layoutGap(ctx, domain.GapTight) }>
 			if app.Icon != "" {
 				<span class={ "flex size-6 shrink-0 items-center justify-center rounded-md", appIconClasses(app.Color) }>
 					@icon(app.Icon, "size-3.5")
@@ -404,7 +404,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				for _, item := range overflow {
 					<a
 						href={ templ.SafeURL(item.Href) }
-						class={ "flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-slate-50", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-700", !item.Active) }
+						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "rounded-lg px-3 py-2 text-sm hover:bg-slate-50", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-700", !item.Active) }
 						if item.Active {
 							aria-current="page"
 						}
@@ -616,7 +616,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			@icon("chevron-down", "size-3.5 shrink-0 text-slate-500")
 		</button>
 		@sheetPanel("menata-workspace-menu", false, "left") {
-			<div class="flex items-center gap-3 px-3 pt-1 pb-2.5">
+			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-3 pt-1 pb-2.5" }>
 				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[13px] font-medium text-white">
 					{ personInitials(workspaceName, "") }
 				</span>
@@ -634,7 +634,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			// fully reachable -- one hop further, through the hub's own People section -- and
 			// Workspace Home's own "Manage members" link (workspacehome.templ) is untouched.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
@@ -656,7 +656,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				// §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own
 				// "What comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
+				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("sparkle", "size-4")
 					</span>
@@ -664,7 +664,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("switch", "size-4")
 					</span>
@@ -935,7 +935,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 				<div class="my-1 h-px bg-slate-100"></div>
 				<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase sm:px-2">Administration</div>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
@@ -955,7 +955,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				// capability: 007 §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own "What
 				// comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
+				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
 					<span class="text-slate-500">
 						@icon("sparkle", "size-4")
 					</span>
@@ -977,7 +977,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 // appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
 // Home card exactly.
 templ launcherAppCard(app domain.Application) {
-	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class={ "flex items-start gap-3", radiusClass(ctx, domain.RadiusControl), "p-2 hover:bg-slate-50" }>
+	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class={ "flex items-start", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-2 hover:bg-slate-50" }>
 		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg", appIconClasses(app.Color) }>
 			@icon(app.Icon, "size-4.5")
 		</span>

@@ -73,14 +73,14 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 				</div>
 			}
 			if len(v.Rows) > 0 {
-				<div class={ "hidden items-center gap-4 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+				<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 					<span class="grow">Member</span>
 					<span>Role in this application</span>
 				</div>
 			}
 			for _, row := range v.Rows {
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
-					<div class="flex grow items-center gap-3">
+					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials(row.Name, row.Email), avatarLabel(row.Name, row.Email), domain.AvatarInline, domain.AvatarPresent)
 						<span class="flex min-w-0 flex-col gap-0.5">
 							if row.Name != "" && row.Name != row.Email {
@@ -97,7 +97,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 							}
 						</span>
 					</div>
-					<form method="POST" action={ templ.SafeURL(v.PostBase + "/" + row.UserRecordID) } class="flex items-center gap-2">
+					<form method="POST" action={ templ.SafeURL(v.PostBase + "/" + row.UserRecordID) } class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 						@csrfHiddenInput()
 						<label for={ "role_" + row.UserRecordID } class="sr-only">{ v.App.Name } role for { row.Email }</label>
 						@roleSelect("role_"+row.UserRecordID, v.App, row.Direct)

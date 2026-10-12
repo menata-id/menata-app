@@ -176,7 +176,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				{{ navID = "nav_assigned_to_me" }}
 		}
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
-			<div class="flex flex-col gap-2">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticHeading, titleByID(ctx, navID))
 				if desc := descriptionByID(ctx, navID); desc != "" {
 					<div class="text-sm text-slate-500">{ desc }</div>
@@ -289,7 +289,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 // table idiom -- this screen's rows are exactly as tabular as that one's.
 templ assignedTable(rows []AssignedRow) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class={ "hidden items-center gap-4 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 			<span class="grow">Document</span>
 			<span class="w-32">From</span>
 			<span class="w-28">Requested</span>
@@ -412,11 +412,11 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
-		class={ "flex flex-col gap-3", radiusClass(ctx, domain.RadiusSurface), "border bg-white p-5 text-slate-900 hover:border-blue-300",
+		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white p-5 text-slate-900 hover:border-blue-300",
 			templ.KV("border-red-200", overdue),
 			templ.KV("border-slate-200", !overdue) }
 	>
-		<a href={ templ.SafeURL(c.Href) } class="flex flex-col gap-3">
+		<a href={ templ.SafeURL(c.Href) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
 			// The pill above the title is for a card that needs attention now (board 07: overdue or
 			// due today). A card with days to spare carries its remaining time in the footer only, so
 			// a screen of calm cards is not a screen of amber labels.
@@ -461,7 +461,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			// card keeps its existing progress bar unchanged.
 			if c.TotalSteps > 0 {
 				if len(c.Approvers) > 0 {
-					<ul aria-label="Approvers" class="m-0 flex list-none flex-wrap gap-2 p-0">
+					<ul aria-label="Approvers" class={ "m-0 flex list-none flex-wrap", layoutGap(ctx, domain.GapTight), "p-0" }>
 						for _, a := range c.Approvers {
 							@approverChip(a)
 						}
@@ -481,7 +481,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 		// outside the <a> above because a link cannot contain a link, and the Revise form below is
 		// a second interactive element for the same reason.
 		if c.SLA.Present || c.Action != "" {
-			<div class="flex items-center justify-between gap-3">
+			<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 				<span
 					class={ "text-xs",
 						templ.KV("font-medium text-red-700", overdue),

@@ -19,7 +19,7 @@ type NotificationRow struct {
 // comment, internal/web/notification.go). A Workspace-level runtime route, no Application chrome.
 templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex items-start justify-between gap-3">
+		<div class={ "flex items-start justify-between", layoutGap(ctx, domain.GapDefault) }>
 			<div class="flex flex-col gap-1">
 				@staticText(domain.StaticHeading, "Notifications")
 				<div class="text-sm text-slate-500">Approval requests and decisions that concern you.</div>
@@ -31,7 +31,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 				</form>
 			}
 		</div>
-		<div class="flex flex-col gap-2">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			for _, n := range rows {
 				@notificationRow(n)
 			}
@@ -45,7 +45,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 templ notificationRow(n NotificationRow) {
 	<a
 		href={ templ.URL(n.Link) }
-		class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusSurface), "border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread) }
+		class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread) }
 	>
 		if n.Unread {
 			<span class="size-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>

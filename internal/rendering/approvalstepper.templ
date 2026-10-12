@@ -39,7 +39,7 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 		{{ assignee = RelationLabel(relations, "mch_user", toString(s.Values[personField])) }}
 	}
 	{{ seqLabel := fmt.Sprint(s.Values[seq.OrderField]) }}
-	<li class="flex items-center gap-3 px-2 py-2">
+	<li class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-2 py-2" }>
 		if done {
 			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-50 text-blue-700">✓</span>
 			<span class="flex flex-col">

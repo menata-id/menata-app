@@ -105,7 +105,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 			}
 		</div>
 		if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-			<div class={ "flex flex-col items-center gap-2", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
+			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
 				<span class="text-sm font-medium text-slate-700">Nothing installed here yet</span>
 				<span class="max-w-md text-2xs text-slate-500">
 					An application appears here once it is installed into this workspace. Until then this
@@ -113,7 +113,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				</span>
 			</div>
 		} else if len(apps) == 0 {
-			<div class={ "flex flex-col items-center gap-2", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
+			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
 				<span class="text-sm font-medium text-slate-700">No application to open yet</span>
 				<span class="max-w-md text-2xs text-slate-500">
 					Applications appear here based on the roles assigned to you. Ask a workspace admin to
@@ -125,7 +125,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				for i, app := range apps {
 					<a
 						href={ templ.SafeURL(app.HomeRoute) }
-						class={ "flex items-center gap-3 px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 					>
 						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium", appIconClasses(app.Color) }>
 							if app.Icon != "" {
@@ -203,7 +203,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 		// M04a-Settings.dc.html, not to Members directly. Fixed here rather than left stale a second
 		// time: this row now opens the hub, same as workspaceMenu's own settings row.
 		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-			<div class={ "mt-2 flex items-center gap-3 border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500" }>
+			<div class={ "mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500" }>
 				// Only when there is a role to name. displayRole renders "—" for an empty one, which
 				// reads fine in a table cell and reads broken inside a pill -- and empty is exactly
 				// the shared admin credential's case, which still sees this row because it can open
@@ -287,7 +287,7 @@ type HomeDraftApplicationRow struct {
 templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 	for _, r := range rows {
 		if inList {
-			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center gap-3 border-t px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
+			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
 				<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 					@icon("sparkle", "size-5")
 				</span>
@@ -301,7 +301,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				</span>
 			</a>
 		} else {
-		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5" }>
+		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5" }>
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 				@icon("sparkle", "size-5")
 			</span>
