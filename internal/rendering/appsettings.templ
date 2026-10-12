@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"strconv"
 
 	"menata.app/internal/domain"
@@ -162,13 +163,23 @@ templ settingsListPlaceholder(label, description string) {
 }
 
 // settingsNavLink is a destination in the desktop sidebar: label only, the current one set apart.
+// settingsNavLinkInk is the link's ink for its state, chosen in Go. As two `templ.KV` keys, a Workspace that gives
+// `strong` and `body` one shade made both keys the same string, templ kept the last value, and the current link
+// lost its ink class (the collision rencana 0.2c found on the approver chip).
+func settingsNavLinkInk(ctx context.Context, current bool) string {
+	if current {
+		return inkClass(ctx, domain.InkStrong)
+	}
+	return inkClass(ctx, domain.InkBody)
+}
+
 templ settingsNavLink(href, label string, current bool) {
 	<a
 		href={ templ.SafeURL(href) }
 		if current {
 			aria-current="page"
 		}
-		class={ "flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), templ.KV(inkClass(ctx, domain.InkStrong), current), templ.KV(inkClass(ctx, domain.InkBody), !current), templ.KV("hover:bg-slate-50", !current) }
+		class={ "flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV("hover:bg-slate-50", !current) }
 	>
 		{ label }
 	</a>

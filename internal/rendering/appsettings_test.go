@@ -164,3 +164,19 @@ func TestApplicationSettingsHub_hasNoTypeInkWeightOrFillTheThemeCannotMove(t *te
 		t.Error("the moved theme never reached the page: no text-2xl in the output, so the assertion above proved nothing")
 	}
 }
+
+// A Workspace may give `strong` and `body` one shade. The current settings link must still carry its ink: as two
+// templ.KV keys the classes were one string and templ kept the later, false, value (rencana 0.2c).
+func TestSettingsNavLink_keepsItsInkWhenTwoInkRolesShareAShade(t *testing.T) {
+	th := domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkBody: domain.InkShadeDarkest}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	for _, current := range []bool{true, false} {
+		var buf bytes.Buffer
+		if err := settingsNavLink("/x", "Members", current).Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(buf.String(), "text-slate-900") {
+			t.Errorf("current=%v: the link lost its ink class: %s", current, buf.String())
+		}
+	}
+}

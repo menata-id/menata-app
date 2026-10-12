@@ -9,6 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"context"
 	"strconv"
 
 	"menata.app/internal/domain"
@@ -121,7 +122,7 @@ func settingsRow(href, label, description string, current bool) templ.Component 
 		var templ_7745c5c3_Var3 templ.SafeURL
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 85, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 86, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -179,7 +180,7 @@ func settingsRow(href, label, description string, current bool) templ.Component 
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 92, Col: 151}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 93, Col: 151}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -215,7 +216,7 @@ func settingsRow(href, label, description string, current bool) templ.Component 
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 94, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 95, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -399,7 +400,7 @@ func settingsPlaceholderBody(label, description string) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 121, Col: 10}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 122, Col: 10}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -438,7 +439,7 @@ func settingsPlaceholderBody(label, description string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 124, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 125, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -572,7 +573,7 @@ func settingsListRow(href, label, description string) templ.Component {
 		var templ_7745c5c3_Var30 templ.SafeURL
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 144, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 145, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -620,7 +621,7 @@ func settingsListRow(href, label, description string) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 146, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 147, Col: 91}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -656,7 +657,7 @@ func settingsListRow(href, label, description string) templ.Component {
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 148, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 149, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -740,6 +741,16 @@ func settingsListPlaceholder(label, description string) templ.Component {
 }
 
 // settingsNavLink is a destination in the desktop sidebar: label only, the current one set apart.
+// settingsNavLinkInk is the link's ink for its state, chosen in Go. As two `templ.KV` keys, a Workspace that gives
+// `strong` and `body` one shade made both keys the same string, templ kept the last value, and the current link
+// lost its ink class (the collision rencana 0.2c found on the approver chip).
+func settingsNavLinkInk(ctx context.Context, current bool) string {
+	if current {
+		return inkClass(ctx, domain.InkStrong)
+	}
+	return inkClass(ctx, domain.InkBody)
+}
+
 func settingsNavLink(href, label string, current bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -761,7 +772,7 @@ func settingsNavLink(href, label string, current bool) templ.Component {
 			templ_7745c5c3_Var41 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var42 = []any{"flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), templ.KV(inkClass(ctx, domain.InkStrong), current), templ.KV(inkClass(ctx, domain.InkBody), !current), templ.KV("hover:bg-slate-50", !current)}
+		var templ_7745c5c3_Var42 = []any{"flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV("hover:bg-slate-50", !current)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -773,7 +784,7 @@ func settingsNavLink(href, label string, current bool) templ.Component {
 		var templ_7745c5c3_Var43 templ.SafeURL
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 167, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 178, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -809,7 +820,7 @@ func settingsNavLink(href, label string, current bool) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 173, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 184, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -917,7 +928,7 @@ func settingsTurnOffNote() templ.Component {
 		var templ_7745c5c3_Var50 templ.SafeURL
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_workspace_settings")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 192, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 203, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {
@@ -930,7 +941,7 @@ func settingsTurnOffNote() templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_workspace_settings"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 192, Col: 154}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 203, Col: 154}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -1108,7 +1119,7 @@ func settingsLists(hub SettingsHubView) templ.Component {
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(hub.AppName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 226, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 237, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 			if templ_7745c5c3_Err != nil {
@@ -1144,7 +1155,7 @@ func settingsLists(hub SettingsHubView) templ.Component {
 				var templ_7745c5c3_Var62 string
 				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(hub.AppDescription)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 228, Col: 108}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 239, Col: 108}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 				if templ_7745c5c3_Err != nil {
@@ -1228,7 +1239,7 @@ func settingsSidebar(hub SettingsHubView, showingDetail bool) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(settingsSidebarTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 242, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 253, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 		if templ_7745c5c3_Err != nil {
@@ -1311,7 +1322,7 @@ func settingsSidebar(hub SettingsHubView, showingDetail bool) templ.Component {
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(notificationsTitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 252, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 263, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 			if templ_7745c5c3_Err != nil {
@@ -1414,7 +1425,7 @@ func settingsSidebar(hub SettingsHubView, showingDetail bool) templ.Component {
 		var templ_7745c5c3_Var77 string
 		templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(hub.AppName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 267, Col: 146}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 278, Col: 146}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 		if templ_7745c5c3_Err != nil {
@@ -1450,7 +1461,7 @@ func settingsSidebar(hub SettingsHubView, showingDetail bool) templ.Component {
 			var templ_7745c5c3_Var80 string
 			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(hub.AppDescription)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 269, Col: 116}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 280, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 			if templ_7745c5c3_Err != nil {
@@ -1546,7 +1557,7 @@ func settingsHubHeader(hub SettingsHubView) templ.Component {
 			var templ_7745c5c3_Var84 string
 			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(hub.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 296, Col: 121}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 307, Col: 121}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 			if templ_7745c5c3_Err != nil {
@@ -1625,7 +1636,7 @@ func settingsPermissionsPane(hub SettingsHubView, permissions RoleMatrixApp) tem
 		var templ_7745c5c3_Var88 string
 		templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(permissionsSubtitle(hub.AppName))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 307, Col: 137}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 318, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 		if templ_7745c5c3_Err != nil {
@@ -1734,7 +1745,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 					var templ_7745c5c3_Var92 templ.SafeURL
 					templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(hub.HubRoute))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 342, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 353, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 					if templ_7745c5c3_Err != nil {
@@ -1760,7 +1771,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 					var templ_7745c5c3_Var94 string
 					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(hub.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 343, Col: 21}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 354, Col: 21}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 					if templ_7745c5c3_Err != nil {
