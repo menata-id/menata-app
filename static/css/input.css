@@ -141,3 +141,18 @@
 	font-weight: 500;
 	color: var(--color-blue-600);
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Keyboard focus (owner decision DS-D14, 2026-10-12): one rule, as the mockups have it. Every link, button and
+   summary shows the Design System's `focus-ring` (blue-300, the value fields already use) when it takes focus from
+   the keyboard; a mouse click shows nothing. Before this, those elements drew the browser's own ring, which differs
+   per browser and ignores the token. A class on each site would have been the same rule repeated hundreds of times.
+   Fields keep their own `focus:` utilities (fieldClasses), which this selector does not reach.
+   `TestKeyboardFocusRuleCoversInteractiveElements` holds the selector and the colour.
+   --------------------------------------------------------------------------------------------- */
+@layer base {
+	:where(a[href], button, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+		outline: 2px solid var(--color-blue-300);
+		outline-offset: 1px;
+	}
+}

@@ -1036,6 +1036,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
       element under the default theme, since the three border roles have different defaults.
   - Only the surface and tile shape gates read `borderClass` as its literal (`borderReadersAsLiterals`); the value
     gates do not.
+- `TestKeyboardFocusRuleCoversInteractiveElements` / `TestNoOutlineNoneBesideAFocusRing` — owner decision DS-D14
+  (2026-10-12). Keyboard focus is **one base rule** in `static/css/input.css`, as the mockups have it:
+  `:where(a[href], button, summary, [tabindex]):focus-visible` draws a 2px `--color-blue-300` outline (the Design
+  System's `focus-ring`). Before this, links and buttons drew each browser's own ring. **Measuring it found that no
+  field had shown a focus ring since Tailwind v4.** `outline-none` sets `--tw-outline-style: none`, and
+  `focus:outline-2` reuses it, so Chromium reported `outline-style: none` on a focused input. `outline-hidden`
+  does the same. Fields now write `focus:outline-solid`, and the second gate refuses the trap in class attributes
+  and in Go helpers' strings. The first version of that gate missed `fieldClasses` (a Go function), which a mutation
+  showed. Both gates are mutation-proved.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

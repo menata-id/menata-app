@@ -100,7 +100,7 @@ templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
 			autocomplete={ autocomplete }
 			required
 			autofocus?={ autofocus }
-			class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+			class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
 		/>
 	}
 }
@@ -120,7 +120,7 @@ templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
 				minlength="8"
 				required
 				autofocus?={ autofocus }
-				class="h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden"
+				class="h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden"
 			/>
 			@authPasswordToggle(id)
 		</div>

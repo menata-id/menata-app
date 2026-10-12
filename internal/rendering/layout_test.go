@@ -784,8 +784,11 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 	}
 }
 
+// The literal changed once on purpose (2026-10-12, DS-D14): `outline-none` became `focus:outline-solid`. Under
+// Tailwind v4, `outline-none` sets `--tw-outline-style: none`, which `focus:outline-2` then reuses, so no field drew
+// its focus ring at all (measured in Chromium: outline-style none on a focused input).
 func TestFieldClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
-	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
 	if got := fieldClasses(context.Background()); got != want {
 		t.Errorf("default field rendered %q, want the pre-migration controlField literal %q", got, want)
 	}

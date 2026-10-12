@@ -73,7 +73,7 @@ func fieldClasses(ctx context.Context) string {
 	return strings.Join([]string{
 		"h-9", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl),
 		"bg-white px-3 font-sans", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong),
-		"outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300",
+		"focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300",
 	}, " ")
 }
 

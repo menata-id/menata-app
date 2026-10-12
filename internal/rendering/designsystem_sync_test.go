@@ -158,7 +158,7 @@ var dsAcceptedNotInCode = map[string]string{}
 var dsUnmapped = map[string]string{
 	"brand": "--color-brand in input.css; the M mark only, not a Theme role", "brand-icon": "the PWA PNGs' fill, not CSS",
 	"accent": "links are literal text-blue-600 by owner decision (DH 10-11); no ink role", "accent-hover": "as accent",
-	"accent-ring": "the stepper's current-step ring, literal", "focus-ring": "fieldClasses' literal outline-blue-300",
+	"accent-ring": "the stepper's current-step ring, literal", "focus-ring": "not a reader: a base :focus-visible rule in input.css (DS-D14) and the field focus utilities, both blue-300 (TestKeyboardFocusRuleCoversInteractiveElements)",
 	"primary": "buttonClasses' literal bg-slate-900", "primary-hover": "buttonClasses' literal hover",
 	"hover-wash": "hover is state, not a role (theme.go)", "avatar-fill": "avatarClasses' literal",
 	"scrim": "the dialog backdrop, literal", "danger-ink": "danger Button recipe literal; tone-bad-ink aliases it and is checked",
