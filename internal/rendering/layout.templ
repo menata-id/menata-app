@@ -310,6 +310,25 @@ func tileClasses(ctx context.Context) string {
 	return strings.Join([]string{radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}, " ")
 }
 
+// markGoodFill, markGoodBorder and markGoodHoverBorder are the Design System artifact's `mark-good` token
+// (emerald-600): the solid fill of a "finished" mark. That covers a ticked checklist circle and a progress bar's
+// filled share. The artifact accepted it on 2026-10-07 and names it outside `tone-*` on purpose: a tone is a bg+ink
+// pair a Workspace can remap through `theme.tone`, and this is one solid colour no Theme key moves. So it is a plain
+// reader and **not** a `domain` role. A Workspace that remaps `tone.good` today keeps its marks emerald; making that
+// follow would be a Theme decision, not a rename.
+//
+// Three readers rather than one string, because each is a different utility at its site. The hover form must stay a
+// literal here: Tailwind finds classes by reading source text, so `"hover:" + markGoodBorder()` would never emit.
+// Measured 2026-10-11: three sites carried these exact strings (checklist, the card checklist, Progress), so moving
+// them changes no byte. Five more sites draw a finished mark in emerald-500, the value the artifact rejected for
+// contrast (about 2.1:1 on white); those stay as they are until the owner decides, because moving them darkens the
+// approval screens. Record: menata-app-document audits/2026-10-11-kajian-sinkron-design-system-kode-css.md, B4.
+func markGoodFill() string { return "bg-emerald-600" }
+
+func markGoodBorder() string { return "border-emerald-600" }
+
+func markGoodHoverBorder() string { return "hover:border-emerald-600" }
+
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would

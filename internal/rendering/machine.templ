@@ -911,7 +911,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						type="submit"
 						aria-pressed={ fmt.Sprint(done) }
 						aria-label={ completeLabel(done, title) }
-						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", done), templ.KV("border-slate-300 hover:border-emerald-600", !done) }
+						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV("border-slate-300 "+markGoodHoverBorder(), !done) }
 					>
 						if done {
 							@icon("check", "size-3")

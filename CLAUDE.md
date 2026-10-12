@@ -890,6 +890,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   worktree render-diff instead, which is the honest order of events. A containment check is not a token
   check. Second, it reads the *committed* `app.css`, so `make check-generated` is the half that catches a
   leak committed without regenerating — neither alone is sufficient.
+- `TestNoHandWrittenMarkGood` — a zero-floor gate (2026-10-11): `bg-`/`border-`/`hover:border-emerald-600` is
+  written only by `markGoodFill`/`markGoodBorder`/`markGoodHoverBorder` in `layout.templ`. Those readers are the
+  Design System artifact's `mark-good`: a plain reader and **not** a Theme role, because the artifact names it outside
+  `tone-*` on purpose (no Workspace key moves it). Three sites moved byte-identically, with render output compared
+  at HEAD and after. Five emerald-500 "finished" marks on the approval screens are the value the artifact rejected
+  for contrast. They are not moved, and are out of this gate's sight by design, until the owner decides.
+  Mutation-proved twice: a class attribute, and a Go string inside `templ.KV`.
 - `TestCustomTextSizesDeclareTheirLineHeight` — every custom `--text-*` size in `input.css`'s `@theme` must
   declare `--text-*--line-height` beside it (2026-10-11). Tailwind pairs each built-in size with one; a custom size
   without it compiles to a `font-size`-only utility, and the element inherits its parent's line height. `text-2xs`

@@ -813,3 +813,44 @@ func TestNoHandWrittenTable(t *testing.T) {
 		t.Fatalf("table.templ holds %d <table> elements, want exactly 1 -- the scan is looking at the wrong text or dataTable moved", owner)
 	}
 }
+
+// TestNoHandWrittenMarkGood is a zero-floor gate (2026-10-11): the Design System artifact's `mark-good` fill and
+// edge (emerald-600) are written only by `markGoodFill`/`markGoodBorder`/`markGoodHoverBorder` in `layout.templ`. A
+// "finished" mark elsewhere reads them. Three sites carried the literals and moved byte-identically (checklist, the
+// card checklist, Progress); render output was compared at HEAD and after, 13,892 bytes each.
+//
+// It matches the token anywhere in a `.templ` outside `layout.templ`, `//` comments stripped, so a Go string built
+// for `templ.KV` is seen as well as a class attribute. **Blind spot, stated:** the five emerald-500 marks
+// (`approvalinbox`, `reviewdocument`) are a different value, the one the artifact rejected for contrast, and moving
+// them is an owner decision that darkens the approval screens. A gate over 600 cannot see them, by design.
+func TestNoHandWrittenMarkGood(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	mark := regexp.MustCompile(`(?:^|[\s"])((?:hover:)?(?:bg|border)-emerald-600)\b`)
+	readers := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		found := mark.FindAllStringSubmatch(comment.ReplaceAllString(string(b), ""), -1)
+		if e.Name() == "layout.templ" {
+			readers += len(found)
+			continue
+		}
+		for _, m := range found {
+			t.Errorf("%s: hand-written %q -- a finished mark reads markGoodFill/markGoodBorder/markGoodHoverBorder "+
+				"(the Design System artifact's `mark-good`), so the colour stays decided in one place", e.Name(), m[1])
+		}
+	}
+	if readers != 3 {
+		t.Fatalf("expected the three mark-good readers in layout.templ, found %d -- the scan is looking at the wrong text", readers)
+	}
+}

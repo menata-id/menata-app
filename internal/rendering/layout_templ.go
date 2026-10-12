@@ -367,6 +367,25 @@ func tileClasses(ctx context.Context) string {
 	return strings.Join([]string{radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}, " ")
 }
 
+// markGoodFill, markGoodBorder and markGoodHoverBorder are the Design System artifact's `mark-good` token
+// (emerald-600): the solid fill of a "finished" mark. That covers a ticked checklist circle and a progress bar's
+// filled share. The artifact accepted it on 2026-10-07 and names it outside `tone-*` on purpose: a tone is a bg+ink
+// pair a Workspace can remap through `theme.tone`, and this is one solid colour no Theme key moves. So it is a plain
+// reader and **not** a `domain` role. A Workspace that remaps `tone.good` today keeps its marks emerald; making that
+// follow would be a Theme decision, not a rename.
+//
+// Three readers rather than one string, because each is a different utility at its site. The hover form must stay a
+// literal here: Tailwind finds classes by reading source text, so `"hover:" + markGoodBorder()` would never emit.
+// Measured 2026-10-11: three sites carried these exact strings (checklist, the card checklist, Progress), so moving
+// them changes no byte. Five more sites draw a finished mark in emerald-500, the value the artifact rejected for
+// contrast (about 2.1:1 on white); those stay as they are until the owner decides, because moving them darkens the
+// approval screens. Record: menata-app-document audits/2026-10-11-kajian-sinkron-design-system-kode-css.md, B4.
+func markGoodFill() string { return "bg-emerald-600" }
+
+func markGoodBorder() string { return "border-emerald-600" }
+
+func markGoodHoverBorder() string { return "hover:border-emerald-600" }
+
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
@@ -1165,7 +1184,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 569, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 588, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -1318,7 +1337,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var45 string
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 586, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 605, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
@@ -1581,7 +1600,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 684, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 703, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
@@ -1617,7 +1636,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 686, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 705, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 			if templ_7745c5c3_Err != nil {
@@ -1653,7 +1672,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 688, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 707, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
@@ -1689,7 +1708,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 690, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 709, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1725,7 +1744,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 692, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 711, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 			if templ_7745c5c3_Err != nil {
@@ -1761,7 +1780,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 694, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 713, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 			if templ_7745c5c3_Err != nil {
@@ -1797,7 +1816,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var74 string
 			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 696, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 715, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 			if templ_7745c5c3_Err != nil {
@@ -1833,7 +1852,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var77 string
 			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 698, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 717, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 			if templ_7745c5c3_Err != nil {
@@ -1869,7 +1888,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var80 string
 			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 700, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 719, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 			if templ_7745c5c3_Err != nil {
@@ -1928,7 +1947,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var82 templ.SafeURL
 		templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 721, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 740, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 		if templ_7745c5c3_Err != nil {
@@ -1941,7 +1960,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var83 string
 		templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 721, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 740, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 		if templ_7745c5c3_Err != nil {
