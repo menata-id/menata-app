@@ -420,8 +420,10 @@ func slaPillTone(ctx context.Context, overdue bool) string {
 	return toneClass(ctx, domain.ToneWarn)
 }
 
-// approvalCardEdge is the card's edge for its state, chosen in Go: as two templ.KV keys, a Workspace mapping `bad` to
-// the grey palette would make the overdue edge and the surface edge one string, and templ would drop it (L12).
+// approvalCardEdge is the card's edge for its state, chosen in Go. It was moved out of two templ.KV keys because a
+// Workspace mapping `bad` to the grey palette made the overdue edge and the surface edge one string, and templ
+// dropped it (L12). Since DS-D15 stage 2 every role has its own class, so that collision cannot recur; choosing in Go
+// stays the plainer shape, and the shape gates read this helper (stateEdgeHelperCall).
 func approvalCardEdge(ctx context.Context, overdue bool) string {
 	if overdue {
 		return toneEdgeClass(ctx, domain.ToneBad)
@@ -532,9 +534,9 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 }
 
 // approverChipTone is the chip's colour for its state, chosen in Go rather than as one `templ.KV` per state. The
-// settled states read the Theme's tone pairs, and a Workspace may map two tones to one palette: as `templ.KV` keys
-// the two classes would then be the same string, templ would keep the last value, and a done chip would draw with
-// no colour at all. Waiting has no tone with its steps (slate-100 on slate-500): its fill stays a literal and its text reads the
+// settled states read the Theme's tone pairs. When a tone's class was its palette's, a Workspace mapping two tones to
+// one palette made two `templ.KV` keys the same string, templ kept the last value, and a done chip drew with no
+// colour (rencana 0.2c). Since DS-D15 stage 2 each tone has its own class, so that cannot recur; the Go switch stays. Waiting has no tone with its steps (slate-100 on slate-500): its fill stays a literal and its text reads the
 // `secondary` ink, so moving it here out of a `class` attribute did not hide a literal from the ink ratchet.
 func approverChipTone(ctx context.Context, state string) string {
 	switch state {

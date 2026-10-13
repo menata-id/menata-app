@@ -1128,7 +1128,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     step in the bundle. `TestEveryPaletteVariableTheOverrideCanNameIsCompiled` catches a name the scanner cannot
     read (a runtime-assembled one), not a renamed step.
   - The gate refuses a role class anywhere in `internal/rendering` outside its nine readers, Go strings included,
-    under any variant prefix, opacity or `!`. Mutation-proved: a class attribute, a Go string, a renamed reader, and the five
+    under any variant prefix, opacity or `!`, and in **any** utility family (`border-t-`, `caret-`, `shadow-`, `from-`:
+    Tailwind makes a colour utility of every family from a `--color-*` property, and the 3.2b review passed seven
+    through the first, listed set). `themeCSS` ranges the domain's closed sets, and
+    `TestThemeCSSWritesEachRoleAndToneWhenMovedAlone` moves each role and tone alone (the review dropped `neutral` and
+    `muted` from a hand-written list and nothing failed). Mutation-proved: a class attribute, a Go string, a renamed reader, and the five
     shapes the review passed through the first regex.
   - Open: in `app.css` the role classes sort before some palette classes, so an element carrying both a role and a
     conflicting literal colour would change which one wins. None was found (the 106-page computed diff is 0), but

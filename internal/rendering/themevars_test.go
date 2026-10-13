@@ -182,6 +182,50 @@ func TestThemeCSSWritesEveryMovedRoleAndOnlyThose(t *testing.T) {
 	}
 }
 
+// TestThemeCSSWritesEachRoleAndToneWhenMovedAlone moves every border role, background role and tone on its own, to a
+// value other than its default, and requires an override naming it. The 2026-10-13 review dropped `neutral` and
+// `muted` from themeCSS's tone list and every other test stayed green, because none moved those two.
+func TestThemeCSSWritesEachRoleAndToneWhenMovedAlone(t *testing.T) {
+	def := domain.DefaultTheme()
+	at := func(th domain.Theme) map[string]string {
+		return themeVarOverrides(WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "", false))
+	}
+	for role := range domain.KnownBorderRoles {
+		for shade := range domain.KnownBorderShades {
+			if shade == def.BorderFor(role) {
+				continue
+			}
+			got := at(domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{role: shade}})
+			if want := "var(" + borderShadeVar(shade) + ")"; got["--color-border-"+string(role)] != want || len(got) != 1 {
+				t.Errorf("border.%s: %s: got %v", role, shade, got)
+			}
+		}
+	}
+	for role := range domain.KnownBackgroundRoles {
+		for shade := range domain.KnownBackgroundShades {
+			if shade == def.BackgroundFor(role) {
+				continue
+			}
+			got := at(domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{role: shade}})
+			if want := "var(" + backgroundShadeVar(shade) + ")"; got["--color-bg-"+string(role)] != want || len(got) != 1 {
+				t.Errorf("background.%s: %s: got %v", role, shade, got)
+			}
+		}
+	}
+	for tone := range domain.KnownBadgeTones {
+		for p := range domain.KnownTonePalettes {
+			if p == def.ToneFor(tone) {
+				continue
+			}
+			got := at(domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{tone: p}})
+			n := "--color-tone-" + string(tone)
+			if got[n+"-bg"] != "var("+toneFillVar(p)+")" || got[n+"-ink"] != "var("+toneInkVar(p)+")" || got[n+"-border"] != "var("+toneEdgeVar(p)+")" || len(got) != 3 {
+				t.Errorf("tone.%s: %s: got %v", tone, p, got)
+			}
+		}
+	}
+}
+
 // TestThemeCSSNeverWritesAnUnvalidatedValue: the override goes into a `<style>`, so a value the loader would refuse
 // must not reach it even when a Theme is built in Go without the loader (a fixture, a future caller). InkFor already
 // falls back for a value that does not fit; this pins that the fallback is what themeCSS sees.

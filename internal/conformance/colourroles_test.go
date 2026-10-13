@@ -13,8 +13,11 @@ import (
 // `text-ink-body`, `text-accent`, `hover:text-accent-hover`, and the same names on a fill or an edge. Bounded only
 // by "not part of a longer name", so any variant prefix (`group-hover/card:`, `[&>a]:`, `aria-[current=page]:`), an
 // opacity (`/80`) and an important mark (`!`, either end) are all still the class -- the first version stopped at
-// whitespace and quotes, and the 2026-10-12 review passed all five of those shapes through it.
-var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + `]*:)?!?(?:text|bg|border|ring|outline|fill|stroke|decoration|divide)-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border)))(?:[^a-z0-9-]|$)`)
+// whitespace and quotes, and the 2026-10-12 review passed all five of those shapes through it. The utility family is
+// any word, not a list: Tailwind v4 makes a colour utility of every family from a `--color-*` property
+// (`border-t-`, `caret-`, `shadow-`, `from-`, `ring-offset-`), and the 2026-10-13 review passed seven of those through a
+// listed set.
+var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + `]*:)?!?[a-z]+(?:-[a-z]+)*?-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border)))(?:[^a-z0-9-]|$)`)
 
 // colourRoleReaders are the only functions that may write a colour role's class. Each is in layout.templ.
 var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", "backgroundClass", "hoverWashClass",
@@ -69,7 +72,7 @@ func TestColourRoleClassesComeOnlyFromTheirReaders(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, f := range files {
-		t.Errorf("%s writes the colour-role class(es) %v by hand -- read the role through inkClass/accentHoverClass, so a change to how a role reaches CSS is made in one place", f, found[f])
+		t.Errorf("%s writes the colour-role class(es) %v by hand -- read the role through its reader (%v), so a change to how a role reaches CSS is made in one place", f, found[f], colourRoleReaders)
 	}
 }
 

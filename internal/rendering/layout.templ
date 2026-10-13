@@ -2,6 +2,8 @@ package rendering
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -202,10 +204,14 @@ func inkRoleVar(role domain.InkRole) string {
 // from the default Theme, and nothing at all for a Workspace that declares no colour (so the default theme adds no
 // bytes). A closed shade becomes `var(--color-…)`, a colour value is written as itself; the loader accepts only
 // `#rrggbb` (domain.IsColourValue), and this checks again before writing, because the result goes into a `<style>`.
+//
+// Every list is ranged from the domain's closed sets (sorted, for 007 §4.6 determinism), so a role or tone added there
+// is written here without anyone remembering to; the 2026-10-13 review dropped `neutral` and `muted` from a
+// hand-written list and nothing failed.
 func themeCSS(ctx context.Context) string {
 	th, def := CurrentWorkspace(ctx).Theme, domain.DefaultTheme()
 	var decl []string
-	for _, role := range []domain.InkRole{domain.InkStrong, domain.InkBody, domain.InkSecondary, domain.InkFaint, domain.InkAccent} {
+	for _, role := range slices.Sorted(maps.Keys(domain.KnownInkRoles)) {
 		shade := th.InkFor(role)
 		if shade == def.InkFor(role) {
 			continue
@@ -222,17 +228,17 @@ func themeCSS(ctx context.Context) string {
 			decl = append(decl, "--color-accent-hover:var("+accentHoverShadeVar(shade)+")")
 		}
 	}
-	for _, role := range []domain.BorderRole{domain.BorderSurface, domain.BorderControl, domain.BorderDivider} {
+	for _, role := range slices.Sorted(maps.Keys(domain.KnownBorderRoles)) {
 		if shade := th.BorderFor(role); shade != def.BorderFor(role) {
 			decl = append(decl, "--color-border-"+string(role)+":var("+borderShadeVar(shade)+")")
 		}
 	}
-	for _, role := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase, domain.BackgroundSunken} {
+	for _, role := range slices.Sorted(maps.Keys(domain.KnownBackgroundRoles)) {
 		if shade := th.BackgroundFor(role); shade != def.BackgroundFor(role) {
 			decl = append(decl, "--color-bg-"+string(role)+":var("+backgroundShadeVar(shade)+")")
 		}
 	}
-	for _, tone := range []domain.BadgeTone{domain.ToneNeutral, domain.ToneInfo, domain.ToneGood, domain.ToneBad, domain.ToneWarn, domain.ToneMuted} {
+	for _, tone := range slices.Sorted(maps.Keys(domain.KnownBadgeTones)) {
 		if p := th.ToneFor(tone); p != def.ToneFor(tone) {
 			n := "--color-tone-" + string(tone)
 			decl = append(decl, n+"-bg:var("+toneFillVar(p)+")", n+"-ink:var("+toneInkVar(p)+")", n+"-border:var("+toneEdgeVar(p)+")")
