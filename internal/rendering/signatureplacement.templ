@@ -195,7 +195,7 @@ templ placementCanvas(v PlacementView) {
 		<img
 			src={ placementPreviewHref(ctx, v.DocumentID, v.Page) }
 			alt={ fmt.Sprintf("Page %d of the document", v.Page) }
-			class={ "block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface) }
+			class={ "block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), paperClass() }
 		/>
 		for _, s := range v.Steps {
 			if s.Placed && s.Page == v.Page {
@@ -264,7 +264,7 @@ templ placementBoxLabel(s PlacementStep, editable bool) {
 			templ.KV("bg-blue-600", editable), templ.KV("bg-slate-400", !editable) }
 	>{ fmt.Sprint(s.Index) }</span>
 	<span class="flex min-w-0 flex-col">
-		<span class={ "truncate text-3xs font-medium", inkClass(ctx, domain.InkBody) }>
+		<span class={ "truncate text-3xs font-medium", paperInkClass(domain.InkBody) }>
 			if s.Approver != "" {
 				{ s.Approver }
 			} else {
@@ -272,7 +272,7 @@ templ placementBoxLabel(s PlacementStep, editable bool) {
 			}
 		</span>
 		if s.ApproverKind != "" {
-			<span class={ "truncate text-3xs", inkClass(ctx, domain.InkSecondary) }>{ s.ApproverKind }</span>
+			<span class={ "truncate text-3xs", paperInkClass(domain.InkSecondary) }>{ s.ApproverKind }</span>
 		}
 	</span>
 }

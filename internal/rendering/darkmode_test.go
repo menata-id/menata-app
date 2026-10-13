@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -27,9 +29,21 @@ var darkFollowsByAlias = map[string]string{
 // value on a dark page -- a white card, a pale badge -- and nothing else would fail. Closed both ways: a dark value
 // for a property light does not declare fails too, and so does a stale alias entry.
 func TestEveryColourPropertyHasADarkValue(t *testing.T) {
-	light, dark := themeVarDefaults(t), themeVarDarkDefaults(t)
+	// Every `--color-*` input.css declares, not only the names the readers draw through: the 3.3 review added a
+	// `--color-paper` read from a Go string and this gate, scoped to colourPropertyNames, stayed green.
+	lightCSS, darkCSS := inputCSSModes(t)
+	light, dark := allColourDecls(lightCSS), allColourDecls(darkCSS)
+	if len(light) < 40 {
+		t.Fatalf("found only %d colour properties on input.css's light side -- the scan stopped matching", len(light))
+	}
 	compiled := compiledCSSVars(t)
 	for _, k := range slices.Sorted(maps.Keys(light)) {
+		if _, same := darkSameInBothModes[k]; same {
+			if _, ok := dark[k]; ok {
+				t.Errorf("%s is in darkSameInBothModes and also has a dark value -- drop one", k)
+			}
+			continue
+		}
 		why, alias := darkFollowsByAlias[k]
 		v, ok := dark[k]
 		switch {
@@ -52,9 +66,55 @@ func TestEveryColourPropertyHasADarkValue(t *testing.T) {
 			t.Errorf("input.css's dark block declares %s, which has no light value", k)
 		}
 	}
-	for k := range darkFollowsByAlias {
-		if _, ok := light[k]; !ok {
-			t.Errorf("darkFollowsByAlias names %s, which input.css no longer declares -- remove it", k)
+	for _, m := range []map[string]string{darkFollowsByAlias, darkSameInBothModes} {
+		for k := range m {
+			if _, ok := light[k]; !ok {
+				t.Errorf("%s is excused from a dark value but input.css no longer declares it -- remove the entry", k)
+			}
+		}
+	}
+}
+
+// darkSameInBothModes are colour properties deliberately one value in both modes, with the reason.
+var darkSameInBothModes = map[string]string{
+	"--color-brand": "the brand mark's own blue (the M lockup); a mark, not a surface or an ink",
+}
+
+// allColourDecls is every `--color-<name>: <value>;` in css, comments removed.
+func allColourDecls(css string) map[string]string {
+	css = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	out := map[string]string{}
+	for _, m := range regexp.MustCompile(`(--color-[a-z0-9-]+):\s*([^;]+);`).FindAllStringSubmatch(css, -1) {
+		out[m[1]] = strings.TrimSpace(m[2])
+	}
+	return out
+}
+
+// TestPaperLayerReadsNoThemeRole holds DK9 where the 3.3 review broke it: what is drawn over a PDF page (a signature
+// marker, its label, its number) sits on a page that is white in both modes, so it may not read a Theme colour role,
+// which turns light in dark mode. It reads paperInkClass and literal marker colours instead.
+func TestPaperLayerReadsNoThemeRole(t *testing.T) {
+	for file, fns := range map[string][]string{
+		"reviewdocument.templ":     {"reviewSignatureBox"},
+		"signatureplacement.templ": {"placementBoxLabel"},
+	} {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, fn := range fns {
+			src := string(b)
+			i := strings.Index(src, "templ "+fn+"(")
+			if i < 0 {
+				t.Fatalf("%s: no templ %s -- update this gate", file, fn)
+			}
+			body := src[i:]
+			body = body[:strings.Index(body, "\n}\n")]
+			for _, reader := range []string{"inkClass(", "backgroundClass(", "borderClass(", "toneInkClass(", "toneFillClass(", "onFillClass("} {
+				if strings.Contains(body, reader) {
+					t.Errorf("%s: %s calls %s -- a mark on the PDF page sits on white in both modes; use paperInkClass or a literal paper colour (DK9)", file, fn, reader)
+				}
+			}
 		}
 	}
 }

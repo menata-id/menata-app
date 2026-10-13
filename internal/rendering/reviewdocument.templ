@@ -331,7 +331,7 @@ templ reviewSignaturePanel(v ReviewView) {
 			@staticText(domain.StaticCaption, "No signature position has been placed for this document yet.")
 		} else {
 			<div class={ "relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) }>
-				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class="block w-full"/>
+				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class={ "block w-full", paperClass() }/>
 				for _, b := range v.SignatureBoxes {
 					@reviewSignatureBox(b)
 				}
@@ -385,7 +385,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 				class={ "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border bg-white text-3xs font-medium",
 					templ.KV(markGoodBorder()+" text-emerald-600", b.Kind == "signed"),
 					templ.KV("border-blue-500 text-blue-600", b.Kind == "yours"),
-					templ.KV("border-slate-400 " + inkClass(ctx, domain.InkSecondary), b.Kind == "waiting") }
+					templ.KV("border-slate-400 " + paperInkClass(domain.InkSecondary), b.Kind == "waiting") }
 			>{ fmt.Sprint(b.Index) }</span>
 			<span
 				role="img"
@@ -402,7 +402,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 			class={ "mt-1 truncate text-3xs",
 				templ.KV("text-emerald-700", b.Kind == "signed"),
 				templ.KV("text-blue-700", b.Kind == "yours"),
-				templ.KV(inkClass(ctx, domain.InkSecondary), b.Kind == "waiting") }
+				templ.KV(paperInkClass(domain.InkSecondary), b.Kind == "waiting") }
 		>{ b.Label }</div>
 	</div>
 }
@@ -523,7 +523,7 @@ templ reviewDecisionBar(v ReviewView) {
 // before any bubble-phase document listener) -- without that, htmx would read the hidden
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
-	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg", scrimClass(true) }>
+	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), backgroundClass(ctx, domain.BackgroundRaised), inkClass(ctx, domain.InkStrong), "shadow-lg", scrimClass(true) }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class={ "mt-1.5 mb-3 text-2xs", inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
 		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>

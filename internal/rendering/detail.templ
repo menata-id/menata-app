@@ -377,7 +377,7 @@ func documentPreviewField(ctx context.Context) string {
 templ pdfThumbnail(machineID, recordID string) {
 	<div class="mt-2">
 		<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)) } target="_blank">
-			<img src={ fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID) } alt="Document PDF preview, page 1" class={ "block max-w-40 rounded border", borderClass(ctx, domain.BorderSurface) }/>
+			<img src={ fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID) } alt="Document PDF preview, page 1" class={ "block max-w-40 rounded border", borderClass(ctx, domain.BorderSurface), paperClass() }/>
 		</a>
 	</div>
 }

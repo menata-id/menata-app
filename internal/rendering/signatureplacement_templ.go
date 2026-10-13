@@ -581,7 +581,7 @@ func placementCanvas(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var28 = []any{"block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}
+		var templ_7745c5c3_Var28 = []any{"block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), paperClass()}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -994,7 +994,7 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var54 = []any{"truncate text-3xs font-medium", inkClass(ctx, domain.InkBody)}
+		var templ_7745c5c3_Var54 = []any{"truncate text-3xs font-medium", paperInkClass(domain.InkBody)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var54...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1037,7 +1037,7 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if s.ApproverKind != "" {
-			var templ_7745c5c3_Var57 = []any{"truncate text-3xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var57 = []any{"truncate text-3xs", paperInkClass(domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var57...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

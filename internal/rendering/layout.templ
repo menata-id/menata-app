@@ -869,6 +869,22 @@ func scrimClass(backdrop bool) string {
 	return "bg-scrim"
 }
 
+// paperClass and paperInkClass are the PDF paper layer (owner decision DK9): a page image and what is drawn over it
+// stay light in both modes, because a document is printed on white. The page PNG is transparent, so the image itself
+// carries the white (the 3.3 review found dark text on a dark page without it), and text on a marker over the page reads
+// a fixed paper ink rather than a Theme role, which would turn light in dark mode (slate-200 on a pale marker, 1.2:1).
+// The marker fills and accents beside them are literal for the same reason (handWrittenColours).
+func paperClass() string {
+	return "bg-white"
+}
+
+func paperInkClass(role domain.InkRole) string {
+	if role == domain.InkSecondary {
+		return "text-slate-500"
+	}
+	return "text-slate-700"
+}
+
 // htmxErrorToastClasses is the notice htmx shows for a refused request: the `bad` tone's edge, fill and ink, so it
 // follows a Workspace's tone and dark mode like every other message. A script clones it from a `<template>` (appShell),
 // because a class string written inside a script is one no reader moves.

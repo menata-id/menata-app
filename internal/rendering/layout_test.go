@@ -1401,7 +1401,7 @@ func TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites(t *testing.T)
 		return resolveColourRoles(t, ctx, buf.String())
 	}
 	modal := render(signatureModal("s1"))
-	if !strings.Contains(modal, "border border-slate-300 p-3 shadow-lg") {
+	if !strings.Contains(modal, "border border-slate-300 p-3 bg-white text-slate-900 shadow-lg") {
 		t.Errorf("the signature dialog must take panel padding and the surface edge from the theme: %s", modal)
 	}
 	home := render(WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}))
@@ -1427,11 +1427,11 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 	}{
 		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-600/40 border-slate-200"`},
 		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-600/40 border-slate-200"`},
-		"signature dialog":     {signatureModal("s1"), `class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"`},
+		"signature dialog":     {signatureModal("s1"), `class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"`},
 		"signature frame":      {reviewSignaturePanel(ReviewView{SignaturePage: 1, SignaturePreviewHref: "/p", SignatureStepCount: 1}), `class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50"`},
 		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2`},
-		"pdf thumbnail":        {pdfThumbnail("mch_document", "rec_1"), `class="block max-w-40 rounded border border-slate-200"`},
-		"placement page frame": {placementCanvas(PlacementView{DocumentID: "d", Page: 1, TotalPages: 1}), `class="block w-full rounded-md border border-slate-200"`},
+		"pdf thumbnail":        {pdfThumbnail("mch_document", "rec_1"), `class="block max-w-40 rounded border border-slate-200 bg-white"`},
+		"placement page frame": {placementCanvas(PlacementView{DocumentID: "d", Page: 1, TotalPages: 1}), `class="block w-full rounded-md border border-slate-200 bg-white"`},
 		"home suggestion chip": {WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}), `class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"`},
 	} {
 		var buf strings.Builder

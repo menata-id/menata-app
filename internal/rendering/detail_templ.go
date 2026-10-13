@@ -1879,7 +1879,7 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var113 = []any{"block max-w-40 rounded border", borderClass(ctx, domain.BorderSurface)}
+		var templ_7745c5c3_Var113 = []any{"block max-w-40 rounded border", borderClass(ctx, domain.BorderSurface), paperClass()}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var113...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

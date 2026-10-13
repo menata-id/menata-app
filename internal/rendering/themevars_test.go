@@ -51,11 +51,17 @@ func inputCSSModes(t *testing.T) (light, dark string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	light, dark, ok := strings.Cut(string(b), inputCSSDarkBlock)
+	before, rest, ok := strings.Cut(string(b), inputCSSDarkBlock)
 	if !ok {
 		t.Fatalf("input.css has no %q block -- the dark-mode values moved", inputCSSDarkBlock)
 	}
-	return light, dark
+	// The block ends at its own closing brace in column 0; whatever follows it is light again (the 3.3 review: a
+	// property declared after the block would otherwise have been read as a dark value).
+	dark, after, ok := strings.Cut(rest, "\n}\n")
+	if !ok {
+		t.Fatal("input.css's dark block does not close at column 0")
+	}
+	return before + after, dark
 }
 
 func colourPropertyDecls(t *testing.T, css string) map[string]string {

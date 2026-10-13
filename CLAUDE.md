@@ -1214,8 +1214,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - **Test helpers split the two modes**: `themeVarDefaults` and `compiledColours` read the light side only, while
     `themeVarDarkDefaults` and `compiledDarkColours` apply the dark block. Without that split, a dark value silently
     replaced the light one in every resolved assertion.
+  - **The independent review found two real defects, both fixed.**
+    - **The PDF page PNG is transparent**, so in dark mode a document's dark text sat on the dark page. The page image
+      now carries the paper itself (`paperClass()`, white in both modes), at all three sites.
+    - **Text on the paper layer read Theme roles, which turn light in the dark.** A marker's approver name was slate-200
+      on a pale marker, 1.2:1. Marks over the page read `paperInkClass` (fixed slate-700/500), and
+      `TestPaperLayerReadsNoThemeRole` refuses a role reader in `reviewSignatureBox` and `placementBoxLabel`.
+    - The author's audit could not see the first defect: it takes a background from `background-color` and ignores
+      images. Paper is a judgement the gate states; no scan derives it.
+    - The two `<dialog>`s now take their surface and ink from the Theme. Before, `color-scheme` left them on the
+      browser's Canvas colours in dark mode.
+    - `TestEveryColourPropertyHasADarkValue` now reads every `--color-*` in input.css, not only the names the readers
+      use (a `--color-paper` read from a Go string had passed). `darkSameInBothModes` holds `brand`.
+    - `TestNoSiteWritesADarkVariant` (conformance) refuses any `dark:` class; `dark:opacity-50` had passed every gate.
   - Verified in Chromium:
-    - light mode is 0 colour differences over 106 pages against HEAD;
+    - light mode is 0 colour differences over 106 pages against HEAD (before the review fixes; after them, only the
+      three page images' white backing and the two dialogs' ink move);
     - a contrast audit of every text element in dark mode found only faint and muted text below 4.5:1 (by design;
       higher than in light) and the brand glyph, which is the same in both modes.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
