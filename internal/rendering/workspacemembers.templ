@@ -83,7 +83,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			</div>
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapComfortable) }>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ labelByID(ctx, "nav_workspace_groups") } →</a>
-				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
+				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		}
 		<details class={ surfaceClasses(ctx) }>
@@ -124,7 +124,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 						<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 							if names[m.UserRecordID] != "" && names[m.UserRecordID] != m.Email {
 								<span class="truncate text-sm">{ names[m.UserRecordID] }</span>
-								<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
+								<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ m.Email }</span>
 							} else {
 								<span class="truncate text-sm">{ m.Email }</span>
 							}
@@ -135,7 +135,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					</div>
 					<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "sm:w-44" }>
 						if len(roleApps) == 0 {
-							<span class="text-sm text-slate-400">—</span>
+							<span class={ "text-sm", inkClass(ctx, domain.InkFaint) }>—</span>
 						}
 						for _, app := range roleApps {
 							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
@@ -143,7 +143,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					</div>
 					<div class={ "flex flex-wrap", layoutGap(ctx, domain.GapMicro), "sm:w-32" }>
 						if len(m.Groups) == 0 {
-							<span class="text-2xs text-slate-400">Direct</span>
+							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Direct</span>
 						}
 						for _, g := range m.Groups {
 							@statusBadge("Group: "+g.Name, domain.ToneNeutral, domain.BadgeCompact)
@@ -174,7 +174,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					</div>
 					<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "sm:w-44" }>
 						if len(roleApps) == 0 {
-							<span class="text-sm text-slate-400">—</span>
+							<span class={ "text-sm", inkClass(ctx, domain.InkFaint) }>—</span>
 						}
 						for _, app := range roleApps {
 							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
@@ -230,7 +230,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 				if name != "" && name != m.Email {
 					<span class={ "truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ name }</span>
-					<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
+					<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ m.Email }</span>
 				} else {
 					<span class={ "truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ m.Email }</span>
 				}

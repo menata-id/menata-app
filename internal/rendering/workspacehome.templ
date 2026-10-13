@@ -142,7 +142,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 							// The role reads under the name below `sm` and in its own column above it:
 							// the mockup's desktop row has four columns of its own, and a phone has room
 							// for one.
-							<span class="text-xs text-slate-400 sm:hidden">Your role: { displayRole(app.Role) }</span>
+							<span class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:hidden" }>Your role: { displayRole(app.Role) }</span>
 						</span>
 						<span class="hidden w-42 shrink-0 text-xs text-slate-500 sm:block">
 							Your role: <span class="text-slate-900">{ displayRole(app.Role) }</span>
@@ -155,7 +155,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 							if app.ShowPending && app.PendingCount > 0 {
 								@statusBadge(fmt.Sprintf("%d pending", app.PendingCount), domain.ToneInfo, domain.BadgeRegular)
 							} else if app.ShowCount {
-								<span class="hidden whitespace-nowrap text-slate-400 sm:inline">
+								<span class={ "hidden whitespace-nowrap", inkClass(ctx, domain.InkSecondary), "sm:inline" }>
 									{ fmt.Sprintf("%d %s", app.Count, app.CountLabel) }{ pluralS(app.Count) }
 								</span>
 							}
@@ -251,10 +251,10 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 						{ s.Label }
 					</a>
 				}
-				<span class="ml-auto text-2xs text-slate-400">Only workspace admins can add applications</span>
+				<span class={ "ml-auto text-2xs", inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
 			}
 		} else {
-			<span class="text-2xs text-slate-400">Only workspace admins can add applications</span>
+			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
 		}
 		// The other way to add one: install a ready-made Application from the template library instead
 		// of describing a new one (2026-09-28). **Not on the mockup's board** -- it draws no

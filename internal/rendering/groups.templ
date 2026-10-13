@@ -50,11 +50,11 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300" }>
 					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ g.Name }</span>
-						<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
+						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
 					</div>
 					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						if len(g.Grants) == 0 {
-							<span class="text-2xs text-slate-400">Grants no role yet</span>
+							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Grants no role yet</span>
 						}
 						for _, app := range roleApps {
 							if role, ok := g.Grants[app.ID]; ok {
@@ -94,7 +94,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_workspace_groups") }</a>
 		<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			@staticText(domain.StaticHeading, group.Name)
-			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
+			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
 		</div>
 		@sectionLayout(domain.GapComfortable) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
@@ -104,7 +104,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 			<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/members") } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
 				@csrfHiddenInput()
 				if len(members) == 0 {
-					<p class="m-0 text-sm text-slate-400">This Workspace has no members to add.</p>
+					<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>This Workspace has no members to add.</p>
 				}
 				for _, m := range members {
 					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3 hover:border-blue-300" }>
@@ -126,7 +126,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 			<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/roles") } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 				@csrfHiddenInput()
 				if len(roleApps) == 0 {
-					<p class="m-0 text-sm text-slate-400">No Application declares a role vocabulary yet.</p>
+					<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>No Application declares a role vocabulary yet.</p>
 				}
 				for _, app := range roleApps {
 					@columnsLayout(domain.GapTight, domain.ColumnsAlignCenter) {

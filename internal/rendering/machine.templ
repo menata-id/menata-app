@@ -436,7 +436,7 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900", hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
 					<span class="grow font-medium">{ m.Name }</span>
-					<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
+					<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 				</a>
 			}
 			if len(machines) == 0 {
@@ -490,7 +490,7 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, m.Name)
-		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
+		<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 	</div>
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
@@ -506,7 +506,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 							if f.Required {
 								<span class="text-xs font-medium text-red-600">yes</span>
 							} else {
-								<span class="text-xs text-slate-400">no</span>
+								<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>no</span>
 							}
 						</td>
 					</tr>
@@ -923,7 +923,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 			}
 			if canEdit {
 				<details class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md" }>
-					<summary aria-label={ "Edit " + title } class="grid size-5 cursor-pointer list-none place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden">
+					<summary aria-label={ "Edit " + title } class={ "grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), "hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden" }>
 						@icon("pencil", "size-3.5")
 					</summary>
 					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
@@ -1227,7 +1227,7 @@ type ProjectedField struct {
 // -- no currency/date-reformatting logic invented beyond what internal/composition already does
 // for values like SubmittedAt.
 templ projectedFieldValue(p ProjectedField) {
-	<span class="text-slate-400">{ p.Label }</span>
+	<span class={ inkClass(ctx, domain.InkSecondary) }>{ p.Label }</span>
 	if p.Role == string(domain.CardFieldRoleStatus) {
 		@statusBadge(p.Display, domain.ToneInfo, domain.BadgeCompact)
 	} else {

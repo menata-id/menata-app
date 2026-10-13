@@ -983,7 +983,7 @@ func settingsTurnOffNote() templ.Component {
 			templ_7745c5c3_Var55 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var56 = []any{textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkFaint)}
+		var templ_7745c5c3_Var56 = []any{textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var56...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

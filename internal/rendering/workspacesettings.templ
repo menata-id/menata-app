@@ -94,7 +94,7 @@ const (
 // (an invitation is not a membership, but it is drawn beside one).
 // settingsGroupHeading names one group of rows, in the hub and in the sidebar that mirrors it (boards 04, M04a).
 templ settingsGroupHeading(text string) {
-	<h2 class="m-0 px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ text }</h2>
+	<h2 class={ "m-0 px-3 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ text }</h2>
 }
 
 templ workspaceSettingsFrame(active string) {

@@ -163,9 +163,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticHeading, recordTitle(m, r))
 			if action.IsDocument(m) {
-				<code class="font-mono text-2xs text-slate-400">{ action.DocumentReference(r.SortOrder) }</code>
+				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkSecondary) }>{ action.DocumentReference(r.SortOrder) }</code>
 			} else {
-				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
+				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
 			}
 		</div>
 		if len(extras.Tags) > 0 {
@@ -409,7 +409,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 		>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticHeading, recordTitle(m, r))
-				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
+				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
 			</div>
 			<dl class={ "m-0 grid grid-cols-1 items-center gap-x-4 gap-y-3", surfaceClasses(ctx), "p-4 text-sm sm:grid-cols-[10rem_1fr]" }>
 				for _, f := range m.Fields {

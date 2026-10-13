@@ -72,7 +72,7 @@ templ authError(msg string) {
 // authFooterNote is the small slate line under the card ("Don't have an account? ..."), which
 // every pre-auth screen ends with in some form.
 templ authFooterNote() {
-	<div class="text-2xs text-slate-400">
+	<div class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>
 		{ children... }
 	</div>
 }
@@ -178,7 +178,7 @@ templ authPasswordToggle(inputID string) {
 		aria-label="Show password"
 		title="Show password"
 		onclick="var i=document.getElementById(this.getAttribute('aria-controls'));if(!i)return;var reveal=i.type==='password';i.type=reveal?'text':'password';this.setAttribute('aria-pressed',String(reveal));this.setAttribute('aria-label',reveal?'Hide password':'Show password');this.setAttribute('title',reveal?'Hide password':'Show password');this.querySelectorAll('svg').forEach(function(s){s.classList.toggle('hidden')});"
-		class="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-md text-slate-400 hover:text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-300"
+		class={ "absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-md", inkClass(ctx, domain.InkSecondary), "hover:text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-300" }
 	>
 		<svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
 			<path stroke-linecap="round" stroke-linejoin="round" d="M2.04 12.32a1.01 1.01 0 0 1 0-.64C3.42 7.51 7.36 4.5 12 4.5c4.64 0 8.57 3.01 9.96 7.18.07.21.07.43 0 .64C20.58 16.49 16.64 19.5 12 19.5c-4.64 0-8.57-3.01-9.96-7.18Z"></path>

@@ -190,14 +190,14 @@ templ reviewDocumentCard(v ReviewView) {
 			}
 		}
 		if v.FileHref == "" {
-			<p class="m-0 text-sm text-slate-400">No file is attached to this document.</p>
+			<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>No file is attached to this document.</p>
 		} else {
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3" }>
 				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "bg-red-100 text-2xs font-medium text-red-700" }>PDF</span>
 				<span class="flex min-w-0 flex-col">
 					<span class="truncate text-sm">{ v.FileName }</span>
 					if v.PDFPages > 0 {
-						<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d page", v.PDFPages) }{ pluralS(v.PDFPages) }</span>
+						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d page", v.PDFPages) }{ pluralS(v.PDFPages) }</span>
 					}
 				</span>
 			</div>
@@ -232,9 +232,9 @@ templ reviewProgress(steps []StepApprover) {
 								@statusBadge("You", domain.ToneInfo, domain.BadgeCompact)
 							}
 						</span>
-						<span class="text-2xs text-slate-400">{ reviewStepStatusLine(s) }</span>
+						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ reviewStepStatusLine(s) }</span>
 						if s.SignaturePage > 0 {
-							<span class="text-2xs text-slate-400">{ reviewStepSignatureLine(s) }</span>
+							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ reviewStepSignatureLine(s) }</span>
 						}
 					</span>
 				</li>
@@ -336,7 +336,7 @@ templ reviewSignaturePanel(v ReviewView) {
 					@reviewSignatureBox(b)
 				}
 			</div>
-			<div class="text-right text-3xs text-slate-400">{ reviewSignaturePageLabel(v) }</div>
+			<div class={ "text-right text-3xs", inkClass(ctx, domain.InkSecondary) }>{ reviewSignaturePageLabel(v) }</div>
 			@reviewSignatureLegend()
 			<p class="m-0 text-2xs leading-5 text-slate-500">
 				Numbers match the approval steps on the left. Boxes sit where the submitter placed them.
@@ -402,7 +402,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 			class={ "mt-1 truncate text-3xs",
 				templ.KV("text-emerald-700", b.Kind == "signed"),
 				templ.KV("text-blue-700", b.Kind == "yours"),
-				templ.KV("text-slate-400", b.Kind == "waiting") }
+				templ.KV(inkClass(ctx, domain.InkSecondary), b.Kind == "waiting") }
 		>{ b.Label }</div>
 	</div>
 }
@@ -470,7 +470,7 @@ templ reviewDecisionBar(v ReviewView) {
 			<span class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticOverline, "SLA")
 				if v.SLALabel == "" {
-					<span class="text-sm text-slate-400">No due date</span>
+					<span class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No due date</span>
 				} else {
 					<span class={ "text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV("text-slate-500", !v.SLAOverdue) }>
 						{ v.SLALabel }
@@ -490,7 +490,7 @@ templ reviewDecisionBar(v ReviewView) {
 			} else if v.Decision != action.DecisionPending {
 				@statusBadge(v.Decision, domain.ToneNeutral, domain.BadgeRegular)
 			} else {
-				<span class="text-2xs text-slate-400">Awaiting its own assignee's decision</span>
+				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Awaiting its own assignee's decision</span>
 			}
 		}
 	}

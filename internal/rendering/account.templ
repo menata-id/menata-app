@@ -45,7 +45,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 						disabled
 						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border border-slate-200 bg-slate-50 px-3 text-[15px] text-slate-500 sm:h-9.5 sm:text-sm" }
 					/>
-					<p class="m-0 text-2xs text-slate-400">Your sign-in email -- contact a workspace admin to change this.</p>
+					<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>Your sign-in email -- contact a workspace admin to change this.</p>
 				</div>
 			}
 			<div class="flex justify-end gap-2.5">
@@ -167,7 +167,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
 				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>
 			</div>
-			<button disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), "bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-400" }>Enable</button>
+			<button disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), "bg-slate-50 px-3 py-1.5 text-xs font-medium " + inkClass(ctx, domain.InkFaint) }>Enable</button>
 		</section>
 	}
 }

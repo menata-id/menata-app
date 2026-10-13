@@ -85,12 +85,12 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 						<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 							if row.Name != "" && row.Name != row.Email {
 								<span class="truncate text-sm">{ row.Name }</span>
-								<span class="truncate text-2xs text-slate-400">{ row.Email }</span>
+								<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ row.Email }</span>
 							} else {
 								<span class="truncate text-sm">{ row.Email }</span>
 							}
 							if row.Deactivated {
-								<span class="text-2xs text-slate-400">Deactivated</span>
+								<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Deactivated</span>
 							}
 							for _, role := range row.GroupRoles {
 								<span class="text-2xs text-slate-500">+ { role } through a Group</span>

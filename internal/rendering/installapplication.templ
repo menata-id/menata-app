@@ -84,7 +84,7 @@ templ installableCard(t InstallableTemplate) {
 				if t.Description != "" {
 					<span class="text-xs leading-5 text-slate-500">{ t.Description }</span>
 				}
-				<span class="text-2xs text-slate-400">{ machineSummary(t.MachineNames) }</span>
+				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ machineSummary(t.MachineNames) }</span>
 			</div>
 		</div>
 		if len(t.Refusals) > 0 {

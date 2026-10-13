@@ -299,7 +299,7 @@ templ placementStepCard(s PlacementStep, page int) {
 			</span>
 			@approverKindBadge(s.ApproverKind)
 		}
-		<span class="text-2xs text-slate-400">{ placementSubline(s) }</span>
+		<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ placementSubline(s) }</span>
 		if s.Editable {
 			@widthControl(s, page)
 			@placeStepForm(s, page)

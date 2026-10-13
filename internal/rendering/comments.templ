@@ -98,7 +98,7 @@ templ commentRow(a ActivityEntry) {
 		@stackLayout(domain.GapTight) {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				<span class="text-sm font-medium">{ a.Actor }</span>
-				<span class="text-xs text-slate-400">{ a.When }</span>
+				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
 			}
 			<p class="m-0 whitespace-pre-wrap text-sm text-slate-700">{ a.Summary }</p>
 		}

@@ -198,7 +198,7 @@ templ settingsNavGroup(title string) {
 // settingsTurnOffNote says the one thing the hub cannot do from here: turning an Application off is a
 // Workspace-level decision, so it points there.
 templ settingsTurnOffNote() {
-	<span class={ textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkFaint) }>
+	<span class={ textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 		To turn this application off, use
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>.
 	</span>

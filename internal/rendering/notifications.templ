@@ -54,7 +54,7 @@ templ notificationRow(n NotificationRow) {
 		}
 		<span class="min-w-0 flex-1">
 			<span class={ "block text-sm text-slate-900", templ.KV("font-medium", n.Unread) }>{ n.Message }</span>
-			<span class="block text-xs text-slate-400">{ n.CreatedAt }</span>
+			<span class={ "block text-xs", inkClass(ctx, domain.InkSecondary) }>{ n.CreatedAt }</span>
 		</span>
 	</a>
 }

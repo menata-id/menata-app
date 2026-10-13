@@ -180,7 +180,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					} else {
 						// gap-1.5 rather than spaces inside the separator: both parts are flex items, and
 					// whitespace at a flex item's own edge collapses, so " / " rendered as "/Title".
-					<nav aria-label="Breadcrumb" class={ "flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), "text-sm text-slate-400" }>
+					<nav aria-label="Breadcrumb" class={ "flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), "text-sm " + inkClass(ctx, domain.InkSecondary) }>
 							@workspaceMenu(workspaceName, viewer, switchWorkspaceHref)
 							// Workspace Home names itself in its own <h1>, so repeating it here as
 							// "Dokter Kecil / Home" is the duplication board 03 leaves out -- its
@@ -521,7 +521,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 		@sheetPanel("menata-more-sheet", true, "") {
 			<div class="flex items-center justify-between px-3 pt-1 pb-2">
 				<span class="text-base font-medium text-slate-900">More</span>
-				<span class="truncate text-xs text-slate-400">{ app.Name }</span>
+				<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ app.Name }</span>
 			</div>
 			<a href="/home" class={ "flex items-center gap-3.5", radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
 				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "text-slate-500" }>
@@ -529,7 +529,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				</span>
 				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
-					<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
+					<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ workspaceName }</span>
 				</span>
 				<span class="text-slate-300">
 					@icon("chevron-right", "size-4")
@@ -563,7 +563,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
 						if other.Description != "" {
-							<span class="truncate text-xs text-slate-400">{ other.Description }</span>
+							<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ other.Description }</span>
 						}
 					</span>
 					<span class="text-slate-300">
@@ -624,7 +624,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class="truncate text-sm font-medium text-slate-900">{ workspaceName }</span>
 					if viewer.WorkspaceRole != "" {
-						<span class="text-xs text-slate-400">{ displayRole(viewer.WorkspaceRole) }</span>
+						<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ displayRole(viewer.WorkspaceRole) }</span>
 					}
 				</span>
 			</div>
@@ -819,7 +819,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 						<span class="truncate text-sm font-medium text-slate-900">{ viewer.Name }</span>
 					}
 					if viewer.Email != "" {
-						<span class="truncate text-xs text-slate-400">{ viewer.Email }</span>
+						<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ viewer.Email }</span>
 					}
 				</div>
 				<div class="my-1 h-px bg-slate-100"></div>
@@ -863,7 +863,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 // chooseworkspace.templ's own type, reused as-is rather than declaring a second one for the
 // identical shape.
 templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID string) {
-	<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Workspaces</div>
+	<div class={ "px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Workspaces</div>
 	for _, c := range choices {
 		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm text-slate-900", hoverWashClass(ctx) }>
 			if c.ID == currentWorkspaceID {
@@ -872,7 +872,7 @@ templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID str
 				<span class="size-3.5 shrink-0"></span>
 			}
 			<span class="grow truncate">{ c.Name }</span>
-			<span class="shrink-0 text-xs text-slate-400">{ displayRole(c.Role) }</span>
+			<span class={ "shrink-0 text-xs", inkClass(ctx, domain.InkSecondary) }>{ displayRole(c.Role) }</span>
 		</a>
 	}
 	<a href="/switch-workspace" class={ "block px-3 py-2 text-xs", inkClass(ctx, domain.InkAccent) }>Switch workspace →</a>
@@ -935,7 +935,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			// items in the first place; the fix here is additive, not a reversal of that gate.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 				<div class="my-1 h-px bg-slate-100"></div>
-				<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase sm:px-2">Administration</div>
+				<div class={ "px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:px-2" }>Administration</div>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900", hoverWashClass(ctx), "sm:p-2" }>
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
@@ -946,7 +946,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 						// `description:` (that is the subtitle on the screen itself, and says something else), and
 						// no navigation key declares a menu hint -- the missing capability is 007 §12.3's ActionBar
 						// (below). It names what the destination holds, so it moves with that screen.
-						<span class={ "text-xs text-slate-400", weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
+						<span class={ "text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
 					</span>
 				</a>
 				// METADATA CANNOT EXPRESS THIS YET, same exception workspaceMenu's own copy of
@@ -962,7 +962,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 					</span>
 					<span class="flex flex-col">
 						New application
-						<span class={ "text-xs text-slate-400", weightClass(ctx, domain.WeightBody) }>Describe it, Menata builds a draft</span>
+						<span class={ "text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Describe it, Menata builds a draft</span>
 					</span>
 				</a>
 			}
@@ -1028,7 +1028,7 @@ templ activityEntryRow(a ActivityEntry) {
 	if a.Actor != "" {
 		@statusBadge(a.Actor, domain.ToneNeutral, domain.BadgeCompact)
 	}
-	<span class="ml-auto text-xs text-slate-400">{ a.When }</span>
+	<span class={ "ml-auto text-xs", inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
 }
 
 templ sectionHeaderRow(title, linkHref, linkLabel string) {

@@ -612,22 +612,24 @@ func TestStaticHeadingEyebrowParagraph_followTheTheme(t *testing.T) {
 }
 
 // TestStaticOverline_defaultIsTheLiteralEachSiteReplaced pins the nine-site pre-migration `<span>` (Account x3,
-// Administration x3, Drafts, Submitted, SLA) and shows the eyebrow role and the faint ink each moving it.
+// Administration x3, Drafts, Submitted, SLA) and shows the eyebrow role and the secondary ink each moving it. The ink
+// changed once on purpose (rencana 1.2b, 2026-10-13): a section label names its section, so it is content, and the
+// Design System keeps `faint` for hints and decoration. slate-400 became slate-500.
 func TestStaticOverline_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 	var buf bytes.Buffer
 	if err := staticText(domain.StaticOverline, "Account").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if got, want := resolveColourRoles(t, context.Background(), buf.String()), `<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>`; got != want {
+	if got, want := resolveColourRoles(t, context.Background(), buf.String()), `<span class="text-3xs tracking-wide text-slate-500 uppercase">Account</span>`; got != want {
 		t.Errorf("overline rendered %q, want %q", got, want)
 	}
 	th := domain.Theme{
 		Text: map[domain.TextRole]domain.TextScale{domain.RoleEyebrow: domain.TextSmall},
-		Ink:  map[domain.InkRole]domain.InkShade{domain.InkFaint: domain.InkShadeDarkest},
+		Ink:  map[domain.InkRole]domain.InkShade{domain.InkSecondary: domain.InkShadeDarkest},
 	}
 	got := renderWithTheme(t, th, staticText(domain.StaticOverline, "Account"))
 	if !strings.Contains(got, "text-xs") || !strings.Contains(got, "text-slate-900") {
-		t.Errorf("a declared eyebrow size and faint ink should move it; got %q", got)
+		t.Errorf("a declared eyebrow size and secondary ink should move it; got %q", got)
 	}
 }
 

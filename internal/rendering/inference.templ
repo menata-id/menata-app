@@ -131,7 +131,7 @@ templ inferenceStepBlock(n InferenceStep) {
 		}
 		@dataTable(n.Step, inferenceColumns("What was resolved")) {
 			for _, row := range n.Rows {
-				<tr class={ templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }>
+				<tr class={ templ.KV(inkClass(ctx, domain.InkFaint), !row.IsDefect && row.Status == "not applicable") }>
 					<td class={ tableCellClasses(ctx) }><code>{ row.Derivation }</code></td>
 					<td class={ tableCellClasses(ctx) }>
 						if row.Value != "" {
@@ -139,7 +139,7 @@ templ inferenceStepBlock(n InferenceStep) {
 						} else {
 							// Rendered as a visible dash, never a guessed default: an empty
 							// derivation that looks ordinary is precisely the /review 404.
-							<span class="text-slate-400">&mdash;</span>
+							<span class={ inkClass(ctx, domain.InkFaint) }>&mdash;</span>
 						}
 					</td>
 					<td class={ tableCellClasses(ctx), "text-slate-500" }>{ row.From }</td>
@@ -162,12 +162,12 @@ templ inferenceRoleBlock(r InferenceRole) {
 				@statusBadge("uncast", domain.ToneMuted, domain.BadgeRegular)
 			}
 			if !r.Required {
-				<span class="text-2xs text-slate-400">optional role</span>
+				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>optional role</span>
 			}
 		</div>
 		@dataTable(r.Role, inferenceColumns("Derivation")) {
 			for _, row := range r.Rows {
-				<tr class={ templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }>
+				<tr class={ templ.KV(inkClass(ctx, domain.InkFaint), !row.IsDefect && row.Status == "not applicable") }>
 					<td class={ tableCellClasses(ctx) }><code>{ row.Derivation }</code></td>
 					<td class={ tableCellClasses(ctx) }>
 						if row.Value != "" {
@@ -175,7 +175,7 @@ templ inferenceRoleBlock(r InferenceRole) {
 						} else {
 							// Rendered as a visible dash, never a guessed default: an empty
 							// derivation that looks ordinary is precisely the /review 404.
-							<span class="text-slate-400">&mdash;</span>
+							<span class={ inkClass(ctx, domain.InkFaint) }>&mdash;</span>
 						}
 					</td>
 					<td class={ tableCellClasses(ctx), "text-slate-500" }>{ row.From }</td>

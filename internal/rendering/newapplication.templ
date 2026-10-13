@@ -87,7 +87,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 						<input id="msg" type="text" name="message" required value={ view.PrefillIdea } placeholder="Type your answer…" class={ fieldClasses(ctx) + " grow" }/>
 						<button id="send-btn" type="submit" class={ buttonClasses(ctx, domain.ButtonPrimary) }>Send</button>
 					</form>
-					<p id="thinking-note" class="hidden m-0 text-xs text-slate-400">Menata is thinking — this can take up to a minute.</p>
+					<p id="thinking-note" class={ "hidden m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>Menata is thinking — this can take up to a minute.</p>
 				</div>
 			</section>
 			<aside aria-label="What will be built" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
@@ -96,7 +96,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 					<span class="text-xs text-slate-500">Updated as you answer.</span>
 				</div>
 				if !view.ReadyToReview {
-					<p class="m-0 text-xs text-slate-400">Nothing to show yet -- keep answering.</p>
+					<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>Nothing to show yet -- keep answering.</p>
 				} else {
 					@changeSummary(view.Summary)
 					<a href={ templ.SafeURL("/new-application/" + view.SessionID + "/review") } class={ buttonClasses(ctx, domain.ButtonPrimary) + " justify-center" }>
@@ -106,7 +106,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 				if view.SessionID != "" {
 					<form method="post" action={ templ.SafeURL("/new-application/" + view.SessionID + "/discard") }>
 						@csrfHiddenInput()
-						<button type="submit" class="cursor-pointer text-xs text-slate-400 hover:text-red-600">Discard this conversation</button>
+						<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>Discard this conversation</button>
 					</form>
 				}
 			</aside>
@@ -136,17 +136,17 @@ templ changeSummary(change aiassist.GeneratedChange) {
 		{{ app := change.Application }}
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm" }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-				<span class="text-3xs text-slate-400 uppercase">Name</span>
+				<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Name</span>
 				<span>{ app.Name }</span>
 			</div>
 			if app.Description != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					<span class="text-3xs text-slate-400 uppercase">What it does</span>
+					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>What it does</span>
 					<span class="text-slate-700">{ app.Description }</span>
 				</div>
 			}
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-				<span class="text-3xs text-slate-400 uppercase">Data it keeps</span>
+				<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Data it keeps</span>
 				@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 					for _, m := range app.Machines {
 						@statusBadge(m.Name, domain.ToneNeutral, domain.BadgeRegular)
@@ -155,7 +155,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			</div>
 			if len(app.Navigation) > 0 {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					<span class="text-3xs text-slate-400 uppercase">Menu</span>
+					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Menu</span>
 					<ol class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapHair), "pl-4 text-slate-700" }>
 						for _, item := range app.Navigation {
 							<li>{ item.Label }</li>
@@ -165,7 +165,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			}
 			if len(app.Roles) > 0 {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					<span class="text-3xs text-slate-400 uppercase">Roles</span>
+					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Roles</span>
 					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						for _, r := range app.Roles {
 							@statusBadge(r, domain.ToneNeutral, domain.BadgeRegular)
@@ -176,7 +176,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 		</div>
 	} else if change.Kind == aiassist.KindUpdateApplication && change.Application != nil {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-sm" }>
-			<span class="text-3xs text-slate-400 uppercase">Updates</span>
+			<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Updates</span>
 			<span>{ change.Application.Name }</span>
 		</div>
 	}
@@ -217,7 +217,7 @@ templ updatePlan(plan aiassist.Plan) {
 		for _, op := range []string{"add", "change", "remove"} {
 			if items := planItemsFor(plan, op); len(items) > 0 {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					<span class="text-3xs text-slate-400 uppercase">{ planOpLabel(op) }</span>
+					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ planOpLabel(op) }</span>
 					<ul class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapMicro), "pl-4 text-slate-700" }>
 						for _, item := range items {
 							<li>
@@ -302,7 +302,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900", hoverWashClass(ctx) }>Keep as draft</a>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()
-					<button type="submit" class="cursor-pointer text-xs text-slate-400 hover:text-red-600">
+					<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>
 						if change.Kind == aiassist.KindNewApplication {
 							Discard application
 						} else {

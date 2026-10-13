@@ -55,7 +55,7 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 				<span class="text-xs text-slate-500">Pending decision</span>
 			</span>
 		} else {
-			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-slate-100 text-slate-400">{ seqLabel }</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-slate-100", inkClass(ctx, domain.InkFaint) }>{ seqLabel }</span>
 			<span class="flex flex-col">
 				<span class="text-sm font-medium text-slate-900">{ assignee }</span>
 				<span class="text-xs text-slate-500">Waiting</span>
