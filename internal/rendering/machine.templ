@@ -348,9 +348,9 @@ func avatarClasses(ctx context.Context, size domain.AvatarSize, presence domain.
 	case domain.AvatarCompact:
 		dim = "size-6 text-3xs"
 	}
-	tone := "bg-slate-200 " + inkClass(ctx, domain.InkBody)
+	tone := borderFillClass(ctx, domain.BorderSurface) + " " + inkClass(ctx, domain.InkBody)
 	if presence == domain.AvatarPending {
-		tone = "border border-dashed border-slate-300 " + inkClass(ctx, domain.InkFaint)
+		tone = "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + inkClass(ctx, domain.InkFaint)
 	}
 	return "flex shrink-0 items-center justify-center rounded-full font-medium " + dim + " " + tone
 }
@@ -559,9 +559,9 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 		<nav class={ "inline-flex", layoutGap(ctx, domain.GapHair), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label="View">
 			for _, o := range views {
 				if o.ID == selected.ID {
-					<span class={ "rounded bg-slate-100 px-3 py-1 text-xs font-medium", inkClass(ctx, domain.InkStrong) } aria-current="true">{ o.Name }</span>
+					<span class={ "rounded " + backgroundClass(ctx, domain.BackgroundSunken) + " px-3 py-1 text-xs font-medium", inkClass(ctx, domain.InkStrong) } aria-current="true">{ o.Name }</span>
 				} else {
-					<a class={ "rounded px-3 py-1 text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-slate-900" } href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
+					<a class={ "rounded px-3 py-1 text-xs", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) } href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
 				}
 			}
 		</nav>
@@ -760,7 +760,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
 				<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
 					<h3 class={ "m-0 text-xs font-medium", inkClass(ctx, domain.InkBody) }>{ col.Label }</h3>
-					<span class={ radiusClass(ctx, domain.RadiusPill), "bg-white px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
+					<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
 				if col.Hint != "" {
 					@staticText(domain.StaticCaption, col.Hint)
@@ -913,7 +913,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						type="submit"
 						aria-pressed={ fmt.Sprint(done) }
 						aria-label={ completeLabel(done, title) }
-						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done) }
+						class={ "grid size-5 place-items-center rounded-full border-2 " + onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done) }
 					>
 						if done {
 							@icon("check", "size-3")
@@ -923,7 +923,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 			}
 			if canEdit {
 				<details class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md" }>
-					<summary aria-label={ "Edit " + title } class={ "grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), "hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden" }>
+					<summary aria-label={ "Edit " + title } class={ "grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden" }>
 						@icon("pencil", "size-3.5")
 					</summary>
 					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
@@ -1013,7 +1013,7 @@ func cardTitleFieldID(m *domain.Machine) string {
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
 templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 	<details class="group">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " hover:text-slate-900 group-open:hidden" }>Add a card</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
 		<form
 			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
@@ -1031,7 +1031,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
 templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
 	<details class="relative">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800" }>{ "New " + strings.ToLower(m.Name) }</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 text-xs font-medium " + onFillClass(ctx) + " hover:bg-slate-800" }>{ "New " + strings.ToLower(m.Name) }</summary>
 		<form
 			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-4 shadow-lg" }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }

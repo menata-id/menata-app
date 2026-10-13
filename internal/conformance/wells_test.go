@@ -23,15 +23,9 @@ var handWrittenWellFills = map[string]struct {
 	n   int
 	why string
 }{
-	"appshell.templ":        {7, "seven h-px menu dividers: a rule drawn as a 1px fill, not a surface (the divider role is an edge)"},
-	"account.templ":         {2, "the read-only email box and a disabled button: a disabled control's look"},
-	"approvalinbox.templ":   {1, "the waiting approver chip's fill (approverChipTone): a chip, with no tone of its steps"},
 	"approvalstepper.templ": {1, "a waiting step's circle: a marker, not a surface"},
-	"authshell.templ":       {1, "the pre-auth <body>: no Workspace on ctx, no theme reaches it"},
-	"machine.templ":         {1, "the board's selected view tab: a state, not a surface"},
-	"newapplication.templ":  {1, "the assistant's chat bubble: its own shape, not a well"},
-	"reviewdocument.templ":  {2, "the reference <code> chip and a waiting signature marker"},
-	"workspacehome.templ":   {2, "an Application's default icon colour (a palette) and a suggestion chip"},
+	"reviewdocument.templ":  {1, "the reference <code> chip and a waiting signature marker"},
+	"workspacehome.templ":   {1, "an Application's default icon colour (a palette) and a suggestion chip"},
 }
 
 func TestHandWrittenWellFillsOnlyShrink(t *testing.T) {

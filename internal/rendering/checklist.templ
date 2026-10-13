@@ -78,7 +78,7 @@ templ checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) {
 						type="submit"
 						aria-pressed={ fmt.Sprint(it.Complete.Done) }
 						aria-label={ completeLabel(it.Complete.Done, it.Text) }
-						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), it.Complete.Done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !it.Complete.Done) }
+						class={ "grid size-5 place-items-center rounded-full border-2 " + onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), it.Complete.Done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !it.Complete.Done) }
 					>
 						if it.Complete.Done {
 							@icon("check", "size-3")

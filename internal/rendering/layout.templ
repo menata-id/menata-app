@@ -587,6 +587,80 @@ func tileClasses(ctx context.Context) string {
 	return strings.Join([]string{radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}, " ")
 }
 
+// The forms below put an existing colour role into another utility (owner decision 3.2d, 2026-10-13: no new roles;
+// every remaining colour pairs with one that exists). Each is a property `input.css` already declares, so a Workspace's
+// override and a future dark mode move them with their role. Each arm is a whole literal for Tailwind's scanner.
+
+// inkFillClass is a text-colour role used as a fill. The primary button is `strong` as a fill with `onFillClass` as
+// its text -- an inverse pair whose contrast is the strong-on-raised pair the loader already measures (CP1) -- and
+// the accent marks (the current step, an unread dot) are `accent` as a fill (CP2).
+func inkFillClass(ctx context.Context, role domain.InkRole) string {
+	if role == domain.InkAccent {
+		return "bg-accent"
+	}
+	return "bg-ink-strong"
+}
+
+// inkEdgeClass is `strong` as an edge, for the selected filter chip whose rim matches its fill.
+func inkEdgeClass(ctx context.Context) string {
+	return "border-ink-strong"
+}
+
+// checkedFillClass is a toggle's fill when its peer checkbox is on: the primary fill.
+func checkedFillClass(ctx context.Context) string {
+	return "peer-checked:bg-ink-strong"
+}
+
+// onFillClass is text on a filled mark (a primary button, a step circle, a count badge): the raised surface's colour
+// as ink, so it inverts with the fill (CP1).
+func onFillClass(ctx context.Context) string {
+	return "text-bg-raised"
+}
+
+// borderFillClass is an edge role used as a fill: a 1px rule (`h-px`, `w-px`), a drag handle, an avatar (the Design
+// System's `avatar-fill` is `{border-surface}`), a toggle's track.
+func borderFillClass(ctx context.Context, role domain.BorderRole) string {
+	switch role {
+	case domain.BorderDivider:
+		return "bg-border-divider"
+	case domain.BorderControl:
+		return "bg-border-control"
+	default:
+		return "bg-border-surface"
+	}
+}
+
+// inkHoverClass is a text-colour role as a hover, for grey controls that darken on hover.
+func inkHoverClass(ctx context.Context, role domain.InkRole) string {
+	if role == domain.InkBody {
+		return "hover:text-ink-body"
+	}
+	return "hover:text-ink-strong"
+}
+
+// sunkenHoverClass is the stronger hover wash for small icon buttons and pills that sit on `base`.
+func sunkenHoverClass(ctx context.Context) string {
+	return "hover:bg-bg-sunken"
+}
+
+// controlAccentClass is a native checkbox's or radio's `accent-color`: the accent, so it follows the Workspace (CP2).
+func controlAccentClass(ctx context.Context) string {
+	return "accent-accent"
+}
+
+// accentActiveClass is the active navigation item's ink: the accent's hover step (owner decision NAV1, blue-700).
+func accentActiveClass(ctx context.Context) string {
+	return "text-accent-hover"
+}
+
+// baseTintClass is `base` as a translucent band (the role matrix's header and footer bands).
+func baseTintClass(ctx context.Context, percent int) string {
+	if percent == 40 {
+		return "bg-bg-base/40"
+	}
+	return "bg-bg-base/50"
+}
+
 // markGoodFill, markGoodBorder and markGoodHoverBorder are the Design System artifact's `mark-good` token
 // (emerald-600): the solid fill of a "finished" mark. That covers a ticked checklist circle and a progress bar's
 // filled share. The artifact accepted it on 2026-10-07 and names it outside `tone-*` on purpose: a tone is a bg+ink

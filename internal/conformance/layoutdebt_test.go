@@ -264,6 +264,38 @@ var (
 	inkDefaults   = map[string]string{"InkStrong": "text-slate-900", "InkBody": "text-slate-700", "InkSecondary": "text-slate-500", "InkFaint": "text-slate-400", "InkAccent": "text-blue-600"}
 )
 
+// colourReadersAsLiterals rewrites every colour reader call -- the role readers and 3.2d's reader forms -- as the
+// palette class it draws under the default Theme. Rencana 3.2d moved 143 more colour literals to readers, and four
+// shape gates (chips, h-9 buttons, fields, panel titles) lost floors that were still hand-written in every other
+// respect: L13 a fourth time. Only shape gates apply it; a value gate counts the reader as the migration it is.
+// `TestColourRewriteMatchesTheDefaultTheme` holds the table to the defaults derived from the code.
+func colourReadersAsLiterals(src string) string {
+	src = inkReadersAsLiterals(borderReadersAsLiterals(src))
+	return colourReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		if v, ok := colourDefaults[m]; ok {
+			return `"` + v + `"`
+		}
+		return m
+	})
+}
+
+var colourDefaults = map[string]string{
+	"backgroundClass(ctx, domain.BackgroundRaised)": "bg-white", "backgroundClass(ctx, domain.BackgroundBase)": "bg-slate-50",
+	"backgroundClass(ctx, domain.BackgroundSunken)": "bg-slate-100",
+	"toneFillClass(ctx, domain.ToneNeutral)":        "bg-slate-100", "toneInkClass(ctx, domain.ToneNeutral)": "text-slate-600",
+	"toneFillClass(ctx, domain.ToneInfo)": "bg-blue-50", "toneInkClass(ctx, domain.ToneInfo)": "text-blue-700",
+	"toneFillClass(ctx, domain.ToneGood)": "bg-emerald-50", "toneInkClass(ctx, domain.ToneGood)": "text-emerald-700",
+	"toneFillClass(ctx, domain.ToneBad)": "bg-red-50", "toneInkClass(ctx, domain.ToneBad)": "text-red-700",
+	"toneFillClass(ctx, domain.ToneWarn)": "bg-amber-50", "toneInkClass(ctx, domain.ToneWarn)": "text-amber-800",
+	"toneFillClass(ctx, domain.ToneMuted)": "bg-slate-50", "toneInkClass(ctx, domain.ToneMuted)": "text-slate-400",
+	"onFillClass(ctx)": "text-white", "inkFillClass(ctx, domain.InkStrong)": "bg-slate-900",
+	"inkFillClass(ctx, domain.InkAccent)": "bg-blue-600", "inkEdgeClass(ctx)": "border-slate-900",
+	"borderFillClass(ctx, domain.BorderSurface)": "bg-slate-200", "borderFillClass(ctx, domain.BorderDivider)": "bg-slate-100",
+	"accentActiveClass(ctx)": "text-blue-700",
+}
+
+var colourReaderCall = regexp.MustCompile(`\b(?:backgroundClass|toneFillClass|toneInkClass|onFillClass|inkFillClass|inkEdgeClass|borderFillClass|accentActiveClass)\(ctx(?:, [\w.]+)?\)`)
+
 // joinClassLiterals is joinClassExpressions without the reader rewrite: string literals only.
 func joinClassLiterals(src string) string {
 	return classExpression.ReplaceAllStringFunc(src, func(m string) string {

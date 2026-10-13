@@ -832,7 +832,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var50 = []any{"flex flex-wrap items-baseline", layoutGap(ctx, domain.GapTight), "border-b border-slate-100 pb-1.5"}
+		var templ_7745c5c3_Var50 = []any{"flex flex-wrap items-baseline", layoutGap(ctx, domain.GapTight), "border-b " + borderClass(ctx, domain.BorderDivider) + " pb-1.5"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var50...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

@@ -1145,7 +1145,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			var templ_7745c5c3_Var64 = []any{"flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium", inkClass(ctx, domain.InkBody)}
+			var templ_7745c5c3_Var64 = []any{"flex size-6 shrink-0 items-center justify-center rounded-full " + borderFillClass(ctx, domain.BorderSurface) + " text-3xs font-medium", inkClass(ctx, domain.InkBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var64...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1170,7 +1170,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(s.Index))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 292, Col: 188}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 292, Col: 226}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 			if templ_7745c5c3_Err != nil {

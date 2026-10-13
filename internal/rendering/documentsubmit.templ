@@ -299,7 +299,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<span class={ "w-full text-2xs", inkClass(ctx, domain.InkSecondary) }>Step <span class="before:[content:counter(approver-step)]"></span> approver</span>
 		<span
 			aria-hidden="true"
-			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"
+			class={ "flex size-7 shrink-0 items-center justify-center rounded-full", inkFillClass(ctx, domain.InkAccent), "text-3xs font-medium", onFillClass(ctx), "before:[content:counter(approver-step)]" }
 		></span>
 		<select
 			name={ fields.ApproverType }
@@ -331,8 +331,8 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 			}
 		</select>
 		<span class={ "ml-auto flex items-center", layoutGap(ctx, domain.GapMicro) }>
-			<button type="button" title="Move up" aria-label="Move step up" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), "hover:text-slate-700" } _="on click if the previous &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; before the previous &lt;.approver-row/&gt; end">▲</button>
-			<button type="button" title="Move down" aria-label="Move step down" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), "hover:text-slate-700" } _="on click if the next &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; after the next &lt;.approver-row/&gt; end">▼</button>
+			<button type="button" title="Move up" aria-label="Move step up" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) } _="on click if the previous &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; before the previous &lt;.approver-row/&gt; end">▲</button>
+			<button type="button" title="Move down" aria-label="Move step down" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) } _="on click if the next &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; after the next &lt;.approver-row/&gt; end">▼</button>
 			<button type="button" title="Remove" aria-label="Remove step" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" } _="on click remove closest &lt;.approver-row/&gt;">✕</button>
 		</span>
 	</div>

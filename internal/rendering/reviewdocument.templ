@@ -119,7 +119,7 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 		</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<code class="rounded bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ v.Reference }</code>
+				<code class={ "rounded", toneFillClass(ctx, domain.ToneNeutral), "px-2 py-0.5 text-2xs", toneInkClass(ctx, domain.ToneNeutral) }>{ v.Reference }</code>
 				@reviewStatusPill(v.Status)
 			}
 			@staticText(domain.StaticHeading, v.Title)
@@ -250,8 +250,8 @@ templ reviewStepMarker(s StepApprover, position int) {
 	<span
 		aria-hidden="true"
 		class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-3xs font-medium",
-			templ.KV(markGoodFill()+" text-white", s.State == "done"),
-			templ.KV("bg-blue-600 text-white ring-4 ring-blue-100", s.State == "current"),
+			templ.KV(markGoodFill()+" " + onFillClass(ctx), s.State == "done"),
+			templ.KV(inkFillClass(ctx, domain.InkAccent) + " " + onFillClass(ctx) + " ring-4 ring-blue-100", s.State == "current"),
 			templ.KV("bg-red-500 text-white", s.State == "rejected"),
 			templ.KV("bg-slate-200 " + inkClass(ctx, domain.InkSecondary), s.State == "waiting") }
 	>
@@ -526,7 +526,7 @@ templ signatureModal(stepID string) {
 	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40" }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class={ "mt-1.5 mb-3 text-2xs", inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
-		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed border-slate-300 bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
+		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
 		<div class={ "mt-3 flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			<button type="button" class={ "sig-modal-clear cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Clear</button>
 			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>

@@ -43,13 +43,13 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 		if done {
 			// A finished step's ✓ is the Design System's mark-good with white, as the review screen draws it (owner decision
 			// M1, 2026-10-12). It was blue, the `info` tone, which means "in progress".
-			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", markGoodFill(), "text-white" }>✓</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", markGoodFill(), onFillClass(ctx) }>✓</span>
 			<span class="flex flex-col">
 				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
 				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ capitalize(decision) } · { s.UpdatedAt.Format("15:04") }</span>
 			</span>
 		} else if behavior.CanAct(seq, parent, s, siblings) {
-			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-600 text-white">{ seqLabel }</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", inkFillClass(ctx, domain.InkAccent), onFillClass(ctx) }>{ seqLabel }</span>
 			<span class="flex flex-col">
 				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
 				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>Pending decision</span>

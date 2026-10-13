@@ -27,7 +27,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 			if hasUnread(rows) {
 				<form method="POST" action="/notifications/mark-all-read">
 					@csrfHiddenInput()
-					<button type="submit" class={ "flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Mark all as read</button>
+					<button type="submit" class={ "flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-sm font-medium " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Mark all as read</button>
 				</form>
 			}
 		</div>
@@ -45,10 +45,10 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 templ notificationRow(n NotificationRow) {
 	<a
 		href={ templ.URL(n.Link) }
-		class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread) }
+		class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised) + " p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread) }
 	>
 		if n.Unread {
-			<span class="size-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
+			<span class={ "size-2 shrink-0 rounded-full", inkFillClass(ctx, domain.InkAccent) } aria-hidden="true"></span>
 		} else {
 			<span class="size-2 shrink-0 rounded-full bg-transparent" aria-hidden="true"></span>
 		}

@@ -100,7 +100,7 @@ templ settingsGroupHeading(text string) {
 templ workspaceSettingsFrame(active string) {
 	@columnsLayout(domain.GapLoose, domain.ColumnsAlignStart) {
 		<aside class={ "hidden w-55 shrink-0 flex-col", layoutGap(ctx, domain.GapLoose), "sm:flex" } aria-label={ labelByID(ctx, "nav_workspace_settings") }>
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="px-3 text-xs text-blue-600 hover:text-blue-800">← { labelByID(ctx, "nav_workspace_settings") }</a>
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "px-3 text-xs", inkClass(ctx, domain.InkAccent), "hover:text-blue-800" }>← { labelByID(ctx, "nav_workspace_settings") }</a>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupWorkspace)
 				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)

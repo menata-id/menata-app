@@ -51,7 +51,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 				for _, t := range view.Turns {
 					@conversationBubble(t)
 				}
-				<div class={ "mt-auto flex flex-col", layoutGap(ctx, domain.GapTight), "border-t border-slate-100 pt-4" }>
+				<div class={ "mt-auto flex flex-col", layoutGap(ctx, domain.GapTight), "border-t " + borderClass(ctx, domain.BorderDivider) + " pt-4" }>
 					// Auto-submits itself when #msg already holds a value on load -- true only for a
 					// PrefillIdea'd first message (see that field's own doc comment), never for a
 					// redirect back into an existing conversation, since that always renders #msg
@@ -117,11 +117,11 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 templ conversationBubble(t ConversationTurn) {
 	if t.FromUser {
 		<div class="flex justify-end">
-			<div class="max-w-md rounded-lg bg-blue-50 px-3.5 py-2.5 text-sm">{ t.Message }</div>
+			<div class={ "max-w-md rounded-lg", toneFillClass(ctx, domain.ToneInfo), "px-3.5 py-2.5 text-sm" }>{ t.Message }</div>
 		</div>
 	} else {
 		<div class="flex flex-col gap-1.5">
-			<div class="max-w-md rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm">{ t.Message }</div>
+			<div class={ "max-w-md rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-2.5 text-sm" }>{ t.Message }</div>
 			if t.CapabilityGap != "" {
 				<span class="text-2xs text-amber-600">Noted for later: "{ t.CapabilityGap }" isn't something Menata can build yet.</span>
 			}
@@ -299,7 +299,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				</form>
 				// The draft is already stored (Home lists it as a row), so this is a way out that says so, not
 				// a save: it only leaves.
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Keep as draft</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Keep as draft</a>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()
 					<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>

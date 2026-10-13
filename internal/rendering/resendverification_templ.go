@@ -138,7 +138,7 @@ func ResendVerificationPage(message string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var8 = []any{inkClass(ctx, domain.InkSecondary), "hover:text-slate-700"}
+				var templ_7745c5c3_Var8 = []any{inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

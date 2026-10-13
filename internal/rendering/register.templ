@@ -1,5 +1,7 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // RegistrationPage is login.html's "Create a workspace" flow (development-history.md Phase 21 Step 3):
 // registration creates a new Workspace and its first member (that Workspace's Admin) in one step
 // -- there is no path to a bare user account with nowhere to go. errorMsg is shown when a prior
@@ -27,7 +29,7 @@ templ RegistrationPage(errorMsg string) {
 			</form>
 		}
 		@authFooterNote() {
-			Already have a workspace? <a href="/login" class="text-blue-600 hover:text-blue-700">Sign in</a>
+			Already have a workspace? <a href="/login" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Sign in</a>
 		}
 	}
 }

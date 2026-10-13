@@ -156,7 +156,7 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := mutedParaNote.ReplaceAllString(string(b), "")
+		src := joinClassExpressions(colourReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
 		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
 			if hasToken(m[1], "text-xl") {
 				t.Errorf("%s: a hand-written heading at text-xl -- use `@staticText(domain.StaticHeading, text)` (007 §12.6; theme.text.heading)", e.Name())
@@ -308,7 +308,7 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 				floors[e.Name()] = n
 			}
 		}
-		for _, m := range buttonLiteralOpen.FindAllStringSubmatch(joinClassExpressions(src), -1) {
+		for _, m := range buttonLiteralOpen.FindAllStringSubmatch(joinClassExpressions(colourReadersAsLiterals(src)), -1) {
 			if has(m[1], "h-9") && (has(m[1], "bg-white") || has(m[1], "bg-slate-900")) {
 				literals[e.Name()]++
 			}
@@ -352,10 +352,7 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 // capability. The way back is a runtime-level theme loaded before any Workspace exists (a new metadata key, loader
 // support and the installer mirror), worth building only when a cross-Workspace branding need is real; there is
 // no such case in `menata-app-document`'s `case-portfolio.md` (grepped for brand|theme|logo|login, 2026-10-07: one unrelated hit). Until then the four stay literal and say so.
-var handWrittenFieldFloors = map[string]int{
-	"authshell.templ": 2, // pre-auth kit (authField, authPasswordField); no Workspace on ctx, 007 §12.6 has no runtime-level Theme
-	"login.templ":     2, // pre-auth sign-in; the same boundary, and a 15px mobile target the kit shares
-}
+var handWrittenFieldFloors = map[string]int{}
 
 var fieldTagOpen = regexp.MustCompile(`(?s)<(?:input|select|textarea)\b(?:[^>{]|\{[^}]*\})*>`)
 var fieldTagClass = regexp.MustCompile(`\bclass="([^"]*)"`)
@@ -414,11 +411,7 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 // `TestHandWrittenLayoutSitesOnlyShrink`'s count that way without being migrated, so it now joins class
 // expressions first (`joinClassExpressions`). The chip, field, button and paragraph ratchets were not widened: none
 // of their sites was touched here, and widening them is the same one-line change when one is.
-var handWrittenDividerFloors = map[string]int{
-	"appshell.templ":       1, // region rule under the header
-	"inference.templ":      1, // heading underline
-	"newapplication.templ": 1, // card body / footer rule
-}
+var handWrittenDividerFloors = map[string]int{}
 
 var dividerToken = regexp.MustCompile(`(?:^|[\s"])(?:(?:border|divide)-slate-100|font-normal)(?:[\s"]|$)`)
 

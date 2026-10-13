@@ -1157,8 +1157,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     `StaticMessage`/`StaticCaption` shape, and the gate could not see it. Five such sites moved to `staticText`; two stay
     as floors with reasons (a scripted `hidden` note, `px-0.5 leading-4`).
 
-  Variant-prefixed inks (`hover:text-slate-900`, …) and values no role names are still hand-written. They are the
-  rest of 3.2d.
+  **Then the rest of the colour, with no new role (owner decisions CP1–CP7, 2026-10-13):** 143 more literals read an
+  existing role. Some go through reader *forms*, which are new utilities over existing properties:
+  - `inkFillClass` (the primary button is `strong` as a fill);
+  - `onFillClass` (its text is the `raised` colour, an inverse pair the loader already measures);
+  - `borderFillClass` (1px rules, avatars);
+  - `inkHoverClass`, `sunkenHoverClass`, `controlAccentClass`, `accentActiveClass`, `baseTintClass`.
+
+  The computed-style diff of 106 pages and the hover diff were both 0. **What still stays literal:** the PDF "paper"
+  layer, the categorical palettes (Tag, app icons, file type; deferred to dark mode), the brand glyph, the focus
+  ring and the scrim (right in both modes), a JS toast string, and the sites the owner chose to fold (slice B).
+  - **The diff caught what no gate did.** The rewrite script joined two readers without a space
+    (`border-ink-strongbg-ink-strong`), and a filter chip and two empty states drew no fill. Every test was green.
+    A scan of every rendered class token against `app.css` selectors now finds none missing. That is rencana 3.5's
+    G2, still unbuilt.
+  - **L13 a fourth time.** The chip, h-9 button and panel-title gates read `colourReadersAsLiterals`, held to the
+    code by `TestColourRewriteMatchesTheDefaultTheme`. The field gate does not: it is a value gate.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

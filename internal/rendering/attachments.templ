@@ -84,7 +84,7 @@ templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
 					hx-swap="outerHTML"
 					hx-confirm={ "Remove " + it.Name + "?" }
 					aria-label={ "Remove " + it.Name }
-					class={ "grid size-7 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), inkClass(ctx, domain.InkSecondary) + " hover:bg-slate-100 hover:text-slate-600" }
+					class={ "grid size-7 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " hover:text-slate-600" }
 				>
 					@icon("trash", "size-4")
 				</button>

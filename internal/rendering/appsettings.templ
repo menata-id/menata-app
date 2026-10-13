@@ -202,7 +202,7 @@ templ settingsNavGroup(title string) {
 templ settingsTurnOffNote() {
 	<span class={ textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 		To turn this application off, use
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>.
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ inkClass(ctx, domain.InkAccent), "hover:text-blue-800" }>{ labelByID(ctx, "nav_workspace_settings") }</a>.
 	</span>
 }
 
@@ -352,7 +352,7 @@ templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, ac
 		} else {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapLoose), "sm:hidden" }>
 				if showingDetail {
-					<a href={ templ.SafeURL(hub.HubRoute) } class={ textClass(ctx, domain.RoleMeta), "text-blue-600 hover:text-blue-800" }>
+					<a href={ templ.SafeURL(hub.HubRoute) } class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent) + " hover:text-blue-800" }>
 						← { hub.Title }
 					</a>
 					@settingsPermissionsPane(hub, permissions)

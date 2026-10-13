@@ -72,7 +72,7 @@ func tableHeadCellClassesFor(ctx context.Context, a domain.TableAlign) string {
 func fieldClasses(ctx context.Context) string {
 	return strings.Join([]string{
 		"h-9", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl),
-		"bg-white px-3 font-sans", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong),
+		backgroundClass(ctx, domain.BackgroundRaised) + " px-3 font-sans", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong),
 		"focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300",
 	}, " ")
 }
@@ -124,12 +124,12 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 	text := textClass(ctx, domain.RoleBody)
 	switch variant {
 	case domain.ButtonPrimary:
-		return strings.Join([]string{prefix, radius, "border-0 bg-slate-900 px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), "text-white hover:bg-slate-800"}, " ")
+		return strings.Join([]string{prefix, radius, "border-0 " + inkFillClass(ctx, domain.InkStrong) + " px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx) + " hover:bg-slate-800"}, " ")
 	case domain.ButtonDanger:
 		// The danger recipe reads the `bad` tone's edge, ink and hover fill (DS-D16, DS-D11).
-		return strings.Join([]string{prefix, radius, "border", toneEdgeClass(ctx, domain.ToneBad), "bg-white px-4 font-sans", text, toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad)}, " ")
+		return strings.Join([]string{prefix, radius, "border", toneEdgeClass(ctx, domain.ToneBad), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 font-sans", text, toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad)}, " ")
 	default:
-		return strings.Join([]string{prefix, radius, "border", borderClass(ctx, domain.BorderSurface), "bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}, " ")
+		return strings.Join([]string{prefix, radius, "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 font-sans", text, inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}, " ")
 	}
 }
 
@@ -244,7 +244,7 @@ templ formInput(id, name, kind, options, value string, required bool) {
 				}
 			</select>
 		case domain.InputBoolean:
-			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class="size-4 accent-blue-600"/>
+			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class={ "size-4", controlAccentClass(ctx) }/>
 		case domain.InputDate:
 			<input id={ id } type="date" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
 		case domain.InputNumber:
@@ -324,7 +324,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 				}
 			</select>
 		case f.Type == domain.FieldTypeBoolean:
-			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class="size-4 accent-blue-600"/>
+			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class={ "size-4", controlAccentClass(ctx) }/>
 		case f.Type == domain.FieldTypeDate:
 			<input type="date" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type == domain.FieldTypeNumber:

@@ -38,13 +38,13 @@ templ LoginPage(errorMsg string) {
 						name="username"
 						autocomplete="username"
 						autofocus
-						class={ "h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
+						class={ "h-10.5 rounded-md border " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
 					/>
 				</div>
 				<div class="flex flex-col gap-2">
 					<div class="flex items-end justify-between">
 						<label for="password" class="text-sm font-medium">Password</label>
-						<a href="/forgot-password" class="text-xs text-blue-600 hover:text-blue-700 sm:text-2xs">Forgot password?</a>
+						<a href="/forgot-password" class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx), "sm:text-2xs" }>Forgot password?</a>
 					</div>
 					<div class="relative flex">
 						<input
@@ -52,7 +52,7 @@ templ LoginPage(errorMsg string) {
 							type="password"
 							name="password"
 							autocomplete="current-password"
-							class={ "h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden" }
+							class={ "h-10.5 w-full rounded-md border " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " pr-11 pl-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden" }
 						/>
 						@authPasswordToggle("password")
 					</div>
@@ -62,10 +62,10 @@ templ LoginPage(errorMsg string) {
 			</form>
 		}
 		@authFooterNote() {
-			Don't have an account? <a href="/register" class="text-blue-600 hover:text-blue-700">Create a workspace</a>
+			Don't have an account? <a href="/register" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Create a workspace</a>
 		}
 		@authFooterNote() {
-			Didn't get your verification email? <a href="/resend-verification" class="text-blue-600 hover:text-blue-700">Resend it</a>
+			Didn't get your verification email? <a href="/resend-verification" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Resend it</a>
 		}
 	}
 }

@@ -286,7 +286,7 @@ func GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleAp
 					return templ_7745c5c3_Err
 				}
 				if len(groups) == 0 {
-					var templ_7745c5c3_Var20 = []any{radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var20 = []any{radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

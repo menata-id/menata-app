@@ -69,7 +69,7 @@ func TestHandWrittenChipsOnlyShrink(t *testing.T) {
 		}
 		// A comment naming the shape is not a chip.
 		// A corner read through radiusClass is still a chip's corner (L13).
-		src := toneHelpersAsLiterals(radiusReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), "")))
+		src := colourReadersAsLiterals(toneHelpersAsLiterals(radiusReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), ""))))
 		for _, m := range chipTag.FindAllStringSubmatch(src, -1) {
 			a := m[1]
 			if chipRound.MatchString(a) && chipTint.MatchString(a) && chipPadX.MatchString(a) && chipSize.MatchString(a) {

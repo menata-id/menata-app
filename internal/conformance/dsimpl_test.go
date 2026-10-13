@@ -267,9 +267,7 @@ func readerArms(t *testing.T, src, fn string, consts map[string]string) map[stri
 var handWrittenSurfaceEdges = map[string]struct {
 	n   int
 	why string
-}{
-	"account.templ": {1, "the read-only email box: slate-200 on slate-50 is a disabled control's look, not a surface edge"},
-}
+}{}
 
 func TestHandWrittenSurfaceEdgesOnlyShrink(t *testing.T) {
 	counts := countLiteralTokens(t, surfaceEdgeToken)

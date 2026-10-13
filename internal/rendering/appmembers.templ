@@ -58,7 +58,7 @@ func pluralWord(n int, one, other string) string {
 templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(membersRolesTitle, workspaceName, viewer, switchWorkspaceHref) {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<a href={ templ.SafeURL(v.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">← { v.HubTitle }</a>
+			<a href={ templ.SafeURL(v.HubRoute) } class={ "text-xs", inkClass(ctx, domain.InkAccent), "hover:text-blue-800" }>← { v.HubTitle }</a>
 			@staticText(domain.StaticHeading, membersRolesTitle)
 			@staticText(domain.StaticMessage, "Who can use "+v.App.Name+", and with which role. A role here means nothing in other applications.")
 		</div>

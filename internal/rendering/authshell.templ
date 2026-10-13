@@ -31,7 +31,7 @@ templ authShell(title, heading, subtitle string) {
 			// plain <form>, so nothing on them is hx-driven.
 			@headMeta(title)
 		</head>
-		<body class={ "m-0 bg-slate-50 font-sans", inkClass(ctx, domain.InkStrong) }>
+		<body class={ "m-0 " + backgroundClass(ctx, domain.BackgroundBase) + " font-sans", inkClass(ctx, domain.InkStrong) }>
 			<div class={ "flex min-h-screen flex-col items-center", layoutGap(ctx, domain.GapRegion), "px-4 pt-18 pb-8 sm:gap-7 sm:pt-28" }>
 				<div class="flex flex-col items-center gap-2">
 					<div
@@ -100,7 +100,7 @@ templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
 			autocomplete={ autocomplete }
 			required
 			autofocus?={ autofocus }
-			class={ "h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
+			class={ "h-10.5 rounded-md border " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
 		/>
 	}
 }
@@ -120,7 +120,7 @@ templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
 				minlength="8"
 				required
 				autofocus?={ autofocus }
-				class={ "h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden" }
+				class={ "h-10.5 w-full rounded-md border " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " pr-11 pl-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden" }
 			/>
 			@authPasswordToggle(id)
 		</div>
@@ -196,7 +196,7 @@ templ authPasswordToggle(inputID string) {
 templ authSubmit(label string) {
 	<button
 		type="submit"
-		class="flex h-11 cursor-pointer items-center justify-center rounded-md bg-slate-900 px-4 text-[15px] font-medium text-white hover:bg-slate-800 sm:h-9 sm:text-sm"
+		class={ "flex h-11 cursor-pointer items-center justify-center rounded-md", inkFillClass(ctx, domain.InkStrong), "px-4 text-[15px] font-medium", onFillClass(ctx), "hover:bg-slate-800 sm:h-9 sm:text-sm" }
 	>
 		{ label }
 	</button>

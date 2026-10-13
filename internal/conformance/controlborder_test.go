@@ -25,13 +25,7 @@ var handWrittenControlBorders = map[string]struct {
 	n   int
 	why string
 }{
-	"approvalinbox.templ":   {1, "the dashed empty-state box (an EmptyState candidate, rencana 2.3), not a control"},
-	"groups.templ":          {1, "the dashed empty-state box, not a control"},
-	"workspacehome.templ":   {2, "two dashed empty-state boxes, not controls"},
-	"reviewdocument.templ":  {3, "signature markers: a waiting box's dashed outline, a dotted signing line, the dashed drawing canvas"},
-	"login.templ":           {2, "pre-auth inputs: no Workspace on ctx, so no theme reaches them (also floors in the field ratchet)"},
-	"authshell.templ":       {2, "pre-auth inputs: no Workspace on ctx, so no theme reaches them (also floors in the field ratchet)"},
-	"chooseworkspace.templ": {1, "pre-auth dashed \"create a workspace\" link: no theme reaches it, and dashed is an empty-state affordance"},
+	"reviewdocument.templ": {2, "signature markers: a waiting box's dashed outline, a dotted signing line, the dashed drawing canvas"},
 }
 
 func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {

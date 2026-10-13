@@ -864,7 +864,7 @@ func assignedTable(rows []AssignedRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if r.SLA.Present {
-				var templ_7745c5c3_Var38 = []any{"text-2xs", templ.KV("text-red-700", r.SLA.Urgent), templ.KV(inkClass(ctx, domain.InkSecondary), !r.SLA.Urgent)}
+				var templ_7745c5c3_Var38 = []any{"text-2xs", templ.KV(toneInkClass(ctx, domain.ToneBad), r.SLA.Urgent), templ.KV(inkClass(ctx, domain.InkSecondary), !r.SLA.Urgent)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var38...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -889,7 +889,7 @@ func assignedTable(rows []AssignedRow) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(r.SLA.Detail)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 317, Col: 147}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 317, Col: 166}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -1038,7 +1038,7 @@ func assignedDecisionLabel(key, label string) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var49 = []any{"text-xs",
-			templ.KV("font-medium text-blue-700", key == "waiting"),
+			templ.KV("font-medium "+accentActiveClass(ctx), key == "waiting"),
 			templ.KV(inkClass(ctx, domain.InkSecondary), key != "waiting")}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var49...)
 		if templ_7745c5c3_Err != nil {
@@ -1151,7 +1151,7 @@ func inboxEmpty(message string) templ.Component {
 			templ_7745c5c3_Var54 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var55 = []any{radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var55 = []any{radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var55...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1230,7 +1230,7 @@ func filterChip(f FilterChip, hrefPrefix string) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var59 = []any{radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
-			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
+			templ.KV(inkEdgeClass(ctx)+" "+inkFillClass(ctx, domain.InkStrong)+" "+onFillClass(ctx), f.Active),
 			templ.KV(borderClass(ctx, domain.BorderControl)+" "+inkClass(ctx, domain.InkSecondary)+" hover:border-slate-400", !f.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var59...)
 		if templ_7745c5c3_Err != nil {
@@ -1353,7 +1353,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad
-		var templ_7745c5c3_Var65 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white", paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300",
+		var templ_7745c5c3_Var65 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300",
 			approvalCardEdge(ctx, overdue)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var65...)
 		if templ_7745c5c3_Err != nil {
@@ -1728,7 +1728,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var92 = []any{"text-xs",
-				templ.KV("font-medium text-red-700", overdue),
+				templ.KV("font-medium "+toneInkClass(ctx, domain.ToneBad), overdue),
 				templ.KV(inkClass(ctx, domain.InkSecondary), !overdue)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var92...)
 			if templ_7745c5c3_Err != nil {
@@ -1888,7 +1888,7 @@ func approverChipTone(ctx context.Context, state string) string {
 	case "rejected":
 		return toneClass(ctx, domain.ToneBad)
 	case "waiting":
-		return "bg-slate-100 " + inkClass(ctx, domain.InkSecondary)
+		return backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkSecondary)
 	}
 	return ""
 }

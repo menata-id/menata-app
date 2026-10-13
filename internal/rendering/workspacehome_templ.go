@@ -235,7 +235,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 				return templ_7745c5c3_Err
 			}
 			if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-				var templ_7745c5c3_Var11 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
+				var templ_7745c5c3_Var11 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var11...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -302,7 +302,7 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 					return templ_7745c5c3_Err
 				}
 			} else if len(apps) == 0 {
-				var templ_7745c5c3_Var17 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center"}
+				var templ_7745c5c3_Var17 = []any{"flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1038,7 +1038,7 @@ func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Com
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, s := range suggestions {
-					var templ_7745c5c3_Var71 = []any{radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"}
+					var templ_7745c5c3_Var71 = []any{radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs text-slate-600 " + sunkenHoverClass(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var71...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

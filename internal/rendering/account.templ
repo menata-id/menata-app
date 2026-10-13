@@ -33,7 +33,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 						name="name"
 						value={ name }
 						required
-						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
+						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
 					/>
 				</div>
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
@@ -43,13 +43,13 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 						type="email"
 						value={ email }
 						disabled
-						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border border-slate-200 bg-slate-50 px-3 text-[15px] " + inkClass(ctx, domain.InkSecondary) + " sm:h-9.5 sm:text-sm" }
+						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border " + borderClass(ctx, domain.BorderSurface) + " " + backgroundClass(ctx, domain.BackgroundBase) + " px-3 text-[15px] " + inkClass(ctx, domain.InkSecondary) + " sm:h-9.5 sm:text-sm" }
 					/>
 					@staticText(domain.StaticCaption, "Your sign-in email -- contact a workspace admin to change this.")
 				</div>
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -81,7 +81,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -100,8 +100,8 @@ templ notificationToggle(name, label string, checked bool) {
 				}
 				class="peer sr-only"
 			/>
-			<span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-300"></span>
-			<span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+			<span class={ "h-6 w-11 rounded-full", borderFillClass(ctx, domain.BorderSurface), "transition", checkedFillClass(ctx), "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-300" }></span>
+			<span class={ "absolute left-1 h-4 w-4 rounded-full", backgroundClass(ctx, domain.BackgroundRaised), "transition peer-checked:translate-x-5" }></span>
 		</span>
 	</label>
 }
@@ -152,7 +152,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			}
 			<form method="POST" action="/account-security/sign-out-other-devices">
 				@csrfHiddenInput()
-				<button type="submit" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Sign out of other devices</button>
+				<button type="submit" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Sign out of other devices</button>
 			</form>
 		}
 		@sectionLayout(domain.GapComfortable) {
@@ -160,14 +160,14 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@staticText(domain.StaticPanelHeading, "Delete account")
 				@staticText(domain.StaticCaption, "Remove your login and personal details. Work you created stays, without your name.")
 			</div>
-			<div><a href="/account-delete" class="text-sm font-medium text-red-700 hover:text-red-800">Delete my account</a></div>
+			<div><a href="/account-delete" class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:text-red-800" }>Delete my account</a></div>
 		}
 		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
 				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>Not enabled <span class={ "text-3xs", inkClass(ctx, domain.InkSecondary) }>(planned)</span></p>
 			</div>
-			<button disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), "bg-slate-50 px-3 py-1.5 text-xs font-medium " + inkClass(ctx, domain.InkFaint) }>Enable</button>
+			<button disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs font-medium " + inkClass(ctx, domain.InkFaint) }>Enable</button>
 		</section>
 	}
 }

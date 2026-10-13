@@ -21,7 +21,10 @@ var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + 
 
 // colourRoleReaders are the only functions that may write a colour role's class. Each is in layout.templ.
 var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", "backgroundClass", "hoverWashClass",
-	"toneFillClass", "toneInkClass", "toneEdgeClass", "toneHoverFillClass"}
+	"toneFillClass", "toneInkClass", "toneEdgeClass", "toneHoverFillClass",
+	// 3.2d's reader forms: an existing role in another utility.
+	"inkFillClass", "inkEdgeClass", "checkedFillClass", "onFillClass", "borderFillClass", "inkHoverClass", "sunkenHoverClass",
+	"controlAccentClass", "accentActiveClass", "baseTintClass"}
 
 // TestColourRoleClassesComeOnlyFromTheirReaders is a zero-floor gate beside DS-D15 stage 2. A colour role is a
 // custom property now, so `text-ink-body` written by hand would still follow the Workspace's theme -- the danger is

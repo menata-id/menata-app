@@ -100,7 +100,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 				if canCreateWorkspace {
 					<a
 						href="/create-workspace"
-						class="flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-3.5 text-sm font-medium text-blue-600 transition hover:border-blue-400 hover:bg-blue-50"
+						class={ "flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition hover:border-blue-400", toneHoverFillClass(ctx, domain.ToneInfo) }
 					>
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
 						Add workspace
@@ -129,7 +129,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 								<form method="POST" action={ templ.SafeURL(action + "/restore") }>
 									@csrfHiddenInput()
 									<input type="hidden" name="workspace_id" value={ c.ID }/>
-									<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm " + inkClass(ctx, domain.InkStrong) + " hover:bg-slate-50" }>Restore</button>
+									<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-sm " + inkClass(ctx, domain.InkStrong) + " " + hoverWashClass(ctx) }>Restore</button>
 								</form>
 							</div>
 						}
@@ -142,7 +142,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 			if signedInEmail != "" {
 				Signed in as { signedInEmail } ·
 			}
-			<a href={ templ.SafeURL(backHref) } class={ inkClass(ctx, domain.InkSecondary), "hover:text-slate-700" }>← { backLabel }</a>
+			<a href={ templ.SafeURL(backHref) } class={ inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) }>← { backLabel }</a>
 		}
 	}
 }

@@ -17,9 +17,7 @@ import (
 var handWrittenHoverWashes = map[string]struct {
 	n   int
 	why string
-}{
-	"chooseworkspace.templ": {2, "pre-auth: no Workspace on ctx, no theme reaches it (a secondary button's wash and the dashed create link's blue-50)"},
-}
+}{}
 
 // hoverWashToken is a hover fill the recipes own: the wash (slate-50) and every tone's -50 fill, with any variant
 // prefix (sm:, group-) and opacity. Blind spots: a class in a backtick or single-quoted string.

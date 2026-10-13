@@ -72,9 +72,9 @@ var unnamedDesignValues = map[string]struct {
 	why string
 }{
 	// ink
-	"text-white":       {15, "ink on a filled mark (primary button, step circle, count badge, done check): the Design System has `primary` but no on-fill ink, and a role waits on a fill role beside it (D3 holds background.accent)"},
+	"text-white":       {3, "ink on a filled mark (primary button, step circle, count badge, done check): the Design System has `primary` but no on-fill ink, and a role waits on a fill role beside it (D3 holds background.accent)"},
 	"text-slate-300":   {7, "chevrons: decoration, lighter than `faint`; no ink role sits below faint. The '(planned)' aside was content and reads secondary since 1.2b"},
-	"text-slate-600":   {4, "the neutral tone's ink (DS tone-neutral-ink): a reference code chip that is the neutral pair written by hand, and plain labels; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
+	"text-slate-600":   {3, "the neutral tone's ink (DS tone-neutral-ink): a reference code chip that is the neutral pair written by hand, and plain labels; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
 	"text-red-600":     {4, "a lone danger word (pre-auth error, Delete group link, overdue SLA, a 'yes'): DS danger-ink is red-700, and folding 600 into it is a decision (R1)"},
 	"text-indigo-600":  {2, "the review tile's indigo: a hue outside the five tones and the Design System's colours"},
 	"text-amber-600":   {1, "New Application's capability-gap note: a warn ink one step lighter than tone warn"},
@@ -86,16 +86,13 @@ var unnamedDesignValues = map[string]struct {
 	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
 	"bg-brand":        {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
-	"bg-blue-600":     {8, "the accent as a fill (current step, numbered approver, signature marker, unread dot): D3 held background.accent"},
-	"bg-slate-200":    {6, "DS avatar-fill, and the same grey as a track, a drag handle and a rule: geometry, not a surface"},
-	"bg-slate-900":    {4, "DS `primary` (GS1 dsUnmapped): the active filter chip, the monogram tile, the New record summary button, the pre-auth button. The primary button recipe in controls.templ is a Go string and not counted here"},
+	"bg-blue-600":     {4, "the accent as a fill (current step, numbered approver, signature marker, unread dot): D3 held background.accent"},
+	"bg-slate-200":    {1, "DS avatar-fill, and the same grey as a track, a drag handle and a rule: geometry, not a surface"},
 	"bg-slate-400":    {3, "a waiting signature chip's dot, and the read-only marker's"},
 	"bg-red-500":      {1, "the rejected step circle: a filled bad mark, which the bad tone (a -50 wash) does not name"},
 	"bg-red-600":      {1, "a notification count's red: a filled mark, not tone bad's wash"},
 	"bg-blue-50/40":   {1, "an unread notification's translucent wash: opacity has no role"},
 	"bg-blue-50/80":   {1, "the editable signature marker's translucent fill"},
-	"bg-slate-50/40":  {1, "Role matrix header band at 40%: opacity has no role (open finding e)"},
-	"bg-slate-50/50":  {1, "Role matrix footer band at 50%; see the header band"},
 	"bg-slate-50/80":  {1, "the read-only signature marker's translucent fill"},
 	"bg-slate-900/40": {1, "DS `scrim` (GS1 dsUnmapped): the mobile sheet's backdrop"},
 	"bg-white/70":     {1, "the inbox count chip over a coloured tab"},
@@ -105,11 +102,9 @@ var unnamedDesignValues = map[string]struct {
 	"border-blue-400":   {1, "your signature box's dashed rim: the accent as an edge"},
 	"border-blue-500":   {1, "your signature chip's rim: the accent as an edge"},
 	"border-blue-600":   {1, "the editable signature marker's rim: the accent as an edge"},
-	"border-slate-900":  {1, "the active filter chip's rim, with `primary`"},
 	"border-white":      {1, "a badge's knock-out ring over a mark"},
 	"ring-blue-100":     {2, "DS `accent-ring` (GS1 dsUnmapped): the current step's ring and your signature box"},
 	"accent-blue-500":   {5, "a native checkbox's or radio's accent-color; two steps for one job (see accent-blue-600), and folding them is a decision (R1)"},
-	"accent-blue-600":   {2, "a native checkbox's accent-color; see accent-blue-500"},
 	// gap
 	"gap-2.5": {10, "10px, between the ladder's rungs; xtight (6px) is the only half-step token, and folding is a decision (R1)"},
 	"gap-3.5": {6, "14px, between the ladder's rungs; see gap-2.5"},
@@ -221,13 +216,10 @@ var loneToneHalves = map[string]struct {
 	n   int
 	why string
 }{
-	"bg-amber-50":      {1, "Install Application's refusal box: a warn wash whose inks sit on its children (text-amber-900 title, text-amber-800 reason), so the pair is split across elements"},
-	"text-amber-800":   {1, "the refusal reason inside that box; see bg-amber-50"},
-	"bg-blue-50":       {2, "New Application's assistant bubble (a chat bubble, not the info tone) and your signature box"},
+	"bg-blue-50":       {1, "New Application's assistant bubble (a chat bubble, not the info tone) and your signature box"},
 	"bg-emerald-50":    {1, "a signed signature box, beside its -300 rim"},
-	"text-blue-700":    {7, "the active nav, desktop and mobile alike (owner decision 2026-10-13: blue-700 in both, one step darker than the accent), the inbox tab, and your signature's labels"},
+	"text-blue-700":    {2, "the active nav, desktop and mobile alike (owner decision 2026-10-13: blue-700 in both, one step darker than the accent), the inbox tab, and your signature's labels"},
 	"text-emerald-700": {1, "a signed signature's label"},
-	"text-red-700":     {4, "danger words outside a box: the Delete my account link, the Remove from workspace heading, urgent and overdue SLA text"},
 }
 
 // TestEveryUnnamedDesignValueHasAReason is rencana 1.3: the `design` bucket of G1. The impl ratchets say "read the

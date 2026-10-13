@@ -105,7 +105,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 			}
 		</div>
 		if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
+			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center" }>
 				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>Nothing installed here yet</span>
 				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
 					An application appears here once it is installed into this workspace. Until then this
@@ -113,7 +113,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				</span>
 			</div>
 		} else if len(apps) == 0 {
-			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
+			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center" }>
 				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>No application to open yet</span>
 				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
 					Applications appear here based on the roles assigned to you. Ask a workspace admin to
@@ -247,7 +247,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		if len(suggestions) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				for _, s := range suggestions {
-					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100" }>
+					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs text-slate-600 " + sunkenHoverClass(ctx) }>
 						{ s.Label }
 					</a>
 				}

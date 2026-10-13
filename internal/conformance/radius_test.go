@@ -162,3 +162,27 @@ func TestInkRewriteMatchesTheDefaultTheme(t *testing.T) {
 		t.Errorf("inkDefaults has %d entries, the Theme has %d ink roles", len(inkDefaults), seen)
 	}
 }
+
+// TestColourRewriteMatchesTheDefaultTheme holds colourDefaults to the role defaults derived from the code: every
+// background and tone entry against themeRoleDefaults, so the shape gates read what the readers really draw.
+func TestColourRewriteMatchesTheDefaultTheme(t *testing.T) {
+	want := map[string]string{}
+	for _, r := range themeRoleDefaults(t) {
+		switch r.category {
+		case "Background":
+			want["backgroundClass(ctx, domain.Background"+strings.ToUpper(r.name[:1])+r.name[1:]+")"] = r.class
+		case "Tone":
+			f := strings.Fields(r.class)
+			tone := strings.ToUpper(r.name[:1]) + r.name[1:]
+			want["toneFillClass(ctx, domain.Tone"+tone+")"], want["toneInkClass(ctx, domain.Tone"+tone+")"] = f[0], f[1]
+		}
+	}
+	for k, v := range want {
+		if colourDefaults[k] != v {
+			t.Errorf("colourDefaults[%s] = %q, the code draws %q", k, colourDefaults[k], v)
+		}
+	}
+	if len(want) != 15 {
+		t.Errorf("derived %d background and tone defaults, want 15 (3 surfaces, 6 tones x 2)", len(want))
+	}
+}

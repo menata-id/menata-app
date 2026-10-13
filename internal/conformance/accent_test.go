@@ -24,17 +24,8 @@ var handWrittenAccentInks = map[string]struct {
 	n   int
 	why string
 }{
-	"appmembers.templ":        {1, "hovers to blue-800, two steps darker than accent-hover; folding the two link hovers is a decision not taken (recorded as an open finding)"},
-	"appsettings.templ":       {2, "hovers to blue-800; see appmembers"},
-	"rolematrix.templ":        {2, "hovers to blue-800; see appmembers"},
-	"workspacefiles.templ":    {3, "hovers to blue-800; see appmembers"},
-	"workspacesettings.templ": {1, "hovers to blue-800; see appmembers"},
-	"chooseworkspace.templ":   {1, "pre-auth: no Workspace on ctx, no theme reaches it"},
-	"login.templ":             {6, "pre-auth: no Workspace on ctx, no theme reaches it"},
-	"register.templ":          {2, "pre-auth: no Workspace on ctx, no theme reaches it"},
-	"machine.templ":           {1, "the Tag palette's blue entry (a colour an author picks, not the accent)"},
-	"appshell.templ":          {1, "the current-Workspace check: a state marker. The active bottom tab left this list on 2026-10-13, when the owner set the active nav to blue-700 on desktop and mobile alike (see the design bucket's text-blue-700)"},
-	"reviewdocument.templ":    {1, "the signature marker's \"yours\" state colour, paired with border-blue-500"},
+	"machine.templ":        {1, "the Tag palette's blue entry (a colour an author picks, not the accent)"},
+	"reviewdocument.templ": {1, "the signature marker's \"yours\" state colour, paired with border-blue-500"},
 }
 
 func TestHandWrittenAccentInksOnlyShrink(t *testing.T) {

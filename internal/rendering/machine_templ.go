@@ -521,9 +521,9 @@ func avatarClasses(ctx context.Context, size domain.AvatarSize, presence domain.
 	case domain.AvatarCompact:
 		dim = "size-6 text-3xs"
 	}
-	tone := "bg-slate-200 " + inkClass(ctx, domain.InkBody)
+	tone := borderFillClass(ctx, domain.BorderSurface) + " " + inkClass(ctx, domain.InkBody)
 	if presence == domain.AvatarPending {
-		tone = "border border-dashed border-slate-300 " + inkClass(ctx, domain.InkFaint)
+		tone = "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + inkClass(ctx, domain.InkFaint)
 	}
 	return "flex shrink-0 items-center justify-center rounded-full font-medium " + dim + " " + tone
 }
@@ -1695,7 +1695,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 			}
 			for _, o := range views {
 				if o.ID == selected.ID {
-					var templ_7745c5c3_Var78 = []any{"rounded bg-slate-100 px-3 py-1 text-xs font-medium", inkClass(ctx, domain.InkStrong)}
+					var templ_7745c5c3_Var78 = []any{"rounded " + backgroundClass(ctx, domain.BackgroundSunken) + " px-3 py-1 text-xs font-medium", inkClass(ctx, domain.InkStrong)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var78...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1720,7 +1720,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 					var templ_7745c5c3_Var80 string
 					templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(o.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 562, Col: 135}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 562, Col: 176}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 					if templ_7745c5c3_Err != nil {
@@ -1731,7 +1731,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					var templ_7745c5c3_Var81 = []any{"rounded px-3 py-1 text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-slate-900"}
+					var templ_7745c5c3_Var81 = []any{"rounded px-3 py-1 text-xs", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var81...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1756,7 +1756,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 					var templ_7745c5c3_Var83 templ.SafeURL
 					templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 564, Col: 171}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 564, Col: 185}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 					if templ_7745c5c3_Err != nil {
@@ -1769,7 +1769,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 					var templ_7745c5c3_Var84 string
 					templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(o.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 564, Col: 182}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 564, Col: 196}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 					if templ_7745c5c3_Err != nil {
@@ -2279,7 +2279,7 @@ func boardLayout(m *domain.Machine, v domain.View, records []*data.Record, board
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var109 = []any{radiusClass(ctx, domain.RadiusPill), "bg-white px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var109 = []any{radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var109...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2304,7 +2304,7 @@ func boardLayout(m *domain.Machine, v domain.View, records []*data.Record, board
 			var templ_7745c5c3_Var111 string
 			templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(col.Records)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 763, Col: 153}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 763, Col: 193}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 			if templ_7745c5c3_Err != nil {
@@ -2710,7 +2710,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var130 = []any{"grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done)}
+			var templ_7745c5c3_Var130 = []any{"grid size-5 place-items-center rounded-full border-2 " + onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var130...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2792,7 +2792,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var136 = []any{"grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), "hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden"}
+			var templ_7745c5c3_Var136 = []any{"grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var136...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3334,7 +3334,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var171 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " hover:text-slate-900 group-open:hidden"}
+		var templ_7745c5c3_Var171 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var171...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -3490,7 +3490,7 @@ func newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var182 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"}
+		var templ_7745c5c3_Var182 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 text-xs font-medium " + onFillClass(ctx) + " hover:bg-slate-800"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var182...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -3515,7 +3515,7 @@ func newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOp
 		var templ_7745c5c3_Var184 string
 		templ_7745c5c3_Var184, templ_7745c5c3_Err = templ.JoinStringErrs("New " + strings.ToLower(m.Name))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1034, Col: 200}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1034, Col: 240}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var184))
 		if templ_7745c5c3_Err != nil {
