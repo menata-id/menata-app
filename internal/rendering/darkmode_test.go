@@ -88,10 +88,10 @@ var darkSameInBothModes = map[string]string{
 	"--color-brand": "the brand mark's own blue (the M lockup); a mark, not a surface or an ink",
 }
 
-// allColourDecls is every `--color-<name>: <value>;` in css, comments removed.
 // paletteStep is a closed-palette declaration's name (`--color-slate-900`, `--color-white`).
 var paletteStep = regexp.MustCompile(`^--color-(?:[a-z]+-\d+|white|black)$`)
 
+// allColourDecls is every `--color-<name>: <value>;` in css, comments removed.
 func allColourDecls(css string) map[string]string {
 	css = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
 	out := map[string]string{}

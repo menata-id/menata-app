@@ -23,9 +23,10 @@ import (
 const tailwindHues = `slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose`
 
 // classShape is a Tailwind utility as written: variants, `!`, a negative sign, a root, its dash-separated value
-// (words, numbers, an arbitrary `[...]` or `(...)`), and an opacity. Group 1 is the root, group 2 the value. Anything
+// (words, numbers, an arbitrary `[...]` or `(...)`), and an opacity. A variant may be a word, an arbitrary `[...]`,
+// `*`/`**` (children, descendants) or a container query (`@sm`, `@container`). Group 1 is the root, group 2 the value. Anything
 // that does not fit -- a time format, a sentence, `%` in a Sprintf -- is not a class and is not checked.
-var classShape = regexp.MustCompile(`^((?:(?:[a-z][a-z0-9-]*(?:-\[[^\]\s]+\])?|\[[^\]\s]+\])(?:/\w+)?:)*)!?-?([a-z][a-z0-9]*)((?:-[a-z0-9.]+|-\[[^\]\s]+\]|-\([^)\s]+\))*)(?:/(?:\d+|\[[^\]\s]+\]))?!?$`)
+var classShape = regexp.MustCompile(`^((?:(?:[a-z][a-z0-9-]*(?:-\[[^\]\s]+\])?|\[[^\]\s]+\]|\*{1,2}|@[a-z0-9]*)(?:/\w+)?:)*)!?-?([a-z][a-z0-9]*)((?:-[a-z0-9.]+|-\[[^\]\s]+\]|-\([^)\s]+\))*)(?:/(?:\d+|\[[^\]\s]+\]))?!?$`)
 
 // cssClassName is one class in a selector, escapes included.
 var cssClassName = regexp.MustCompile(`\.((?:\\.|[A-Za-z0-9_-])+)`)
@@ -66,12 +67,13 @@ func compiledClasses(t *testing.T) (emitted map[string]bool, roots map[string]bo
 }
 
 // arbitraryProperty is Tailwind's `[property:value]` utility, with or without variants (`before:[content:…]`).
-var arbitraryProperty = regexp.MustCompile(`^(?:(?:[a-z][a-z0-9-]*|\[[^\]\s]+\]):)*\[[a-z-]+:[^\]\s]+\]$`)
+var arbitraryProperty = regexp.MustCompile(`^(?:(?:[a-z][a-z0-9-]*|\[[^\]\s]+\]|\*{1,2}|@[a-z0-9]*):)*\[[a-z-]+:[^\]\s]+\]$`)
 
 // isUtilityShaped reports whether a token is meant as a Tailwind utility: a known root with a value
 // (`text-cyan-600`), a variant over a utility some compiled class uses bare (`hover:underline`), or an arbitrary
 // property (`[counter-reset:approver-step]`). A bare word (`hidden`, `text`) and a
-// root nothing compiles (`menata-leave-guard`, an id) are not claims this gate can judge.
+// root nothing compiles (`menata-leave-guard`, an id) are not claims this gate can judge, unless the token names a
+// palette colour.
 func isUtilityShaped(tok string, roots, bare map[string]bool) bool {
 	if arbitraryProperty.MatchString(tok) {
 		return true
@@ -81,7 +83,9 @@ func isUtilityShaped(tok string, roots, bare map[string]bool) bool {
 		return false
 	}
 	if s[3] != "" {
-		return roots[s[2]]
+		// A palette colour counts even in a utility family nothing compiles yet (`fill-`, `stroke-`, `from-`, `caret-`):
+		// the 3.5 review wrote five such classes into a .go file, which Tailwind never scans, and they passed.
+		return roots[s[2]] || paletteColourToken.MatchString(" "+tok+" ")
 	}
 	return s[1] != "" && bare[s[2]]
 }
@@ -99,6 +103,11 @@ func classTokensBySource(t *testing.T) map[string][]string {
 	}
 	classAttr := regexp.MustCompile(`\bclass="([^"]*)"`)
 	otherAttr := regexp.MustCompile(`\b[\w:@.-]+="[^"]*"`)
+	// A script attribute adds classes too: Hyperscript's `_="add .x"` and an `onclick="…toggle('x')"`. The 3.5 review
+	// changed authshell's toggle('hidden') to a class nothing compiles and every gate stayed green, because the
+	// attribute was removed with `id` and `href`.
+	scriptAttr := regexp.MustCompile(`\b(?:_|on[a-z]+)="([^"]*)"`)
+	hyperscriptClass := regexp.MustCompile(`\b(?:add|remove|toggle)\s+\.([^\s<>/'"]+)`)
 	quoted := regexp.MustCompile("\"((?:\\\\.|[^\"\\\\\\n])*)\"|`([^`]*)`|'((?:\\\\.|[^'\\\\\\n])*)'")
 	out := map[string][]string{}
 	for _, e := range entries {
@@ -110,8 +119,16 @@ func classTokensBySource(t *testing.T) map[string][]string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		src := stripTemplComments(string(b))
+		src := stripBlockComments(stripTemplComments(string(b)))
 		var toks []string
+		for _, m := range scriptAttr.FindAllStringSubmatch(src, -1) {
+			for _, h := range hyperscriptClass.FindAllStringSubmatch(m[1], -1) {
+				toks = append(toks, h[1])
+			}
+			for _, q := range quoted.FindAllStringSubmatch(m[1], -1) {
+				toks = append(toks, strings.Fields(q[1]+q[2]+q[3])...)
+			}
+		}
 		for _, m := range classAttr.FindAllStringSubmatch(src, -1) {
 			toks = append(toks, strings.Fields(m[1])...)
 		}
@@ -124,6 +141,15 @@ func classTokensBySource(t *testing.T) map[string][]string {
 	}
 	return out
 }
+
+// stripBlockComments removes `/* … */` comments (Go and CSS). It runs after stripTemplComments, and an opener must
+// follow a space, a line start or punctuation, so `accept="image/*"` does not open one. The 3.5 review found a step
+// "named" only by a block comment, which kept a declared, unused step alive.
+func stripBlockComments(src string) string {
+	return blockComment.ReplaceAllString(src, "$1")
+}
+
+var blockComment = regexp.MustCompile(`(?s)(^|[\s;{}(,])/\*.*?\*/`)
 
 // TestEveryClassTokenIsCompiled is G2's first half: every utility-shaped token in a class attribute or a string in
 // internal/rendering must have a selector in the committed app.css. A miss names the token and the files writing it.
@@ -158,7 +184,7 @@ func TestEveryClassTokenIsCompiled(t *testing.T) {
 			"(input.css's @theme), a typo, or two classes run together; if it is meant, run `make css` and commit app.css", m)
 	}
 	if checked < 400 {
-		t.Fatalf("only %d utility-shaped tokens were checked (531 distinct ones on 2026-10-13) -- the scan is measuring far less than it appears to", checked)
+		t.Fatalf("only %d utility-shaped tokens were checked (about 540 distinct ones on 2026-10-13) -- the scan is measuring far less than it appears to", checked)
 	}
 	t.Logf("checked %d utility-shaped tokens against %d compiled classes", checked, len(emitted))
 }
@@ -192,7 +218,7 @@ func TestClosedPaletteDeclaresExactlyWhatIsNamed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	input := string(b)
+	input := stripBlockComments(string(b))
 	if !regexp.MustCompile(`(?m)^\s*--color-\*:\s*initial;`).MatchString(input) {
 		t.Fatal("input.css's @theme does not reset the palette with `--color-*: initial;` -- Tailwind's full palette is open again, so a colour outside the system compiles")
 	}
@@ -226,11 +252,11 @@ func TestClosedPaletteDeclaresExactlyWhatIsNamed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := stripTemplComments(string(src))
+		text := stripBlockComments(stripTemplComments(string(src)))
 		for _, m := range property.FindAllStringSubmatch(text, -1) {
 			add(m[1], n)
 		}
-		for _, tok := range regexp.MustCompile(`[\s"'{}(),]+`).Split(text, -1) {
+		for _, tok := range regexp.MustCompile("[\\s\"'`{}(),]+").Split(text, -1) {
 			if !paletteColourToken.MatchString(" " + tok + " ") {
 				continue
 			}

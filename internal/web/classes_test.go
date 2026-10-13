@@ -32,14 +32,21 @@ func compiledClassNames(t *testing.T) map[string]bool {
 	return out
 }
 
-// classHooks are classes a page writes for something other than CSS: a selector a script or another rule looks up,
-// or Tailwind's own markers, which it emits only inside another selector (`:where(.group)`) or not at all. Closed: a
-// new hook is added here with what reads it, so a typo cannot pass as one.
-var classHooks = map[string]string{
-	"approver-row":   "documentsubmit's Hyperscript moves and removes a step by `closest <.approver-row/>`",
-	"approver-user":  "documentsubmit's Hyperscript shows the person picker by `next <.approver-user/>`",
-	"approver-group": "documentsubmit's Hyperscript shows the Group picker by `next <.approver-group/>`",
-	"sig-canvas":     "signatureplacement's drag script finds the page by `closest(\".sig-canvas\")`",
+// classHooks are classes a page writes for something other than CSS: a selector a script looks up. Closed both ways,
+// each with what reads it. `reached` says whether this fixture serves a page that draws it: a reached hook no page
+// draws fails (stale), and an unreached one a page now draws fails too (set it, so the next loss of that page shows).
+// The two signature-marker hooks are unreached because no seeded Document has a placed marker -- that state is outside
+// this sweep, which the 3.5 review found by reading the template.
+var classHooks = map[string]struct {
+	reached bool
+	why     string
+}{
+	"approver-row":   {true, "documentsubmit's Hyperscript moves and removes a step by `closest <.approver-row/>`"},
+	"approver-user":  {true, "documentsubmit's Hyperscript shows the person picker by `next <.approver-user/>`"},
+	"approver-group": {true, "documentsubmit's Hyperscript shows the Group picker by `next <.approver-group/>`"},
+	"sig-canvas":     {true, "signatureplacement's drag script finds the page by `closest(\".sig-canvas\")`"},
+	"sig-marker":     {false, "signatureplacement's drag script finds a marker by `closest(\".sig-marker\")`"},
+	"sig-resize":     {false, "signatureplacement's drag script tells a resize from a move by `closest(\".sig-resize\")`"},
 }
 
 // TestEveryRenderedClassIsCompiled is G2's rendered half (rencana 3.5): every class on every page this fixture can
@@ -115,9 +122,12 @@ func TestEveryRenderedClassIsCompiled(t *testing.T) {
 		t.Errorf("%q is drawn on %s but app.css has no such class -- the element draws without it. A colour outside the closed palette, a typo, two classes run together, or a class assembled in Go that no .templ names literally (Tailwind compiles only what it reads); a class kept for a script goes in classHooks with what reads it",
 			tok, strings.Join(urls, ", "))
 	}
-	for hook := range classHooks {
-		if !seen[hook] {
+	for hook, h := range classHooks {
+		switch {
+		case h.reached && !seen[hook]:
 			t.Errorf("classHooks names %q, which no served page draws -- remove the entry, or the sweep stopped reaching the page that uses it", hook)
+		case !h.reached && seen[hook]:
+			t.Errorf("classHooks marks %q unreached, but a served page draws it now -- set reached", hook)
 		}
 		if compiled[hook] {
 			t.Errorf("classHooks names %q, which app.css does compile -- it is a class, not only a hook; remove the entry", hook)

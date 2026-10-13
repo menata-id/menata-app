@@ -1251,6 +1251,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `sig-width-label`) were removed. A palette step is not a property with a mode, so the dark-value gate skips steps and
   refuses a dark block that redefines one. Mutation-proved eight ways, including a class assembled in Go, which only
   the rendered gate catches.
+  **The independent review found four ways through, all closed:**
+  - a Go `/* */` or CSS comment counted as "naming" a step (`stripBlockComments`);
+  - a palette colour in a utility family nothing compiles yet (`fill-`, `stroke-`, `caret-`) was not judged;
+  - `*:`/`**:`/`@sm:` variants did not parse;
+  - classes added by a script attribute (`_="add .x"`, `onclick="…toggle('x')"`) were deleted with `id`/`href`.
+
+  It also found the sweep never draws a placed signature marker. `classHooks` entries carry `reached`, closed both ways.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):
