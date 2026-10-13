@@ -24,7 +24,6 @@ var handWrittenAccentInks = map[string]struct {
 	n   int
 	why string
 }{
-	"machine.templ":        {1, "the Tag palette's blue entry (a colour an author picks, not the accent)"},
 	"reviewdocument.templ": {1, "the signature marker's \"yours\" state colour, paired with border-blue-500"},
 }
 

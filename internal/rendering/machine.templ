@@ -836,26 +836,28 @@ func cardRole(c RecordCard, role domain.CardFieldRole) string {
 // tagClasses maps a palette entry onto the chip it draws and the dot inside it. Two literals per entry
 // because Tailwind reads class strings out of this file as text and cannot see one assembled at run time.
 // An unknown entry takes the neutral one, the same fallback composition applies before it gets here.
+//
+// Each hue is a property, `--color-tag-<hue>` (owner decision DK8, 2026-10-13), so dark mode gives it its own step;
+// input.css holds both. The light steps are the ones the palette always drew (emerald-700, not green-700: owner
+// decision T1, 2026-10-12).
 func tagClasses(c domain.TagColor) (chip, dot string) {
 	switch c {
 	case domain.TagBlue:
-		return "border-blue-600/20 bg-blue-600/10 text-blue-600", "bg-blue-600"
+		return "border-tag-blue/20 bg-tag-blue/10 text-tag-blue", "bg-tag-blue"
 	case domain.TagPurple:
-		return "border-violet-600/20 bg-violet-600/10 text-violet-600", "bg-violet-600"
+		return "border-tag-violet/20 bg-tag-violet/10 text-tag-violet", "bg-tag-violet"
 	case domain.TagAmber:
-		return "border-amber-700/20 bg-amber-700/10 text-amber-700", "bg-amber-700"
+		return "border-tag-amber/20 bg-tag-amber/10 text-tag-amber", "bg-tag-amber"
 	case domain.TagEmerald:
-		// emerald-700, not green-700 (owner decision T1, 2026-10-12): green was the one hue outside the emerald family
-		// the Design System uses for every other green.
-		return "border-emerald-700/20 bg-emerald-700/10 text-emerald-700", "bg-emerald-700"
+		return "border-tag-emerald/20 bg-tag-emerald/10 text-tag-emerald", "bg-tag-emerald"
 	case domain.TagCyan:
-		return "border-cyan-700/20 bg-cyan-700/10 text-cyan-700", "bg-cyan-700"
+		return "border-tag-cyan/20 bg-tag-cyan/10 text-tag-cyan", "bg-tag-cyan"
 	case domain.TagRose:
-		return "border-rose-700/20 bg-rose-700/10 text-rose-700", "bg-rose-700"
+		return "border-tag-rose/20 bg-tag-rose/10 text-tag-rose", "bg-tag-rose"
 	case domain.TagSlate:
 		fallthrough
 	default:
-		return "border-slate-600/20 bg-slate-600/10 text-slate-600", "bg-slate-600"
+		return "border-tag-slate/20 bg-tag-slate/10 text-tag-slate", "bg-tag-slate"
 	}
 }
 

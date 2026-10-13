@@ -2205,11 +2205,18 @@ similar-looking metadata for a *different* Machine does not activate it.
 > `light` step toward grey), or a quoted colour value (`base: "#fefcf8"`) for a tinted surface. A value is checked
 > when the Workspace loads. It may tint a surface but not darken it past `light`, because the runtime draws colours of
 > its own on surfaces (a field's white box, the green check, red and amber status text) and those are only guaranteed
-> readable down to that shade; a dark theme is a separate, later feature. Your `ink:` colours must read at 4.5:1 on
+> readable down to that shade. Your `ink:` colours must read at 4.5:1 on
 > the surfaces they sit on. And the three surfaces must stay visibly apart: the page colour is also what a row turns
 > when you hover it, and `sunken` is a lane or a selected row. Dark surfaces (the primary button, a menu) are not part of it. Like `ink:`, it
 > reaches what the runtime's own components draw -- panels and sections, the header and page, a board lane --
 > and not a card a screen draws by hand.
+>
+> **Dark mode.** When a person's device is set to dark, every screen draws its dark palette, sign-in pages included;
+> there is nothing to declare. What your `theme:` does there depends on the kind of choice. A **hue** you picked
+> carries over: `ink: {accent: violet}` keeps violet links in the dark (at a lighter step that reads on a dark
+> surface), and `tone: {warn: red}` keeps red warnings. A **shade** or a **colour value** for `ink`, `background` or
+> `border` applies to light mode only, because it was checked against light surfaces; in dark mode those roles take the
+> dark palette. A brand accent written as `"#rrggbb"` is a value, so dark mode draws the default blue there.
 >
 > `padding:` is the room inside a surface, and **a role names a place, not a number of sides**: `panel` and
 > `section` pad all four, a badge pads its two axes separately (`badge-x`, `badge-y`). Amounts, smallest

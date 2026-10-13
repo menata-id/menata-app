@@ -207,18 +207,25 @@ func inkRoleVar(role domain.InkRole) string {
 	return "--color-ink-" + string(role)
 }
 
-// themeCSS is the `:root` override for this request's Workspace (ink, border, background and tone): one declaration
-// per colour role whose value differs
-// from the default Theme, and nothing at all for a Workspace that declares no colour (so the default theme adds no
-// bytes). A closed shade becomes `var(--color-…)`, a colour value is written as itself; the loader accepts only
-// `#rrggbb` (domain.IsColourValue), and this checks again before writing, because the result goes into a `<style>`.
+// themeCSS is the override for this request's Workspace (ink, border, background and tone): one declaration per colour
+// role whose value differs from the default Theme, and nothing at all for a Workspace that declares no colour (so the
+// default theme adds no bytes). A closed shade becomes `var(--color-…)`, a colour value is written as itself; the loader
+// accepts only `#rrggbb` (domain.IsColourValue), and this checks again before writing, because the result goes into a
+// `<style>`.
+//
+// **Two blocks since dark mode (owner decision DK11, 2026-10-13).** Every declaration goes in a light block,
+// `@media (prefers-color-scheme:light){:root{…}}`, so in dark mode the page keeps input.css's dark defaults. A Workspace's
+// *hue* choices -- an accent hue, a tone remap -- also go in a dark block, at that hue's dark steps (accentDarkVar,
+// toneFillDarkVar and its pair), so a Workspace that picked violet links keeps violet links in the dark. Its shade and
+// value choices for ink, background and border do not: they were measured on light surfaces, and a free accent value
+// has no dark step to take.
 //
 // Every list is ranged from the domain's closed sets (sorted, for 007 §4.6 determinism), so a role or tone added there
 // is written here without anyone remembering to; the 2026-10-13 review dropped `neutral` and `muted` from a
 // hand-written list and nothing failed.
 func themeCSS(ctx context.Context) string {
 	th, def := CurrentWorkspace(ctx).Theme, domain.DefaultTheme()
-	var decl []string
+	var decl, dark []string
 	for _, role := range slices.Sorted(maps.Keys(domain.KnownInkRoles)) {
 		shade := th.InkFor(role)
 		if shade == def.InkFor(role) {
@@ -234,6 +241,9 @@ func themeCSS(ctx context.Context) string {
 		decl = append(decl, inkRoleVar(role)+":var("+inkShadeVar(shade)+")")
 		if role == domain.InkAccent {
 			decl = append(decl, "--color-accent-hover:var("+accentHoverShadeVar(shade)+")")
+			if domain.IsInkHue(shade) {
+				dark = append(dark, "--color-accent:var("+accentDarkVar(shade)+")", "--color-accent-hover:var("+accentHoverDarkVar(shade)+")")
+			}
 		}
 	}
 	for _, role := range slices.Sorted(maps.Keys(domain.KnownBorderRoles)) {
@@ -254,12 +264,113 @@ func themeCSS(ctx context.Context) string {
 		if p := th.ToneFor(tone); p != def.ToneFor(tone) {
 			n := "--color-tone-" + string(tone)
 			decl = append(decl, n+"-bg:var("+toneFillVar(p)+")", n+"-ink:var("+toneInkVar(p)+")", n+"-border:var("+toneEdgeVar(p)+")")
+			dark = append(dark, n+"-bg:var("+toneFillDarkVar(p)+")", n+"-ink:var("+toneInkDarkVar(p)+")", n+"-border:var("+toneEdgeDarkVar(p)+")")
 		}
 	}
-	if len(decl) == 0 {
-		return ""
+	var out string
+	if len(decl) > 0 {
+		out = themeCSSLight + "{:root{" + strings.Join(decl, ";") + "}}"
 	}
-	return ":root{" + strings.Join(decl, ";") + "}"
+	if len(dark) > 0 {
+		out += themeCSSDark + "{:root{" + strings.Join(dark, ";") + "}}"
+	}
+	return out
+}
+
+// themeCSSLight and themeCSSDark are the two media blocks themeCSS writes.
+const (
+	themeCSSLight = "@media (prefers-color-scheme:light)"
+	themeCSSDark  = "@media (prefers-color-scheme:dark)"
+)
+
+// accentDarkVar and accentHoverDarkVar are each accent hue's dark-mode steps (DK3): the 400 step as the accent and the
+// 300 step as its hover, which lightens in the dark. GS3 measures every hue on the dark surfaces.
+func accentDarkVar(shade domain.InkShade) string {
+	switch shade {
+	case domain.InkHueIndigo:
+		return "--color-indigo-400"
+	case domain.InkHueViolet:
+		return "--color-violet-400"
+	case domain.InkHueEmerald:
+		return "--color-emerald-400"
+	case domain.InkHueRose:
+		return "--color-rose-400"
+	case domain.InkHueCyan:
+		return "--color-cyan-400"
+	default:
+		return "--color-blue-400"
+	}
+}
+
+func accentHoverDarkVar(shade domain.InkShade) string {
+	switch shade {
+	case domain.InkHueIndigo:
+		return "--color-indigo-300"
+	case domain.InkHueViolet:
+		return "--color-violet-300"
+	case domain.InkHueEmerald:
+		return "--color-emerald-300"
+	case domain.InkHueRose:
+		return "--color-rose-300"
+	case domain.InkHueCyan:
+		return "--color-cyan-300"
+	default:
+		return "--color-blue-300"
+	}
+}
+
+// toneFillDarkVar, toneInkDarkVar and toneEdgeDarkVar are each tone palette's dark-mode triple (DK5): the hue's 950 step
+// as fill, 300 as ink, 800 as edge; `grey` lifts to slate-800 so a neutral badge still shows on a card, and
+// `grey-faint` keeps muted's meaning (the page canvas, the faint ink, the divider).
+func toneFillDarkVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-950"
+	case domain.PaletteBlue:
+		return "--color-blue-950"
+	case domain.PaletteGreen:
+		return "--color-emerald-950"
+	case domain.PaletteRed:
+		return "--color-red-950"
+	case domain.PaletteAmber:
+		return "--color-amber-950"
+	default:
+		return "--color-slate-800"
+	}
+}
+
+func toneInkDarkVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-500"
+	case domain.PaletteBlue:
+		return "--color-blue-300"
+	case domain.PaletteGreen:
+		return "--color-emerald-300"
+	case domain.PaletteRed:
+		return "--color-red-300"
+	case domain.PaletteAmber:
+		return "--color-amber-300"
+	default:
+		return "--color-slate-300"
+	}
+}
+
+func toneEdgeDarkVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-800"
+	case domain.PaletteBlue:
+		return "--color-blue-800"
+	case domain.PaletteGreen:
+		return "--color-emerald-800"
+	case domain.PaletteRed:
+		return "--color-red-800"
+	case domain.PaletteAmber:
+		return "--color-amber-800"
+	default:
+		return "--color-slate-700"
+	}
 }
 
 // themeStyle writes themeCSS into the page's `<head>`. CSP already allows an inline `<style>`
@@ -830,6 +941,38 @@ func markGoodFill() string { return "bg-emerald-600" }
 func markGoodBorder() string { return "border-emerald-600" }
 
 func markGoodHoverBorder() string { return "hover:border-emerald-600" }
+
+// scrimClass is the dialog scrim (DK10): `--color-scrim`, slate-900 at 40% in light and black at 60% in dark, where the
+// light value barely dimmed the page. backdrop says whether it is a `<dialog>`'s `::backdrop` or an element of its own.
+func scrimClass(backdrop bool) string {
+	if backdrop {
+		return "backdrop:bg-scrim"
+	}
+	return "bg-scrim"
+}
+
+// htmxErrorToastClasses is the notice htmx shows for a refused request: the `bad` tone's edge, fill and ink, so it
+// follows a Workspace's tone and dark mode like every other message. A script clones it from a `<template>` (appShell),
+// because a class string written inside a script is one no reader moves.
+func htmxErrorToastClasses(ctx context.Context) string {
+	return "fixed inset-x-4 bottom-20 z-50 mx-auto max-w-md cursor-pointer rounded-lg border " + toneEdgeClass(ctx, domain.ToneBad) + " " +
+		toneFillClass(ctx, domain.ToneBad) + " px-4 py-3 text-sm " + toneInkClass(ctx, domain.ToneBad) + " shadow-lg sm:bottom-6"
+}
+
+// draftTileEdgeClass and draftTileInkClass are the generated-draft tile's indigo (DK8: a categorical colour, so a
+// property with its own dark step, not a role).
+func draftTileEdgeClass() string {
+	return "border-draft-edge"
+}
+
+func draftTileInkClass() string {
+	return "text-draft-ink"
+}
+
+// fileTypeTileClasses is the file-type tile's pair (DK8). PDF is the only type drawn today.
+func fileTypeTileClasses() string {
+	return "bg-file-pdf-bg text-file-pdf-ink"
+}
 
 // controlHeightCompact is the Design System artifact's `control-height-compact`: 32px for a small control inside a row
 // (a row's own action links, an icon button, a filter chip). It is accepted with one condition: **mouse only**. On a
@@ -1641,7 +1784,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1020, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1163, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -1794,7 +1937,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1037, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1180, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -1920,7 +2063,7 @@ func rowJustify(j domain.RowJustify) string {
 // after later migrations; `handWrittenLayoutSites` in `internal/conformance` reads each of them by name):
 //
 //   - **seven carry non-layout classes on the same element** -- typography (`text-sm`, `text-3xs
-//     text-slate-600`), decoration (`border-b … pb-1.5`) or sizing (`sm:w-32`). Absorbing them would mean this
+//     a mid-grey ink), decoration (`border-b … pb-1.5`) or sizing (`sm:w-32`). Absorbing them would mean this
 //     primitive accepting a CSS class string, which is 007 §15.2's prohibition with different syntax and
 //     §12.3's "arbitrary properties" with the same one. A primitive taking `textClass string` is a `<div>`
 //     with extra steps.
@@ -2057,7 +2200,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1135, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1278, Col: 123}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -2093,7 +2236,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1137, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1280, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -2129,7 +2272,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var63 string
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1139, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1282, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 			if templ_7745c5c3_Err != nil {
@@ -2165,7 +2308,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1141, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1284, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 			if templ_7745c5c3_Err != nil {
@@ -2201,7 +2344,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1143, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1286, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -2237,7 +2380,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var72 string
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1145, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1288, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -2273,7 +2416,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var75 string
 			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1147, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1290, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 			if templ_7745c5c3_Err != nil {
@@ -2309,7 +2452,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var78 string
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1149, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1292, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 			if templ_7745c5c3_Err != nil {
@@ -2345,7 +2488,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var81 string
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1151, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1294, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -2409,7 +2552,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var84 templ.SafeURL
 		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1172, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1315, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 		if templ_7745c5c3_Err != nil {
@@ -2435,7 +2578,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var86 string
 		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1172, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1315, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 		if templ_7745c5c3_Err != nil {

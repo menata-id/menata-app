@@ -109,6 +109,8 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// htmx swaps nothing in for a 4xx/5xx, so a refused write (a 422 "signature required", a 403)
 			// looked exactly like a button that does nothing -- the Approve bug of 2026-10-05 was silent
 			// for that reason alone. One notice for every htmx request, instead of one per form.
+			// The notice's look, cloned by the script below: a class string written inside a script is one no reader moves.
+			<template id="htmx-error-template"><div role="alert" class={ htmxErrorToastClasses(ctx) }></div></template>
 			<script>
 				document.addEventListener("htmx:responseError", function (e) {
 					var xhr = e.detail.xhr;
@@ -117,10 +119,8 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 						: (xhr.responseText || "").trim().slice(0, 300) || "That request was refused.";
 					var box = document.getElementById("htmx-error");
 					if (!box) {
-						box = document.createElement("div");
+						box = document.getElementById("htmx-error-template").content.firstElementChild.cloneNode(true);
 						box.id = "htmx-error";
-						box.setAttribute("role", "alert");
-						box.className = "fixed inset-x-4 bottom-20 z-50 mx-auto max-w-md cursor-pointer rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg sm:bottom-6";
 						box.addEventListener("click", function () { box.hidden = true; });
 						document.body.appendChild(box);
 					}
@@ -714,7 +714,7 @@ templ sheetPanel(id string, aboveBar bool, desktop string) {
 			popovertarget={ id }
 			popovertargetaction="hide"
 			aria-label="Close"
-			class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0 sm:hidden"
+			class={ "absolute inset-0 w-full cursor-default border-0", scrimClass(false), "p-0 sm:hidden" }
 		></button>
 		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(ctx, desktop) }>
 			<div class={ "mx-auto mb-2 h-1 w-10 rounded-full", borderFillClass(ctx, domain.BorderSurface), "sm:hidden" }></div>

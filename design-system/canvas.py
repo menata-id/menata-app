@@ -28,7 +28,16 @@ ROOT_RE = re.compile(r":root\{.*?\n\}", re.S)
 VERSION_RE = re.compile(r"\(tokens\.json, version [^,]*, [^)]*\)")
 
 
+def first_theme(v):
+    """A token's value in the first theme (light). Since dark mode (2026-10-13) a colour may be {"light": ..., "dark": ...};
+    the canvases are light, so they take the first theme, as the Design System page does."""
+    if isinstance(v, dict):
+        return v.get("light", next(iter(v.values())))
+    return v
+
+
 def css_value(v):
+    v = first_theme(v)
     m = re.fullmatch(r"\{([\w-]+)\}", str(v))
     return "var(--%s)" % m.group(1) if m else v
 
@@ -84,7 +93,7 @@ def check(tokens, folder):
     values = set()
     for fam in ["color"]:
         for t in tokens[fam]["tokens"]:
-            v = str(t["value"])
+            v = str(first_theme(t["value"]))
             if not v.startswith("{"):
                 values.add(norm(v))
     bad, refs, on, off = [], Counter(), 0, Counter()

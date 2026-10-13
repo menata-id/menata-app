@@ -177,7 +177,8 @@ func TestColourRewriteMatchesTheDefaultTheme(t *testing.T) {
 		t.Fatal(err)
 	}
 	props := map[string]string{}
-	for _, m := range regexp.MustCompile(`--color-([a-z0-9-]+):\s*var\(--color-([a-z0-9-]+)\);`).FindAllStringSubmatch(string(css), -1) {
+	light, _, _ := strings.Cut(string(css), "@media (prefers-color-scheme: dark) {") // the defaults, not dark mode's values
+	for _, m := range regexp.MustCompile(`--color-([a-z0-9-]+):\s*var\(--color-([a-z0-9-]+)\);`).FindAllStringSubmatch(light, -1) {
 		props[m[1]] = m[2]
 	}
 	resolve := func(class string) string {

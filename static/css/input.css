@@ -90,10 +90,105 @@
 	--color-tone-muted-ink: var(--color-slate-400);
 	--color-tone-muted-border: var(--color-slate-100);
 
+	/* Categorical colours (owner decision DK8, 2026-10-13): a Tag's hue, an Application icon's pair, the file-type tile and
+	   the draft tile. They are an author's choice, not a role, so no Workspace key moves them; they are properties only so
+	   that dark mode can give each hue its own step. A Tag draws its hue as ink, at 10% as fill and at 20% as edge. Read
+	   through tagClasses, appIconClasses and the tile readers, never written by hand. */
+	--color-tag-blue: var(--color-blue-600);
+	--color-tag-violet: var(--color-violet-600);
+	--color-tag-amber: var(--color-amber-700);
+	--color-tag-emerald: var(--color-emerald-700);
+	--color-tag-cyan: var(--color-cyan-700);
+	--color-tag-rose: var(--color-rose-700);
+	--color-tag-slate: var(--color-slate-600);
+	--color-app-blue-bg: var(--color-blue-50);
+	--color-app-blue-ink: var(--color-blue-700);
+	--color-app-emerald-bg: var(--color-emerald-50);
+	--color-app-emerald-ink: var(--color-emerald-700);
+	--color-app-amber-bg: var(--color-amber-50);
+	--color-app-amber-ink: var(--color-amber-700);
+	--color-app-slate-bg: var(--color-slate-100);
+	--color-app-slate-ink: var(--color-slate-600);
+	--color-file-pdf-bg: var(--color-red-100);
+	--color-file-pdf-ink: var(--color-red-700);
+	--color-draft-edge: var(--color-indigo-200);
+	--color-draft-ink: var(--color-indigo-600);
+
+	/* The dialog scrim (owner decision DK10, 2026-10-13, partly reversing CP4): slate-900 at 40% dims a light page and
+	   barely touches a dark one, so dark mode gives it its own value. Read through scrimClass. */
+	--color-scrim: color-mix(in oklab, var(--color-slate-900) 40%, transparent);
+
 	/* 15px for an item's title (owner decision DS-D13, 2026-10-12; the Design System's `item` style), with the
 	   mockups' 22px line height. Read through textClass(ctx, domain.RoleItem), never written by hand. */
 	--text-item: 0.9375rem; /* 15px */
 	--text-item--line-height: calc(1.375 / 0.9375); /* 22px */
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Dark mode (rencana 3.3, owner decisions DK1–DK11, 2026-10-13). One role, two values: every colour property above is
+   redefined here, and no site writes a `dark:` class. It follows the device's setting (DK11), pre-auth screens
+   included. The order of the surfaces is the light one (DK1): the card is lightest, the page canvas below it, a lane or
+   a selected row darkest. A Workspace's hue choices (accent, tone remaps) carry into dark through rendering.themeCSS;
+   its shade and value choices for ink, background and border apply to light only, since they were measured on light
+   surfaces. Unchanged on purpose: the brand blue, the focus ring (CP4), mark-good (DK7) and the PDF paper layer (DK9).
+   `TestEveryColourPropertyHasADarkValue` holds the list; GS3 measures the pairs in this block.
+   --------------------------------------------------------------------------------------------- */
+:root {
+	color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-ink-strong: var(--color-slate-50);
+		--color-ink-body: var(--color-slate-200);
+		--color-ink-secondary: var(--color-slate-400);
+		--color-ink-faint: var(--color-slate-500);
+		--color-accent: var(--color-blue-400);
+		--color-accent-hover: var(--color-blue-300);
+		--color-border-surface: var(--color-slate-700);
+		--color-border-control: var(--color-slate-600);
+		--color-border-divider: var(--color-slate-800);
+		--color-bg-raised: var(--color-slate-900);
+		--color-bg-base: var(--color-slate-950);
+		--color-bg-sunken: var(--color-black);
+		--color-tone-neutral-bg: var(--color-slate-800);
+		--color-tone-neutral-ink: var(--color-slate-300);
+		--color-tone-neutral-border: var(--color-slate-700);
+		--color-tone-info-bg: var(--color-blue-950);
+		--color-tone-info-ink: var(--color-blue-300);
+		--color-tone-info-border: var(--color-blue-800);
+		--color-tone-good-bg: var(--color-emerald-950);
+		--color-tone-good-ink: var(--color-emerald-300);
+		--color-tone-good-border: var(--color-emerald-800);
+		--color-tone-bad-bg: var(--color-red-950);
+		--color-tone-bad-ink: var(--color-red-300);
+		--color-tone-bad-border: var(--color-red-800);
+		--color-tone-warn-bg: var(--color-amber-950);
+		--color-tone-warn-ink: var(--color-amber-300);
+		--color-tone-warn-border: var(--color-amber-800);
+		--color-tone-muted-bg: var(--color-slate-950);
+		--color-tone-muted-ink: var(--color-slate-500);
+		--color-tone-muted-border: var(--color-slate-800);
+		--color-tag-blue: var(--color-blue-300);
+		--color-tag-violet: var(--color-violet-300);
+		--color-tag-amber: var(--color-amber-300);
+		--color-tag-emerald: var(--color-emerald-300);
+		--color-tag-cyan: var(--color-cyan-300);
+		--color-tag-rose: var(--color-rose-300);
+		--color-tag-slate: var(--color-slate-300);
+		--color-app-blue-bg: var(--color-blue-950);
+		--color-app-blue-ink: var(--color-blue-300);
+		--color-app-emerald-bg: var(--color-emerald-950);
+		--color-app-emerald-ink: var(--color-emerald-300);
+		--color-app-amber-bg: var(--color-amber-950);
+		--color-app-amber-ink: var(--color-amber-300);
+		--color-app-slate-bg: var(--color-slate-800);
+		--color-app-slate-ink: var(--color-slate-300);
+		--color-file-pdf-bg: var(--color-red-950);
+		--color-file-pdf-ink: var(--color-red-300);
+		--color-draft-edge: var(--color-indigo-800);
+		--color-draft-ink: var(--color-indigo-300);
+		--color-scrim: color-mix(in oklab, var(--color-black) 60%, transparent);
+	}
 }
 
 /* Ubuntu 400/500/700, latin-ext then latin. Weight 500 carries most of the UI (labels, buttons,
@@ -185,7 +280,7 @@
 
 .menata-more-tab:has(+ [popover]:popover-open) {
 	font-weight: 500;
-	color: var(--color-blue-600);
+	color: var(--color-accent);
 }
 
 /* ---------------------------------------------------------------------------------------------

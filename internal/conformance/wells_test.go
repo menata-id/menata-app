@@ -24,7 +24,6 @@ var handWrittenWellFills = map[string]struct {
 	why string
 }{
 	"reviewdocument.templ": {1, "the reference <code> chip and a waiting signature marker"},
-	"workspacehome.templ":  {1, "an Application's default icon colour (a palette) and a suggestion chip"},
 }
 
 func TestHandWrittenWellFillsOnlyShrink(t *testing.T) {

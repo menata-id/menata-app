@@ -93,7 +93,8 @@ func TestBoardDrawsTagChipsFromCardTags(t *testing.T) {
 	if got := strings.Count(out, "Urgent-tag"); got != 1 {
 		t.Errorf("label drawn %d times, want once (on the tagged card only)", got)
 	}
-	if !strings.Contains(out, "text-rose-700") {
+	// A Tag's hue is a property since dark mode (DK8); its value is held by rendering's GS1 and dark contrast gates.
+	if !strings.Contains(out, "text-tag-rose") {
 		t.Errorf("chip is not drawn in the label's palette colour")
 	}
 	if strings.Index(out, "Urgent-tag") > strings.Index(out, "Tagged card") {

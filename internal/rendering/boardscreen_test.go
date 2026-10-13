@@ -165,7 +165,8 @@ func TestBoardScreen_tagChips(t *testing.T) {
 		if err := boardCard(m, c, domain.Actor{}, CardMove{}).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		// A Tag's hue is a property since dark mode (DK8); resolved to what it draws by default.
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	if out := render(nil); strings.Contains(out, "rounded-full border") {
 		t.Errorf("an untagged card must draw no chip row:\n%s", out)

@@ -17,7 +17,7 @@ import (
 // any word, not a list: Tailwind v4 makes a colour utility of every family from a `--color-*` property
 // (`border-t-`, `caret-`, `shadow-`, `from-`, `ring-offset-`), and the 2026-10-13 review passed seven of those through a
 // listed set.
-var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + `]*:)?!?[a-z]+(?:-[a-z]+)*?-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border)))(?:[^a-z0-9-]|$)`)
+var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + `]*:)?!?[a-z]+(?:-[a-z]+)*?-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border)|tag-[a-z]+|app-[a-z]+-(?:bg|ink)|file-[a-z]+-(?:bg|ink)|draft-(?:edge|ink)|scrim))(?:[^a-z0-9-]|$)`)
 
 // colourRoleReaders are the only functions that may write a colour role's class. Each is in layout.templ.
 var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", "backgroundClass", "hoverWashClass",
@@ -28,7 +28,16 @@ var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", 
 	// 3.2d slice B's forms.
 	"toneInkHoverClass", "toneInkFillClass", "inkFillHoverClass", "accentEdgeClass", "accentEdgeHoverClass", "accentRingClass", "inkClassFromSm",
 	// 3.2d review's forms.
-	"surfaceFromSm", "openSurfaceClasses", "raisedTintClass", "unreadTintClass"}
+	"surfaceFromSm", "openSurfaceClasses", "raisedTintClass", "unreadTintClass",
+	// Dark mode's categorical and scrim properties (DK8, DK10).
+	"scrimClass", "draftTileEdgeClass", "draftTileInkClass", "fileTypeTileClasses"}
+
+// categoricalColourReaders are the readers of the categorical properties (DK8) that live beside their component rather
+// than in layout.templ: a Tag's hue and an Application icon's pair.
+var categoricalColourReaders = map[string][]string{
+	"machine.templ":       {"tagClasses"},
+	"workspacehome.templ": {"appIconClasses"},
+}
 
 // TestColourRoleClassesComeOnlyFromTheirReaders is a zero-floor gate beside DS-D15 stage 2. A colour role is a
 // custom property now, so `text-ink-body` written by hand would still follow the Workspace's theme -- the danger is
@@ -46,7 +55,7 @@ func TestColourRoleClassesComeOnlyFromTheirReaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := map[string][]string{}
-	readersSeen := 0
+	readersSeen, categoricalSeen := 0, 0
 	for _, e := range entries {
 		n := e.Name()
 		if strings.HasSuffix(n, "_test.go") || strings.HasSuffix(n, "_templ.go") || !(strings.HasSuffix(n, ".templ") || strings.HasSuffix(n, ".go")) {
@@ -66,12 +75,21 @@ func TestColourRoleClassesComeOnlyFromTheirReaders(t *testing.T) {
 				}
 			}
 		}
+		for _, fn := range categoricalColourReaders[n] {
+			var cut bool
+			if src, cut = withoutFuncBody(src, fn); cut {
+				categoricalSeen++
+			}
+		}
 		for _, m := range colourRoleClass.FindAllStringSubmatch(src, -1) {
 			found[n] = append(found[n], m[1])
 		}
 	}
 	if readersSeen != len(colourRoleReaders) {
 		t.Fatalf("found %d of the %d colour-role readers in layout.templ -- a reader was renamed or moved; update colourRoleReaders", readersSeen, len(colourRoleReaders))
+	}
+	if want := len(categoricalColourReaders["machine.templ"]) + len(categoricalColourReaders["workspacehome.templ"]); categoricalSeen != want {
+		t.Fatalf("found %d of the %d categorical colour readers -- one was renamed or moved; update categoricalColourReaders", categoricalSeen, want)
 	}
 	files := make([]string, 0, len(found))
 	for f := range found {
@@ -113,13 +131,10 @@ var handWrittenColours = map[string]struct {
 	"authshell.templ":          {4, "the focus ring (CP4) of three pre-auth controls, and the brand glyph's white on bg-brand"},
 	"controls.templ":           {1, "the focus ring (CP4) in fieldClasses"},
 	"login.templ":              {2, "the focus ring (CP4) of the two sign-in fields"},
-	"leaveguard.templ":         {1, "the dialog scrim (CP4)"},
-	"appshell.templ":           {4, "the htmx error toast, a class string a script writes (3), and the More sheet's scrim (CP4)"},
-	"layout.templ":             {3, "markGoodFill/Border/HoverBorder: the Design System's mark-good, a plain reader"},
-	"machine.templ":            {31, "the Tag palette (CP5: an author's colour, 7 hues x 4) and the board's drag-and-drop marks in its script (markGoodScriptUses)"},
-	"reviewdocument.templ":     {25, "the PDF paper layer (CP5): signature markers, their legend and the signature canvas drawn over a white page image; and the PDF file-type tile"},
+	"layout.templ":             {3, "markGoodFill/Border/HoverBorder: the Design System's mark-good, a plain reader, one value in both modes (DK7)"},
+	"machine.templ":            {3, "the board's drag-and-drop marks in its script: mark-good (markGoodScriptUses), one value in both modes (DK7)"},
+	"reviewdocument.templ":     {22, "the PDF paper layer (CP5, DK9): signature markers, their legend and the signature canvas, drawn over a white page image, so light in both modes"},
 	"signatureplacement.templ": {8, "the PDF paper layer (CP5): placement markers drawn over the page image"},
-	"workspacehome.templ":      {15, "the Application icon palette (CP5) and the draft-review tile's indigo"},
 }
 
 // TestHandWrittenColoursHaveAReason is the closing gate of rencana 3.2d: every palette colour left in

@@ -2,7 +2,7 @@
 
 `tokens.json` is a **copy** of the Design System artifact "Menata App"
 (`https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS`, file `project/tokens.json`), taken at artifact version
-`1791803834-7a68` (2026-10-12; adds the `item` type style, 15/22, owner decision DS-D13). It is the token source the mockup canvases are generated from.
+`1791884364-e589` (2026-10-13; adds the `dark` theme and the categorical colour tokens, owner decisions DK1–DK11). It is the token source the mockup canvases are generated from.
 
 It is here so a test can hold the artifact and the code to the same values without reading the network:
 `internal/rendering`'s `TestDesignSystemTokensMatchTheCode` (GS1 of `menata-app-document`'s
@@ -16,6 +16,11 @@ compiled `static/css/app.css`. A token must be classified as one of three things
 version above, in the same commit as the code change that matches it (R8 of the guide).
 
 ## `canvas.py` (GS6)
+
+Since 2026-10-13 a colour token's `value` may be a map of theme id to value (`{"light": …, "dark": …}`); a plain string is
+the first theme's, and a theme missing from the map inherits it. The canvases are light, so `canvas.py` writes the first
+theme's value. GS1 checks both themes: light against the default `app.css`, dark against its `prefers-color-scheme: dark`
+block.
 
 `canvas.py` generates and checks the mockup canvas's `:root` token blocks from `tokens.json`. The canvas is not in this
 repo, so download its `project/*.dc.html` first (Artifact `read` with `paths`).

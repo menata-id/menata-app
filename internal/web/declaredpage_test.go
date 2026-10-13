@@ -407,10 +407,11 @@ func TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour(t *testing.T) {
 		return m
 	}
 	blue, rose, odd := chip("Tag-probe-blue"), chip("Tag-probe-rose"), chip("Tag-probe-odd")
-	if !strings.Contains(blue, "text-blue-600") || !strings.Contains(rose, "text-rose-700") {
+	// A Tag's hue is a property since dark mode (DK8); its value is held by rendering's GS1 and dark contrast gates.
+	if !strings.Contains(blue, "text-tag-blue") || !strings.Contains(rose, "text-tag-rose") {
 		t.Errorf("a label did not draw in its own palette colour:\n%s\n%s", blue, rose)
 	}
-	if !strings.Contains(odd, "text-slate-600") {
+	if !strings.Contains(odd, "text-tag-slate") {
 		t.Errorf("a colour outside the palette must fall back to the neutral chip:\n%s", odd)
 	}
 	// The colour is a status no Transition names, so each label's update form asks for it (domain.EditFormInputs)

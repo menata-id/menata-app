@@ -29,9 +29,8 @@ var handWrittenTonePairs = map[string]struct {
 	n   int
 	why string
 }{
-	"appshell.templ":       {1, "the error toast is a class string inside a <script>, built in the browser where no ctx reaches"},
-	"reviewdocument.templ": {1, "the PDF file badge: red-100 is the file type's colour, not a bad state"},
-	"workspacehome.templ":  {3, "an Application's icon colour: a palette an author picks (domain.KnownApplicationColors), like Tag, not a tone"},
+	// Empty since dark mode (2026-10-13): the error toast reads the bad tone through a <template>, and the PDF badge and
+	// the Application icons became categorical properties (DK8). An empty ratchet stays declared.
 }
 
 var (
@@ -86,8 +85,9 @@ func TestHandWrittenTonePairsOnlyShrink(t *testing.T) {
 		files = append(files, f)
 	}
 	sort.Strings(files)
-	if len(actual) == 0 {
-		t.Fatal("no hand-written tone pair found anywhere -- either every one reads the Theme (keep this gate, empty) or the pattern stopped matching")
+	// The scan's own check: with no pair left in the tree, it must still find one in a known shape.
+	if n, _ := countTonePairs(`<span class="bg-red-50 text-red-700">`); n != 1 {
+		t.Fatalf("countTonePairs found %d pair(s) in a known one -- the pattern stopped matching", n)
 	}
 	for _, f := range files {
 		got, want := actual[f], handWrittenTonePairs[f].n
@@ -172,7 +172,6 @@ var handWrittenToneEdges = map[string]struct {
 	n   int
 	why string
 }{
-	"appshell.templ":       {1, "the error toast is a class string inside a <script>"},
 	"reviewdocument.templ": {1, "the signed signature marker's emerald-300 edge: a marker state beside mark-good, counted since the 2026-10-12 review widened the gate to -300"},
 }
 

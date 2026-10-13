@@ -74,26 +74,23 @@ var unnamedDesignValues = map[string]struct {
 	// ink
 	"text-white": {2, "the brand glyph on bg-brand, and a signature marker's number on the PDF paper layer (owner decision CP5: paper stays light); every other on-fill ink reads onFillClass since CP1 (D3 holds background.accent)"},
 
-	"text-indigo-600":  {2, "the review tile's indigo: a hue outside the five tones and the Design System's colours"},
 	"text-emerald-600": {1, "the signed marker's ink beside markGoodBorder: mark-good is a mark, not an ink"},
 	// weight
 	"font-semibold": {2, "two small labels at 600 (an uppercase pill, an inference role heading); the weight ladder is normal and medium only"},
 	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
-	"bg-brand":        {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
-	"bg-blue-600":     {4, "signature markers and their legend on the PDF paper layer (CP5); the current step, numbered approver and unread dot read inkFillClass(InkAccent) since CP2"},
-	"bg-slate-400":    {3, "a waiting signature chip's dot, and the read-only marker's"},
-	"bg-blue-50/80":   {1, "the editable signature marker's translucent fill"},
-	"bg-slate-50/80":  {1, "the read-only signature marker's translucent fill"},
-	"bg-slate-900/40": {1, "DS `scrim` (GS1 dsUnmapped): the mobile sheet's backdrop"},
+	"bg-brand":       {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
+	"bg-blue-600":    {4, "signature markers and their legend on the PDF paper layer (CP5); the current step, numbered approver and unread dot read inkFillClass(InkAccent) since CP2"},
+	"bg-slate-400":   {3, "a waiting signature chip's dot, and the read-only marker's"},
+	"bg-blue-50/80":  {1, "the editable signature marker's translucent fill"},
+	"bg-slate-50/80": {1, "the read-only signature marker's translucent fill"},
 	// edge
-	"border-indigo-200": {3, "the review tile's dashed indigo rim; see text-indigo-600"},
-	"border-slate-400":  {2, "a waiting signature marker's rim, and a waiting chip's"},
-	"border-blue-400":   {1, "your signature box's dashed rim: the accent as an edge"},
-	"border-blue-500":   {1, "your signature chip's rim: the accent as an edge"},
-	"border-blue-600":   {1, "the editable signature marker's rim: the accent as an edge"},
-	"border-white":      {1, "a badge's knock-out ring over a mark"},
-	"ring-blue-100":     {1, "your signature box on the PDF paper layer (CP5); the current step's ring reads accentRingClass since CP3"},
+	"border-slate-400": {2, "a waiting signature marker's rim, and a waiting chip's"},
+	"border-blue-400":  {1, "your signature box's dashed rim: the accent as an edge"},
+	"border-blue-500":  {1, "your signature chip's rim: the accent as an edge"},
+	"border-blue-600":  {1, "the editable signature marker's rim: the accent as an edge"},
+	"border-white":     {1, "a badge's knock-out ring over a mark"},
+	"ring-blue-100":    {1, "your signature box on the PDF paper layer (CP5); the current step's ring reads accentRingClass since CP3"},
 	// gap
 	"gap-2.5": {10, "10px, between the ladder's rungs; xtight (6px) is the only half-step token, and folding is a decision (R1)"},
 	"gap-3.5": {6, "14px, between the ladder's rungs; see gap-2.5"},

@@ -48,7 +48,10 @@ func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {
 		src := stripTemplComments(string(b))
 		if e.Name() == "layout.templ" {
 			// borderShadeVar's `defined` arm since DS-D15 stage 2 (the reader answers a role class now).
-			readers = strings.Count(src, `return "--color-slate-300"`)
+			// Counted inside borderShadeVar alone: since dark mode the tone readers name slate-300 too (toneInkDarkVar).
+			body := src[strings.Index(src, "func borderShadeVar("):]
+			body = body[:strings.Index(body, "\n}\n")]
+			readers = strings.Count(body, `return "--color-slate-300"`)
 			continue
 		}
 		for _, m := range classAttr.FindAllStringSubmatch(joinClassExpressions(src), -1) {

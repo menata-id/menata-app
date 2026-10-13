@@ -121,9 +121,44 @@ func compiledColours(t *testing.T) compiledCSS {
 	if err != nil {
 		t.Fatal(err)
 	}
+	light, _ := compiledCSSModes(t, string(b))
+	return parseCompiledColours(t, light)
+}
+
+// compiledDarkColours is compiledColours as the browser resolves it under `prefers-color-scheme: dark`: the light
+// values with app.css's dark block applied over them.
+func compiledDarkColours(t *testing.T) compiledCSS {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "static", "css", "app.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	light, dark := compiledCSSModes(t, string(b))
+	return parseCompiledColours(t, light+dark)
+}
+
+// appCSSDarkBlock opens the compiled dark-mode block (input.css's, minified).
+const appCSSDarkBlock = "@media (prefers-color-scheme:dark){:root{"
+
+// compiledCSSModes splits app.css into everything but the dark block, and the dark block's declarations.
+func compiledCSSModes(t *testing.T, css string) (light, dark string) {
+	t.Helper()
+	before, rest, ok := strings.Cut(css, appCSSDarkBlock)
+	if !ok {
+		t.Fatalf("app.css has no %q -- the dark-mode block moved or was not compiled", appCSSDarkBlock)
+	}
+	dark, after, ok := strings.Cut(rest, "}}")
+	if !ok {
+		t.Fatal("app.css's dark block does not close")
+	}
+	return before + after, ";" + dark + ";"
+}
+
+func parseCompiledColours(t *testing.T, css string) compiledCSS {
+	t.Helper()
 	out := compiledCSS{}
 	re := regexp.MustCompile(`--color-([a-z]+-[0-9]+):oklch\(([0-9.]+)% ([0-9.]+) ([0-9.]+)\)`)
-	for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+	for _, m := range re.FindAllStringSubmatch(css, -1) {
 		l, _ := strconv.ParseFloat(m[2], 64)
 		c, _ := strconv.ParseFloat(m[3], 64)
 		h, _ := strconv.ParseFloat(m[4], 64)
@@ -132,7 +167,8 @@ func compiledColours(t *testing.T) compiledCSS {
 	// Colour roles alias a palette step (DS-D15 stage 2: `--color-ink-body:var(--color-slate-700)`); each resolves
 	// to the step's value, as the browser resolves it on a page with no Workspace override.
 	out["white"] = oklchColour{L: 1}
-	aliases := regexp.MustCompile(`--color-([a-z]+(?:-[a-z]+)*):var\(--color-([a-z]+(?:-[a-z0-9]+)*)\)`).FindAllStringSubmatch(string(b), -1)
+	out["black"] = oklchColour{}
+	aliases := regexp.MustCompile(`--color-([a-z]+(?:-[a-z]+)*):var\(--color-([a-z]+(?:-[a-z0-9]+)*)\)`).FindAllStringSubmatch(css, -1)
 	for range 3 { // an alias of an alias (`hover-wash` is `bg-base`, which is `slate-50`)
 		for _, m := range aliases {
 			if col, ok := out[m[2]]; ok {

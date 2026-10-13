@@ -667,7 +667,7 @@ func reviewDocumentCard(v ReviewView) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var35 = []any{"flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "bg-red-100 text-2xs font-medium text-red-700"}
+				var templ_7745c5c3_Var35 = []any{"flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), fileTypeTileClasses(), "text-2xs font-medium"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var35...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2152,7 +2152,7 @@ func signatureModal(stepID string) templ.Component {
 			templ_7745c5c3_Var119 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var120 = []any{"sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40"}
+		var templ_7745c5c3_Var120 = []any{"sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg", scrimClass(true)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var120...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

@@ -377,7 +377,7 @@ rather than carrying it forward unreviewed.
 |---|---|---|
 | What does the runtime render today, and what can a Workspace override? | **Code**: `internal/domain/theme.go` (roles → steps), readers in `internal/rendering/layout.templ`/`controls.templ`, `registry.Components`, `static/css/input.css` | this repo |
 | What tokens, type scale, and components do the **mockups** use, and which proposals were accepted or rejected? | **Design System artifact "Menata App"**: `project/README.md` (decisions with reasons) and `project/tokens.json` (64 tokens, oklch values, `status: accepted` on the ones not yet in code) | `https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS` |
-| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791800557-69fe`, canvas v158). The Builder canvas's copy is at the same version (v30) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
+| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791884364-e589`, canvas v161; the canvases take the light theme's values). The Builder canvas's copy is at the same version (v32) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
 | Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
 
 **Governance, lessons and the gate design live in `menata-app-document`'s `guides/menjaga-design-system.md`.** It
@@ -1182,9 +1182,9 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     (`markGoodScriptUses`), and `markGoodExempt` is empty.
 - `TestHandWrittenColoursHaveAReason`: **the closing gate of 3.2d.** Every palette colour still written anywhere in
   `internal/rendering` is counted per file, and each count carries a reason (`handWrittenColours`). That covers a class
-  attribute, a templ expression, a Go string and a script string. What remains is the focus ring and scrim (CP4), the
-  PDF paper layer, the categorical palettes (CP5), the brand glyph, the htmx toast's script string, and the mark-good
-  readers. Anything else must draw through a role.
+  attribute, a templ expression, a Go string and a script string. What remains (since dark mode, 2026-10-13) is the
+  focus ring (CP4), the PDF paper layer (CP5, DK9), the brand glyph, and mark-good (its readers and the board's drag
+  script). Anything else must draw through a role or a categorical property.
   - It exists because the 3.2d review put `bg-red-600` back into the nav badge's Go string argument, and every other
     gate stayed green. The design bucket reads class attributes only.
   - It counts with a loop, because RE2 has no lookahead and `FindAll` swallowed one of two adjacent tokens.
@@ -1195,6 +1195,29 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
       (avatars). Their colour tables are held to `app.css`.
     - `TestColourRewriteMatchesTheDefaultTheme` checked only 15 of its 22 entries. It now derives every entry from
       the reader's own return.
+- **Dark mode, rencana 3.3 (owner decisions DK1–DK11, 2026-10-13):** `static/css/input.css` redefines every colour
+  property under `@media (prefers-color-scheme: dark)`, so no site writes a `dark:` class. It follows the device,
+  sign-in screens included. The decision sheet with measured ratios is `https://claude.ai/artifact/QPsrRHHP5HWyQeP6Trsdeo`.
+  - `TestEveryColourPropertyHasADarkValue`: every light colour property has a dark one, or sits in `darkFollowsByAlias`
+    with its reason (`hover-wash`, an alias of `bg-base`). Each palette step the dark block names must be compiled.
+  - `TestDarkColourPairsMeetContrast` is GS3 for the dark block. It covers every ink role on all three surfaces, every
+    accent hue, every tone and every tone palette a Workspace may remap to, and the inverse fills (primary button,
+    count badge, avatar). It also covers mark-good, the focus ring, the Tag hues over their 10% fill, the app icons, and
+    the file-type and draft tiles. The surfaces must stay 1.02:1 apart.
+  - `TestThemeCSSCarriesOnlyHueChoicesIntoDark` holds DK11. `themeCSS` writes a light block
+    (`@media (prefers-color-scheme:light)`) and a dark block that only carries hue choices (an accent hue, a tone
+    remap) at their dark steps. Ink, background and border shades, and free values, stay light-only.
+  - `TestDarkDefaultsMatchTheDarkReaders` keeps input.css's dark tone and accent values equal to the dark readers.
+  - GS1 compares the artifact's `dark` theme with the dark block. The categorical colours (`tag-*`, `app-*`,
+    `file-pdf-*`, `draft-*`) are Design System tokens and properties now, read by `tagClasses`, `appIconClasses` and the
+    tile readers, and `TestColourRoleClassesComeOnlyFromTheirReaders` covers them.
+  - **Test helpers split the two modes**: `themeVarDefaults` and `compiledColours` read the light side only, while
+    `themeVarDarkDefaults` and `compiledDarkColours` apply the dark block. Without that split, a dark value silently
+    replaced the light one in every resolved assertion.
+  - Verified in Chromium:
+    - light mode is 0 colour differences over 106 pages against HEAD;
+    - a contrast audit of every text element in dark mode found only faint and muted text below 4.5:1 (by design;
+      higher than in light) and the brand glyph, which is the same in both modes.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

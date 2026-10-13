@@ -40,6 +40,7 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	ctx := context.Background()
 	ds := loadDesignSystemTokens(t)
 	css := compiledCSSVars(t)
+	cssDark := compiledCSSVarsDark(t)
 
 	colour := map[string]string{
 		"ink-strong": inkClass(ctx, domain.InkStrong), "ink-body": inkClass(ctx, domain.InkBody),
@@ -54,6 +55,22 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 		"border-divider": borderClass(ctx, domain.BorderDivider), "border-surface": borderClass(ctx, domain.BorderSurface),
 		"border-control": borderClass(ctx, domain.BorderControl),
 		"mark-good":      markGoodFill(),
+		// Aliases of a role the artifact names for a component (checked 2026-10-13; they were listed unmapped with
+		// reasons that predate the readers).
+		"primary": inkFillClass(ctx, domain.InkStrong), "avatar-fill": borderFillClass(ctx, domain.BorderSurface),
+		"danger-ink": toneInkClass(ctx, domain.ToneBad), "danger-wash": toneFillClass(ctx, domain.ToneBad),
+		// DK8 (2026-10-13): the categorical colours, light and dark.
+		"file-pdf-bg": strings.Fields(fileTypeTileClasses())[0], "file-pdf-ink": strings.Fields(fileTypeTileClasses())[1],
+		"draft-edge": draftTileEdgeClass(), "draft-ink": draftTileInkClass(),
+	}
+	for tc, name := range map[domain.TagColor]string{domain.TagBlue: "blue", domain.TagPurple: "violet", domain.TagAmber: "amber",
+		domain.TagEmerald: "emerald", domain.TagCyan: "cyan", domain.TagRose: "rose", domain.TagSlate: "slate"} {
+		chip, _ := tagClasses(tc)
+		colour["tag-"+name] = strings.Fields(chip)[2] // the ink; fill and edge are it at 10% and 20%
+	}
+	for _, c := range []string{"blue", "emerald", "amber", "slate"} {
+		f := strings.Fields(appIconClasses(c))
+		colour["app-"+c+"-bg"], colour["app-"+c+"-ink"] = f[0], f[1]
 	}
 	for tone := range domain.KnownBadgeTones {
 		colour["tone-"+string(tone)+"-bg"] = toneFillClass(ctx, tone)
@@ -123,6 +140,13 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 			if want != got {
 				t.Errorf("%s: Design System %s, code %s (%s) -- the artifact and the code disagree; decide which is right and move the other (R8)", name, want, got, colour[name])
 			}
+			// Dark mode (2026-10-13): the artifact's `dark` theme against input.css's dark block. A token with no dark
+			// value inherits its light one, as the artifact reads it.
+			wantDark := normalizeColour(ds.colourIn(t, name, "dark"))
+			gotDark := normalizeColour(cssDark.colourOf(t, colour[name]))
+			if wantDark != gotDark {
+				t.Errorf("%s (dark): Design System %s, code %s (%s) -- the artifact's dark theme and input.css's dark block disagree (R8)", name, wantDark, gotDark, colour[name])
+			}
 		case "length":
 			want := pxOf(t, ds.length(t, name))
 			got := css.lengthOf(t, length[name])
@@ -165,11 +189,9 @@ var dsAcceptedNotInCode = map[string]string{}
 var dsUnmapped = map[string]string{
 	"brand": "--color-brand in input.css; the M mark only, not a Theme role", "brand-icon": "the PWA PNGs' fill, not CSS",
 	"accent-ring": "the stepper's current-step ring, literal", "focus-ring": "not a reader: a base :focus-visible rule in input.css (DS-D14) and the field focus utilities, both blue-300 (TestKeyboardFocusRuleCoversInteractiveElements)",
-	"primary": "buttonClasses' literal bg-slate-900", "primary-hover": "buttonClasses' literal hover",
-	"avatar-fill": "avatarClasses' literal",
-	"scrim":       "the dialog backdrop, literal", "danger-ink": "danger Button recipe literal; tone-bad-ink aliases it and is checked",
-	"danger-wash": "tone-bad-bg aliases it and is checked",
-	"pad-metric":  "metric's literal p-3", "pad-control-x": "buttonClasses' literal px-4",
+	"primary-hover": "inkFillHoverClass: strong at 90% over raised (CP1), a mix no single value spells; the loader measures it",
+	"scrim":         "scrimClass: --color-scrim is a color-mix (slate-900 40%, black 60% in dark, DK10), the artifact writes rgba",
+	"pad-metric":    "metric's literal p-3", "pad-control-x": "buttonClasses' literal px-4",
 	"control-height": "the literal h-9 in buttonClasses/fieldClasses; no height role", "brand-mark-size": "auth shell literal",
 	"radius-brand-mark": "auth shell one-off", "radius-sheet": "the mobile sheet's literal rounded-t-2xl",
 	"shadow-card-auth": "shadow is not a Theme category (D0a)", "shadow-hover": "as above", "shadow-popover": "as above",
@@ -187,6 +209,7 @@ type dsTokens struct {
 	} `json:"type"`
 }
 
+// dsToken's Value is a string, or since dark mode a map of theme id to string ({"light": ..., "dark": ...}).
 type dsToken struct {
 	Name   string          `json:"name"`
 	Value  json.RawMessage `json:"value"`
@@ -239,11 +262,26 @@ func (d dsTokens) names() []string {
 }
 
 func (d dsTokens) raw(name string) (string, bool) {
+	return d.rawIn(name, "light")
+}
+
+// rawIn is a token's value in one theme. A plain string is the first theme's (light) and every other theme inherits
+// it; a theme missing from a map inherits light too -- the artifact's own reading (format.md, "a missing one inherits
+// the first").
+func (d dsTokens) rawIn(name, theme string) (string, bool) {
 	for _, tk := range d.all() {
 		if tk.Name == name {
 			var s string
 			if json.Unmarshal(tk.Value, &s) == nil {
 				return s, true
+			}
+			var m map[string]string
+			if json.Unmarshal(tk.Value, &m) == nil {
+				if v, ok := m[theme]; ok {
+					return v, true
+				}
+				v, ok := m["light"]
+				return v, ok
 			}
 		}
 	}
@@ -259,10 +297,15 @@ func (d dsTokens) status(name string) string {
 	return ""
 }
 
-// colour resolves a `{alias}` chain the way the artifact does.
+// colour resolves a `{alias}` chain the way the artifact does, in the light theme.
 func (d dsTokens) colour(t *testing.T, name string) string {
+	return d.colourIn(t, name, "light")
+}
+
+// colourIn resolves the chain in one theme: an alias is followed in the same theme.
+func (d dsTokens) colourIn(t *testing.T, name, theme string) string {
 	for i := 0; i < 16; i++ {
-		v, ok := d.raw(name)
+		v, ok := d.rawIn(name, theme)
 		if !ok {
 			t.Fatalf("Design System token %s has no string value", name)
 		}
@@ -321,6 +364,22 @@ func compiledCSSVars(t *testing.T) cssVars {
 		if _, seen := out[m[1]]; !seen {
 			out[m[1]] = strings.TrimSpace(m[2])
 		}
+	}
+	return out
+}
+
+// compiledCSSVarsDark is compiledCSSVars as the browser resolves it under `prefers-color-scheme: dark`: the dark block's
+// declarations over the light ones.
+func compiledCSSVarsDark(t *testing.T) cssVars {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "static", "css", "app.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := compiledCSSVars(t)
+	_, dark := compiledCSSModes(t, string(b))
+	for _, m := range regexp.MustCompile(`--([a-z0-9-]+):([^;}]+)`).FindAllStringSubmatch(dark, -1) {
+		out[m[1]] = strings.TrimSpace(m[2])
 	}
 	return out
 }
@@ -403,8 +462,11 @@ func round2(f float64) float64 { return float64(int(f*100+0.5)) / 100 }
 func normalizeColour(s string) string {
 	s = strings.ToLower(strings.Join(strings.Fields(s), " "))
 	s = regexp.MustCompile(`([( ,/])0\.`).ReplaceAllString(s, "$1.")
-	if s == "#ffffff" {
+	switch s {
+	case "#ffffff":
 		return "#fff"
+	case "#000000":
+		return "#000"
 	}
 	return s
 }

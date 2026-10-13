@@ -18,18 +18,50 @@ import (
 // class its property resolves to on a page rendered under ctx. A hand-written literal is left as it is, so it still
 // fails a moved-theme assertion, which is R9's point.
 
-var roleClassPattern = regexp.MustCompile(`((?:[a-z-]+:)*)(text|bg|border)-(ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border))\b`)
+// colourPropertyNames is every colour property the readers draw through: the roles, and since dark mode (DK8) the
+// categorical colours and the scrim.
+const colourPropertyNames = `ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border)|tag-[a-z]+|app-[a-z]+-(?:bg|ink)|file-[a-z]+-(?:bg|ink)|draft-(?:edge|ink)|scrim`
+
+// categoricalColourProperty is the part of colourPropertyNames that is not a Theme role (DK8, DK10).
+var categoricalColourProperty = regexp.MustCompile(`^--color-(?:tag-[a-z]+|app-[a-z]+-(?:bg|ink)|file-[a-z]+-(?:bg|ink)|draft-(?:edge|ink)|scrim)$`)
+
+var roleClassPattern = regexp.MustCompile(`((?:[a-z-]+:)*)(text|bg|border)-(` + colourPropertyNames + `)\b`)
 
 // themeVarDefaults reads input.css's `@theme` declarations of the role properties (`--color-ink-body:
 // var(--color-slate-700);`).
 func themeVarDefaults(t *testing.T) map[string]string {
 	t.Helper()
+	light, _ := inputCSSModes(t)
+	return colourPropertyDecls(t, light)
+}
+
+// themeVarDarkDefaults reads the same properties out of input.css's dark-mode block (rencana 3.3).
+func themeVarDarkDefaults(t *testing.T) map[string]string {
+	t.Helper()
+	_, dark := inputCSSModes(t)
+	return colourPropertyDecls(t, dark)
+}
+
+// inputCSSDarkBlock opens input.css's dark-mode block; everything before it is the light (default) side.
+const inputCSSDarkBlock = "@media (prefers-color-scheme: dark) {"
+
+func inputCSSModes(t *testing.T) (light, dark string) {
+	t.Helper()
 	b, err := os.ReadFile(filepath.Join("..", "..", "static", "css", "input.css"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	light, dark, ok := strings.Cut(string(b), inputCSSDarkBlock)
+	if !ok {
+		t.Fatalf("input.css has no %q block -- the dark-mode values moved", inputCSSDarkBlock)
+	}
+	return light, dark
+}
+
+func colourPropertyDecls(t *testing.T, css string) map[string]string {
+	t.Helper()
 	out := map[string]string{}
-	for _, m := range regexp.MustCompile(`(--color-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border))):\s*([^;]+);`).FindAllStringSubmatch(string(b), -1) {
+	for _, m := range regexp.MustCompile(`(--color-(?:`+colourPropertyNames+`)):\s*([^;]+);`).FindAllStringSubmatch(css, -1) {
 		out[m[1]] = strings.TrimSpace(m[2])
 	}
 	if len(out) == 0 {
@@ -38,14 +70,24 @@ func themeVarDefaults(t *testing.T) map[string]string {
 	return out
 }
 
-// themeVarOverrides parses themeCSS(ctx) (`:root{--color-ink-body:var(--color-slate-900);…}`).
+// themeVarOverrides parses themeCSS(ctx)'s light block (`@media (prefers-color-scheme:light){:root{--color-ink-body:
+// var(--color-slate-900);…}}`); themeVarDarkOverrides parses its dark one.
 func themeVarOverrides(ctx context.Context) map[string]string {
+	return themeCSSBlock(themeCSS(ctx), themeCSSLight)
+}
+
+func themeVarDarkOverrides(ctx context.Context) map[string]string {
+	return themeCSSBlock(themeCSS(ctx), themeCSSDark)
+}
+
+func themeCSSBlock(css, media string) map[string]string {
 	out := map[string]string{}
-	css := strings.TrimSuffix(strings.TrimPrefix(themeCSS(ctx), ":root{"), "}")
-	if css == "" {
+	_, rest, ok := strings.Cut(css, media+"{:root{")
+	if !ok {
 		return out
 	}
-	for _, d := range strings.Split(css, ";") {
+	body, _, _ := strings.Cut(rest, "}}")
+	for _, d := range strings.Split(body, ";") {
 		k, v, _ := strings.Cut(d, ":")
 		out[k] = v
 	}
@@ -124,6 +166,9 @@ func TestThemeCSSDefaultsMatchTheDefaultTheme(t *testing.T) {
 		}
 	}
 	for k := range defaults {
+		if categoricalColourProperty.MatchString(k) {
+			continue // DK8/DK10: an author's colour or the scrim, not a Theme role; TestEveryColourPropertyHasADarkValue holds them
+		}
 		if _, ok := want[k]; !ok {
 			t.Errorf("input.css declares %s, which no Theme role draws through -- remove it or give it a role", k)
 		}
@@ -309,7 +354,7 @@ func TestAppShellWritesTheThemeOverrideInItsHead(t *testing.T) {
 	}
 	html := render(domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkAccent: "#be123c"}})
 	head, _, _ := strings.Cut(html, "</head>")
-	if !strings.Contains(head, "<style>:root{--color-accent:#be123c;") {
+	if !strings.Contains(head, "<style>@media (prefers-color-scheme:light){:root{--color-accent:#be123c;") {
 		t.Errorf("the brand accent's override is not in the head: %s", head)
 	}
 	if strings.Contains(render(domain.DefaultTheme()), "<style>") {

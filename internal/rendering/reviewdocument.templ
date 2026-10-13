@@ -193,7 +193,7 @@ templ reviewDocumentCard(v ReviewView) {
 			@staticText(domain.StaticMessage, "No file is attached to this document.")
 		} else {
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3" }>
-				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "bg-red-100 text-2xs font-medium text-red-700" }>PDF</span>
+				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), fileTypeTileClasses(), "text-2xs font-medium" }>PDF</span>
 				<span class="flex min-w-0 flex-col">
 					<span class="truncate text-sm">{ v.FileName }</span>
 					if v.PDFPages > 0 {
@@ -523,7 +523,7 @@ templ reviewDecisionBar(v ReviewView) {
 // before any bubble-phase document listener) -- without that, htmx would read the hidden
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
-	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40" }>
+	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg", scrimClass(true) }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class={ "mt-1.5 mb-3 text-2xs", inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
 		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
