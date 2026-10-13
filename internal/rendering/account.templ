@@ -165,7 +165,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
-				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>
+				<p class="m-0 text-2xs text-slate-500">Not enabled <span class={ "text-3xs", inkClass(ctx, domain.InkSecondary) }>(planned)</span></p>
 			</div>
 			<button disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), "bg-slate-50 px-3 py-1.5 text-xs font-medium " + inkClass(ctx, domain.InkFaint) }>Enable</button>
 		</section>

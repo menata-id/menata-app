@@ -513,7 +513,7 @@ func badgePadding(ctx context.Context, size domain.BadgeSize) string {
 // avatarClasses maps an avatar's two closed parameters onto the circle it draws. Two switches rather than one
 // pair-wise table, because size and presence are genuinely independent here -- unlike `splitTracks`, where
 // Tailwind needs the whole track list as one literal.
-func avatarClasses(size domain.AvatarSize, presence domain.AvatarPresence) string {
+func avatarClasses(ctx context.Context, size domain.AvatarSize, presence domain.AvatarPresence) string {
 	dim := "size-8 text-2xs"
 	switch size {
 	case domain.AvatarLead:
@@ -523,7 +523,7 @@ func avatarClasses(size domain.AvatarSize, presence domain.AvatarPresence) strin
 	}
 	tone := "bg-slate-200 text-slate-700"
 	if presence == domain.AvatarPending {
-		tone = "border border-dashed border-slate-300 text-slate-400"
+		tone = "border border-dashed border-slate-300 " + inkClass(ctx, domain.InkFaint)
 	}
 	return "flex shrink-0 items-center justify-center rounded-full font-medium " + dim + " " + tone
 }
@@ -561,7 +561,7 @@ func avatar(initials, label string, size domain.AvatarSize, presence domain.Avat
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var13 = []any{avatarClasses(size, presence)}
+		var templ_7745c5c3_Var13 = []any{avatarClasses(ctx, size, presence)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var13...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -586,7 +586,7 @@ func avatar(initials, label string, size domain.AvatarSize, presence domain.Avat
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -599,7 +599,7 @@ func avatar(initials, label string, size domain.AvatarSize, presence domain.Avat
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -612,7 +612,7 @@ func avatar(initials, label string, size domain.AvatarSize, presence domain.Avat
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(initials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 371, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -803,7 +803,7 @@ func metricTile(label, value, hint string, tone domain.BadgeTone) templ.Componen
 			return templ_7745c5c3_Err
 		}
 		if hint != "" {
-			var templ_7745c5c3_Var29 = []any{"text-2xs", inkClass(ctx, domain.InkFaint)}
+			var templ_7745c5c3_Var29 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var29...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -828,7 +828,7 @@ func metricTile(label, value, hint string, tone domain.BadgeTone) templ.Componen
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(hint)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 395, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 395, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {

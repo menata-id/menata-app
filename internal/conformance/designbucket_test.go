@@ -73,7 +73,7 @@ var unnamedDesignValues = map[string]struct {
 }{
 	// ink
 	"text-white":       {15, "ink on a filled mark (primary button, step circle, count badge, done check): the Design System has `primary` but no on-fill ink, and a role waits on a fill role beside it (D3 holds background.accent)"},
-	"text-slate-300":   {8, "chevrons and a '(planned)' aside: decorative and lighter than `faint`; no ink role sits below faint (rencana 1.2b reviews faint)"},
+	"text-slate-300":   {7, "chevrons: decoration, lighter than `faint`; no ink role sits below faint. The '(planned)' aside was content and reads secondary since 1.2b"},
 	"text-slate-600":   {4, "the neutral tone's ink (DS tone-neutral-ink): a reference code chip that is the neutral pair written by hand, and plain labels; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
 	"text-red-600":     {4, "a lone danger word (pre-auth error, Delete group link, overdue SLA, a 'yes'): DS danger-ink is red-700, and folding 600 into it is a decision (R1)"},
 	"text-indigo-600":  {2, "the review tile's indigo: a hue outside the five tones and the Design System's colours"},

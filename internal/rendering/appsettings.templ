@@ -103,7 +103,7 @@ templ settingsRow(href, label, description string, current bool) {
 
 // notBuiltYetTag is the muted tag a placeholder row wears instead of a link.
 templ notBuiltYetTag() {
-	<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkFaint), "uppercase" }>Not built yet</span>
+	<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Not built yet</span>
 }
 
 // settingsPlaceholderRow is an honest, non-interactive row for a section this runtime cannot serve
@@ -118,11 +118,11 @@ templ settingsPlaceholderRow(label, description string) {
 // settingsPlaceholderBody is the muted label-plus-tag and description both placeholder rows share.
 templ settingsPlaceholderBody(label, description string) {
 	<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-		<span class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint) }>
+		<span class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 			{ label }
 			@notBuiltYetTag()
 		</span>
-		<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) }>{ description }</span>
+		<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 	</span>
 }
 
@@ -259,7 +259,7 @@ templ settingsSidebar(hub SettingsHubView, showingDetail bool) {
 			@settingsNavLink(permissionsHref(hub), permissionsTitle, showingDetail)
 		}
 		@settingsNavGroup("Communication") {
-			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), "px-3 py-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint) }>
+			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), "px-3 py-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 				{ notificationsTitle }
 				@notBuiltYetTag()
 			</div>

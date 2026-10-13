@@ -287,7 +287,7 @@ func notBuiltYetTag() templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var14 = []any{radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkFaint), "uppercase"}
+		var templ_7745c5c3_Var14 = []any{radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -415,7 +415,7 @@ func settingsPlaceholderBody(label, description string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var22 = []any{"flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint)}
+		var templ_7745c5c3_Var22 = []any{"flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -454,7 +454,7 @@ func settingsPlaceholderBody(label, description string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint)}
+		var templ_7745c5c3_Var25 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var25...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -479,7 +479,7 @@ func settingsPlaceholderBody(label, description string) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 125, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 125, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -1413,7 +1413,7 @@ func settingsSidebar(hub SettingsHubView, showingDetail bool) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			var templ_7745c5c3_Var81 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), "px-3 py-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint)}
+			var templ_7745c5c3_Var81 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), "px-3 py-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var81...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

@@ -1139,16 +1139,30 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     parameters and states the dev DB cannot reach are not covered.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
-  found most were content, so they moved to `secondary` (slate-500, 4.77:1): emails, roles, SLA lines, document
-  references, timestamps, member counts, empty-state messages, New Application's field labels, section labels
-  (`StaticOverline` included), and nine controls (icon buttons need 3:1, a text button 4.5:1). Measured in Chromium,
-  711 elements on 63 of 106 pages changed, all of them text going from slate-400 to slate-500; nothing else moved.
-  - **What stays faint is a judgement, so the gate holds a count per file with a reason** (`faintInkSites`, in
-    `readPathWriters`' shape): disabled controls, not-built settings, ids, em dashes, a chevron, ordinals, a Metric's
-    hint. A new `domain.InkFaint` read fails until its reason is written, and a lower count fails too. It does not
-    use a pattern, because a pattern cannot tell a hint from content. Mutation-proved both ways.
-  - Two literal floors remain in Go helpers with no ctx (`avatarClasses`' pending ring, `diffLineClass`' hunk
-    header); the token ratchet counts them.
+  found most were content, so they moved to `secondary` (slate-500, 4.77:1):
+  - emails, roles, SLA lines, document references, timestamps, member counts;
+  - empty-state messages, New Application's field labels, section labels (`StaticOverline` included);
+  - a Metric's hint, which a page can bind to a computed figure (`hint_figure:`);
+  - a not-built setting's explanation and its tag;
+  - nine controls (icon buttons need 3:1, a text button 4.5:1).
+
+  Measured in Chromium: 772 elements on 63 of 106 pages changed, every one of them text moving to slate-500, and
+  nothing else.
+  - **What stays faint is a judgement, so the gate holds a count per function with a reason** (`faintInkSites`, keyed
+    `file:function`, in `readPathWriters`' shape). The reasons are a disabled control, ids, em dashes, a chevron,
+    ordinals, a pending avatar's initials, a diff's hunk header, and the inference inspector's not-applicable rows.
+    The `muted` tone counts as faint, because it draws the same slate-400.
+  - **The independent review drove four roads around the first, per-file token count, and all four are closed:**
+    - `domain.InkRole("faint")`;
+    - an alias in another file;
+    - `ToneMuted`;
+    - moving faint ink between two functions in one file.
+
+    An `inkClass` role must be a `domain.Ink…` constant at the call, and `domain.InkFaint` may appear only as that
+    argument. A swap inside one function still passes; that is inherent to counting.
+  - Both former literal floors (`avatarClasses`, `diffLineClass`) take ctx and read the reader. An earlier version
+    of this bullet claimed the token ratchet counted them, and nothing did.
+  - Open, for the owner: `secondary` on `sunken` is 4.35:1. The Not built yet tag is now one such site.
 - `TestHandWrittenToneEdgesOnlyShrink` — owner decision DS-D16 (2026-10-12). A tone is a **triple** now:
   `toneEdgeClass(ctx, domain.Tone*)` gives the edge from the same palette as the fill and ink. No Theme key was added,
   and a Workspace remapping `warn` to red no longer keeps an amber rim. Six edges moved byte-identically (components

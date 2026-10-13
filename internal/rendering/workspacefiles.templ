@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"menata.app/internal/domain"
 	"net/url"
 	"strings"
@@ -138,7 +139,7 @@ templ fileDiffList(diffs []FileDiffView) {
 			if d.Changed {
 				<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
 					for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {
-						<div class={ diffLineClass(line) }>{ line }</div>
+						<div class={ diffLineClass(ctx, line) }>{ line }</div>
 					}
 				</pre>
 			} else {
@@ -148,14 +149,14 @@ templ fileDiffList(diffs []FileDiffView) {
 	}
 }
 
-func diffLineClass(line string) string {
+func diffLineClass(ctx context.Context, line string) string {
 	switch {
 	case strings.HasPrefix(line, "+"):
 		return "bg-green-50 px-3 text-green-800"
 	case strings.HasPrefix(line, "-"):
 		return "bg-red-50 px-3 text-red-800"
 	case strings.HasPrefix(line, "@@"):
-		return "px-3 text-slate-400"
+		return "px-3 " + inkClass(ctx, domain.InkFaint)
 	default:
 		return "px-3 text-slate-600"
 	}

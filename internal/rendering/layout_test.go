@@ -329,7 +329,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 		if err := avatar("SI", "Silvia Indah Rini", tc.size, tc.presence).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", tc.site, err)
 		}
-		got := buf.String()
+		got := resolveColourRoles(t, context.Background(), buf.String())
 		for _, cls := range tc.want {
 			if !strings.Contains(got, cls) {
 				t.Errorf("%s: avatar missing %q; got %q", tc.site, cls, got)
@@ -409,7 +409,9 @@ func TestStaticLink_rendersAnAnchorNotLiteralText(t *testing.T) {
 }
 
 // TestMetric_inkFollowsTheWorkspaceTheme proves text colour is declarable, with no recompile, and that the
-// default is exactly what the Metric hardcoded before (`slate-900` value, `slate-500` label, `slate-400` hint).
+// default is exactly what the Metric hardcoded before (`slate-900` value, `slate-500` label), except the hint: it was
+// `slate-400` and reads `secondary` since rencana 1.2b, because a page may bind it to a computed figure (`hint_figure:`),
+// which is content, not a hint.
 func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 	render := func(ctx context.Context) string {
 		var buf bytes.Buffer
@@ -419,7 +421,7 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 		return buf.String()
 	}
 	def := resolveColourRoles(t, context.Background(), render(context.Background()))
-	for _, want := range []string{"text-slate-900", "text-xs text-slate-500", "text-2xs text-slate-400"} {
+	for _, want := range []string{"text-slate-900", "text-xs text-slate-500", "text-2xs text-slate-500"} {
 		if !strings.Contains(def, want) {
 			t.Errorf("default Metric lost %q; got %q", want, def)
 		}
@@ -427,11 +429,10 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 
 	ws := domain.Workspace{Slug: "test", Theme: domain.Theme{Ink: map[domain.InkRole]domain.InkShade{
 		domain.InkSecondary: domain.InkShadeDark,
-		domain.InkFaint:     domain.InkShadeMedium,
 	}}}
 	wctx := WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false)
 	got := resolveColourRoles(t, wctx, render(wctx))
-	if !strings.Contains(got, "text-xs text-slate-700") || !strings.Contains(got, "text-2xs text-slate-500") {
+	if !strings.Contains(got, "text-xs text-slate-700") || !strings.Contains(got, "text-2xs text-slate-700") {
 		t.Errorf("a declared ink theme should recolour the label and hint; got %q", got)
 	}
 	if !strings.Contains(got, "text-slate-900") {
