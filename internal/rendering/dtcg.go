@@ -73,7 +73,9 @@ func ExportDesignTokens(ws domain.Workspace, appCSS string) (DesignTokenFiles, e
 			if err != nil {
 				return nil, fmt.Errorf("color.%s (%s, %s): %w", name, class, mode, err)
 			}
-			group[name] = map[string]any{"$value": c.dtcg(), "$extensions": map[string]any{dtcgExtension: map[string]string{"class": class, "property": prop}}}
+			// The extension names the property, not the class: a hover token's class is the reader's minus its
+			// `hover:` variant, which compiles to nothing on its own (the 3.4 review).
+			group[name] = map[string]any{"$value": c.dtcg(), "$extensions": map[string]any{dtcgExtension: map[string]string{"property": prop}}}
 		}
 		return map[string]any{
 			"$schema":      dtcgFormatSchema,
@@ -257,7 +259,7 @@ func parseCSSColour(vars map[string]string, v string, depth int) (cssColour, err
 	if depth > 8 {
 		return cssColour{}, fmt.Errorf("%q: alias chain too deep", v)
 	}
-	v = strings.TrimSpace(v)
+	v = strings.ToLower(strings.TrimSpace(v))
 	switch {
 	case v == "black":
 		return cssColour{hex: "#000000"}, nil

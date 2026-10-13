@@ -137,7 +137,7 @@ func TestCommittedDesignTokensAreFresh(t *testing.T) {
 func TestDesignTokensMatchTheDesignSystemArtifact(t *testing.T) {
 	ds := loadDesignSystemTokens(t)
 	files := exportTokens(t, domain.Workspace{})
-	for mode, b := range map[string][]byte{"light": files.Light, "dark": files.Dark} {
+	for mode, b := range resolvedModes(t, files) {
 		colours := exportedColours(t, b)
 		if len(colours) < 50 {
 			t.Fatalf("%s export has %d colours -- far fewer than the artifact maps", mode, len(colours))
@@ -149,11 +149,22 @@ func TestDesignTokensMatchTheDesignSystemArtifact(t *testing.T) {
 			}
 		}
 	}
+	// Hex fallbacks are converted here, not read from app.css; four are pinned to the hex Tailwind publishes for the
+	// step, so a broken OKLab matrix fails beside the snapshot (the 3.4 review's surviving mutant).
+	light, dark := exportedHex(t, files.Light), exportedHex(t, files.Dark)
+	for name, want := range map[string]string{"accent": "#155dfc", "danger-ink": "#c10007", "ink-body": "#314158"} {
+		if light[name] != want {
+			t.Errorf("color.%s (light) hex %s, want Tailwind's %s", name, light[name], want)
+		}
+	}
+	if dark["accent"] != "#51a2ff" {
+		t.Errorf("color.accent (dark) hex %s, want Tailwind's blue-400 #51a2ff", dark["accent"])
+	}
 	var base struct {
 		Spacing, Radius map[string]json.RawMessage
 		Typography      map[string]json.RawMessage
 	}
-	if err := json.Unmarshal(files.Base, &base); err != nil {
+	if err := json.Unmarshal(resolvedBase(t, files), &base); err != nil {
 		t.Fatal(err)
 	}
 	n := 0
@@ -243,6 +254,11 @@ func exportedColours(t *testing.T, b []byte) map[string]string {
 		v := tok.Value
 		switch v.ColorSpace {
 		case "srgb":
+			// The components are what a DTCG reader takes; the hex is only a fallback. They must say the same colour.
+			r, g, b := hexRGB(v.Hex)
+			if len(v.Components) != 3 || v.Components[0] != round(r, 4) || v.Components[1] != round(g, 4) || v.Components[2] != round(b, 4) {
+				t.Errorf("color.%s: sRGB components %v do not say its hex %s", name, v.Components, v.Hex)
+			}
 			out[name] = v.Hex
 		case "oklch":
 			out[name] = fmt.Sprintf("oklch(%s%% %s %s)", strconv.FormatFloat(round(v.Components[0]*100, 4), 'f', -1, 64),
@@ -330,4 +346,81 @@ func accentHoverOf(t *testing.T, light []byte) []float64 {
 		t.Fatal(err)
 	}
 	return tok.Value.Components
+}
+
+// resolvedModes follows menata.resolver.json to the colour document each `mode` context names, so a resolver that
+// pointed light at the dark file fails here and not only in the snapshot (the 3.4 review).
+func resolvedModes(t *testing.T, files DesignTokenFiles) map[string][]byte {
+	t.Helper()
+	byRef := map[string][]byte{DesignTokensBaseFile: files.Base, DesignTokensLightFile: files.Light, DesignTokensDarkFile: files.Dark}
+	var r struct {
+		Modifiers map[string]struct {
+			Contexts map[string][]struct {
+				Ref string `json:"$ref"`
+			}
+			Default string
+		}
+		ResolutionOrder []struct {
+			Ref string `json:"$ref"`
+		}
+	}
+	if err := json.Unmarshal(files.Resolver, &r); err != nil {
+		t.Fatal(err)
+	}
+	mode, ok := r.Modifiers["mode"]
+	if !ok || mode.Default != "light" || len(r.ResolutionOrder) != 2 || r.ResolutionOrder[1].Ref != "#/modifiers/mode" {
+		t.Fatalf("the resolver does not apply a `mode` modifier (default light) after the base set: %s", files.Resolver)
+	}
+	out := map[string][]byte{}
+	for ctx, refs := range mode.Contexts {
+		if len(refs) != 1 || byRef[refs[0].Ref] == nil {
+			t.Fatalf("mode context %q names %v, not one exported file", ctx, refs)
+		}
+		out[ctx] = byRef[refs[0].Ref]
+	}
+	if len(out) != 2 || out["light"] == nil || out["dark"] == nil {
+		t.Fatalf("mode contexts %v, want light and dark", mode.Contexts)
+	}
+	return out
+}
+
+// resolvedBase is the one document the resolver's `base` set names.
+func resolvedBase(t *testing.T, files DesignTokenFiles) []byte {
+	t.Helper()
+	var r struct {
+		Sets map[string]struct {
+			Sources []struct {
+				Ref string `json:"$ref"`
+			}
+		}
+		ResolutionOrder []struct {
+			Ref string `json:"$ref"`
+		}
+	}
+	if err := json.Unmarshal(files.Resolver, &r); err != nil {
+		t.Fatal(err)
+	}
+	src := r.Sets["base"].Sources
+	if len(src) != 1 || src[0].Ref != DesignTokensBaseFile || len(r.ResolutionOrder) == 0 || r.ResolutionOrder[0].Ref != "#/sets/base" {
+		t.Fatalf("the resolver's first step is not the base set naming %s: %s", DesignTokensBaseFile, files.Resolver)
+	}
+	return files.Base
+}
+
+func exportedHex(t *testing.T, b []byte) map[string]string {
+	t.Helper()
+	var doc struct{ Color map[string]json.RawMessage }
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for name, raw := range doc.Color {
+		var tok struct {
+			Value struct{ Hex string } `json:"$value"`
+		}
+		if json.Unmarshal(raw, &tok) == nil {
+			out[name] = tok.Value.Hex
+		}
+	}
+	return out
 }

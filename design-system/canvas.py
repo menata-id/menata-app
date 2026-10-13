@@ -17,7 +17,8 @@ then publishes what `generate` rewrote. Rules R3 and R8 of the guide say when to
 
   python3 -I design-system/canvas.py compare design-system/tokens.json design-system/dtcg/default/menata.resolver.json
       Reads a W3C DTCG 2025.10 export (rencana 3.4, `make tokens` / `go run ./cmd/tokens`) through its resolver and
-      compares every token it shares with tokens.json, in both themes. Exit 1 on any difference.
+      compares every token it shares with tokens.json: colours in both themes, spacing, radius and type styles (size, line
+      height, weight). Exit 1 on any difference.
 
 Wherever a tokens.json path is taken, a DTCG `*.resolver.json` may be given instead: its `base` set and each context of
 its `mode` modifier become the same families (colour per theme, spacing, radius), so a mockup for one Workspace's own
@@ -59,6 +60,7 @@ def dtcg_tokens(resolver_path):
     if resolver.get("version") != "2025.10":
         sys.exit("%s: not a DTCG 2025.10 resolver" % resolver_path)
     families = {fam: {"tokens": []} for fam in FAMILIES}
+    families["_type"] = {}
     colours = {}
 
     def sources(ref):
@@ -83,6 +85,11 @@ def dtcg_tokens(resolver_path):
                     kind = tok.get("$type", tokens.get("$type"))
                     if kind == "color":
                         colours.setdefault(name, {})[ctx or "light"] = dtcg_colour(tok["$value"])
+                    elif kind == "typography":
+                        v = tok["$value"]
+                        size = v["fontSize"]["value"]
+                        families["_type"][name] = {"fontSize": "%gpx" % size, "lineHeight": round(v["lineHeight"] * size, 2),
+                                                   "fontWeight": v["fontWeight"]}
                     elif kind == "dimension" and group in families:
                         v = tok["$value"]
                         families[group]["tokens"].append({"name": name, "value": "%g%s" % (v["value"], v["unit"])})
@@ -133,7 +140,20 @@ def compare(ds, export):
             n += 1
             if ds_vals.get(t["name"]) != t["value"]:
                 bad.append("%s: export %s, tokens.json %s" % (t["name"], t["value"], ds_vals.get(t["name"])))
-    print("compared %d token values (colours per theme, spacing, radius)" % n)
+    styles = {st["name"]: st for g in ds["type"]["groups"] for st in g["styles"]}
+    for name, got in sorted(export.get("_type", {}).items()):
+        st = styles.get(name)
+        n += 1
+        if st is None:
+            bad.append("typography.%s: in the export, not in tokens.json" % name)
+            continue
+        size = float(st["fontSize"].rstrip("px"))
+        lh = st["lineHeight"]
+        lh = float(lh.rstrip("px")) if isinstance(lh, str) else round(lh * size, 2)
+        want = {"fontSize": st["fontSize"], "lineHeight": lh, "fontWeight": st["fontWeight"]}
+        if got != want:
+            bad.append("typography.%s: export %s, tokens.json %s" % (name, got, want))
+    print("compared %d token values (colours per theme, spacing, radius, type styles)" % n)
     for b in bad:
         print("FAIL " + b)
     return 1 if bad or n == 0 else 0
@@ -184,15 +204,17 @@ def generate(tokens, folder, version, date):
         m = ROOT_RE.search(s)
         if m:
             out = s[: m.start()] + new_block + s[m.end():]
+            strip = lambda x: ROOT_RE.sub("", x, count=1)
+            if strip(out) != strip(s):
+                sys.exit("%s: something outside the :root block would change -- refusing" % f.name)
         elif "<style>\n" in s:
+            # A new artboard: the block and one blank line go in after `<style>`, and nothing else moves. Checked by
+            # taking exactly that back out (comparing with the block stripped refused every insertion until 2026-10-13).
             out = s.replace("<style>\n", "<style>\n" + new_block + "\n\n", 1)
+            if out.replace(new_block + "\n\n", "", 1) != s:
+                sys.exit("%s: inserting the :root block would change something else -- refusing" % f.name)
         else:
             sys.exit("%s: no :root block and no <style> to insert one into" % f.name)
-        # Newline runs are collapsed so that inserting a block into a new artboard (which adds a blank line after it) is
-        # not mistaken for a change outside the block.
-        strip = lambda x: re.sub(r"\n+", "\n", ROOT_RE.sub("", x, count=1))
-        if strip(out) != strip(s):
-            sys.exit("%s: something outside the :root block would change -- refusing" % f.name)
         if out != s:
             f.write_text(out)
             changed += 1
@@ -206,7 +228,7 @@ def check(tokens, folder):
             v = str(first_theme(t["value"]))
             if not v.startswith("{"):
                 values.add(norm(v))
-    bad, refs, on, off = [], Counter(), 0, Counter()
+    bad, warn, refs, on, off = [], [], Counter(), 0, Counter()
     for f in boards(folder):
         s = f.read_text()
         m = ROOT_RE.search(s)
@@ -219,6 +241,13 @@ def check(tokens, folder):
             bad.append("%s: :root block differs from tokens.json" % f.name)
         body = s[m.end():]
         refs[f.name] = len(re.findall(r"var\(--", body))
+        # A reference no block token and no declaration in the file defines draws nothing. Generating from a DTCG export
+        # carries fewer tokens than tokens.json (no brand, focus-ring or shadows), so this is where that shows.
+        # A warning, not a failure: it was added 2026-10-13 without being run over the live canvas, so what it reports
+        # there is unmeasured. Promote it once a run over the canvas shows zero.
+        defined = set(re.findall(r"--([\w-]+)\s*:", s))
+        for name in sorted(set(re.findall(r"var\(--([\w-]+)", body)) - defined):
+            warn.append("%s: var(--%s) is defined by no token and nothing in the file" % (f.name, name))
         for lit in re.findall(r"oklch\([^)]*\)|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b", body):
             if norm(lit) in values:
                 on += 1
@@ -231,6 +260,9 @@ def check(tokens, folder):
     print("colour literals outside the block: %d equal a token value, %d do not" % (on, sum(off.values())))
     if off:
         print("top off-token literals: " + ", ".join("%s x%d" % kv for kv in off.most_common(10)))
+    print("undefined var() references: %d" % len(warn))
+    for w in warn:
+        print("WARN " + w)
     for b in bad:
         print("FAIL " + b)
     return 1 if bad else 0

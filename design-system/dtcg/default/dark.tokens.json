@@ -6,7 +6,6 @@
     "accent": {
       "$extensions": {
         "app.menata": {
-          "class": "text-accent",
           "property": "--color-accent"
         }
       },
@@ -23,7 +22,6 @@
     "accent-hover": {
       "$extensions": {
         "app.menata": {
-          "class": "text-accent-hover",
           "property": "--color-accent-hover"
         }
       },
@@ -40,7 +38,6 @@
     "app-amber-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-app-amber-bg",
           "property": "--color-app-amber-bg"
         }
       },
@@ -57,7 +54,6 @@
     "app-amber-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-app-amber-ink",
           "property": "--color-app-amber-ink"
         }
       },
@@ -74,7 +70,6 @@
     "app-blue-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-app-blue-bg",
           "property": "--color-app-blue-bg"
         }
       },
@@ -91,7 +86,6 @@
     "app-blue-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-app-blue-ink",
           "property": "--color-app-blue-ink"
         }
       },
@@ -108,7 +102,6 @@
     "app-emerald-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-app-emerald-bg",
           "property": "--color-app-emerald-bg"
         }
       },
@@ -125,7 +118,6 @@
     "app-emerald-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-app-emerald-ink",
           "property": "--color-app-emerald-ink"
         }
       },
@@ -142,7 +134,6 @@
     "app-slate-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-app-slate-bg",
           "property": "--color-app-slate-bg"
         }
       },
@@ -159,7 +150,6 @@
     "app-slate-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-app-slate-ink",
           "property": "--color-app-slate-ink"
         }
       },
@@ -176,7 +166,6 @@
     "avatar-fill": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-border-surface",
           "property": "--color-border-surface"
         }
       },
@@ -193,7 +182,6 @@
     "bg-base": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-bg-base",
           "property": "--color-bg-base"
         }
       },
@@ -210,7 +198,6 @@
     "bg-raised": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-bg-raised",
           "property": "--color-bg-raised"
         }
       },
@@ -227,7 +214,6 @@
     "bg-sunken": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-bg-sunken",
           "property": "--color-bg-sunken"
         }
       },
@@ -244,7 +230,6 @@
     "border-control": {
       "$extensions": {
         "app.menata": {
-          "class": "border-border-control",
           "property": "--color-border-control"
         }
       },
@@ -261,7 +246,6 @@
     "border-divider": {
       "$extensions": {
         "app.menata": {
-          "class": "border-border-divider",
           "property": "--color-border-divider"
         }
       },
@@ -278,7 +262,6 @@
     "border-surface": {
       "$extensions": {
         "app.menata": {
-          "class": "border-border-surface",
           "property": "--color-border-surface"
         }
       },
@@ -295,7 +278,6 @@
     "danger-border": {
       "$extensions": {
         "app.menata": {
-          "class": "border-tone-bad-border",
           "property": "--color-tone-bad-border"
         }
       },
@@ -312,7 +294,6 @@
     "danger-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-bad-ink",
           "property": "--color-tone-bad-ink"
         }
       },
@@ -329,7 +310,6 @@
     "danger-wash": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-bad-bg",
           "property": "--color-tone-bad-bg"
         }
       },
@@ -346,7 +326,6 @@
     "draft-edge": {
       "$extensions": {
         "app.menata": {
-          "class": "border-draft-edge",
           "property": "--color-draft-edge"
         }
       },
@@ -363,7 +342,6 @@
     "draft-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-draft-ink",
           "property": "--color-draft-ink"
         }
       },
@@ -380,7 +358,6 @@
     "file-pdf-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-file-pdf-bg",
           "property": "--color-file-pdf-bg"
         }
       },
@@ -397,7 +374,6 @@
     "file-pdf-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-file-pdf-ink",
           "property": "--color-file-pdf-ink"
         }
       },
@@ -414,7 +390,6 @@
     "hover-wash": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-hover-wash",
           "property": "--color-hover-wash"
         }
       },
@@ -431,7 +406,6 @@
     "ink-body": {
       "$extensions": {
         "app.menata": {
-          "class": "text-ink-body",
           "property": "--color-ink-body"
         }
       },
@@ -448,7 +422,6 @@
     "ink-faint": {
       "$extensions": {
         "app.menata": {
-          "class": "text-ink-faint",
           "property": "--color-ink-faint"
         }
       },
@@ -465,7 +438,6 @@
     "ink-secondary": {
       "$extensions": {
         "app.menata": {
-          "class": "text-ink-secondary",
           "property": "--color-ink-secondary"
         }
       },
@@ -482,7 +454,6 @@
     "ink-strong": {
       "$extensions": {
         "app.menata": {
-          "class": "text-ink-strong",
           "property": "--color-ink-strong"
         }
       },
@@ -499,7 +470,6 @@
     "mark-good": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-emerald-600",
           "property": "--color-emerald-600"
         }
       },
@@ -516,7 +486,6 @@
     "primary": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-ink-strong",
           "property": "--color-ink-strong"
         }
       },
@@ -533,7 +502,6 @@
     "tag-amber": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-amber",
           "property": "--color-tag-amber"
         }
       },
@@ -550,7 +518,6 @@
     "tag-blue": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-blue",
           "property": "--color-tag-blue"
         }
       },
@@ -567,7 +534,6 @@
     "tag-cyan": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-cyan",
           "property": "--color-tag-cyan"
         }
       },
@@ -584,7 +550,6 @@
     "tag-emerald": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-emerald",
           "property": "--color-tag-emerald"
         }
       },
@@ -601,7 +566,6 @@
     "tag-rose": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-rose",
           "property": "--color-tag-rose"
         }
       },
@@ -618,7 +582,6 @@
     "tag-slate": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-slate",
           "property": "--color-tag-slate"
         }
       },
@@ -635,7 +598,6 @@
     "tag-violet": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tag-violet",
           "property": "--color-tag-violet"
         }
       },
@@ -652,7 +614,6 @@
     "tone-bad-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-bad-bg",
           "property": "--color-tone-bad-bg"
         }
       },
@@ -669,7 +630,6 @@
     "tone-bad-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-bad-ink",
           "property": "--color-tone-bad-ink"
         }
       },
@@ -686,7 +646,6 @@
     "tone-good-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-good-bg",
           "property": "--color-tone-good-bg"
         }
       },
@@ -703,7 +662,6 @@
     "tone-good-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-good-ink",
           "property": "--color-tone-good-ink"
         }
       },
@@ -720,7 +678,6 @@
     "tone-info-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-info-bg",
           "property": "--color-tone-info-bg"
         }
       },
@@ -737,7 +694,6 @@
     "tone-info-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-info-ink",
           "property": "--color-tone-info-ink"
         }
       },
@@ -754,7 +710,6 @@
     "tone-muted-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-muted-bg",
           "property": "--color-tone-muted-bg"
         }
       },
@@ -771,7 +726,6 @@
     "tone-muted-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-muted-ink",
           "property": "--color-tone-muted-ink"
         }
       },
@@ -788,7 +742,6 @@
     "tone-neutral-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-neutral-bg",
           "property": "--color-tone-neutral-bg"
         }
       },
@@ -805,7 +758,6 @@
     "tone-neutral-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-neutral-ink",
           "property": "--color-tone-neutral-ink"
         }
       },
@@ -822,7 +774,6 @@
     "tone-warn-bg": {
       "$extensions": {
         "app.menata": {
-          "class": "bg-tone-warn-bg",
           "property": "--color-tone-warn-bg"
         }
       },
@@ -839,7 +790,6 @@
     "tone-warn-border": {
       "$extensions": {
         "app.menata": {
-          "class": "border-tone-warn-border",
           "property": "--color-tone-warn-border"
         }
       },
@@ -856,7 +806,6 @@
     "tone-warn-ink": {
       "$extensions": {
         "app.menata": {
-          "class": "text-tone-warn-ink",
           "property": "--color-tone-warn-ink"
         }
       },

@@ -1291,6 +1291,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `faintInkSites` gained `designtokens.go:designTokenClasses`, which names `ink-faint` but draws nothing. The export does
   not carry the artifact's unmapped tokens (`dsUnmapped`), a style's `uppercase`, or the touch half of
   `control-height-compact`.
+  **The independent review measured the values in Chromium**, painting each token's colour to a canvas, light and dark,
+  under the default Theme and two moved ones. It found 0 differences, but three mutants that only the snapshot caught,
+  and running `make tokens` would have re-blessed each one:
+  - sRGB components swapped;
+  - the resolver's light/dark refs swapped;
+  - a broken OKLab matrix.
+
+  Now the artifact test reads the documents **through** `menata.resolver.json`, an sRGB colour's components must say
+  its hex, and four hex fallbacks are pinned to Tailwind's published values. Also fixed:
+  - a colour's extension names only the property (a hover class minus `hover:` compiles to nothing);
+  - `cmd/tokens` loads tolerantly;
+  - `canvas.py compare` checks type styles;
+  - `check` warns on a `var()` that nothing defines. It only warns because it has not been run over the live canvas.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

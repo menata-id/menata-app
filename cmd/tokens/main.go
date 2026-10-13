@@ -30,9 +30,15 @@ func main() {
 
 	var ws domain.Workspace
 	if *slug != "" {
-		loaded, err := metadata.LoadWorkspaces(*manifests)
+		// Tolerant, as the server loads: a broken manifest elsewhere does not block this Workspace's export.
+		loaded, failures, err := metadata.LoadWorkspacesTolerant(*manifests)
 		if err != nil {
 			fail(err)
+		}
+		for _, f := range failures {
+			if f.Slug == *slug {
+				fail(f.Err)
+			}
 		}
 		app, ok := loaded[*slug]
 		if !ok {
