@@ -366,7 +366,7 @@ templ widthControl(s PlacementStep, page int) {
 		<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
 		<input type="hidden" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
 		<input type="hidden" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
-		<label class={ "sig-width-label flex items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
+		<label class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
 			Width
 			<input type="number" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class={ "w-16 rounded border", borderClass(ctx, domain.BorderControl), "px-1.5 py-0.5 text-2xs" }/>
 			%

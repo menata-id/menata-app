@@ -304,7 +304,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<select
 			name={ fields.ApproverType }
 			aria-label="Approver type"
-			class={ "approver-type px-2 " + fieldClasses(ctx) }
+			class={ "px-2 " + fieldClasses(ctx) }
 			_="on change if my value is 'Group' then remove .hidden from the next <.approver-group/> then add .hidden to the next <.approver-user/> else add .hidden to the next <.approver-group/> then remove .hidden from the next <.approver-user/> end"
 		>
 			<option value={ domain.ActorKindUser } selected?={ prefill.ApproverType != domain.ActorKindGroup }>{ domain.ActorKindUser }</option>

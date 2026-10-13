@@ -38,6 +38,14 @@ func TestEveryColourPropertyHasADarkValue(t *testing.T) {
 	}
 	compiled := compiledCSSVars(t)
 	for _, k := range slices.Sorted(maps.Keys(light)) {
+		// A step of the closed palette (rencana 3.5) is a fixed colour the properties point at, not a property with a
+		// mode: dark mode moves a role to another step, never a step to another colour.
+		if paletteStep.MatchString(k) {
+			if _, ok := dark[k]; ok {
+				t.Errorf("input.css's dark block redefines the palette step %s -- point the role at another step instead", k)
+			}
+			continue
+		}
 		if _, same := darkSameInBothModes[k]; same {
 			if _, ok := dark[k]; ok {
 				t.Errorf("%s is in darkSameInBothModes and also has a dark value -- drop one", k)
@@ -81,6 +89,9 @@ var darkSameInBothModes = map[string]string{
 }
 
 // allColourDecls is every `--color-<name>: <value>;` in css, comments removed.
+// paletteStep is a closed-palette declaration's name (`--color-slate-900`, `--color-white`).
+var paletteStep = regexp.MustCompile(`^--color-(?:[a-z]+-\d+|white|black)$`)
+
 func allColourDecls(css string) map[string]string {
 	css = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
 	out := map[string]string{}

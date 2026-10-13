@@ -1232,6 +1232,25 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
       three page images' white backing and the two dialogs' ink move);
     - a contrast audit of every text element in dark mode found only faint and muted text below 4.5:1 (by design;
       higher than in light) and the brand glyph, which is the same in both modes.
+- **G2, the closed palette (rencana 3.5, 2026-10-13).** input.css's `@theme` starts with `--color-*: initial` and then
+  declares the 62 steps something names (60 hue steps plus white and black), at Tailwind's own values. A colour
+  utility outside the palette (`text-cyan-600`) now compiles to nothing. The compiled app.css is the same as before,
+  except for the order of the declarations. Three gates hold it:
+  - `TestClosedPaletteDeclaresExactlyWhatIsNamed` (conformance) checks both directions. A declared step that nothing
+    names must be removed. A step named in `internal/rendering` (as a property or as a utility) or in input.css that is
+    not declared fails, because a reader's `var(--color-…)` would resolve to nothing, and no class check can see that.
+  - `TestEveryClassTokenIsCompiled` (conformance, static) checks every utility-shaped token in a class attribute or a
+    string in `internal/rendering`, `.go` files included, against app.css's selectors. A missing class is reported by
+    token and file. It cannot see a class assembled in Go or a bare word.
+  - `TestEveryRenderedClassIsCompiled` (`internal/web`, needs `DATABASE_URL`) covers what the static gate cannot. It
+    checks every class on 87 served pages: the GET sweep, every per-record case and the pre-auth screens. Classes that
+    exist only for a script sit in `classHooks`, closed both ways, with what reads each.
+
+  This catches the failure 3.2d hit, where two readers joined without a space and the element drew without its fill
+  while every test stayed green. Measured: no class was missing. Two hook classes that nothing read (`approver-type`,
+  `sig-width-label`) were removed. A palette step is not a property with a mode, so the dark-value gate skips steps and
+  refuses a dark block that redefines one. Mutation-proved eight ways, including a class assembled in Go, which only
+  the rendered gate catches.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

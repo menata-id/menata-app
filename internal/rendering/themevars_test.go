@@ -304,10 +304,12 @@ func TestThemeCSSNeverWritesAnUnvalidatedValue(t *testing.T) {
 // names it, so an override naming `--color-cyan-800` on a page whose CSS lacks it would draw no colour at all and
 // nothing would fail. Every shade a Workspace may choose is checked against the committed app.css.
 //
-// Measured while mutation-testing it: Tailwind emits any `--color-*` that a scanned file **mentions**, so inkShadeVar's
-// own string literals are what keep these in the bundle (an arm changed to `--color-cyan-950` simply emitted that).
-// What this catches is a name the scanner cannot read -- one assembled at runtime, or a reader moved out of the
-// `@source` glob (mutation-proved with `"--color-" + "lime-950"`).
+// Measured while mutation-testing it: Tailwind emits any `--color-*` that a scanned file **mentions** and the theme
+// declares, so inkShadeVar's own string literals are what keep these in the bundle. Since the palette was closed
+// (rencana 3.5, G2), an arm changed to an undeclared step (`--color-cyan-950`) is no longer emitted, so this fails too,
+// beside conformance.TestClosedPaletteDeclaresExactlyWhatIsNamed (both mutation-proved). It also catches a name the
+// scanner cannot read -- one assembled at runtime, or a reader moved out of the `@source` glob (mutation-proved with
+// `"--color-" + "lime-950"`).
 func TestEveryPaletteVariableTheOverrideCanNameIsCompiled(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join("..", "..", "static", "css", "app.css"))
 	if err != nil {
