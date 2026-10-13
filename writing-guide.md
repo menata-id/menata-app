@@ -1010,6 +1010,29 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 **load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
 deeper than `ir.MaxDepth`, and a Component input its own validator rejects.
 
+**How far to rely on a Component (its Status).** Every registered Component carries one, and it is a measurement, not a
+mood. **`stable`**: an installed Workspace's `page:` depends on the contract, either by declaring the Component or because
+lowering emits it for one that does, so changing an input would break a manifest that exists. **`experimental`**: no
+installed manifest depends on it yet, so its contract may still change; the first page to use it is the moment that stops
+being free, and the Status is promoted then. **`deprecated`**: a successor exists, named in the last column. Nothing
+refuses an `experimental` or a `deprecated` Component today: it loads and renders, and the Status tells you what you are
+building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this table to the registry and
+`TestComponentStatusMatchesInstalledUse` holds the words to the installed manifests, so neither can go stale quietly.
+
+| Component | Status | What that rests on |
+|---|---|---|
+| `Button` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
+| `Collection` | stable | Declared by six installed pages (Board Settings, Calendar, Dashboard, My Tasks, both document lists) |
+| `Field` | stable | Never written: every `Form` lowers to one around each control, so changing it changes every installed Form |
+| `Form` | stable | Declared by an installed page (Board Settings) |
+| `Input` | stable | Never written: emitted by a `Form`'s lowering, one per control, so it is `Form`'s contract |
+| `Metric` | stable | Declared by installed pages (Dashboard, Documents by status) |
+| `Progress` | stable | Declared by an installed page (Dashboard) |
+| `StatusBadge` | stable | Declared by five installed pages (Calendar, Dashboard, both document lists, My Tasks) |
+| `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
+| `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
+| `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
+
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
 `binding: {dataset: ds_x, measure: msr_y, rows: dimension}`. It then stands for **one Metric per value of
 that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules, all checked at load:

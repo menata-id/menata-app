@@ -168,6 +168,11 @@ mapped to classes), a **shell**, a **shared fragment** (reused templ, not declar
 screen, cataloged on purpose). **YAML** says whether a `page:` can name it. Added 2026-10-12 (rencana 0.3), with
 three rows that are not components moved to the table below.
 
+**Status of a registered Component** (`experimental`, `stable`, `deprecated`) is on its contract and is shown, one row each, in
+`writing-guide.md` §12.1a's status table, not here: this table says what a row *is*, that one says how far to rely on it.
+`conformance.TestEveryRegisteredComponentIsInCapabilities` requires every registered Component to appear in a row whose
+Kind is `registered Component`.
+
 | Component | Kind | YAML | What it renders | Where |
 |---|---|---|---|---|
 | `activityFeedListRow` / `sectionHeaderRow` | shared fragment | no | A composed page's event feed and section title. (`summaryCountTiles` and `SummaryItem` went with the bespoke Dashboard on 2026-10-11, the count strip being a `page:` grid of Metrics now.) (`slaBadgePill` was the fourth until 2026-10-03, when the Component contract deleted it -- see `statusBadge` below.) They were the **Tailwind twins** of four `pageStyles` renderers drawing the identical things in the other stylesheet — a deliberate, documented cost of the two-system transition. `summaryCounts`/`activityFeedList` went with their last callers on 2026-09-22; `sectionHeader` and `slaBadge` followed on 2026-09-24 when the last `pageStyles` screen ported, because once one stylesheet was left the pair was just the same component written twice. Same data shapes (`ActivityEntry`, plain title/link args, a Field value), different markup, because Preflight ties chrome to content (below) so a `pageStyles` class name renders unstyled under `appShell`'s `app.css`. `summaryCounts`/`activityFeedList` themselves were deleted 2026-09-22 with their last callers, all four ported the same day -- see "Styling: two systems" below | `appshell.templ`; My Tasks, and the record detail page's History |

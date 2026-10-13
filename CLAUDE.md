@@ -1291,6 +1291,33 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `faintInkSites` gained `designtokens.go:designTokenClasses`, which names `ink-faint` but draws nothing. The export does
   not carry the artifact's unmapped tokens (`dsUnmapped`), a style's `uppercase`, or the touch half of
   `control-height-compact`.
+
+- **Component Status and G3, rencana 2.0/2.1 (2026-10-13).** `domain.ComponentContract` carries `Status`
+  (`experimental | stable | deprecated`) and `ReplacedBy`. **The words are tied to a measurement, not to opinion:**
+  - `stable` means an installed Workspace's `page:` depends on the contract, either by declaring the Component or
+    because lowering emits it. `Field` and `Input` are written 0 times and lowered 8, so counting YAML text would have
+    marked them unused.
+  - `experimental` means no installed manifest depends on it. `Avatar` and `Callout` are drawn by bespoke Go screens
+    and by no declared page.
+  - `deprecated` needs a `ReplacedBy` naming a registered, live Component.
+
+  Gates (`internal/conformance/componentregistration_test.go`):
+  - `TestComponentStatusMatchesInstalledUse` counts lowered Components over every installed page, then holds status to
+    use both ways. `componentsWithoutInstalledUse` is closed and carries a reason per entry. The count is over
+    *declared pages*, so "no use" is not a verdict on how widely a Component is drawn.
+  - `TestEveryRegisteredComponentIsInCapabilities` reads the whole row, not one cell, because the Button row names its
+    renderer in prose. That is presence, not accuracy.
+  - `TestWritingGuideShowsEachComponentsStatus` holds the status table in writing-guide §12.1a to the registry:
+    one row per Component, the contract's word, a deprecated row naming its successor. The comparison is
+    `statusTableProblems`, extracted so `TestStatusTableProblems` can feed it a deprecated member; no real Component is
+    one, and a branch no real input reaches had not been shown to fail.
+  - `registry.CatalogueProblems` checks the contracts' own rules and that a successor is registered and not itself
+    deprecated.
+
+  Mutation-proved 14 ways. One mutation did not apply the first time (`gofmt` had realigned the line), and the harness
+  now aborts on a no-op. **Nothing at runtime reads Status yet**, and that is deliberate: the day a Component is
+  deprecated, `metadata.validatePages` should warn on a new use and name `ReplacedBy`. No input can reach that branch
+  today.
   **The independent review measured the values in Chromium**, painting each token's colour to a canvas, light and dark,
   under the default Theme and two moved ones. It found 0 differences, but three mutants that only the snapshot caught,
   and running `make tokens` would have re-blessed each one:

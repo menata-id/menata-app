@@ -57,6 +57,34 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentCallout:     {Contract: calloutContract, Validate: validateCallout},
 }
 
+// CatalogueProblems checks what only the whole catalogue can: each contract's own status fields
+// (`ComponentContract.StatusProblems`), and that a deprecated Component's successor is a Component this catalogue
+// holds and is not itself deprecated -- a chain of "use that one instead" ends at something an author can use.
+// Sorted by type, per 007 §4.6.
+func CatalogueProblems() []string {
+	types := make([]string, 0, len(Components))
+	for t := range Components {
+		types = append(types, string(t))
+	}
+	sort.Strings(types)
+	var issues []string
+	for _, name := range types {
+		c := Components[domain.ComponentType(name)].Contract
+		issues = append(issues, c.StatusProblems()...)
+		if c.Status != domain.ComponentStatusDeprecated || c.ReplacedBy == "" {
+			continue
+		}
+		next, ok := Components[c.ReplacedBy]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("%s is replaced by %q, which is not a registered Component", c.Type, c.ReplacedBy))
+		case next.Contract.Status == domain.ComponentStatusDeprecated:
+			issues = append(issues, fmt.Sprintf("%s is replaced by %s, which is itself deprecated -- name the Component an author can use", c.Type, c.ReplacedBy))
+		}
+	}
+	return issues
+}
+
 // calloutContract is one message in a tinted box: its words and the tone that says what kind of message it is.
 //
 // **Two inputs, both required.** A title, a list of reasons and a dismiss button are what callouts grow
@@ -69,7 +97,8 @@ var Components = map[domain.ComponentType]Component{
 // screen reader heard "Wrong password." only if it happened to land on it. Now `bad` is `role="alert"` and the
 // other three tones are `role="status"`.
 var calloutContract = domain.ComponentContract{
-	Type: domain.ComponentCallout,
+	Type:   domain.ComponentCallout,
+	Status: domain.ComponentStatusExperimental,
 	Inputs: []domain.ComponentInput{
 		{Name: "text", Kind: "string", Required: true},
 		{Name: "tone", Kind: "BadgeTone", Required: true},
@@ -95,7 +124,8 @@ func validateCallout(inputs map[string]string) []string {
 // a width. What the contract forces: a bar always carries its words ("2 of 3") and its label, so the fill is never
 // the only thing saying how much -- a percentage-only bar tells a screen-reader user nothing about how many.
 var progressContract = domain.ComponentContract{
-	Type: domain.ComponentProgress,
+	Type:   domain.ComponentProgress,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "value", Kind: "number", Required: true},
@@ -138,7 +168,8 @@ func validateProgress(inputs map[string]string) []string {
 // a button with no name, and the Component draws the button itself through `Button` -- an author cannot leave
 // a form with no way to send it, nor with a differently-styled one.
 var formContract = domain.ComponentContract{
-	Type: domain.ComponentForm,
+	Type:   domain.ComponentForm,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "submit", Kind: "string", Required: true},
 		{Name: "action", Kind: "route", Required: true},
@@ -186,7 +217,8 @@ func validateForm(inputs map[string]string) []string {
 // derived, from `Field.ID`, and never typed. `kind` is a closed set; `options` belongs to a select and to
 // nothing else, so a text control carrying choices is a declaration that says something the control cannot do.
 var formInputContract = domain.ComponentContract{
-	Type: domain.ComponentFormInput,
+	Type:   domain.ComponentFormInput,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "id", Kind: "string", Required: true},
 		{Name: "name", Kind: "string", Required: true},
@@ -231,7 +263,8 @@ func validateFormInput(inputs map[string]string) []string {
 // always had one, but the type allowed a `CardTag{}` and drew an empty coloured dot -- an element that says
 // nothing to a screen reader (the dot is `aria-hidden`) and nothing to a person who cannot tell the hues apart.
 var tagContract = domain.ComponentContract{
-	Type: domain.ComponentTag,
+	Type:   domain.ComponentTag,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "color", Kind: "TagColor"},
@@ -265,7 +298,8 @@ func validateTag(inputs map[string]string) []string {
 // `<details>`, a `data-modal` trigger) are behaviour -- §12.3's `actions` -- which is a capability this
 // contract does not claim.
 var buttonContract = domain.ComponentContract{
-	Type: domain.ComponentButton,
+	Type:   domain.ComponentButton,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "variant", Kind: "ButtonVariant", Required: true},
@@ -355,7 +389,8 @@ func buttonRequestIssues(inputs map[string]string) []string {
 // `for` is the control's own id, so the label and the control are bound in the DOM rather than by proximity.
 // That is the accessibility clause doing work again: a `<label>` with no `for` and no nesting labels nothing.
 var fieldContract = domain.ComponentContract{
-	Type: domain.ComponentField,
+	Type:   domain.ComponentField,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "for", Kind: "string", Required: true},
@@ -379,7 +414,8 @@ func validateField(inputs map[string]string) []string {
 // becoming the unbounded escape hatch §12.3 forbids -- 21 of the 21 written use cases need a list, and they
 // need 21 different row shapes, which is a slot's job rather than a parameter's.
 var collectionContract = domain.ComponentContract{
-	Type: domain.ComponentCollection,
+	Type:   domain.ComponentCollection,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "gap", Kind: "Gap", Required: true},
 		{Name: "empty", Kind: "string"},
@@ -429,7 +465,8 @@ func validateCollection(inputs map[string]string) []string {
 // format would be asking it to decide presentation from data it does not have. §4.4's division again: resolve,
 // then render.
 var metricContract = domain.ComponentContract{
-	Type: domain.ComponentMetric,
+	Type:   domain.ComponentMetric,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "value", Kind: "string", Required: true},
@@ -463,7 +500,8 @@ func validateMetric(inputs map[string]string) []string {
 // validator be derived from it instead of agreeing with it by hand -- the same reason
 // `conformance.TestEveryDerivationIsOwedBySomeRole` reads constants out of the source.
 var statusBadgeContract = domain.ComponentContract{
-	Type: domain.ComponentStatusBadge,
+	Type:   domain.ComponentStatusBadge,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "tone", Kind: "BadgeTone", Required: true},
@@ -497,7 +535,8 @@ var statusBadgeContract = domain.ComponentContract{
 // screens that had neither. A field that only ever described absences would have been decoration; this is
 // what made it a requirement.
 var avatarContract = domain.ComponentContract{
-	Type: domain.ComponentAvatar,
+	Type:   domain.ComponentAvatar,
+	Status: domain.ComponentStatusExperimental,
 	Inputs: []domain.ComponentInput{
 		{Name: "initials", Kind: "string", Required: true},
 		// Required, and this is the accessibility clause as an input rather than as prose. An avatar with no

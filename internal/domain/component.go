@@ -1,5 +1,7 @@
 package domain
 
+import "fmt"
+
 // BadgeTone is the semantic urgency of a status badge, as a closed set.
 //
 // **Semantic, not visual** (007 §4.2): `good` and `bad` say what the state *means*, never that it is green
@@ -243,6 +245,35 @@ var KnownBadgeSizes = map[BadgeSize]bool{
 	BadgeCompact: true,
 }
 
+// ComponentStatus says how far an author may rely on a Component's contract (rencana 2.0, 2026-10-13). Closed
+// vocabulary: it is a word an author reads in `writing-guide.md` §12.1a and a gate compares, not a feature flag.
+//
+// **The three words are tied to a measurement, not to opinion.** `stable` means an installed Workspace's manifest
+// depends on the contract: a `page:` declares the Component, or lowering emits it for one that does (every Form
+// emits a Field and an Input), so changing an input breaks a manifest that exists. `experimental` means no
+// installed manifest depends on it yet, so the contract may still change; promoting it is a decision made when the
+// first page uses it. `deprecated` means a successor exists (`ReplacedBy`) and new pages should use that.
+// `conformance.TestComponentStatusMatchesInstalledUse` holds the first two to the installed manifests, both ways.
+//
+// **Nothing at runtime branches on it.** A `deprecated` Component still renders and still loads. The day one is
+// deprecated, `metadata.validatePages` is where a new use of it should be refused or warned about, naming
+// `ReplacedBy`; that is not built because no Component is deprecated and a branch no input can reach is the
+// shape-before-need 007 §34 refuses.
+type ComponentStatus string
+
+const (
+	ComponentStatusExperimental ComponentStatus = "experimental"
+	ComponentStatusStable       ComponentStatus = "stable"
+	ComponentStatusDeprecated   ComponentStatus = "deprecated"
+)
+
+// KnownComponentStatuses is the closed set of ComponentStatus values.
+var KnownComponentStatuses = map[ComponentStatus]bool{
+	ComponentStatusExperimental: true,
+	ComponentStatusStable:       true,
+	ComponentStatusDeprecated:   true,
+}
+
 // ComponentContract is what §13 asks a Component to declare, as a Go value rather than as prose.
 //
 // **The field that carries the weight is `DataRequirements`, and it carries it by being empty.** §12.3's
@@ -260,6 +291,12 @@ var KnownBadgeSizes = map[BadgeSize]bool{
 type ComponentContract struct {
 	// Type is this Component's identity (§13's own first row).
 	Type ComponentType
+	// Status is how far an author may rely on this contract (see ComponentStatus). Required: a contract with no
+	// status is refused by StatusProblems.
+	Status ComponentStatus
+	// ReplacedBy names the Component new pages should use instead. Required when Status is deprecated, and
+	// refused otherwise: a successor on a Component that is not deprecated would say two things at once.
+	ReplacedBy ComponentType
 	// Inputs are the values a caller must supply. Every one is resolved before it arrives: a Component
 	// takes a label, never a record to find the label in.
 	Inputs []ComponentInput
@@ -288,4 +325,27 @@ type ComponentInput struct {
 	Name     string
 	Kind     string
 	Required bool
+}
+
+// StatusProblems checks the contract's own status fields, which need no registry: the status is one of the known
+// words, and ReplacedBy is present exactly when the Component is deprecated and does not name itself. That the
+// successor is a *registered* Component is the registry's to check (`registry.CatalogueProblems`), because only
+// it has the catalogue.
+func (c ComponentContract) StatusProblems() []string {
+	var issues []string
+	switch {
+	case c.Status == "":
+		issues = append(issues, fmt.Sprintf("%s declares no Status (want one of experimental, stable, deprecated)", c.Type))
+	case !KnownComponentStatuses[c.Status]:
+		issues = append(issues, fmt.Sprintf("%s declares Status %q, which is not experimental, stable or deprecated", c.Type, c.Status))
+	}
+	switch {
+	case c.Status == ComponentStatusDeprecated && c.ReplacedBy == "":
+		issues = append(issues, fmt.Sprintf("%s is deprecated and names no ReplacedBy -- an author needs to know what to use instead", c.Type))
+	case c.Status != ComponentStatusDeprecated && c.ReplacedBy != "":
+		issues = append(issues, fmt.Sprintf("%s names ReplacedBy %q but is %s -- only a deprecated Component has a successor", c.Type, c.ReplacedBy, c.Status))
+	case c.ReplacedBy == c.Type && c.ReplacedBy != "":
+		issues = append(issues, fmt.Sprintf("%s names itself as its own ReplacedBy", c.Type))
+	}
+	return issues
 }

@@ -465,3 +465,58 @@ func TestValidateCallout(t *testing.T) {
 		}
 	}
 }
+
+// TestCatalogueProblems_isCleanAndCatchesEachFault holds the real catalogue to its status rules and proves the check
+// can fail: a Component without a status, a deprecated one with no successor, one whose successor is unregistered,
+// and one whose successor is deprecated itself.
+func TestCatalogueProblems_isCleanAndCatchesEachFault(t *testing.T) {
+	if got := CatalogueProblems(); len(got) != 0 {
+		t.Fatalf("the real catalogue has problems: %v", got)
+	}
+	original := Components
+	t.Cleanup(func() { Components = original })
+	with := func(edit func(m map[domain.ComponentType]Component)) []string {
+		m := map[domain.ComponentType]Component{}
+		for k, v := range original {
+			m[k] = v
+		}
+		edit(m)
+		Components = m
+		return CatalogueProblems()
+	}
+	set := func(m map[domain.ComponentType]Component, typ domain.ComponentType, status domain.ComponentStatus, by domain.ComponentType) {
+		c := m[typ]
+		c.Contract.Status, c.Contract.ReplacedBy = status, by
+		m[typ] = c
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(m map[domain.ComponentType]Component)
+		want string
+	}{
+		{"no status", func(m map[domain.ComponentType]Component) { set(m, domain.ComponentTag, "", "") }, "declares no Status"},
+		{"deprecated without a successor", func(m map[domain.ComponentType]Component) {
+			set(m, domain.ComponentTag, domain.ComponentStatusDeprecated, "")
+		}, "names no ReplacedBy"},
+		{"successor not registered", func(m map[domain.ComponentType]Component) {
+			set(m, domain.ComponentTag, domain.ComponentStatusDeprecated, "Chip")
+		}, `"Chip", which is not a registered Component`},
+		{"successor deprecated too", func(m map[domain.ComponentType]Component) {
+			set(m, domain.ComponentTag, domain.ComponentStatusDeprecated, domain.ComponentStatusBadge)
+			set(m, domain.ComponentStatusBadge, domain.ComponentStatusDeprecated, domain.ComponentAvatar)
+		}, "is itself deprecated"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := with(tc.edit)
+			if len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), tc.want) {
+				t.Errorf("want a problem containing %q, got %v", tc.want, got)
+			}
+		})
+	}
+	// A valid deprecation: Tag replaced by a registered, non-deprecated Component.
+	if got := with(func(m map[domain.ComponentType]Component) {
+		set(m, domain.ComponentTag, domain.ComponentStatusDeprecated, domain.ComponentStatusBadge)
+	}); len(got) != 0 {
+		t.Errorf("a deprecation naming a registered, live successor should be clean, got %v", got)
+	}
+}
