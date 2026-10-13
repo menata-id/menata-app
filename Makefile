@@ -11,7 +11,7 @@ TAILWIND_VERSION = v4.3.3
 TAILWIND_SHA256  = dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
 TAILWIND         = bin/tailwindcss
 
-.PHONY: deploy generate css build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
+.PHONY: deploy generate css build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks tokens
 
 # Builds the committed HEAD (not the working tree), restarts menata-app.service, checks the running
 # process executes the binary just built, and smokes five routes. scripts/deploy.sh says why it does not
@@ -58,6 +58,12 @@ conformance:
 # `go build ./cmd/server` working with neither Node nor the Tailwind binary present.
 check-generated: generate
 	git diff --exit-code -- '*_templ.go' static/css/app.css
+
+# Exports the default Theme as W3C DTCG 2025.10 design tokens into design-system/dtcg/default (rencana 3.4),
+# read from the committed app.css. internal/rendering's TestCommittedDesignTokensAreFresh fails until this is rerun
+# after a change that moves a token. One Workspace's theme: go run ./cmd/tokens -workspace <slug> -out <dir>.
+tokens:
+	go run ./cmd/tokens -out design-system/dtcg/default
 
 # One-time setup: makes git use the tracked hooks in .githooks/ (pre-push gate) instead of
 # the untracked, per-clone .git/hooks/.

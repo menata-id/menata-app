@@ -15,6 +15,15 @@ then publishes what `generate` rewrote. Rules R3 and R8 of the guide say when to
       reports the adoption metrics: `var(--…)` references per artboard, and colour literals outside the block that
       equal a token value versus those that do not (off-system colours).
 
+  python3 -I design-system/canvas.py compare design-system/tokens.json design-system/dtcg/default/menata.resolver.json
+      Reads a W3C DTCG 2025.10 export (rencana 3.4, `make tokens` / `go run ./cmd/tokens`) through its resolver and
+      compares every token it shares with tokens.json, in both themes. Exit 1 on any difference.
+
+Wherever a tokens.json path is taken, a DTCG `*.resolver.json` may be given instead: its `base` set and each context of
+its `mode` modifier become the same families (colour per theme, spacing, radius), so a mockup for one Workspace's own
+theme is generated from that Workspace's export. It carries only the tokens the runtime's readers answer for, not the
+artifact's unmapped ones (brand, focus-ring, the shadows).
+
 Standard library only; run with `python3 -I` (see the repo's CLAUDE.md on running Python over downloaded files).
 """
 import json
@@ -25,7 +34,7 @@ from pathlib import Path
 
 FAMILIES = ["color", "spacing", "radius", "shadow"]
 ROOT_RE = re.compile(r":root\{.*?\n\}", re.S)
-VERSION_RE = re.compile(r"\(tokens\.json, version [^,]*, [^)]*\)")
+VERSION_RE = re.compile(r"\((?:tokens\.json|DTCG export [^,]*), version [^,]*, [^)]*\)")
 
 
 def first_theme(v):
@@ -34,6 +43,100 @@ def first_theme(v):
     if isinstance(v, dict):
         return v.get("light", next(iter(v.values())))
     return v
+
+
+def load_tokens(path):
+    """tokens.json, or a DTCG 2025.10 resolver document read into tokens.json's shape."""
+    if str(path).endswith(".resolver.json"):
+        return dtcg_tokens(Path(path))
+    return json.loads(Path(path).read_text())
+
+
+def dtcg_tokens(resolver_path):
+    """Read a DTCG export through its resolver: every source of every set and of every modifier context, in
+    resolutionOrder. Colours come out as {theme: value}, one theme per `mode` context; dimensions as `<n>px`."""
+    resolver = json.loads(resolver_path.read_text())
+    if resolver.get("version") != "2025.10":
+        sys.exit("%s: not a DTCG 2025.10 resolver" % resolver_path)
+    families = {fam: {"tokens": []} for fam in FAMILIES}
+    colours = {}
+
+    def sources(ref):
+        target = ref["$ref"]
+        if not target.startswith("#/"):
+            return [(None, target)]
+        kind, name = target[2:].split("/", 1)
+        node = resolver[kind][name]
+        if kind == "sets":
+            return [(None, s["$ref"]) for s in node["sources"]]
+        return [(ctx, s["$ref"]) for ctx, refs in node["contexts"].items() for s in refs]
+
+    for entry in resolver["resolutionOrder"]:
+        for ctx, file in sources(entry):
+            doc = json.loads((resolver_path.parent / file).read_text())
+            for group, tokens in doc.items():
+                if group.startswith("$"):
+                    continue
+                for name, tok in tokens.items():
+                    if name.startswith("$"):
+                        continue
+                    kind = tok.get("$type", tokens.get("$type"))
+                    if kind == "color":
+                        colours.setdefault(name, {})[ctx or "light"] = dtcg_colour(tok["$value"])
+                    elif kind == "dimension" and group in families:
+                        v = tok["$value"]
+                        families[group]["tokens"].append({"name": name, "value": "%g%s" % (v["value"], v["unit"])})
+    families["color"]["tokens"] = [{"name": n, "value": v} for n, v in sorted(colours.items())]
+    families["_source"] = resolver_path.name
+    return families
+
+
+def dtcg_colour(v):
+    if v["colorSpace"] == "oklch":
+        l, c, h = v["components"]
+        return "oklch(%s%% %s %s)" % (fmt_num(l * 100), fmt_num(c), fmt_num(h))
+    return v["hex"]
+
+
+def fmt_num(f):
+    return ("%.4f" % f).rstrip("0").rstrip(".")
+
+
+def resolve(tokens, name, theme):
+    """A colour token's value in one theme, following `{alias}` chains the way the artifact does."""
+    by_name = {t["name"]: t["value"] for t in tokens["color"]["tokens"]}
+    for _ in range(16):
+        v = by_name[name]
+        v = v.get(theme, v.get("light")) if isinstance(v, dict) else v
+        m = re.fullmatch(r"\{([\w-]+)\}", str(v))
+        if not m:
+            return v
+        name = m.group(1)
+    sys.exit("alias chain from %s is too deep" % name)
+
+
+def compare(ds, export):
+    bad, n = [], 0
+    ds_names = {t["name"] for t in ds["color"]["tokens"]}
+    for t in export["color"]["tokens"]:
+        if t["name"] not in ds_names:
+            bad.append("%s: in the export, not in tokens.json" % t["name"])
+            continue
+        for theme in t["value"]:
+            got, want = norm(t["value"][theme]), norm(resolve(ds, t["name"], theme))
+            n += 1
+            if got != want:
+                bad.append("%s (%s): export %s, tokens.json %s" % (t["name"], theme, got, want))
+    for fam in ("spacing", "radius"):
+        ds_vals = {t["name"]: t["value"] for t in ds[fam]["tokens"]}
+        for t in export[fam]["tokens"]:
+            n += 1
+            if ds_vals.get(t["name"]) != t["value"]:
+                bad.append("%s: export %s, tokens.json %s" % (t["name"], t["value"], ds_vals.get(t["name"])))
+    print("compared %d token values (colours per theme, spacing, radius)" % n)
+    for b in bad:
+        print("FAIL " + b)
+    return 1 if bad or n == 0 else 0
 
 
 def css_value(v):
@@ -47,6 +150,11 @@ def block(tokens, version, date):
         '  /* Menata App design system: generated from the Design System artifact "Menata App"',
         "     (tokens.json, version %s, %s). Edit the Design System, not this block. */" % (version, date),
     ]
+    if "_source" in tokens:
+        lines = [
+            "  /* Menata App design system: generated from the runtime's own Theme, exported as DTCG tokens",
+            "     (DTCG export %s, version %s, %s). Edit the Theme and re-export, not this block. */" % (tokens["_source"], version, date),
+        ]
     for fam in FAMILIES:
         items = ["--%s:%s;" % (t["name"], css_value(t["value"])) for t in tokens[fam]["tokens"]]
         lines.append("  /* %s */" % fam)
@@ -80,13 +188,15 @@ def generate(tokens, folder, version, date):
             out = s.replace("<style>\n", "<style>\n" + new_block + "\n\n", 1)
         else:
             sys.exit("%s: no :root block and no <style> to insert one into" % f.name)
-        strip = lambda x: ROOT_RE.sub("", x, count=1).replace("\n\n", "\n")
+        # Newline runs are collapsed so that inserting a block into a new artboard (which adds a blank line after it) is
+        # not mistaken for a change outside the block.
+        strip = lambda x: re.sub(r"\n+", "\n", ROOT_RE.sub("", x, count=1))
         if strip(out) != strip(s):
             sys.exit("%s: something outside the :root block would change -- refusing" % f.name)
         if out != s:
             f.write_text(out)
             changed += 1
-    print("generated %d of %d artboards from tokens.json (version %s)" % (changed, len(boards(folder)), version))
+    print("generated %d of %d artboards (version %s)" % (changed, len(boards(folder)), version))
 
 
 def check(tokens, folder):
@@ -133,9 +243,11 @@ def norm(v):
 
 
 def main(argv):
-    if len(argv) < 4 or argv[1] not in ("generate", "check"):
+    if len(argv) < 4 or argv[1] not in ("generate", "check", "compare"):
         sys.exit(__doc__)
-    tokens = json.loads(Path(argv[2]).read_text())
+    tokens = load_tokens(argv[2])
+    if argv[1] == "compare":
+        return compare(tokens, load_tokens(argv[3]))
     if argv[1] == "generate":
         if "--version" not in argv:
             sys.exit("generate needs --version <artifact-version>")

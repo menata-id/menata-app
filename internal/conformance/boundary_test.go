@@ -180,6 +180,14 @@ var rules = []rule{
 		forbidden: []string{postgres, sqlPkg, templ, internalPkg("rendering"), internalPkg("composition")},
 		because:   "002 §Runtime Boundary: the composition root wires dependencies and mounts the router; it holds the pool through internal/db but never speaks SQL, renders, or composes",
 	},
+	{
+		pkg: "tokens",
+		dir: "cmd/tokens",
+		// It reads a manifest and the compiled CSS and writes files. internal/rendering is allowed: the Theme's
+		// role-to-class mapping lives there (§15.2), and the export is that mapping resolved.
+		forbidden: []string{postgres, sqlPkg, httpPkg, internalPkg("db"), internalPkg("data"), internalPkg("web")},
+		because:   "rencana 3.4: the design-token export is offline -- it loads Runtime Metadata and app.css, never a database or a request",
+	},
 }
 
 func TestPlaneBoundaries(t *testing.T) {

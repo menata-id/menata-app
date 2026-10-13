@@ -1258,6 +1258,39 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - classes added by a script attribute (`_="add .x"`, `onclick="…toggle('x')"`) were deleted with `id`/`href`.
 
   It also found the sweep never draws a placed signature marker. `classHooks` entries carry `reached`, closed both ways.
+- **DTCG export, rencana 3.4 (2026-10-13).** `rendering.ExportDesignTokens(ws, appCSS)` writes a Workspace's Theme as
+  W3C DTCG 2025.10 tokens:
+  - a Resolver Module document (`menata.resolver.json`), which applies a `base` set, then a `mode` modifier with
+    `light`/`dark` contexts;
+  - `base.tokens.json` for spacing, radius and typography;
+  - `light`/`dark.tokens.json` for colour, under the same names.
+
+  Every value is what a page in that Workspace computes: app.css's defaults and dark block, with `themeCSS`'s override
+  applied over each mode. So DK11 holds by construction: a hue choice carries into dark, while a free value or a shade
+  stays light-only. The token names are the Design System artifact's. **The token-to-reader list is
+  `rendering.designTokenClasses`, which GS1 now reads too**; before this slice it lived inside GS1's test body, and a
+  second copy for the exporter would have been 001 #8. Use it:
+  - `make tokens` regenerates `design-system/dtcg/default/`;
+  - `go run ./cmd/tokens -workspace <slug> -out <dir>` exports one Workspace;
+  - `design-system/canvas.py` takes a `*.resolver.json` wherever it takes tokens.json, and has a `compare` mode.
+
+  Gates:
+  - `TestDesignTokensValidateAgainstTheDTCGSchemas` validates every file, for the default Theme and for a Theme that
+    moves every category, against the Community Group's own schemas. The schemas are vendored in
+    `internal/rendering/testdata/dtcg` and compiled offline with `santhosh-tekuri/jsonschema`; a deliberately broken
+    copy must fail.
+  - `TestCommittedDesignTokensAreFresh` checks that the committed export matches a fresh one.
+  - `TestDesignTokensMatchTheDesignSystemArtifact` reads the export back through its own resolution, not GS1's, against
+    tokens.json in both modes, letter spacing included.
+  - `TestDesignTokensFollowAMovedTheme` covers R9, including the free accent's `color-mix` hover, which is evaluated in
+    OKLab because DTCG has no mix.
+
+  Mutation-proved eight ways, including the override ignored, the dark block not applied, lightness as a percentage,
+  and the mix weights swapped. **Two gates read the new file and were narrowed with care, not silenced.** G2's static
+  scan skips Go map *keys* in `designTokenNameFiles` only (a bad class *value* there still fails; mutation-proved).
+  `faintInkSites` gained `designtokens.go:designTokenClasses`, which names `ink-faint` but draws nothing. The export does
+  not carry the artifact's unmapped tokens (`dsUnmapped`), a style's `uppercase`, or the touch half of
+  `control-height-compact`.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

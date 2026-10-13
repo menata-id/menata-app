@@ -1,0 +1,40 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/resolver.json",
+  "description": "The base set, then the colour mode: light by default, dark under prefers-color-scheme: dark.",
+  "modifiers": {
+    "mode": {
+      "contexts": {
+        "dark": [
+          {
+            "$ref": "dark.tokens.json"
+          }
+        ],
+        "light": [
+          {
+            "$ref": "light.tokens.json"
+          }
+        ]
+      },
+      "default": "light"
+    }
+  },
+  "name": "Menata App, the default Theme",
+  "resolutionOrder": [
+    {
+      "$ref": "#/sets/base"
+    },
+    {
+      "$ref": "#/modifiers/mode"
+    }
+  ],
+  "sets": {
+    "base": {
+      "sources": [
+        {
+          "$ref": "base.tokens.json"
+        }
+      ]
+    }
+  },
+  "version": "2025.10"
+}

@@ -94,6 +94,24 @@ func isUtilityShaped(tok string, roots, bare map[string]bool) bool {
 // files beside them, which Tailwind does not scan at all -- and returns each class-context token with the files that
 // write it. A class attribute's value is read whole; every other attribute (`id`, `href`, `type`, ...) is removed;
 // what remains quoted is a Go or script string, which is where readers, `templ.KV` keys and helpers keep classes.
+// designTokenNameFiles are the files whose Go map keys are the Design System artifact's token names (`gap-tight`,
+// `bg-raised`, `accent-hover`), which look like utilities and are not classes. Only the keys are skipped; every class
+// in such a file is a value, read from a reader or written as a literal, and is still judged. Closed: a file listed
+// here that no longer exists fails TestDesignTokenNameFilesExist.
+var designTokenNameFiles = map[string]string{
+	"designtokens.go": "rendering.designTokenClasses maps each Design System token name to its reader's class (rencana 3.4)",
+}
+
+var goMapKey = regexp.MustCompile(`"[^"\n]*"\s*:`)
+
+func TestDesignTokenNameFilesExist(t *testing.T) {
+	for f := range designTokenNameFiles {
+		if _, err := os.Stat(filepath.Join(repoRoot(), "internal", "rendering", f)); err != nil {
+			t.Errorf("designTokenNameFiles names %s, which is gone -- remove the entry", f)
+		}
+	}
+}
+
 func classTokensBySource(t *testing.T) map[string][]string {
 	t.Helper()
 	dir := filepath.Join(repoRoot(), "internal", "rendering")
@@ -120,6 +138,9 @@ func classTokensBySource(t *testing.T) map[string][]string {
 			t.Fatal(err)
 		}
 		src := stripBlockComments(stripTemplComments(string(b)))
+		if _, names := designTokenNameFiles[n]; names {
+			src = goMapKey.ReplaceAllString(src, "")
+		}
 		var toks []string
 		for _, m := range scriptAttr.FindAllStringSubmatch(src, -1) {
 			for _, h := range hyperscriptClass.FindAllStringSubmatch(m[1], -1) {

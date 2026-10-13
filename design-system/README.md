@@ -48,3 +48,22 @@ colours with its OKLab distance (×100; about 2 is a just-noticeable difference)
 The largest are the blues and violets (blue-600 2.98 over 235 uses, violet-600 3.44). Afterwards `canvas_vars.py`
 turned 5,653 of the new values into `var(--token)`. Four hex outside the v3 palette (18 uses) were left alone.
 White and black were never touched.
+
+## `dtcg/` (rencana 3.4)
+
+`dtcg/default/` is the runtime's **default Theme exported as W3C DTCG 2025.10 tokens**: `menata.resolver.json` (the
+Resolver Module document), `base.tokens.json` (spacing, radius, typography), and `light.tokens.json`/`dark.tokens.json`
+(colours under the same names). It is **generated, never edited**: `make tokens` writes it from the committed
+`static/css/app.css`, and `internal/rendering`'s `TestCommittedDesignTokensAreFresh` fails when it is stale. One
+Workspace's own `theme:` is exported with `go run ./cmd/tokens -workspace <slug> -out <dir>`.
+
+The difference from `tokens.json`: `tokens.json` is the **Design System artifact** (what the mockups decided, with the
+tokens no reader answers for, such as brand, focus-ring and the shadows). The DTCG export is **what the runtime draws**
+for one Theme, so it carries only the tokens a reader answers for (GS1's mapping, `rendering.designTokenClasses`), with
+each value resolved through the Workspace's override and app.css's dark block. For the default Theme the two agree;
+`TestDesignTokensMatchTheDesignSystemArtifact` and `canvas.py compare` both check that.
+
+`canvas.py` reads a DTCG resolver wherever it takes a tokens.json, so a mockup for one Workspace is generated from that
+Workspace's export:
+
+    python3 -I design-system/canvas.py generate <dir>/menata.resolver.json <canvas>/project --version <label>

@@ -27,6 +27,7 @@ var faintInkSites = map[string]struct {
 	n      int
 	reason string
 }{
+	"designtokens.go:designTokenClasses":           {1, "names the Design System's ink-faint token for GS1 and the DTCG export (rencana 3.4); it draws nothing"},
 	"account.templ:SecurityPage":                   {1, "the disabled Enable button: a disabled control is exempt from WCAG 1.4.3"},
 	"appsettings.templ:settingsListRow":            {1, "a row's chevron: decoration (it was slate-300, below the ladder; folded to faint by owner decision CP6)"},
 	"appsettings.templ:settingsRow":                {1, "a row's chevron: decoration"},

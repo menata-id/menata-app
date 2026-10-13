@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"menata.app/internal/domain"
 )
 
 // TestDesignSystemTokensMatchTheCode is GS1 of menata-app-document's guides/menjaga-design-system.md. It holds the
@@ -42,67 +40,9 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	css := compiledCSSVars(t)
 	cssDark := compiledCSSVarsDark(t)
 
-	colour := map[string]string{
-		"ink-strong": inkClass(ctx, domain.InkStrong), "ink-body": inkClass(ctx, domain.InkBody),
-		"ink-secondary": inkClass(ctx, domain.InkSecondary), "ink-faint": inkClass(ctx, domain.InkFaint),
-		// DS-D10 (2026-10-12): the accent is a role now. Its hover is a state of the same key; compared as its colour.
-		// DS-D16 (2026-10-12): the tone edge is part of the tone's palette now.
-		"tone-warn-border": toneEdgeClass(ctx, domain.ToneWarn), "danger-border": toneEdgeClass(ctx, domain.ToneBad),
-		"hover-wash": strings.TrimPrefix(hoverWashClass(ctx), "hover:"), // DS-D11: an alias of bg-base, read by the hover recipe
-		"accent":     inkClass(ctx, domain.InkAccent), "accent-hover": strings.TrimPrefix(accentHoverClass(ctx), "hover:"),
-		"bg-raised": backgroundClass(ctx, domain.BackgroundRaised), "bg-base": backgroundClass(ctx, domain.BackgroundBase),
-		"bg-sunken":      backgroundClass(ctx, domain.BackgroundSunken),
-		"border-divider": borderClass(ctx, domain.BorderDivider), "border-surface": borderClass(ctx, domain.BorderSurface),
-		"border-control": borderClass(ctx, domain.BorderControl),
-		"mark-good":      markGoodFill(),
-		// Aliases of a role the artifact names for a component (checked 2026-10-13; they were listed unmapped with
-		// reasons that predate the readers).
-		"primary": inkFillClass(ctx, domain.InkStrong), "avatar-fill": borderFillClass(ctx, domain.BorderSurface),
-		"danger-ink": toneInkClass(ctx, domain.ToneBad), "danger-wash": toneFillClass(ctx, domain.ToneBad),
-		// DK8 (2026-10-13): the categorical colours, light and dark.
-		"file-pdf-bg": strings.Fields(fileTypeTileClasses())[0], "file-pdf-ink": strings.Fields(fileTypeTileClasses())[1],
-		"draft-edge": draftTileEdgeClass(), "draft-ink": draftTileInkClass(),
-	}
-	for tc, name := range map[domain.TagColor]string{domain.TagBlue: "blue", domain.TagPurple: "violet", domain.TagAmber: "amber",
-		domain.TagEmerald: "emerald", domain.TagCyan: "cyan", domain.TagRose: "rose", domain.TagSlate: "slate"} {
-		chip, _ := tagClasses(tc)
-		colour["tag-"+name] = strings.Fields(chip)[2] // the ink; fill and edge are it at 10% and 20%
-	}
-	for _, c := range []string{"blue", "emerald", "amber", "slate"} {
-		f := strings.Fields(appIconClasses(c))
-		colour["app-"+c+"-bg"], colour["app-"+c+"-ink"] = f[0], f[1]
-	}
-	for tone := range domain.KnownBadgeTones {
-		colour["tone-"+string(tone)+"-bg"] = toneFillClass(ctx, tone)
-		colour["tone-"+string(tone)+"-ink"] = toneInkClass(ctx, tone)
-	}
-	length := map[string]string{
-		"gap-xtight": layoutGap(ctx, domain.GapXtight), "gap-tight": layoutGap(ctx, domain.GapTight),
-		"gap-micro": layoutGap(ctx, domain.GapMicro), "gap-hair": layoutGap(ctx, domain.GapHair), // G1, 2026-10-12
-		"gap-default": layoutGap(ctx, domain.GapDefault), "gap-comfortable": layoutGap(ctx, domain.GapComfortable),
-		"gap-loose":              layoutGap(ctx, domain.GapLoose),
-		"gap-region":             layoutGap(ctx, domain.GapRegion),
-		"control-height-compact": strings.Fields(controlHeightCompact())[0], // the mouse height; the touch half is pointer-coarse
-		"pad-panel":              paddingClass(ctx, domain.PaddingPanel), "pad-section": paddingClass(ctx, domain.PaddingSection),
-		"pad-badge-x": paddingClass(ctx, domain.PaddingBadgeX), "pad-badge-y": paddingClass(ctx, domain.PaddingBadgeY),
-		"pad-badge-compact-x": paddingClass(ctx, domain.PaddingBadgeCompactX),
-		"pad-badge-compact-y": paddingClass(ctx, domain.PaddingBadgeCompactY),
-		"radius-control":      radiusClass(ctx, domain.RadiusControl), "radius-surface": radiusClass(ctx, domain.RadiusSurface),
-		"radius-pill": radiusClass(ctx, domain.RadiusPill),
-	}
-	type style struct{ size, weight string }
-	styles := map[string]style{
-		"display":       {textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis)},
-		"heading":       {textClass(ctx, domain.RoleHeading), weightClass(ctx, domain.WeightEmphasis)},
-		"subheading":    {textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis)},
-		"panel-heading": {textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis)},
-		"body":          {textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightBody)},
-		"meta":          {textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightBody)},
-		"label":         {textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightBody)},
-		"caption":       {textClass(ctx, domain.RoleCaption), weightClass(ctx, domain.WeightBody)},
-		"item":          {textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis)},
-		"eyebrow":       {textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightBody)},
-	}
+	// The token-to-reader list is designTokenClasses, which ExportDesignTokens (rencana 3.4) reads too.
+	m := designTokenClasses(ctx)
+	colour, length, styles := m.colour, m.length, m.styles
 
 	classified := map[string]string{}
 	mark := func(name, how string) {
