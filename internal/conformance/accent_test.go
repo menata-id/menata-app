@@ -33,7 +33,7 @@ var handWrittenAccentInks = map[string]struct {
 	"login.templ":             {6, "pre-auth: no Workspace on ctx, no theme reaches it"},
 	"register.templ":          {2, "pre-auth: no Workspace on ctx, no theme reaches it"},
 	"machine.templ":           {1, "the Tag palette's blue entry (a colour an author picks, not the accent)"},
-	"appshell.templ":          {2, "state markers kept literal on purpose: the active bottom tab (desktop nav marks the active item text-blue-700, a different step) and the current-Workspace check; moving one without the other made the two navs disagree under a theme (2026-10-12 review), so active-nav colour is decided together, later"},
+	"appshell.templ":          {1, "the current-Workspace check: a state marker. The active bottom tab left this list on 2026-10-13, when the owner set the active nav to blue-700 on desktop and mobile alike (see the design bucket's text-blue-700)"},
 	"reviewdocument.templ":    {1, "the signature marker's \"yours\" state colour, paired with border-blue-500"},
 }
 

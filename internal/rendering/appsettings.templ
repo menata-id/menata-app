@@ -101,9 +101,11 @@ templ settingsRow(href, label, description string, current bool) {
 	</a>
 }
 
-// notBuiltYetTag is the muted tag a placeholder row wears instead of a link.
+// notBuiltYetTag is the muted tag a placeholder row wears instead of a link. It sits on `sunken`, so its text reads
+// `body`: `secondary` is 4.35:1 there (owner decision 2026-10-13, no secondary text on sunken; held by
+// TestTextOnSunkenMeetsContrast).
 templ notBuiltYetTag() {
-	<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Not built yet</span>
+	<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkBody), "uppercase" }>Not built yet</span>
 }
 
 // settingsPlaceholderRow is an honest, non-interactive row for a section this runtime cannot serve

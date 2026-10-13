@@ -1162,7 +1162,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     argument. A swap inside one function still passes; that is inherent to counting.
   - Both former literal floors (`avatarClasses`, `diffLineClass`) take ctx and read the reader. An earlier version
     of this bullet claimed the token ratchet counted them, and nothing did.
-  - Open, for the owner: `secondary` on `sunken` is 4.35:1. The Not built yet tag is now one such site.
+  - **Owner decision 2026-10-13: no `secondary` text on `sunken`** (4.35:1 there). The Not built yet tag reads `body`.
+    The loader cannot require secondary to pass on sunken without refusing the default Theme, so
+    `TestTextOnSunkenMeetsContrast` holds it at the site. It is mutation-proved, and it is blind to hand-written sunken
+    surfaces. The same day the active nav became blue-700 on mobile as on desktop.
 - `TestHandWrittenToneEdgesOnlyShrink` — owner decision DS-D16 (2026-10-12). A tone is a **triple** now:
   `toneEdgeClass(ctx, domain.Tone*)` gives the edge from the same palette as the fill and ink. No Theme key was added,
   and a Workspace remapping `warn` to red no longer keeps an amber rim. Six edges moved byte-identically (components

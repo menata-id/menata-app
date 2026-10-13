@@ -464,7 +464,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium text-blue-600", item.Active), templ.KV("text-slate-500", !item.Active) }
+				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-500", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}

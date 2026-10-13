@@ -292,3 +292,33 @@ func TestDomainContrastAgreesWithThisGate(t *testing.T) {
 		}
 	}
 }
+
+// TestTextOnSunkenMeetsContrast holds owner decision 2026-10-13: no `secondary` text on `sunken`. The default
+// secondary is 4.35:1 on the default sunken, so text drawn on a sunken surface by a shared component reads a darker
+// role. The loader cannot require secondary to pass on sunken without refusing the default Theme, which is why the
+// rule is held here, at the sites, and why domain.InkSurfaces leaves sunken out for secondary.
+// Blind spot: only the components named below; a hand-written sunken surface with secondary text is not seen.
+func TestTextOnSunkenMeetsContrast(t *testing.T) {
+	ctx := context.Background()
+	css := compiledColours(t)
+	sunken, err := css.lookup(resolveColourRoles(t, ctx, backgroundClass(ctx, domain.BackgroundSunken)), oklchColour{L: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf strings.Builder
+	if err := notBuiltYetTag().Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := resolveColourRoles(t, ctx, buf.String())
+	if !strings.Contains(html, resolveColourRoles(t, ctx, backgroundClass(ctx, domain.BackgroundSunken))) {
+		t.Fatalf("the Not built yet tag no longer sits on sunken -- move this check with it: %s", html)
+	}
+	ink := regexp.MustCompile(`\btext-(slate|blue|red|emerald|amber)-[0-9]+\b`).FindString(html)
+	fg, err := css.lookup(ink, oklchColour{L: 1})
+	if err != nil {
+		t.Fatalf("%s: %v", html, err)
+	}
+	if r := contrastRatio(fg, sunken); r < 4.5 {
+		t.Errorf("the Not built yet tag draws %s on sunken at %.2f:1, below 4.5:1", ink, r)
+	}
+}

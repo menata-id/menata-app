@@ -225,7 +225,7 @@ var loneToneHalves = map[string]struct {
 	"text-amber-800":   {1, "the refusal reason inside that box; see bg-amber-50"},
 	"bg-blue-50":       {2, "New Application's assistant bubble (a chat bubble, not the info tone) and your signature box"},
 	"bg-emerald-50":    {1, "a signed signature box, beside its -300 rim"},
-	"text-blue-700":    {6, "the active nav and inbox tab (open finding: desktop blue-700, mobile blue-600, to be decided together) and your signature's labels"},
+	"text-blue-700":    {7, "the active nav, desktop and mobile alike (owner decision 2026-10-13: blue-700 in both, one step darker than the accent), the inbox tab, and your signature's labels"},
 	"text-emerald-700": {1, "a signed signature's label"},
 	"text-red-700":     {4, "danger words outside a box: the Delete my account link, the Remove from workspace heading, urgent and overdue SLA text"},
 }
