@@ -53,7 +53,8 @@ func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {
 		}
 		src := stripTemplComments(string(b))
 		if e.Name() == "layout.templ" {
-			readers = strings.Count(src, `return "border-slate-300"`)
+			// borderShadeVar's `defined` arm since DS-D15 stage 2 (the reader answers a role class now).
+			readers = strings.Count(src, `return "--color-slate-300"`)
 			continue
 		}
 		for _, m := range classAttr.FindAllStringSubmatch(joinClassExpressions(src), -1) {
@@ -65,7 +66,7 @@ func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {
 		}
 	}
 	if readers != 1 {
-		t.Fatalf("expected borderClass's one `border-slate-300` arm in layout.templ, found %d -- the scan is reading the wrong text", readers)
+		t.Fatalf("expected borderShadeVar's one `--color-slate-300` arm in layout.templ, found %d -- the scan is reading the wrong text", readers)
 	}
 	files := map[string]bool{}
 	for f := range actual {

@@ -17,7 +17,7 @@ func renderDataTable(t *testing.T, ctx context.Context, label string, cols []Tab
 	if err := dataTable(label, cols).Render(templ.WithChildren(ctx, rows), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	return buf.String()
+	return resolveColourRoles(t, ctx, buf.String())
 }
 
 // TestDataTable_namesItselfAndItsColumns holds what the contract forces: an accessible name on the table, a

@@ -86,17 +86,28 @@ func textClass(ctx context.Context, role domain.TextRole) string {
 	}
 }
 
-// borderClass maps a border role through this request's Workspace theme, on the same terms as radiusClass.
+// borderClass is a border role's class, one per role (DS-D15 stage 2): `--color-border-<role>` holds the shade, its
+// default in input.css's `@theme`, a Workspace's override in themeCSS. The step each shade draws is borderShadeVar.
 func borderClass(ctx context.Context, role domain.BorderRole) string {
-	switch CurrentWorkspace(ctx).Theme.BorderFor(role) {
-	case domain.BorderFaint:
-		return "border-slate-100"
-	case domain.BorderSoft:
-		return "border-slate-200"
-	case domain.BorderDefined:
-		return "border-slate-300"
+	switch role {
+	case domain.BorderControl:
+		return "border-border-control"
+	case domain.BorderDivider:
+		return "border-border-divider"
 	default:
-		return "border-slate-200"
+		return "border-border-surface"
+	}
+}
+
+// borderShadeVar is the palette step each closed border shade draws.
+func borderShadeVar(shade domain.BorderShade) string {
+	switch shade {
+	case domain.BorderFaint:
+		return "--color-slate-100"
+	case domain.BorderDefined:
+		return "--color-slate-300"
+	default:
+		return "--color-slate-200"
 	}
 }
 
@@ -194,7 +205,8 @@ func inkRoleVar(role domain.InkRole) string {
 	return "--color-ink-" + string(role)
 }
 
-// themeCSS is the `:root` override for this request's Workspace: one declaration per colour role whose value differs
+// themeCSS is the `:root` override for this request's Workspace (ink, border, background and tone): one declaration
+// per colour role whose value differs
 // from the default Theme, and nothing at all for a Workspace that declares no colour (so the default theme adds no
 // bytes). A closed shade becomes `var(--color-…)`, a colour value is written as itself; the loader accepts only
 // `#rrggbb` (domain.IsColourValue), and this checks again before writing, because the result goes into a `<style>`.
@@ -216,6 +228,22 @@ func themeCSS(ctx context.Context) string {
 		decl = append(decl, inkRoleVar(role)+":var("+inkShadeVar(shade)+")")
 		if role == domain.InkAccent {
 			decl = append(decl, "--color-accent-hover:var("+accentHoverShadeVar(shade)+")")
+		}
+	}
+	for _, role := range []domain.BorderRole{domain.BorderSurface, domain.BorderControl, domain.BorderDivider} {
+		if shade := th.BorderFor(role); shade != def.BorderFor(role) {
+			decl = append(decl, "--color-border-"+string(role)+":var("+borderShadeVar(shade)+")")
+		}
+	}
+	for _, role := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase, domain.BackgroundSunken} {
+		if shade := th.BackgroundFor(role); shade != def.BackgroundFor(role) {
+			decl = append(decl, "--color-bg-"+string(role)+":var("+backgroundShadeVar(shade)+")")
+		}
+	}
+	for _, tone := range []domain.BadgeTone{domain.ToneNeutral, domain.ToneInfo, domain.ToneGood, domain.ToneBad, domain.ToneWarn, domain.ToneMuted} {
+		if p := th.ToneFor(tone); p != def.ToneFor(tone) {
+			n := "--color-tone-" + string(tone)
+			decl = append(decl, n+"-bg:var("+toneFillVar(p)+")", n+"-ink:var("+toneInkVar(p)+")", n+"-border:var("+toneEdgeVar(p)+")")
 		}
 	}
 	if len(decl) == 0 {
@@ -257,17 +285,28 @@ func themeStyle() templ.Component {
 	})
 }
 
-// backgroundClass maps a surface role through this request's Workspace theme, on the same terms as radiusClass.
+// backgroundClass is a surface role's class, one per role (DS-D15 stage 2), through `--color-bg-<role>`. The step
+// each shade draws is backgroundShadeVar.
 func backgroundClass(ctx context.Context, role domain.BackgroundRole) string {
-	switch CurrentWorkspace(ctx).Theme.BackgroundFor(role) {
-	case domain.BackgroundShadeLightest:
-		return "bg-white"
-	case domain.BackgroundShadeLighter:
-		return "bg-slate-50"
-	case domain.BackgroundShadeLight:
-		return "bg-slate-100"
+	switch role {
+	case domain.BackgroundBase:
+		return "bg-bg-base"
+	case domain.BackgroundSunken:
+		return "bg-bg-sunken"
 	default:
-		return "bg-white"
+		return "bg-bg-raised"
+	}
+}
+
+// backgroundShadeVar is the palette step each closed background shade draws.
+func backgroundShadeVar(shade domain.BackgroundShade) string {
+	switch shade {
+	case domain.BackgroundShadeLighter:
+		return "--color-slate-50"
+	case domain.BackgroundShadeLight:
+		return "--color-slate-100"
+	default:
+		return "--color-white"
 	}
 }
 
@@ -346,55 +385,52 @@ func toneClass(ctx context.Context, tone domain.BadgeTone) string {
 
 // toneFillClass and toneInkClass are the two halves of toneClass's pair, for the one caller (a tinted section) that
 // wants the fill without the text colour. toneClass joins them, so a palette is still declared once.
+//
+// Since DS-D15 stage 2 every tone half is a property, `--color-tone-<tone>-bg|ink|border`, so each reader answers one
+// class per tone and the Workspace's palette choice is written by themeCSS. The steps a palette draws are
+// toneFillVar/toneInkVar/toneEdgeVar.
 func toneFillClass(ctx context.Context, tone domain.BadgeTone) string {
-	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteGreyFaint:
-		return "bg-slate-50"
-	case domain.PaletteBlue:
-		return "bg-blue-50"
-	case domain.PaletteGreen:
-		return "bg-emerald-50"
-	case domain.PaletteRed:
-		return "bg-red-50"
-	case domain.PaletteAmber:
-		return "bg-amber-50"
+	switch tone {
+	case domain.ToneInfo:
+		return "bg-tone-info-bg"
+	case domain.ToneGood:
+		return "bg-tone-good-bg"
+	case domain.ToneBad:
+		return "bg-tone-bad-bg"
+	case domain.ToneWarn:
+		return "bg-tone-warn-bg"
+	case domain.ToneMuted:
+		return "bg-tone-muted-bg"
 	default:
-		return "bg-slate-100"
+		return "bg-tone-neutral-bg"
 	}
 }
 
 // hoverWashClass is the Design System's `hover-wash`: the fill a list row, a menu row or a secondary button takes on
 // hover (owner decision DS-D11, 2026-10-12: hover lives in recipes, not as a role of its own). The artifact defines
-// `hover-wash` as an alias of `bg-base`, so this reads `background.base` and a Workspace moves both together. Each arm
-// is a whole literal for Tailwind's scanner.
+// `hover-wash` as an alias of `bg-base`, and input.css declares it so (`--color-hover-wash: var(--color-bg-base)`),
+// so a Workspace that moves `background.base` moves both with one override.
 func hoverWashClass(ctx context.Context) string {
-	switch CurrentWorkspace(ctx).Theme.BackgroundFor(domain.BackgroundBase) {
-	case domain.BackgroundShadeLightest:
-		return "hover:bg-white"
-	case domain.BackgroundShadeLight:
-		return "hover:bg-slate-100"
-	default:
-		return "hover:bg-slate-50"
-	}
+	return "hover:bg-hover-wash"
 }
 
 // toneHoverFillClass is a tone's fill as a hover (DS-D11): the danger button and the danger menu row wash to the
 // `bad` tone's fill on hover, so their edge, ink and hover all follow theme.tone together (DS-D16's triple, plus its
 // hover).
 func toneHoverFillClass(ctx context.Context, tone domain.BadgeTone) string {
-	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteGreyFaint:
-		return "hover:bg-slate-50"
-	case domain.PaletteBlue:
-		return "hover:bg-blue-50"
-	case domain.PaletteGreen:
-		return "hover:bg-emerald-50"
-	case domain.PaletteRed:
-		return "hover:bg-red-50"
-	case domain.PaletteAmber:
-		return "hover:bg-amber-50"
+	switch tone {
+	case domain.ToneInfo:
+		return "hover:bg-tone-info-bg"
+	case domain.ToneGood:
+		return "hover:bg-tone-good-bg"
+	case domain.ToneBad:
+		return "hover:bg-tone-bad-bg"
+	case domain.ToneWarn:
+		return "hover:bg-tone-warn-bg"
+	case domain.ToneMuted:
+		return "hover:bg-tone-muted-bg"
 	default:
-		return "hover:bg-slate-100"
+		return "hover:bg-tone-neutral-bg"
 	}
 }
 
@@ -403,36 +439,89 @@ func toneHoverFillClass(ctx context.Context, tone domain.BadgeTone) string {
 // was added: the edge follows `theme.tone` like the other two. The Design System names two of these
 // (`tone-warn-border`, `danger-border`); GS1 checks both.
 func toneEdgeClass(ctx context.Context, tone domain.BadgeTone) string {
-	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteGreyFaint:
-		return "border-slate-100"
-	case domain.PaletteBlue:
-		return "border-blue-200"
-	case domain.PaletteGreen:
-		return "border-emerald-200"
-	case domain.PaletteRed:
-		return "border-red-200"
-	case domain.PaletteAmber:
-		return "border-amber-200"
+	switch tone {
+	case domain.ToneInfo:
+		return "border-tone-info-border"
+	case domain.ToneGood:
+		return "border-tone-good-border"
+	case domain.ToneBad:
+		return "border-tone-bad-border"
+	case domain.ToneWarn:
+		return "border-tone-warn-border"
+	case domain.ToneMuted:
+		return "border-tone-muted-border"
 	default:
-		return "border-slate-200"
+		return "border-tone-neutral-border"
 	}
 }
 
 func toneInkClass(ctx context.Context, tone domain.BadgeTone) string {
-	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteGreyFaint:
-		return "text-slate-400"
-	case domain.PaletteBlue:
-		return "text-blue-700"
-	case domain.PaletteGreen:
-		return "text-emerald-700"
-	case domain.PaletteRed:
-		return "text-red-700"
-	case domain.PaletteAmber:
-		return "text-amber-800"
+	switch tone {
+	case domain.ToneInfo:
+		return "text-tone-info-ink"
+	case domain.ToneGood:
+		return "text-tone-good-ink"
+	case domain.ToneBad:
+		return "text-tone-bad-ink"
+	case domain.ToneWarn:
+		return "text-tone-warn-ink"
+	case domain.ToneMuted:
+		return "text-tone-muted-ink"
 	default:
-		return "text-slate-600"
+		return "text-tone-neutral-ink"
+	}
+}
+
+// toneFillVar, toneInkVar and toneEdgeVar are the palette steps each tone palette draws: the three halves of
+// DS-D16's triple, written once and read by themeCSS and by the gates that need a tone's default palette class.
+func toneFillVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-50"
+	case domain.PaletteBlue:
+		return "--color-blue-50"
+	case domain.PaletteGreen:
+		return "--color-emerald-50"
+	case domain.PaletteRed:
+		return "--color-red-50"
+	case domain.PaletteAmber:
+		return "--color-amber-50"
+	default:
+		return "--color-slate-100"
+	}
+}
+
+func toneInkVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-400"
+	case domain.PaletteBlue:
+		return "--color-blue-700"
+	case domain.PaletteGreen:
+		return "--color-emerald-700"
+	case domain.PaletteRed:
+		return "--color-red-700"
+	case domain.PaletteAmber:
+		return "--color-amber-800"
+	default:
+		return "--color-slate-600"
+	}
+}
+
+func toneEdgeVar(p domain.TonePalette) string {
+	switch p {
+	case domain.PaletteGreyFaint:
+		return "--color-slate-100"
+	case domain.PaletteBlue:
+		return "--color-blue-200"
+	case domain.PaletteGreen:
+		return "--color-emerald-200"
+	case domain.PaletteRed:
+		return "--color-red-200"
+	case domain.PaletteAmber:
+		return "--color-amber-200"
+	default:
+		return "--color-slate-200"
 	}
 }
 
@@ -440,11 +529,11 @@ func toneInkClass(ctx context.Context, tone domain.BadgeTone) string {
 // pair with, so it takes only the palette's text colour -- and only for the two tones that signal something;
 // every other tone, and the unset one, stays the default ink rather than tinting a number nobody flagged.
 func metricValueClass(ctx context.Context, tone domain.BadgeTone) string {
+	// Whether the value is tinted is still the Workspace's palette choice (a tone drawn red or green signals); the
+	// colour itself is the tone's ink property, so it is the same step the tone's badge draws.
 	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteRed:
-		return "text-red-700"
-	case domain.PaletteGreen:
-		return "text-emerald-700"
+	case domain.PaletteRed, domain.PaletteGreen:
+		return toneInkClass(ctx, tone)
 	default:
 		return inkClass(ctx, domain.InkStrong)
 	}
@@ -1399,7 +1488,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 778, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 867, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -1552,7 +1641,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 795, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 884, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -1815,7 +1904,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 893, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 982, Col: 123}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -1851,7 +1940,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 895, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 984, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -1887,7 +1976,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var63 string
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 897, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 986, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 			if templ_7745c5c3_Err != nil {
@@ -1923,7 +2012,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 899, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 988, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 			if templ_7745c5c3_Err != nil {
@@ -1959,7 +2048,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 901, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 990, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -1995,7 +2084,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var72 string
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 903, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 992, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -2031,7 +2120,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var75 string
 			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 905, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 994, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 			if templ_7745c5c3_Err != nil {
@@ -2067,7 +2156,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var78 string
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 907, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 996, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 			if templ_7745c5c3_Err != nil {
@@ -2103,7 +2192,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var81 string
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 909, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 998, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -2167,7 +2256,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var84 templ.SafeURL
 		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 930, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1019, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 		if templ_7745c5c3_Err != nil {
@@ -2193,7 +2282,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var86 string
 		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 930, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1019, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 		if templ_7745c5c3_Err != nil {

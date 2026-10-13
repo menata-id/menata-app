@@ -1091,7 +1091,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   the default. Mutation-proved three ways.
 - `TestColourRoleClassesComeOnlyFromTheirReaders` and `internal/rendering`'s `TestThemeCSS*` family — owner decision
   DS-D15 stage 2 (2026-10-12): **a colour role is a CSS custom property, and a Workspace may give it a value.** Ink
-  is the first category (border, background and tone follow, then radius and space):
+  came first (3.2a). Since 3.2b **every colour role** draws through one: border (`border-border-surface`), surface
+  (`bg-bg-raised`), `hover-wash` (an alias of `bg-base` in `@theme`, so moving the page moves the hover), and each
+  tone's fill, ink and edge (`bg-tone-good-bg`, `text-tone-good-ink`, `border-tone-good-border`). Only ink takes a
+  colour value so far; the others still choose a shade or palette. Radius and space follow:
   - `inkClass` answers one class per role (`text-ink-body`, `text-accent`), the same under every theme. The
     property's default sits in `static/css/input.css`'s `@theme` under the Design System's own token names, so a
     page with no Workspace (pre-auth) draws the default. A moved role is an override in the page's `<head>`
@@ -1113,13 +1116,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     `resolveColourRoles` rewrites a role class through the override and the `@theme` default, and leaves a literal
     alone, so an R9 test still fails on a hand-written colour. GS1 and GS3 follow the `var()` alias in `app.css`;
     GS3 resolves each accent hue under its own Workspace (without that it measured the default blue six times and
-    passed, mutation-proved). The slice itself was verified as computed style in Chromium: 106 pages, 15,607
-    elements, 0 differences.
+    passed, mutation-proved). Both slices were verified as computed style in Chromium against the pre-3.2a pages:
+    106 pages, 15,607 elements, 0 differences. 3.2b also hovered one element per distinct hover class set (26 of
+    37; the other 11 sit in closed menus): 0 differences.
+  - **Reader tests now resolve before they compare.** 3.2b broke 37 rendering tests. They were rewritten
+    mechanically: each `buf.String()` after a `Render(ctx, …)`, and each direct reader call, is wrapped in
+    `resolveColourRoles` with that ctx. Then every negative assertion on a palette class was swept by hand.
+    A negative check on **unresolved** output still catches a hand-written literal, but it is vacuous for the
+    reader's own output, which is how `TestMetric_hintAndToneAreOptional` went silent in 3.2a.
   - **Tailwind emits any `--color-*` a scanned file mentions**, so `inkShadeVar`'s literals keep every choosable
     step in the bundle. `TestEveryPaletteVariableTheOverrideCanNameIsCompiled` catches a name the scanner cannot
     read (a runtime-assembled one), not a renamed step.
-  - The gate refuses a role class anywhere in `internal/rendering` outside its reader, Go strings included, under any
-    variant prefix, opacity or `!`. Mutation-proved: a class attribute, a Go string, a renamed reader, and the five
+  - The gate refuses a role class anywhere in `internal/rendering` outside its nine readers, Go strings included,
+    under any variant prefix, opacity or `!`. Mutation-proved: a class attribute, a Go string, a renamed reader, and the five
     shapes the review passed through the first regex.
   - Open: in `app.css` the role classes sort before some palette classes, so an element carrying both a role and a
     conflicting literal colour would change which one wins. None was found (the 106-page computed diff is 0), but

@@ -22,7 +22,7 @@ func TestNewApplicationReviewPage_draftBadgeKeepsItsContentWidth(t *testing.T) {
 	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	html := buf.String()
+	html := resolveColourRoles(t, ctx, buf.String())
 	i := strings.Index(html, ">Draft<")
 	if i < 0 {
 		t.Fatal("the review page did not draw its Draft badge")

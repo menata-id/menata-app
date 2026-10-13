@@ -120,8 +120,8 @@ func TestApproverKindBadge_userIsInfoAndGroupIsNeutral(t *testing.T) {
 		if err := approverKindBadge(kind).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render(%q) error = %v", kind, err)
 		}
-		if !strings.Contains(buf.String(), want) || !strings.Contains(buf.String(), ">"+kind+"<") {
-			t.Errorf("kind %q rendered %q, want tone classes %q around the kind text", kind, buf.String(), want)
+		if !strings.Contains(resolveColourRoles(t, context.Background(), buf.String()), want) || !strings.Contains(resolveColourRoles(t, context.Background(), buf.String()), ">"+kind+"<") {
+			t.Errorf("kind %q rendered %q, want tone classes %q around the kind text", kind, resolveColourRoles(t, context.Background(), buf.String()), want)
 		}
 	}
 }

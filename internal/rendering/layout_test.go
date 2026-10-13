@@ -213,7 +213,7 @@ func TestStatusBadge_rendersEachDeclaredTone(t *testing.T) {
 		if err := statusBadge("OVERDUE", tone, domain.BadgeRegular).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", tone, err)
 		}
-		got := buf.String()
+		got := resolveColourRoles(t, context.Background(), buf.String())
 		if !strings.Contains(got, classes) {
 			t.Errorf("statusBadge(_, %s) does not carry %q; got %q", tone, classes, got)
 		}
@@ -243,7 +243,7 @@ func TestStatusBadge_sizeChoosesTheRoomAroundTheLabel(t *testing.T) {
 		if err := statusBadge("3", domain.ToneNeutral, tc.size).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%q: Render() error = %v", tc.size, err)
 		}
-		got := buf.String()
+		got := resolveColourRoles(t, context.Background(), buf.String())
 		if !strings.Contains(got, tc.want) || strings.Contains(got, tc.not) {
 			t.Errorf("statusBadge(_, _, %q) should carry %q and not %q; got %q", tc.size, tc.want, tc.not, got)
 		}
@@ -268,7 +268,7 @@ func TestStatusBadge_followsTheWorkspaceTheme(t *testing.T) {
 		if err := statusBadge("X", tone, domain.BadgeRegular).Render(ctx, &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", tone, err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 	if got := render(domain.ToneWarn); !strings.Contains(got, "bg-red-50 text-red-700") || strings.Contains(got, "amber") {
 		t.Errorf("a declared warn=red should draw red and no amber; got %q", got)
@@ -283,7 +283,7 @@ func TestSlaBadge_rendersNothingWhenAbsent(t *testing.T) {
 	if err := slaBadge(experience.SLABadge{}).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if got := buf.String(); got != "" {
+	if got := resolveColourRoles(t, context.Background(), buf.String()); got != "" {
 		t.Errorf("an absent SLA badge rendered %q -- a Field with no value must produce no markup, not an empty styled element", got)
 	}
 
@@ -292,7 +292,7 @@ func TestSlaBadge_rendersNothingWhenAbsent(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	// The deliberate change: overdue is a red *pill* now, not red text.
-	if got := buf.String(); !strings.Contains(got, "rounded-full") || !strings.Contains(got, "bg-red-50 text-red-700") {
+	if got := resolveColourRoles(t, context.Background(), buf.String()); !strings.Contains(got, "rounded-full") || !strings.Contains(got, "bg-red-50 text-red-700") {
 		t.Errorf("an overdue badge should render as a red pill through statusBadge; got %q", got)
 	}
 }
@@ -447,7 +447,7 @@ func TestPanelLayout_backgroundFollowsTheWorkspaceTheme(t *testing.T) {
 		if err := panelLayout().Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, templ.WithChildren(ctx, templ.Raw("x")), buf.String())
 	}
 	if def := render(context.Background()); !strings.Contains(def, "bg-white") {
 		t.Errorf("default panel lost bg-white; got %q", def)
@@ -704,9 +704,9 @@ func TestButtonClasses_followTheTheme(t *testing.T) {
 		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightEmphasis: domain.WeightStepNormal},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	primary := buttonClasses(ctx, domain.ButtonPrimary)
+	primary := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonPrimary))
 	secondary := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonSecondary))
-	danger := buttonClasses(ctx, domain.ButtonDanger)
+	danger := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonDanger))
 	for name, got := range map[string]string{"primary": primary, "secondary": secondary, "danger": danger} {
 		if !strings.Contains(got, "rounded-full") || strings.Contains(got, "rounded-md") {
 			t.Errorf("%s: a declared control radius should move the button; got %q", name, got)
@@ -762,7 +762,7 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 		if err := c.Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	const prefix = "inline-flex h-9 cursor-pointer items-center justify-center"
 	for name, c := range map[string]struct{ got, want string }{
@@ -821,7 +821,7 @@ func TestFieldClasses_followTheTheme(t *testing.T) {
 
 func TestTableCellClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
 	const was = "border-b border-slate-100 px-3 py-2 align-middle"
-	if got := tableCellClasses(context.Background()); got != was {
+	if got := resolveColourRoles(t, context.Background(), tableCellClasses(context.Background())); got != was {
 		t.Errorf("the default theme must render the pre-migration literal\n got  %q\n want %q", got, was)
 	}
 }
@@ -832,7 +832,7 @@ func TestDividerAndBodyWeightFollowTheTheme(t *testing.T) {
 		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightBody: domain.WeightStepMedium},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	if got := tableCellClasses(ctx); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
+	if got := resolveColourRoles(t, ctx, tableCellClasses(ctx)); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
 		t.Errorf("theme.border.divider should move a table cell's rule; got %q", got)
 	}
 	if got := weightClass(ctx, domain.WeightBody); got != "font-medium" {
@@ -841,7 +841,7 @@ func TestDividerAndBodyWeightFollowTheTheme(t *testing.T) {
 }
 
 func TestSurfaceClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
-	if got, want := surfaceClasses(context.Background()), "rounded-lg border border-slate-200 bg-white"; got != want {
+	if got, want := resolveColourRoles(t, context.Background(), surfaceClasses(context.Background())), "rounded-lg border border-slate-200 bg-white"; got != want {
 		t.Errorf("default surface must render the literal 34 sites carried; got %q, want %q", got, want)
 	}
 }
@@ -853,7 +853,7 @@ func TestSurfaceClasses_followTheThemeAtAHandWrittenSite(t *testing.T) {
 		Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundRaised: domain.BackgroundShadeLighter},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	if got, want := surfaceClasses(ctx), "rounded-md border border-slate-300 bg-slate-50"; got != want {
+	if got, want := resolveColourRoles(t, ctx, surfaceClasses(ctx)), "rounded-md border border-slate-300 bg-slate-50"; got != want {
 		t.Errorf("a declared theme must move the surface recipe; got %q, want %q", got, want)
 	}
 
@@ -862,14 +862,14 @@ func TestSurfaceClasses_followTheThemeAtAHandWrittenSite(t *testing.T) {
 	if err := roleMatrixApp(RoleMatrixApp{Name: "App"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if out := buf.String(); !strings.Contains(out, "rounded-md border border-slate-300 bg-slate-50") {
+	if out := resolveColourRoles(t, ctx, buf.String()); !strings.Contains(out, "rounded-md border border-slate-300 bg-slate-50") {
 		t.Errorf("a migrated hand-written surface did not follow the theme; got %q", out)
 	}
 }
 
 func TestTableHeadCellClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
 	const old = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
-	if got := tableHeadCellClasses(context.Background()); got != old {
+	if got := resolveColourRoles(t, context.Background(), tableHeadCellClasses(context.Background())); got != old {
 		t.Errorf("default table head cell must render the constant it replaced; got %q, want %q", got, old)
 	}
 }
@@ -877,7 +877,7 @@ func TestTableHeadCellClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
 func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
 	th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined}}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	if got := tableHeadCellClasses(ctx); !strings.HasPrefix(got, "border-b border-slate-300 ") {
+	if got := resolveColourRoles(t, ctx, tableHeadCellClasses(ctx)); !strings.HasPrefix(got, "border-b border-slate-300 ") {
 		t.Errorf("a table head rule must follow border.surface; got %q", got)
 	}
 
@@ -888,7 +888,7 @@ func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
 	if err := roleMatrixApp(app, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	out := buf.String()
+	out := resolveColourRoles(t, ctx, buf.String())
 	if n := strings.Count(out, "border-slate-300"); n != 4 {
 		t.Errorf("want the surface edge and three region rules on slate-300, got %d in %q", n, out)
 	}
@@ -898,7 +898,7 @@ func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
 }
 
 func TestTileClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
-	if got, want := tileClasses(context.Background()), "rounded-md border border-slate-200"; got != want {
+	if got, want := resolveColourRoles(t, context.Background(), tileClasses(context.Background())), "rounded-md border border-slate-200"; got != want {
 		t.Errorf("default tile must render the literal 11 sites carried; got %q, want %q", got, want)
 	}
 }
@@ -915,7 +915,7 @@ func TestTiles_followTheThemeAtHandWrittenSites(t *testing.T) {
 		if err := ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back", false, "a@b.c").Render(ctx, &buf); err != nil {
 			t.Fatalf("render: %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 
 	// The tails anchor each tile: the page's own surface wrapper carries the same radius/border/fill triple.
@@ -955,7 +955,7 @@ func TestAuthenticatedFields_followTheThemeAtHandWrittenSites(t *testing.T) {
 		if err := c.Render(ctx, &buf); err != nil {
 			t.Fatalf("render: %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 	app := RoleApplication{ID: "app_x", Name: "X", Field: "role_x", Roles: []string{"approver"}}
 	sites := map[string]func(context.Context) string{
@@ -998,13 +998,13 @@ func TestAuthenticatedFields_followTheThemeAtHandWrittenSites(t *testing.T) {
 // is the surface edge, so declaring `border.surface` moves it and declaring `border.control` does not (that key is
 // an input's own rim). The default stays the slate-200 the literal wrote.
 func TestSecondaryButtonOutlineReadsTheSurfaceBorder(t *testing.T) {
-	if got := buttonClasses(context.Background(), domain.ButtonSecondary); !strings.Contains(got, "border-slate-200") {
+	if got := resolveColourRoles(t, context.Background(), buttonClasses(context.Background(), domain.ButtonSecondary)); !strings.Contains(got, "border-slate-200") {
 		t.Fatalf("default secondary outline must stay slate-200; got %q", got)
 	}
 	at := func(role domain.BorderRole) string {
 		th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{role: domain.BorderFaint}}
 		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-		return buttonClasses(ctx, domain.ButtonSecondary)
+		return resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonSecondary))
 	}
 	if got := at(domain.BorderSurface); !strings.Contains(got, "border-slate-100") || strings.Contains(got, "border-slate-200") {
 		t.Errorf("a declared border.surface should move the secondary outline; got %q", got)
@@ -1041,13 +1041,13 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 		domain.GapTight:   "flex flex-col gap-2 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4",
 		domain.GapDefault: "flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4",
 	} {
-		if got := dividedRowClasses(ctx, gap); got != want {
+		if got := resolveColourRoles(t, ctx, dividedRowClasses(ctx, gap)); got != want {
 			t.Errorf("dividedRowClasses(%v) = %q, want %q", gap, got, want)
 		}
 	}
 	th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{domain.BorderDivider: domain.BorderDefined}}
 	ctx = WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	if got := dividedRowClasses(ctx, domain.GapTight); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
+	if got := resolveColourRoles(t, ctx, dividedRowClasses(ctx, domain.GapTight)); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
 		t.Errorf("a declared border.divider should move the row rule; got %q", got)
 	}
 }
@@ -1153,7 +1153,7 @@ func TestCollection_dividedDrawsOneSurfaceWithARuleBetweenRows(t *testing.T) {
 		if err := collection(domain.GapTight, "", ordered, divided, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	got := render(false, true)
 	for _, want := range []string{
@@ -1301,7 +1301,7 @@ func TestUINode_aCurrentSectionIsTintedAndAnnounced(t *testing.T) {
 		if err := uiNode(n).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	plain := draw(map[string]string{"gap": "tight"})
 	if strings.Contains(plain, "aria-current") || !strings.Contains(plain, "bg-white") || strings.Contains(plain, "bg-blue-50") {
@@ -1390,7 +1390,7 @@ func TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites(t *testing.T)
 		if err := c.Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 	modal := render(signatureModal("s1"))
 	if !strings.Contains(modal, "border border-slate-300 p-3 shadow-lg") {
@@ -1430,7 +1430,7 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 		if err := tc.c.Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if !strings.Contains(buf.String(), tc.want) {
+		if !strings.Contains(resolveColourRoles(t, context.Background(), buf.String()), tc.want) {
 			t.Errorf("%s: the surface edge is not border.surface's default here; want %s", name, tc.want)
 		}
 	}
@@ -1470,10 +1470,10 @@ func TestToneEdge_followsTheToneAtMigratedSites(t *testing.T) {
 	if err := truncationNotice(Truncation{Limit: 5, Hit: true}).Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "border border-red-200 bg-red-50") || strings.Contains(buf.String(), "amber") {
-		t.Errorf("a warn remapped to red must take the red edge too: %s", buf.String())
+	if !strings.Contains(resolveColourRoles(t, ctx, buf.String()), "border border-red-200 bg-red-50") || strings.Contains(resolveColourRoles(t, ctx, buf.String()), "amber") {
+		t.Errorf("a warn remapped to red must take the red edge too: %s", resolveColourRoles(t, ctx, buf.String()))
 	}
-	if got := approvalCardEdge(ctx, true); got != "border-slate-200" {
+	if got := resolveColourRoles(t, ctx, approvalCardEdge(ctx, true)); got != "border-slate-200" {
 		t.Errorf("an overdue card under a grey bad tone must still carry an edge class, got %q", got)
 	}
 }
@@ -1490,8 +1490,8 @@ func TestWells_followTheirBackgroundRole(t *testing.T) {
 	if err := progressRow("Ana", "1", "2").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "h-2 grow overflow-hidden rounded-full bg-white") {
-		t.Errorf("a progress track is a sunken well and must follow theme.background.sunken: %s", buf.String())
+	if !strings.Contains(resolveColourRoles(t, ctx, buf.String()), "h-2 grow overflow-hidden rounded-full bg-white") {
+		t.Errorf("a progress track is a sunken well and must follow theme.background.sunken: %s", resolveColourRoles(t, ctx, buf.String()))
 	}
 }
 
@@ -1504,7 +1504,7 @@ func TestToneEdgeClass_eachPaletteHasItsEdge(t *testing.T) {
 	}
 	for pal, w := range want {
 		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{domain.ToneInfo: pal}}}, "WS", false)
-		if got := toneEdgeClass(ctx, domain.ToneInfo); got != w {
+		if got := resolveColourRoles(t, ctx, toneEdgeClass(ctx, domain.ToneInfo)); got != w {
 			t.Errorf("palette %s: edge %q, want %q", pal, got, w)
 		}
 	}
@@ -1521,10 +1521,10 @@ func TestHoverRecipes_followTheTheme(t *testing.T) {
 		Tone:       map[domain.BadgeTone]domain.TonePalette{domain.ToneBad: domain.PaletteAmber},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
-	if got := buttonClasses(ctx, domain.ButtonSecondary); !strings.HasSuffix(got, " hover:bg-slate-100") {
+	if got := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonSecondary)); !strings.HasSuffix(got, " hover:bg-slate-100") {
 		t.Errorf("a secondary button must hover with background.base, got %q", got)
 	}
-	got := buttonClasses(ctx, domain.ButtonDanger)
+	got := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonDanger))
 	for _, want := range []string{"border-amber-200", "text-amber-800", "hover:bg-amber-50"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("a danger button under bad=amber must carry %s: %q", want, got)

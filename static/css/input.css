@@ -61,6 +61,35 @@
 	--color-accent: var(--color-blue-600);
 	--color-accent-hover: var(--color-blue-700);
 
+	/* The other colour roles, the same way (DS-D15 stage 2, slice 3.2b): border, surface and the six tones' fill, ink
+	   and edge (DS-D16's triple). `hover-wash` is the Design System's alias of `bg-base`, so moving the page moves the
+	   hover with it. Read through borderClass, backgroundClass, hoverWashClass and the tone readers. */
+	--color-border-surface: var(--color-slate-200);
+	--color-border-control: var(--color-slate-300);
+	--color-border-divider: var(--color-slate-100);
+	--color-bg-raised: var(--color-white);
+	--color-bg-base: var(--color-slate-50);
+	--color-bg-sunken: var(--color-slate-100);
+	--color-hover-wash: var(--color-bg-base);
+	--color-tone-neutral-bg: var(--color-slate-100);
+	--color-tone-neutral-ink: var(--color-slate-600);
+	--color-tone-neutral-border: var(--color-slate-200);
+	--color-tone-info-bg: var(--color-blue-50);
+	--color-tone-info-ink: var(--color-blue-700);
+	--color-tone-info-border: var(--color-blue-200);
+	--color-tone-good-bg: var(--color-emerald-50);
+	--color-tone-good-ink: var(--color-emerald-700);
+	--color-tone-good-border: var(--color-emerald-200);
+	--color-tone-bad-bg: var(--color-red-50);
+	--color-tone-bad-ink: var(--color-red-700);
+	--color-tone-bad-border: var(--color-red-200);
+	--color-tone-warn-bg: var(--color-amber-50);
+	--color-tone-warn-ink: var(--color-amber-800);
+	--color-tone-warn-border: var(--color-amber-200);
+	--color-tone-muted-bg: var(--color-slate-50);
+	--color-tone-muted-ink: var(--color-slate-400);
+	--color-tone-muted-border: var(--color-slate-100);
+
 	/* 15px for an item's title (owner decision DS-D13, 2026-10-12; the Design System's `item` style), with the
 	   mockups' 22px line height. Read through textClass(ctx, domain.RoleItem), never written by hand. */
 	--text-item: 0.9375rem; /* 15px */

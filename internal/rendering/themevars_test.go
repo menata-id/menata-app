@@ -18,7 +18,7 @@ import (
 // class its property resolves to on a page rendered under ctx. A hand-written literal is left as it is, so it still
 // fails a moved-theme assertion, which is R9's point.
 
-var roleClassPattern = regexp.MustCompile(`((?:[a-z-]+:)*)(text|bg|border)-(ink-[a-z]+|accent-hover|accent)\b`)
+var roleClassPattern = regexp.MustCompile(`((?:[a-z-]+:)*)(text|bg|border)-(ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border))\b`)
 
 // themeVarDefaults reads input.css's `@theme` declarations of the role properties (`--color-ink-body:
 // var(--color-slate-700);`).
@@ -29,7 +29,7 @@ func themeVarDefaults(t *testing.T) map[string]string {
 		t.Fatal(err)
 	}
 	out := map[string]string{}
-	for _, m := range regexp.MustCompile(`(--color-(?:ink-[a-z]+|accent(?:-hover)?)):\s*([^;]+);`).FindAllStringSubmatch(string(b), -1) {
+	for _, m := range regexp.MustCompile(`(--color-(?:ink-[a-z]+|accent-hover|accent|bg-(?:raised|base|sunken)|border-(?:surface|control|divider)|hover-wash|tone-[a-z]+-(?:bg|ink|border))):\s*([^;]+);`).FindAllStringSubmatch(string(b), -1) {
 		out[m[1]] = strings.TrimSpace(m[2])
 	}
 	if len(out) == 0 {
@@ -67,6 +67,15 @@ func resolveColourRoles(t *testing.T, ctx context.Context, s string) string {
 		if !ok {
 			t.Fatalf("class %q names --color-%s, which neither input.css nor themeCSS declares", m, sm[3])
 		}
+		// An alias of another role (`hover-wash` is `bg-base`) resolves through it.
+		for i := 0; i < 4; i++ {
+			p, isVar := strings.CutPrefix(v, "var(--")
+			next, ok := vars["--"+strings.TrimSuffix(p, ")")]
+			if !isVar || !ok {
+				break
+			}
+			v = next
+		}
 		if p, ok := strings.CutPrefix(v, "var(--color-"); ok {
 			return sm[1] + sm[2] + "-" + strings.TrimSuffix(p, ")")
 		}
@@ -97,6 +106,18 @@ func TestThemeCSSDefaultsMatchTheDefaultTheme(t *testing.T) {
 		want[inkRoleVar(role)] = "var(" + inkShadeVar(def.InkFor(role)) + ")"
 	}
 	want["--color-accent-hover"] = "var(" + accentHoverShadeVar(def.InkFor(domain.InkAccent)) + ")"
+	for role := range domain.KnownBorderRoles {
+		want["--color-border-"+string(role)] = "var(" + borderShadeVar(def.BorderFor(role)) + ")"
+	}
+	for role := range domain.KnownBackgroundRoles {
+		want["--color-bg-"+string(role)] = "var(" + backgroundShadeVar(def.BackgroundFor(role)) + ")"
+	}
+	want["--color-hover-wash"] = "var(--color-bg-base)"
+	for tone := range domain.KnownBadgeTones {
+		p := def.ToneFor(tone)
+		n := "--color-tone-" + string(tone)
+		want[n+"-bg"], want[n+"-ink"], want[n+"-border"] = "var("+toneFillVar(p)+")", "var("+toneInkVar(p)+")", "var("+toneEdgeVar(p)+")"
+	}
 	for k, v := range want {
 		if defaults[k] != v {
 			t.Errorf("input.css declares %s: %q, the default Theme says %q -- move one so they agree", k, defaults[k], v)
@@ -121,6 +142,26 @@ func TestThemeCSSWritesEveryMovedRoleAndOnlyThose(t *testing.T) {
 		"--color-ink-strong": "var(--color-slate-700)", "--color-ink-body": "var(--color-slate-900)",
 		"--color-ink-secondary": "var(--color-slate-700)", "--color-ink-faint": "var(--color-slate-500)",
 		"--color-accent": "var(--color-violet-600)", "--color-accent-hover": "var(--color-violet-700)",
+	}
+	if len(got) != len(want) {
+		t.Errorf("override has %d declarations, want %d: %v", len(got), len(want), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q", k, got[k], v)
+		}
+	}
+
+	others := domain.Theme{
+		Border:     map[domain.BorderRole]domain.BorderShade{domain.BorderDivider: domain.BorderDefined},
+		Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundSunken: domain.BackgroundShadeLighter, domain.BackgroundBase: domain.BackgroundShadeLight},
+		Tone:       map[domain.BadgeTone]domain.TonePalette{domain.ToneWarn: domain.PaletteRed},
+	}
+	got = themeVarOverrides(WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: others}, "", false))
+	want = map[string]string{
+		"--color-border-divider": "var(--color-slate-300)",
+		"--color-bg-sunken":      "var(--color-slate-50)", "--color-bg-base": "var(--color-slate-100)",
+		"--color-tone-warn-bg": "var(--color-red-50)", "--color-tone-warn-ink": "var(--color-red-700)", "--color-tone-warn-border": "var(--color-red-200)",
 	}
 	if len(got) != len(want) {
 		t.Errorf("override has %d declarations, want %d: %v", len(got), len(want), got)
@@ -186,6 +227,21 @@ func TestEveryPaletteVariableTheOverrideCanNameIsCompiled(t *testing.T) {
 	for role := range domain.KnownInkRoles {
 		if !strings.Contains(css, inkRoleVar(role)+":") {
 			t.Errorf("role %q draws through %s, which app.css does not define", role, inkRoleVar(role))
+		}
+	}
+	var steps []string
+	for s := range domain.KnownBorderShades {
+		steps = append(steps, borderShadeVar(s))
+	}
+	for s := range domain.KnownBackgroundShades {
+		steps = append(steps, backgroundShadeVar(s))
+	}
+	for p := range domain.KnownTonePalettes {
+		steps = append(steps, toneFillVar(p), toneInkVar(p), toneEdgeVar(p))
+	}
+	for _, v := range steps {
+		if !strings.Contains(css, v+":") {
+			t.Errorf("a closed shade draws through %s, which app.css does not define", v)
 		}
 	}
 }

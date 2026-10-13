@@ -14,7 +14,7 @@ func renderCallout(t *testing.T, ctx context.Context, text string, tone domain.B
 	if err := callout(text, tone).Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	return buf.String()
+	return resolveColourRoles(t, ctx, buf.String())
 }
 
 // The six hand-written sites rendered these exact classes; a migrated site may differ only by the role the

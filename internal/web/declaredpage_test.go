@@ -1437,13 +1437,15 @@ func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
 	if past.Year() != time.Now().UTC().Year() {
 		label = past.Format("2 Jan 2006")
 	}
-	if r := row("Pillprobe-open-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-red-50") {
+	// The pill's colour is its tone's property since DS-D15 stage 2 (`bg-tone-bad-bg` is red under the default
+	// theme); the tone is what this asserts, so a Workspace's palette choice cannot make it pass or fail.
+	if r := row("Pillprobe-open-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-tone-bad-bg") {
 		t.Errorf("an open Task past due needs a red pill reading %q:\n%s", label, r)
 	}
-	if r := row("Pillprobe-done-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-emerald-50") || strings.Contains(r, "bg-red-50") {
+	if r := row("Pillprobe-done-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-tone-good-bg") || strings.Contains(r, "bg-tone-bad-bg") {
 		t.Errorf("a finished Task needs a green pill reading %q:\n%s", label, r)
 	}
-	if r := row("Pillprobe-undated"); strings.Contains(r, "bg-red-50") || strings.Contains(r, "bg-emerald-50") || strings.Contains(r, `<span class="inline-flex`) {
+	if r := row("Pillprobe-undated"); strings.Contains(r, "bg-tone-bad-bg") || strings.Contains(r, "bg-tone-good-bg") || strings.Contains(r, `<span class="inline-flex`) {
 		t.Errorf("an undated Task must carry no pill:\n%s", r)
 	}
 }

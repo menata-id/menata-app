@@ -48,7 +48,7 @@ func TestThemeColourPairsMeetContrast(t *testing.T) {
 	}
 	for ink := range domain.KnownInkRoles {
 		for _, bg := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase} {
-			pairs = append(pairs, pair{fmt.Sprintf("ink %s on %s", ink, bg), inkClass(ctx, ink), backgroundClass(ctx, bg), 4.5})
+			pairs = append(pairs, pair{fmt.Sprintf("ink %s on %s", ink, bg), inkClass(ctx, ink), resolveColourRoles(t, ctx, backgroundClass(ctx, bg)), 4.5})
 		}
 	}
 	// Every accent hue a Workspace may pick (DS-D10), not only the default: a hue that fails here would be a
@@ -66,12 +66,12 @@ func TestThemeColourPairsMeetContrast(t *testing.T) {
 			t.Fatalf("accent=%s resolves to %q, the default -- the hue never reached the measurement", shade, accent)
 		}
 		for _, bg := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase} {
-			pairs = append(pairs, pair{fmt.Sprintf("ink accent=%s on %s", shade, bg), accent, backgroundClass(ctx, bg), 4.5})
+			pairs = append(pairs, pair{fmt.Sprintf("ink accent=%s on %s", shade, bg), accent, resolveColourRoles(t, ctx, backgroundClass(ctx, bg)), 4.5})
 		}
 	}
 	pairs = append(pairs,
-		pair{"mark-good on raised", markGoodFill(), backgroundClass(ctx, domain.BackgroundRaised), 3},
-		pair{"mark-good on sunken (a progress track)", markGoodFill(), backgroundClass(ctx, domain.BackgroundSunken), 3},
+		pair{"mark-good on raised", markGoodFill(), resolveColourRoles(t, ctx, backgroundClass(ctx, domain.BackgroundRaised)), 3},
+		pair{"mark-good on sunken (a progress track)", markGoodFill(), resolveColourRoles(t, ctx, backgroundClass(ctx, domain.BackgroundSunken)), 3},
 	)
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].name < pairs[j].name })
 
@@ -131,9 +131,13 @@ func compiledColours(t *testing.T) compiledCSS {
 	}
 	// Colour roles alias a palette step (DS-D15 stage 2: `--color-ink-body:var(--color-slate-700)`); each resolves
 	// to the step's value, as the browser resolves it on a page with no Workspace override.
-	for _, m := range regexp.MustCompile(`--color-([a-z]+(?:-[a-z]+)*):var\(--color-([a-z]+-[0-9]+)\)`).FindAllStringSubmatch(string(b), -1) {
-		if col, ok := out[m[2]]; ok {
-			out[m[1]] = col
+	out["white"] = oklchColour{L: 1}
+	aliases := regexp.MustCompile(`--color-([a-z]+(?:-[a-z]+)*):var\(--color-([a-z]+(?:-[a-z0-9]+)*)\)`).FindAllStringSubmatch(string(b), -1)
+	for range 3 { // an alias of an alias (`hover-wash` is `bg-base`, which is `slate-50`)
+		for _, m := range aliases {
+			if col, ok := out[m[2]]; ok {
+				out[m[1]] = col
+			}
 		}
 	}
 	if len(out) < 20 {
@@ -259,7 +263,7 @@ func TestBackgroundShadeColoursMatchTheCompiledCSS(t *testing.T) {
 	white := oklchColour{L: 1}
 	for shade := range domain.KnownBackgroundShades {
 		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundRaised: shade}}}, "", false)
-		class := backgroundClass(ctx, domain.BackgroundRaised)
+		class := resolveColourRoles(t, ctx, backgroundClass(ctx, domain.BackgroundRaised))
 		got, err := css.lookup(class, white)
 		if err != nil {
 			t.Fatal(err)

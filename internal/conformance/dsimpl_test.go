@@ -42,7 +42,7 @@ func themeRoleDefaults(t *testing.T) []themeRoleDefault {
 		add("Gap", string(g), armFor(arms("layoutGap"), string(th.GapFor(g))))
 	}
 	for r := range domain.KnownBorderRoles {
-		add("Border", string(r), armFor(arms("borderClass"), string(th.BorderFor(r))))
+		add("Border", string(r), "border-"+strings.TrimPrefix(armFor(arms("borderShadeVar"), string(th.BorderFor(r))), "--color-"))
 	}
 	// Since DS-D15 stage 2 inkClass answers one class per role (`text-ink-body`) and the shade is a custom property;
 	// the palette step a role draws by default is inkShadeVar's arm, and a hand-written copy of that is what the ink
@@ -51,16 +51,16 @@ func themeRoleDefaults(t *testing.T) []themeRoleDefault {
 		add("Ink", string(r), "text-"+strings.TrimPrefix(armFor(arms("inkShadeVar"), string(th.InkFor(r))), "--color-"))
 	}
 	for r := range domain.KnownBackgroundRoles {
-		add("Background", string(r), armFor(arms("backgroundClass"), string(th.BackgroundFor(r))))
+		add("Background", string(r), "bg-"+strings.TrimPrefix(armFor(arms("backgroundShadeVar"), string(th.BackgroundFor(r))), "--color-"))
 	}
 	for tone := range domain.KnownBadgeTones {
 		p := string(th.ToneFor(tone))
-		add("Tone", string(tone), armFor(arms("toneFillClass"), p)+" "+armFor(arms("toneInkClass"), p))
+		add("Tone", string(tone), "bg-"+strings.TrimPrefix(armFor(arms("toneFillVar"), p), "--color-")+" text-"+strings.TrimPrefix(armFor(arms("toneInkVar"), p), "--color-"))
 	}
 	// The tone edge (DS-D16) is part of each tone's palette, probed like a role so a changed edge arm or a hand-written
 	// copy of a new default is seen (the 2026-10-12 review changed the green arm and nothing failed).
 	for tone := range domain.KnownBadgeTones {
-		add("ToneEdge", string(tone), armFor(arms("toneEdgeClass"), string(th.ToneFor(tone))))
+		add("ToneEdge", string(tone), "border-"+strings.TrimPrefix(armFor(arms("toneEdgeVar"), string(th.ToneFor(tone))), "--color-"))
 	}
 	for r := range domain.KnownPaddingRoles {
 		add("Padding", string(r), arms("paddingClass")[string(r.Axis())+"/"+string(th.PaddingFor(r))])

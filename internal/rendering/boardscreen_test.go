@@ -134,7 +134,7 @@ func TestBoardScreen_datePillStates(t *testing.T) {
 		if err := boardCard(m, c, domain.Actor{}, CardMove{}).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	normal := render(experience.CardDate{Label: "12 Oct", Tone: domain.ToneNeutral, Present: true})
 	overdue := render(experience.CardDate{Label: "1 Oct", Tone: domain.ToneBad, Present: true})

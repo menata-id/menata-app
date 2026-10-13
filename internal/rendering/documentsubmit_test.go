@@ -126,7 +126,7 @@ func TestApproverRow_groupPickerFollowsTheThemeLikeItsTwin(t *testing.T) {
 		Border: map[domain.BorderRole]domain.BorderShade{domain.BorderControl: domain.BorderSoft},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
-	user, group := approverUserClass(ctx, false), approverGroupClass(ctx, false)
+	user, group := resolveColourRoles(t, ctx, approverUserClass(ctx, false)), resolveColourRoles(t, ctx, approverGroupClass(ctx, false))
 	if strings.TrimPrefix(user, "approver-user") != strings.TrimPrefix(group, "approver-group") {
 		t.Errorf("the two approver pickers must share one recipe:\n user  %q\n group %q", user, group)
 	}
