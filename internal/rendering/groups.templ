@@ -41,9 +41,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 			</form>
 		</details>
 		if len(groups) == 0 {
-			<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary) }>
-				No groups yet. Create one to grant a role to several people at once.
-			</div>
+			@emptyState("No groups yet. Create one to grant a role to several people at once.")
 		}
 		@gridLayout(domain.GapComfortable, domain.GridCols1, domain.GridCols2) {
 			for _, g := range groups {

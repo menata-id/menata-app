@@ -223,9 +223,9 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				</div>
 				if len(drafts) == 0 && len(mine) == 0 {
 					if q != "" {
-						@inboxEmpty(fmt.Sprintf("No document matches %q.", q))
+						@emptyState(fmt.Sprintf("No document matches %q.", q))
 					} else {
-						@inboxEmpty("You haven't submitted any documents yet.")
+						@emptyState("You haven't submitted any documents yet.")
 					}
 				} else {
 					// Two sections, Flow 2 mockup's own split (MyDocuments.dc.html) -- a Draft has
@@ -257,9 +257,9 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				</div>
 				if len(assigned) == 0 {
 					if q != "" {
-						@inboxEmpty(fmt.Sprintf("No document matches %q.", q))
+						@emptyState(fmt.Sprintf("No document matches %q.", q))
 					} else {
-						@inboxEmpty("No document has asked for your approval yet.")
+						@emptyState("No document has asked for your approval yet.")
 					}
 				} else {
 					@assignedTable(assigned)
@@ -275,7 +275,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					}
 				</div>
 				if len(pending) == 0 {
-					@inboxEmpty("Nothing pending your approval.")
+					@emptyState("Nothing pending your approval.")
 				} else {
 					@pendingApprovalCardGrid(pending)
 				}
@@ -359,12 +359,6 @@ templ pendingApprovalCardGrid(cards []PendingApprovalCard) {
 			@pendingApprovalCard(c)
 		}
 	}
-}
-
-templ inboxEmpty(message string) {
-	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary) }>
-		{ message }
-	</div>
 }
 
 // activeFilterKey is whichever chip in filters is currently Active, or "" if none is (a filter row

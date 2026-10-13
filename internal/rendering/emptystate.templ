@@ -1,0 +1,15 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// emptyState is the registered renderer for `domain.ComponentEmptyState`: the card a list draws when it holds nothing,
+// one message in a dashed box. The corner is `radius.surface`, the dashed edge `border.control`, the fill
+// `background.raised`, the size `body` and the ink `secondary`, so a Workspace's `theme:` moves every empty state at
+// once. **Its class order is the order the two hand-written copies wrote**, so the default Theme draws the same
+// bytes (`TestEmptyState_reproducesThePreMigrationMarkup`).
+//
+// One bounded parameter, a string: no record to count, no list to inspect. Whether a list is empty is decided by the
+// caller (Composition), never here (007 §4.4).
+templ emptyState(text string) {
+	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised), "p-8 text-center", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ text }</div>
+}

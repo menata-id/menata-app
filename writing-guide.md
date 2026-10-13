@@ -1002,7 +1002,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 |---|---|---|
 | `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
-| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, ...) | Drawn from its contract; properties are that Component's declared inputs |
+| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, `EmptyState`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_dashboard`' two open-card groups, a `columns` of two `section`s.
 
@@ -1032,6 +1032,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
+| `EmptyState` | experimental | No installed `page:` declares one yet: the Approval Inbox and Groups screens draw it, and a declared `Collection` says `empty:` as a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
 `binding: {dataset: ds_x, measure: msr_y, rows: dimension}`. It then stands for **one Metric per value of
@@ -1360,6 +1361,21 @@ No installed page declares one yet, because no declared screen shows a message t
 - component: Callout
   text: Nothing waits for your review today.
   tone: info
+```
+
+**`component: EmptyState`** (2026-10-13) draws what a list says when it holds nothing: one message in a dashed box. `text`
+is its only input, it is required, and a blank one is a load error (a dashed box with no words says nothing). A page never
+writes a class, an icon, a title or an action. The corner, edge, fill, size and ink follow the Workspace's `theme:`
+(`radius.surface`, `border.control`, `background.raised`, `text.body`, `ink.secondary`). The Approval Inbox and Groups
+screens use it in Go. **It is `experimental`, and it is not what a `Collection`'s `empty:` draws**: `empty:` says the same thing as a plain
+`static: message`, with no box. A page cannot show an EmptyState *only when a list is empty*: it draws whenever it is
+declared, and `when:` is per record, not per Dataset. So the conditional use belongs to `Collection`'s `empty:`, and
+whether that should draw this card is a visible change on every page that declares `empty:` -- the owner's call. Declare
+a `component: EmptyState` yourself only for a message that is always true of the page.
+
+```yaml
+- component: EmptyState
+  text: Reports build overnight, so there is nothing to show before the first run.
 ```
 
 **A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with

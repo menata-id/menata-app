@@ -25,8 +25,9 @@ import (
 // promoted from experimental on the same change), and an entry naming a type nothing registers fails too. An empty map
 // stays declared, like any emptied ratchet.
 var componentsWithoutInstalledUse = map[string]string{
-	"Avatar":  "drawn by bespoke screens only (members, assignees, the app shell) -- the contract was registered over four measured sites, and no `page:` declares one yet",
-	"Callout": "drawn by the account screens only -- registered over six measured sites (2026-10-12); no declared screen shows a message today (writing-guide §12.1a)",
+	"Avatar":     "drawn by bespoke screens only (members, assignees, the app shell) -- the contract was registered over four measured sites, and no `page:` declares one yet",
+	"EmptyState": "drawn by the Approval Inbox (five calls) and the Groups screen only -- registered over those two screens (2026-10-13); a declared Collection's `empty:` draws a plain message instead, and drawing this card is the owner's decision",
+	"Callout":    "drawn by the account screens only -- registered over six measured sites (2026-10-12); no declared screen shows a message today (writing-guide §12.1a)",
 }
 
 // installedComponentUse counts, over every installed Workspace's declared `page:`, the Components an author wrote

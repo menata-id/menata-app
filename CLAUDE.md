@@ -1388,6 +1388,31 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - `cmd/tokens` loads tolerantly;
   - `canvas.py compare` checks type styles;
   - `check` warns on a `var()` that nothing defines. It only warns because it has not been run over the live canvas.
+
+- **EmptyState and its gate, rencana 2.3c (2026-10-13), the registered Component after Callout.** The plan's "13 class
+  sets" was a count of `border-dashed`, not of one meaning (the same shape of mistake as 2.3a's 29). Reading all 13 found
+  four "nothing here" boxes; the other nine were stepper chips, a signature canvas and markers, an "Add workspace" card,
+  a pending avatar and draft tiles. Of the four, **two screens drew one card byte for byte**: the Approval Inbox's
+  `inboxEmpty` (five calls) and a hand-written copy on Groups, compared as class expressions at HEAD. That is the
+  registration. Workspace Home's two cards (a title and a description in a roomier box) are one screen, so they are
+  `emptyStateExempt` floors. `EmptyState` has one required input, `text`, and a blank one is refused. It is
+  `experimental`: **no installed page can use it as intended**, because a page cannot show a card only when a list is
+  empty (`when:` is per record), which is exactly what `Collection`'s `empty:` is for, and that draws a plain
+  `static: message`. Whether `empty:` should draw this card is a visible change on every page declaring it, and is the
+  owner's (`design-system-decisions.md`, "Keadaan kosong").
+
+  Gate: `TestNoHandWrittenEmptyState` (zero floor except `emptyStateExempt`) counts a class attribute holding
+  `border-dashed` and `text-center`. Blind spots, stated in the test: an empty state with no dashed edge, and a class from a
+  Go function. The ratchet `TestHandWrittenThemeTokensOnlyShrink` lowered two entries on its own (the card now reads
+  `textClass`).
+
+  **Verification could not be live, and the record says so.** No fixture page draws an empty card (109 pages: 0 differ
+  from the previous dump). Instead: the expected markup is what `inboxEmpty` rendered at HEAD, captured before it was
+  deleted, under the default Theme and a moved one; `TestEmptyState_followsTheTheme` moves five roles at once (R9); and
+  `TestEmptyState_isDrawnWhenAPageDeclaresIt` renders through `uiNode`, which a mutation run showed no other test did (an
+  arm deleted from the walker passed everything else). Mutation-proved 16 ways. Two mutations did not apply the first time
+  (a variable number, and `domain.Component(...)` where `domain.ComponentType(...)` was meant); the harness stopped one and
+  a build failure exposed the other, and both were redone.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

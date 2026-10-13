@@ -55,6 +55,41 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentFormInput:   {Contract: formInputContract, Validate: validateFormInput},
 	domain.ComponentProgress:    {Contract: progressContract, Validate: validateProgress},
 	domain.ComponentCallout:     {Contract: calloutContract, Validate: validateCallout},
+	domain.ComponentEmptyState:  {Contract: emptyStateContract, Validate: validateEmptyState},
+}
+
+// emptyStateContract is the message a list shows when it holds nothing, in a dashed box.
+//
+// **One input, and it is required.** A title, a description and an action are what empty states grow in other design
+// systems. Two Workspace Home cards do carry a title and a description, but both sit on one screen, so that second
+// shape stays a hand-written floor in `conformance.emptyStateExempt` until another screen needs it. An input with no
+// caller is the shape-before-need this registry refuses.
+//
+// What the contract forces that a reviewer would not have asked for: **a message is required, so an empty state
+// cannot be a blank dashed box.** The dashed edge is decoration, not information (colour and an outline never carry
+// the meaning), so the words are the whole of it. Both are the Accessibility clause doing work rather than describing
+// an absence.
+var emptyStateContract = domain.ComponentContract{
+	Type:   domain.ComponentEmptyState,
+	Status: domain.ComponentStatusExperimental,
+	Inputs: []domain.ComponentInput{
+		{Name: "text", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "the message is the whole of it: the dashed edge is decoration, so neither an outline nor a colour carries the meaning, and a blank message is refused",
+	Renderer:         "emptyState",
+}
+
+// validateEmptyState checks a use against the declared input and refuses a blank message, which would draw an empty
+// dashed box that says nothing.
+func validateEmptyState(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(emptyStateContract, inputs, "EmptyState")
+	if v, ok := inputs["text"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "EmptyState text is blank -- an empty state with no words is a dashed box that says nothing")
+	}
+	return issues
 }
 
 // CatalogueProblems checks what only the whole catalogue can: each contract's own status fields

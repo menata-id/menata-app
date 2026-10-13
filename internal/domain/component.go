@@ -120,6 +120,16 @@ const (
 	// group that was one meaning in two files. Registering it moves the choice of live-region role from the
 	// site into the contract, where a tone decides it.
 	ComponentCallout ComponentType = "Callout"
+
+	// ComponentEmptyState is the card a list draws when it has nothing in it: a dashed box holding one message,
+	// "Nothing pending your approval.", "No groups yet. Create one to grant a role to several people at once.".
+	//
+	// **It already existed unregistered, five times in two files, byte for byte**: the Approval Inbox's `inboxEmpty`
+	// (called five times) and a hand-written copy of its class set on the Groups screen. It is the *card*, not every
+	// way a screen says "nothing": a declared `Collection`'s `empty:` draws a plain `static: message`, and
+	// whether it should draw this card instead is a visible change and the owner's decision
+	// (design-system-decisions.md, "Tombol, rencana 2.3a" was the last such note; this one is "Keadaan kosong").
+	ComponentEmptyState ComponentType = "EmptyState"
 )
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not

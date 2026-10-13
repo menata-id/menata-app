@@ -253,6 +253,29 @@ func TestPage_aTagLoadsAndItsPaletteIsHeldAtLoad(t *testing.T) {
 	}
 }
 
+// TestPage_anEmptyStateLoadsAndABlankOneIsRefused: a page may declare `component: EmptyState` with its one input, and a
+// blank message, a missing one or any property the contract does not declare is a load error. The Component has no
+// installed consumer: a page cannot show it only when a list is empty, which is why `Collection` has `empty:`.
+func TestPage_anEmptyStateLoadsAndABlankOneIsRefused(t *testing.T) {
+	empty := func(props string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: EmptyState\n" + props
+	}
+	if err := pageFixture(t, empty("          text: Reports build overnight.\n")); err != nil {
+		t.Errorf("a valid EmptyState was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ props, want string }{
+		"no text":      {"", "text"},
+		"a blank text": {"          text: \"   \"\n", "blank"},
+		"a title":      {"          text: Nothing yet.\n          title: Empty\n", "title"},
+		"a class":      {"          text: Nothing yet.\n          class: mt-2\n", "class"},
+	} {
+		err := pageFixture(t, empty(c.props))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v; want a refusal mentioning %q", name, err, c.want)
+		}
+	}
+}
+
 // TestPage_aCalloutLoadsAndItsToneIsHeldAtLoad: a page may declare `component: Callout`, and the tones a message takes
 // are checked at load through the registered validator, so `neutral` (a label tone, not a message) is refused.
 func TestPage_aCalloutLoadsAndItsToneIsHeldAtLoad(t *testing.T) {

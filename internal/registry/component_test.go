@@ -466,6 +466,25 @@ func TestValidateCallout(t *testing.T) {
 	}
 }
 
+func TestValidateEmptyState(t *testing.T) {
+	if issues := ValidateComponentUse(domain.ComponentEmptyState, map[string]string{"text": "Nothing pending your approval."}); len(issues) != 0 {
+		t.Errorf("a complete use must validate, got %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"no text":       {},
+		"an empty text": {"text": ""},
+		"a blank text":  {"text": "   "},
+		"a title":       {"text": "Nothing yet.", "title": "Empty"},
+		"a class":       {"text": "Nothing yet.", "class": "mt-2"},
+		"an icon":       {"text": "Nothing yet.", "icon": "inbox"},
+		"an action":     {"text": "Nothing yet.", "action": "/new"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentEmptyState, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+}
+
 // TestCatalogueProblems_isCleanAndCatchesEachFault holds the real catalogue to its status rules and proves the check
 // can fail: a Component without a status, a deprecated one with no successor, one whose successor is unregistered,
 // and one whose successor is deprecated itself.
