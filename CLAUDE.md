@@ -1094,7 +1094,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   came first (3.2a). Since 3.2b **every colour role** draws through one: border (`border-border-surface`), surface
   (`bg-bg-raised`), `hover-wash` (an alias of `bg-base` in `@theme`, so moving the page moves the hover), and each
   tone's fill, ink and edge (`bg-tone-good-bg`, `text-tone-good-ink`, `border-tone-good-border`). Only ink takes a
-  colour value so far; the others still choose a shade or palette. Radius and space follow:
+  colour value so far; the others still choose a shade or palette. Since 3.2c `background` takes one too: every ink is
+  measured on it, mark-good must keep 3:1 on raised and sunken, and base must sit at least 1.02:1 from raised and
+  sunken (it is the hover wash). Border and tone stay closed, because a decorative edge has no honest floor (the
+  default surface edge is about 1.2:1) and a tone is a triple. Verified in Chromium: the hover wash follows a value
+  base through its alias. Radius and space follow:
   - `inkClass` answers one class per role (`text-ink-body`, `text-accent`), the same under every theme. The
     property's default sits in `static/css/input.css`'s `@theme` under the Design System's own token names, so a
     page with no Workspace (pre-auth) draws the default. A moved role is an override in the page's `<head>`

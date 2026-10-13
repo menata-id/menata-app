@@ -584,8 +584,11 @@ func (t Theme) InkFor(role InkRole) InkShade {
 }
 
 // BackgroundFor resolves a surface role, falling back to the default for the same reason RadiusFor does.
+//
+// A colour value (`#rrggbb`, DS-D15 stage 2, rencana 3.2c) fits every surface role; the loader measures every ink and
+// `mark-good` against it.
 func (t Theme) BackgroundFor(role BackgroundRole) BackgroundShade {
-	if s, ok := t.Background[role]; ok && KnownBackgroundShades[s] {
+	if s, ok := t.Background[role]; ok && (KnownBackgroundShades[s] || IsColourValue(string(s))) {
 		return s
 	}
 	return DefaultTheme().Background[role]

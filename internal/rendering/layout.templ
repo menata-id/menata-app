@@ -235,6 +235,10 @@ func themeCSS(ctx context.Context) string {
 	}
 	for _, role := range slices.Sorted(maps.Keys(domain.KnownBackgroundRoles)) {
 		if shade := th.BackgroundFor(role); shade != def.BackgroundFor(role) {
+			if v := string(shade); domain.IsColourValue(v) {
+				decl = append(decl, "--color-bg-"+string(role)+":"+v)
+				continue
+			}
 			decl = append(decl, "--color-bg-"+string(role)+":var("+backgroundShadeVar(shade)+")")
 		}
 	}

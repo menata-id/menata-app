@@ -322,3 +322,16 @@ func TestTextOnSunkenMeetsContrast(t *testing.T) {
 		t.Errorf("the Not built yet tag draws %s on sunken at %.2f:1, below 4.5:1", ink, r)
 	}
 }
+
+// TestMarkGoodColourMatchesTheCompiledCSS holds domain.MarkGoodColour -- what the loader measures a Workspace's
+// surface against (rencana 3.2c) -- to the colour markGoodFill really compiles to.
+func TestMarkGoodColourMatchesTheCompiledCSS(t *testing.T) {
+	got, err := compiledColours(t).lookup(markGoodFill(), oklchColour{L: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := domain.MarkGoodColour
+	if math.Abs(got.L-want.L) > 1e-9 || math.Abs(got.C-want.C) > 1e-9 || math.Abs(got.H-want.H) > 1e-9 {
+		t.Errorf("domain.MarkGoodColour %+v, %s compiles to %+v -- move domain.MarkGoodColour", want, markGoodFill(), got)
+	}
+}

@@ -120,10 +120,26 @@ func InkSurfaces(role InkRole) []BackgroundRole {
 	}
 }
 
-// BackgroundShadeColour is the colour each closed background shade renders, so the loader can measure a free ink
-// value against the Workspace's own surfaces. These are colour values, not Tailwind names (§15.2);
+// MarkGoodColour is the Design System's `mark-good` (a finished mark, emerald-600), which WCAG 1.4.11 holds to 3:1 on
+// the surfaces it is drawn on (raised and sunken). Held to app.css by rendering.TestMarkGoodColourMatchesTheCompiledCSS.
+var MarkGoodColour = Colour{L: 0.596, C: 0.145, H: 163.225}
+
+// GraphicContrastMin is WCAG 1.4.11's floor for a meaningful graphic.
+const GraphicContrastMin = 3.0
+
+// SurfaceSeparationMin is how far apart `base` must stay from `raised` and `sunken` (as a contrast ratio): base is the
+// page behind every surface and the hover wash (DS-D11), so too close and a hover draws nothing or looks selected. The
+// closest default pair, slate-50 against slate-100, is 1.04:1; 1.02 refuses a value that is the same colour in all
+// but name.
+const SurfaceSeparationMin = 1.02
+
+// BackgroundShadeColour is the colour each closed background shade renders, or a colour value parsed, so the loader can
+// measure every ink against the Workspace's own surfaces. These are colour values, not Tailwind names (§15.2);
 // rendering.TestBackgroundShadeColoursMatchTheCompiledCSS holds them to what `app.css` really draws.
 func BackgroundShadeColour(s BackgroundShade) Colour {
+	if c, ok := ParseColourValue(string(s)); ok {
+		return c
+	}
 	switch s {
 	case BackgroundShadeLighter:
 		return Colour{L: 0.984, C: 0.003, H: 247.858}

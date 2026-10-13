@@ -172,6 +172,12 @@ func TestThemeCSSWritesEveryMovedRoleAndOnlyThose(t *testing.T) {
 		}
 	}
 
+	surface := domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundBase: "#fefcf8"}}
+	got = themeVarOverrides(WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: surface}, "", false))
+	if got["--color-bg-base"] != "#fefcf8" || len(got) != 1 {
+		t.Errorf("a background colour value must be written as itself, and only it (hover-wash follows by its alias): %v", got)
+	}
+
 	brand := domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkAccent: "#be123c", domain.InkBody: "#1f2937"}}
 	got = themeVarOverrides(WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: brand}, "", false))
 	if got["--color-accent"] != "#be123c" || got["--color-ink-body"] != "#1f2937" {

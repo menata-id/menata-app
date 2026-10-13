@@ -2202,7 +2202,10 @@ similar-looking metadata for a *different* Machine does not activate it.
 > pages, which belong to no Workspace, keep the default colours.
 >
 > `background:` is the colour of light surfaces: three roles, three shades (`lightest` is white, `lighter` and
-> `light` step toward grey). Dark surfaces (the primary button, a menu) are not part of it. Like `ink:`, it
+> `light` step toward grey), or a quoted colour value (`base: "#fefcf8"`) for a tinted surface. A value is checked
+> when the Workspace loads: every text colour must still read at 4.5:1 on it, a finished mark (the green check) at
+> 3:1 on `raised` and `sunken`, and `base` must stay visibly apart from `raised` and `sunken`, because the page colour is
+> also what a row turns when you hover it. Dark surfaces (the primary button, a menu) are not part of it. Like `ink:`, it
 > reaches what the runtime's own components draw -- panels and sections, the header and page, a board lane --
 > and not a card a screen draws by hand.
 >

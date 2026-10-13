@@ -1689,6 +1689,37 @@ func TestResolveTheme_inkColourValue(t *testing.T) {
 	}
 }
 
+// TestResolveTheme_backgroundColourValue is rencana 3.2c (DS-D15 stage 2): a surface role may take a colour value, and
+// the loader measures what is drawn on it -- every ink on its surfaces, mark-good on raised and sunken -- and keeps base
+// visibly apart from the surfaces it washes behind. Each refusal below breaks exactly one of those; the ratios are
+// measured (domain.ContrastRatio), not guessed.
+func TestResolveTheme_backgroundColourValue(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "#FEFCF8", "sunken": "#f6f1e7"}})
+	if len(issues) != 0 {
+		t.Fatalf("a warm base (secondary 4.65:1) and sunken (accent 4.67:1, mark-good 3.26:1) should load: %v", issues)
+	}
+	if th.BackgroundFor(domain.BackgroundBase) != "#fefcf8" || th.BackgroundFor(domain.BackgroundSunken) != "#f6f1e7" {
+		t.Errorf("values must load lowercased and resolve: %+v", th.Background)
+	}
+	for _, tc := range []struct {
+		doc  map[string]string
+		want string
+	}{
+		{map[string]string{"base": "#f6f1e7", "sunken": "#ece4d4"}, "theme.ink.secondary: medium is 4.23:1 on the base background (#f6f1e7)"},
+		{map[string]string{"sunken": "#ece4d4"}, "theme.ink.accent: blue is 4.16:1 on the sunken background (#ece4d4)"},
+		{map[string]string{"sunken": "#ece4d4"}, "theme.background.sunken: the finished mark (mark-good) is 2.90:1"},
+		{map[string]string{"raised": "#f8fafc", "base": "#f9fbfd"}, "base (#f9fbfd) and raised (#f8fafc) are 1.009:1 apart"},
+		{map[string]string{"raised": "#334155"}, "theme.ink.strong: darkest is 1.72:1 on the raised background (#334155)"},
+		{map[string]string{"base": ""}, "must be quoted"},
+		{map[string]string{"base": "#f8fafc;}*{x:y"}, "is not a surface shade or colour value"},
+	} {
+		_, issues := resolveTheme(&themeDoc{Background: tc.doc})
+		if !strings.Contains(strings.Join(issues, "\n"), tc.want) {
+			t.Errorf("%v: want an issue containing %q, got %v", tc.doc, tc.want, issues)
+		}
+	}
+}
+
 // TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
 // Secondary ink moves with the darker base: the default (medium) would be 4.35:1 on it and is refused since DS-D15
 // stage 2 (TestResolveTheme_inkColourValue).

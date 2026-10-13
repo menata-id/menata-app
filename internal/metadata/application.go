@@ -186,13 +186,17 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 	if len(doc.Background) > 0 {
 		t.Background = map[domain.BackgroundRole]domain.BackgroundShade{}
 		for role, shade := range doc.Background {
-			r, s := domain.BackgroundRole(role), domain.BackgroundShade(shade)
+			r, s := domain.BackgroundRole(role), domain.BackgroundShade(domain.NormalizeColourValue(shade))
 			if !domain.KnownBackgroundRoles[r] {
 				issues = append(issues, fmt.Sprintf("theme.background: %q is not a surface role this runtime realizes", role))
 				continue
 			}
-			if !domain.KnownBackgroundShades[s] {
-				issues = append(issues, fmt.Sprintf("theme.background.%s: %q is not a surface shade this runtime realizes", role, shade))
+			if !domain.KnownBackgroundShades[s] && !domain.IsColourValue(string(s)) {
+				hint := ""
+				if shade == "" {
+					hint = ` -- a colour value must be quoted ("#f8fafc"), because YAML reads an unquoted # as a comment`
+				}
+				issues = append(issues, fmt.Sprintf("theme.background.%s: %q is not a surface shade or colour value (#rrggbb) this runtime realizes%s", role, shade, hint))
 				continue
 			}
 			t.Background[r] = s
@@ -200,10 +204,22 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 		// The page behind every surface (base) must differ from the surface (raised) and from the selected-row fill
 		// (sunken): base is also the hover wash (DS-D11), so base == raised draws no hover and no edge between page and
 		// panel, and base == sunken makes a hovered row look selected (2026-10-12 review of DS-D11).
+		// A colour value is measured rather than compared by name: two values that differ by a digit are the same
+		// surface to the eye (domain.SurfaceSeparationMin).
 		th := domain.Theme{Background: t.Background}
+		base := th.BackgroundFor(domain.BackgroundBase)
 		for _, other := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundSunken} {
-			if th.BackgroundFor(domain.BackgroundBase) == th.BackgroundFor(other) {
-				issues = append(issues, fmt.Sprintf("theme.background: base and %s are both %q -- base is the page behind surfaces and the hover wash, so it must differ from %s", other, th.BackgroundFor(other), other))
+			o := th.BackgroundFor(other)
+			if base == o {
+				issues = append(issues, fmt.Sprintf("theme.background: base and %s are both %q -- base is the page behind surfaces and the hover wash, so it must differ from %s", other, o, other))
+			} else if r := domain.ContrastRatio(domain.BackgroundShadeColour(base), domain.BackgroundShadeColour(o)); r < domain.SurfaceSeparationMin {
+				issues = append(issues, fmt.Sprintf("theme.background: base (%s) and %s (%s) are %.3f:1 apart -- base is the page behind surfaces and the hover wash, so it must differ visibly from %s (at least %.2f:1)", base, other, o, r, other, domain.SurfaceSeparationMin))
+			}
+		}
+		// mark-good, a finished mark, is drawn on raised and on a sunken progress track (WCAG 1.4.11, 3:1).
+		for _, on := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundSunken} {
+			if r := domain.ContrastRatio(domain.MarkGoodColour, domain.BackgroundShadeColour(th.BackgroundFor(on))); r < domain.GraphicContrastMin {
+				issues = append(issues, fmt.Sprintf("theme.background.%s: the finished mark (mark-good) is %.2f:1 on it, below the %.0f:1 a meaningful graphic needs -- choose a lighter surface", on, r, domain.GraphicContrastMin))
 			}
 		}
 	}
