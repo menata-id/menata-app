@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net/mail"
 	"net/smtp"
 	"strings"
 
@@ -76,16 +77,22 @@ func (m SMTPMailer) Send(_ context.Context, to, subject, body string) error {
 		return err
 	}
 
+	// From may be a bare address or "Display Name <address>": the header carries the whole value, the
+	// SMTP envelope only the address.
+	from, err := mail.ParseAddress(m.From)
+	if err != nil {
+		return fmt.Errorf("mail from %q: %w", m.From, err)
+	}
+
 	addr := m.Host + ":" + m.Port
 	auth := smtp.PlainAuth("", m.Username, m.Password, m.Host)
 	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
-		m.From, to, subject, body))
+		from.String(), to, subject, body))
 
-	var err error
 	if m.Port == "465" {
-		err = m.sendImplicitTLS(addr, auth, to, msg)
+		err = m.sendImplicitTLS(addr, auth, from.Address, to, msg)
 	} else {
-		err = smtp.SendMail(addr, auth, m.From, []string{to}, msg)
+		err = smtp.SendMail(addr, auth, from.Address, []string{to}, msg)
 	}
 	if err != nil {
 		return fmt.Errorf("send email to %s: %w", to, err)
@@ -96,7 +103,7 @@ func (m SMTPMailer) Send(_ context.Context, to, subject, body string) error {
 // sendImplicitTLS speaks SMTP over a connection that is already TLS from the start (port 465),
 // which net/smtp.SendMail cannot do on its own -- it only ever dials plaintext and optionally
 // upgrades via STARTTLS afterward.
-func (m SMTPMailer) sendImplicitTLS(addr string, auth smtp.Auth, to string, msg []byte) error {
+func (m SMTPMailer) sendImplicitTLS(addr string, auth smtp.Auth, from, to string, msg []byte) error {
 	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: m.Host})
 	if err != nil {
 		return fmt.Errorf("tls dial: %w", err)
@@ -112,7 +119,7 @@ func (m SMTPMailer) sendImplicitTLS(addr string, auth smtp.Auth, to string, msg 
 	if err := client.Auth(auth); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
-	if err := client.Mail(m.From); err != nil {
+	if err := client.Mail(from); err != nil {
 		return fmt.Errorf("mail from: %w", err)
 	}
 	if err := client.Rcpt(to); err != nil {

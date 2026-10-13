@@ -68,3 +68,17 @@ func TestSMTPMailer_acceptsCleanValues(t *testing.T) {
 		t.Errorf("validateNoCRLF(clean value) error = %v, want nil", err)
 	}
 }
+
+func TestSMTPMailer_fromMayCarryADisplayName(t *testing.T) {
+	m := SMTPMailer{Host: "unreachable.invalid", Port: "587", From: "Menata App <no-reply@menata.app>"}
+	err := m.Send(context.Background(), "person@example.com", "Subject", "body")
+	if err == nil || strings.Contains(err.Error(), "mail from") {
+		t.Errorf("Send() error = %v, want a network error (a display-name From must parse)", err)
+	}
+
+	m.From = "not an address"
+	err = m.Send(context.Background(), "person@example.com", "Subject", "body")
+	if err == nil || !strings.Contains(err.Error(), "mail from") {
+		t.Errorf("Send(invalid From) error = %v, want a From parse error before any connection", err)
+	}
+}
