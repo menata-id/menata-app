@@ -43,6 +43,7 @@ func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages
 	ir.RegisterSlottedComponentTypes(registry.SlottedComponentTypeNames())
 
 	written, lowered = map[string]int{}, map[string]int{}
+	counted := map[string]bool{}
 	var walkWritten func(n domain.PageNode)
 	walkWritten = func(n domain.PageNode) {
 		if n.Kind == "component" {
@@ -75,6 +76,7 @@ func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages
 					continue
 				}
 				pages++
+				counted[slug] = true
 				walkWritten(*item.Page)
 				tree, err := ir.Lower(*item.Page, metadata.PlaceholderResolver(app.AllNavigation, datasets))
 				if err != nil {
@@ -83,6 +85,9 @@ func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages
 				walkLowered(tree)
 			}
 		}
+	}
+	if len(counted) < 2 {
+		t.Fatalf("only %d installed Workspace(s) declare a `page:` -- \"installed use\" is a sweep of every Workspace, and one cannot tell it from a gate reading only `default`", len(counted))
 	}
 	return written, lowered, pages
 }
@@ -99,8 +104,14 @@ func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages
 // failure is a Status that was true when written and is not now, which nothing else would notice because both
 // words render the same.
 //
-// **Blind spot, stated:** "installed" is the Workspace manifests under metadata/workspaces/, the way every sweep here
-// reads them; a page in the template library that no Workspace has installed depends on nothing. And the count is of
+// **Blind spots, stated:**
+//   - A page is lowered with the loader's placeholder records, which mark a record `ShapeOnly` so that a node a real
+//     record would hide (`when:`) is still validated. A Component that only such a node holds counts as used, so
+//     `stable` can rest on a node no real record shows today. No current status is wrong for it (the 3.4-era review
+//     checked); the count is of *declared and lowered* shape, which is what a contract change breaks.
+//   - "installed" is the Workspace manifests under metadata/workspaces/, the way every sweep here
+//     reads them; a page in the template library that no Workspace has installed depends on nothing. And the count is of
+//
 // declared pages, so a Component drawn only by bespoke Go screens (Avatar, Callout) has no use here by design: that is
 // the measurement `experimental` is defined by, not a verdict on how widely it is drawn.
 func TestComponentStatusMatchesInstalledUse(t *testing.T) {
@@ -160,65 +171,134 @@ func sortedComponentTypes() []string {
 	return out
 }
 
-// capabilitiesComponentRows is the text of every capabilities.md row whose Kind says it is a registered Component.
-func capabilitiesComponentRows(t *testing.T) []string {
+// capabilitiesRegisteredKind is what a capabilities.md row's Kind cell starts with when the row is a registered Component.
+const capabilitiesRegisteredKind = "registered Component"
+
+// capabilitiesFirstCells returns, for every row of a table in capabilities.md that has a Kind column, the backticked names
+// in its first cell and its Kind. Rows are read cell by cell: pooling a row's prose with the others' was the first
+// version of this gate, and the independent review emptied the Button row's Kind with nothing failing.
+func capabilitiesFirstCells(t *testing.T) (names [][]string, kinds []string) {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(repoRoot(), "capabilities.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rows []string
+	backticked := regexp.MustCompile("`([A-Za-z.]+)`")
 	for _, line := range strings.Split(string(b), "\n") {
-		if cells := tableCells(line); len(cells) >= 3 && strings.HasPrefix(cells[1], "registered Component") {
-			rows = append(rows, line)
+		cells := tableCells(line)
+		if len(cells) < 3 || !strings.HasPrefix(line, "| `") {
+			continue
 		}
+		var n []string
+		for _, m := range backticked.FindAllStringSubmatch(cells[0], -1) {
+			n = append(n, m[1])
+		}
+		names, kinds = append(names, n), append(kinds, cells[1])
 	}
-	return rows
+	return names, kinds
 }
 
 // TestEveryRegisteredComponentIsInCapabilities holds capabilities.md's "Shared rendering components" table to the
-// catalogue: each registered Component is named, by its type or by its renderer in backticks, in a row whose Kind says
-// it is a registered Component. `TestCapabilitiesComponentsTableMatchesTempl` holds the first column to the .templ
-// files; neither reads Kind, so a Component registered and left described as a "shared fragment" passed both.
-//
-// **Presence, not accuracy:** it reads the whole row, not one cell, because the Button row names its registered
-// renderer (`requestButton`) in prose while its first cell names the four-string `button`. A row can therefore
-// mention a Component it does not describe. Reading it is the only check for that.
+// catalogue in both directions, by the first cell (the column `TestCapabilitiesComponentsTableMatchesTempl` already
+// holds to the .templ files, which neither it nor anything else reads the Kind of):
+//   - each registered Component's renderer is named in the first cell of a row whose Kind starts with
+//     `registered Component`;
+//   - every row whose first cell names a registered renderer has that Kind, so a Component cannot be described as a
+//     "shared fragment" in a second row.
 func TestEveryRegisteredComponentIsInCapabilities(t *testing.T) {
-	rows := capabilitiesComponentRows(t)
-	if len(rows) < 5 {
-		t.Fatalf("found %d `registered Component` rows in capabilities.md -- the Kind column moved or this gate reads the wrong table", len(rows))
+	names, kinds := capabilitiesFirstCells(t)
+	registered := 0
+	for _, k := range kinds {
+		if strings.HasPrefix(k, capabilitiesRegisteredKind) {
+			registered++
+		}
 	}
-	text := strings.Join(rows, "\n")
+	if registered < 5 {
+		t.Fatalf("found %d `%s` rows in capabilities.md -- the Kind column moved or this gate reads the wrong table", registered, capabilitiesRegisteredKind)
+	}
+	renderers := map[string]string{} // renderer -> type
 	for _, typ := range sortedComponentTypes() {
-		c := registry.Components[domain.ComponentType(typ)].Contract
-		if !strings.Contains(text, "`"+typ+"`") && !strings.Contains(text, "`"+c.Renderer+"`") {
-			t.Errorf("%s is registered, and no capabilities.md row of Kind `registered Component` names `%s` or its renderer `%s` -- add the row (or the Kind) in the change that registers it", typ, typ, c.Renderer)
+		renderers[registry.Components[domain.ComponentType(typ)].Contract.Renderer] = typ
+	}
+	named := map[string]bool{}
+	for i, row := range names {
+		for _, n := range row {
+			typ, isRenderer := renderers[n]
+			if !isRenderer {
+				continue
+			}
+			if !strings.HasPrefix(kinds[i], capabilitiesRegisteredKind) {
+				t.Errorf("capabilities.md row naming `%s` (the renderer of %s) has Kind %q -- a registered Component's row is Kind `%s`", n, typ, kinds[i], capabilitiesRegisteredKind)
+				continue
+			}
+			named[typ] = true
+		}
+	}
+	for _, typ := range sortedComponentTypes() {
+		if !named[typ] {
+			t.Errorf("%s is registered and no capabilities.md row of Kind `%s` names its renderer `%s` in the first cell -- add the row (or the name) in the change that registers it", typ, capabilitiesRegisteredKind, registry.Components[domain.ComponentType(typ)].Contract.Renderer)
 		}
 	}
 }
 
-// statusTableRow matches one row of the writing-guide's Component status table: `| `Type` | status | ... |`.
-var statusTableRow = regexp.MustCompile("^\\| `([A-Za-z]+)` \\| (experimental|stable|deprecated)\\b")
+// statusTableHeader is the cells of the writing-guide status table's header row. The table is the run of rows after it,
+// so a row-shaped line anywhere else in the section (a code fence, a quote, prose) is not the table.
+var statusTableHeader = []string{"Component", "Status", "What that rests on"}
 
-// writingGuideSection12_1a is the text of `### 12.1a` up to the next `### ` heading: the section an author reads to
-// write a `page:`.
+// statusTableRow matches one row of the table: `| `Type` | status |`, and the status word must be a whole cell, so
+// `stable-ish` or `stable (for now)` is not `stable`.
+var statusTableRow = regexp.MustCompile("^\\| `([A-Za-z]+)` \\| (experimental|stable|deprecated) \\|")
+
+// writingGuideSection12_1a is the text of `### 12.1a` up to the next heading of any level outside a code fence: the
+// section an author reads to write a `page:`. The first version stopped only at the next `### `, which made the "section"
+// 715 lines long and a row in a fence near its end count as the table.
 func writingGuideSection12_1a(t *testing.T) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(repoRoot(), "writing-guide.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := string(b)
-	start := strings.Index(s, "\n### 12.1a ")
+	return sectionAfterHeading(t, string(b), "### 12.1a ")
+}
+
+// sectionAfterHeading returns the lines from the first one starting with heading to the next heading line (any level,
+// `#` to `######` and a space) that is not inside a ``` fence, so a YAML comment in an example does not end it.
+func sectionAfterHeading(t *testing.T, doc, heading string) string {
+	t.Helper()
+	heads := regexp.MustCompile(`^#{1,6} `)
+	lines := strings.Split(doc, "\n")
+	start := -1
+	fenced := false
+	for i, l := range lines {
+		if strings.HasPrefix(strings.TrimSpace(l), "```") {
+			fenced = !fenced
+		}
+		if start < 0 {
+			if !fenced && strings.HasPrefix(l, heading) {
+				start = i
+			}
+			continue
+		}
+		if !fenced && heads.MatchString(l) {
+			return strings.Join(lines[start:i], "\n")
+		}
+	}
 	if start < 0 {
-		t.Fatal("writing-guide.md has no `### 12.1a` heading -- the section an author reads to write a page moved")
+		t.Fatalf("the document has no %q heading -- the section moved", strings.TrimSpace(heading))
 	}
-	rest := s[start+1:]
-	if end := strings.Index(rest[4:], "\n### "); end >= 0 {
-		rest = rest[:end+4]
+	return strings.Join(lines[start:], "\n")
+}
+
+// TestSectionAfterHeading pins the section scanner: it stops at a deeper heading, ignores a `#` comment in a fence, and
+// stops at the end of the document.
+func TestSectionAfterHeading(t *testing.T) {
+	doc := "intro\n### A \nalpha\n```yaml\n# a comment, not a heading\n### nor this\n```\n#### B\nbeta\n### C\ngamma\n"
+	if got := sectionAfterHeading(t, doc, "### A "); got != "### A \nalpha\n```yaml\n# a comment, not a heading\n### nor this\n```" {
+		t.Errorf("section A = %q", got)
 	}
-	return rest
+	if got := sectionAfterHeading(t, doc, "### C"); got != "### C\ngamma\n" {
+		t.Errorf("section C = %q", got)
+	}
 }
 
 // TestWritingGuideShowsEachComponentsStatus holds the table in writing-guide §12.1a to the catalogue, both ways: every
@@ -237,18 +317,44 @@ func TestWritingGuideShowsEachComponentsStatus(t *testing.T) {
 // argument so TestStatusTableProblems can feed it one with a deprecated member: no real Component is deprecated, and
 // a branch no real input reaches is a branch nothing has shown can fail.
 func statusTableProblems(section string, catalogue map[domain.ComponentType]registry.Component) []string {
-	rows := map[string][]string{} // type -> the lines that name it
-	statusOf := map[string]string{}
-	for _, line := range strings.Split(section, "\n") {
-		if m := statusTableRow.FindStringSubmatch(line); m != nil {
-			rows[m[1]] = append(rows[m[1]], line)
-			statusOf[m[1]] = m[2]
+	lines := strings.Split(section, "\n")
+	header, fenced := -1, false
+	for i, l := range lines {
+		if strings.HasPrefix(strings.TrimSpace(l), "```") {
+			fenced = !fenced
+			continue
+		}
+		if fenced {
+			continue
+		}
+		if cells := tableCells(l); len(cells) == len(statusTableHeader) && strings.Join(cells, "|") == strings.Join(statusTableHeader, "|") {
+			if header >= 0 {
+				return []string{"writing-guide §12.1a has two Component status tables (two `| Component | Status | What that rests on |` headers) -- one table"}
+			}
+			header = i
 		}
 	}
-	if len(rows) == 0 {
-		return []string{"writing-guide §12.1a has no Component status table (rows shaped `| `Type` | status | ... |`) -- an author cannot see how far to rely on a Component"}
+	if header < 0 {
+		return []string{"writing-guide §12.1a has no Component status table (a `| Component | Status | What that rests on |` header) -- an author cannot see how far to rely on a Component"}
 	}
 	var problems []string
+	i := header + 1
+	if i >= len(lines) || tableCells(lines[i]) == nil || !strings.Contains(lines[i], "---") {
+		problems = append(problems, "the Component status table's header is not followed by a separator row (`|---|---|---|`)")
+	} else {
+		i++
+	}
+	rows := map[string][]string{} // type -> the lines that name it
+	statusOf := map[string]string{}
+	for ; i < len(lines) && tableCells(lines[i]) != nil; i++ {
+		m := statusTableRow.FindStringSubmatch(lines[i])
+		if m == nil {
+			problems = append(problems, fmt.Sprintf("a row of the Component status table is not `| `Type` | experimental|stable|deprecated | ... |`: %q", lines[i]))
+			continue
+		}
+		rows[m[1]] = append(rows[m[1]], lines[i])
+		statusOf[m[1]] = m[2]
+	}
 	types := make([]string, 0, len(catalogue))
 	for typ := range catalogue {
 		types = append(types, string(typ))
@@ -256,14 +362,14 @@ func statusTableProblems(section string, catalogue map[domain.ComponentType]regi
 	sort.Strings(types)
 	for _, typ := range types {
 		c := catalogue[domain.ComponentType(typ)].Contract
-		switch lines := rows[typ]; {
-		case len(lines) == 0:
+		switch rs := rows[typ]; {
+		case len(rs) == 0:
 			problems = append(problems, fmt.Sprintf("%s is registered (%s) and writing-guide §12.1a's status table has no row for it", typ, c.Status))
-		case len(lines) > 1:
-			problems = append(problems, fmt.Sprintf("%s has %d rows in writing-guide §12.1a's status table -- one row per Component", typ, len(lines)))
+		case len(rs) > 1:
+			problems = append(problems, fmt.Sprintf("%s has %d rows in writing-guide §12.1a's status table -- one row per Component", typ, len(rs)))
 		case statusOf[typ] != string(c.Status):
 			problems = append(problems, fmt.Sprintf("%s is %s in its contract and %s in writing-guide §12.1a's status table -- an author is told the opposite of the truth", typ, c.Status, statusOf[typ]))
-		case c.Status == domain.ComponentStatusDeprecated && !strings.Contains(lines[0], "`"+string(c.ReplacedBy)+"`"):
+		case c.Status == domain.ComponentStatusDeprecated && !strings.Contains(rs[0], "`"+string(c.ReplacedBy)+"`"):
 			problems = append(problems, fmt.Sprintf("%s is deprecated in favour of %s, and its writing-guide row does not name `%s`", typ, c.ReplacedBy, c.ReplacedBy))
 		}
 	}
@@ -281,24 +387,32 @@ func statusTableProblems(section string, catalogue map[domain.ComponentType]regi
 }
 
 // TestStatusTableProblems feeds the comparison a catalogue it can fail on, including the one case the real catalogue
-// cannot: a deprecated Component, whose row must name its successor.
+// cannot -- a deprecated Component, whose row must name its successor -- and the shapes the independent review passed
+// through the first version: a row in a code fence, a missing header, and a status word with a suffix.
 func TestStatusTableProblems(t *testing.T) {
 	cat := map[domain.ComponentType]registry.Component{
 		"Old": {Contract: domain.ComponentContract{Type: "Old", Status: domain.ComponentStatusDeprecated, ReplacedBy: "New"}},
 		"New": {Contract: domain.ComponentContract{Type: "New", Status: domain.ComponentStatusStable}},
 	}
-	good := "| `Old` | deprecated | use `New` |\n| `New` | stable | x |\n"
-	if got := statusTableProblems(good, cat); len(got) != 0 {
+	head := "| Component | Status | What that rests on |\n|---|---|---|\n"
+	good := head + "| `Old` | deprecated | use `New` |\n| `New` | stable | x |\n"
+	if got := statusTableProblems("intro\n\n"+good+"\nafter\n", cat); len(got) != 0 {
 		t.Fatalf("a correct table reported problems: %v", got)
 	}
 	for _, tc := range []struct{ name, section, want string }{
-		{"deprecated row names no successor", "| `Old` | deprecated | use something |\n| `New` | stable | x |\n", "does not name `New`"},
-		{"deprecated row names the wrong successor", "| `Old` | deprecated | use `Other` |\n| `New` | stable | x |\n", "does not name `New`"},
-		{"status word differs", "| `Old` | deprecated | use `New` |\n| `New` | experimental | x |\n", "opposite of the truth"},
-		{"missing row", "| `Old` | deprecated | use `New` |\n", "has no row for it"},
+		{"deprecated row names no successor", head + "| `Old` | deprecated | use something |\n| `New` | stable | x |\n", "does not name `New`"},
+		{"deprecated row names the wrong successor", head + "| `Old` | deprecated | use `Other` |\n| `New` | stable | x |\n", "does not name `New`"},
+		{"status word differs", head + "| `Old` | deprecated | use `New` |\n| `New` | experimental | x |\n", "opposite of the truth"},
+		{"missing row", head + "| `Old` | deprecated | use `New` |\n", "has no row for it"},
 		{"extra row", good + "| `Gone` | stable | x |\n", "which registry.Components does not hold"},
 		{"duplicate row", good + "| `New` | stable | again |\n", "one row per Component"},
 		{"no table at all", "no table here\n", "has no Component status table"},
+		{"row moved into a code fence", head + "| `Old` | deprecated | use `New` |\n\n```\n| `New` | stable | x |\n```\n", "New is registered (stable)"},
+		{"header deleted", "| `Old` | deprecated | use `New` |\n| `New` | stable | x |\n", "has no Component status table"},
+		{"status word with a suffix", head + "| `Old` | deprecated | use `New` |\n| `New` | stable-ish | x |\n", "is not `| `Type` |"},
+		{"row detached from the table by a blank line", head + "| `Old` | deprecated | use `New` |\n\n| `New` | stable | x |\n", "no row for it"},
+		{"a second table", good + "\n" + good, "two Component status tables"},
+		{"no separator row", "| Component | Status | What that rests on |\n| `Old` | deprecated | use `New` |\n| `New` | stable | x |\n", "separator row"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(statusTableProblems(tc.section, cat), "\n")

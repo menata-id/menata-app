@@ -1315,7 +1315,21 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     deprecated.
 
   Mutation-proved 14 ways. One mutation did not apply the first time (`gofmt` had realigned the line), and the harness
-  now aborts on a no-op. **Nothing at runtime reads Status yet**, and that is deliberate: the day a Component is
+  now aborts on a no-op.
+
+  **The independent review found no wrong status or measurement, and five mutants through the first gates, now closed:**
+  - The guide gate matched a status row anywhere in a 715-line "section" (it stopped only at the next `### `), so a row
+    in a code fence, a deleted header, and `stable-ish` all passed. It now ends the section at the next heading of any
+    level outside a fence, anchors to the header row, reads the run of rows after it, and requires the status word to
+    be a whole cell.
+  - The capabilities gate pooled every `registered Component` row's prose, so the Button row could lose its Kind
+    with nothing failing. It reads the first cell now, and every row naming a registered renderer must carry the Kind.
+    The Button row's first cell names `requestButton` too.
+  - Limiting the installed-use sweep to one Workspace stayed green, because `default` holds every use. The sweep now
+    requires at least two Workspaces with a declared page.
+
+  Mutation-proved 21 ways in all. **Blind spot, stated in the test:** pages are lowered with the loader's placeholder
+  records, so a Component held only by a node a real record would hide (`when:`) still counts as used. **Nothing at runtime reads Status yet**, and that is deliberate: the day a Component is
   deprecated, `metadata.validatePages` should warn on a new use and name `ReplacedBy`. No input can reach that branch
   today.
   **The independent review measured the values in Chromium**, painting each token's colour to a canvas, light and dark,
