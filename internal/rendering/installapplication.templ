@@ -54,10 +54,10 @@ templ InstallApplicationPage(templates []InstallableTemplate, workspaceName stri
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Administration")
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_install_application"))
-			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_install_application") }</p>
+			<p class={ "m-0 text-sm leading-6", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_install_application") }</p>
 		</div>
 		if len(templates) == 0 {
-			<div class={ surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-sm text-slate-500" }>
+			<div class={ surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-sm " + inkClass(ctx, domain.InkSecondary) }>
 				There are no ready-made applications in this installation's template library.
 			</div>
 		}
@@ -82,7 +82,7 @@ templ installableCard(t InstallableTemplate) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ t.Name }</h2>
 				if t.Description != "" {
-					<span class="text-xs leading-5 text-slate-500">{ t.Description }</span>
+					<span class={ "text-xs leading-5", inkClass(ctx, domain.InkSecondary) }>{ t.Description }</span>
 				}
 				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ machineSummary(t.MachineNames) }</span>
 			</div>
@@ -97,14 +97,14 @@ templ installableCard(t InstallableTemplate) {
 		} else {
 			if len(t.Renames) > 0 || len(t.AddShared) > 0 {
 				<div class={ "flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-3" }>
-					<span class="text-xs font-medium text-slate-700">What will change on the way in</span>
+					<span class={ "text-xs font-medium", inkClass(ctx, domain.InkBody) }>What will change on the way in</span>
 					for _, r := range t.Renames {
-						<span class="text-2xs leading-5 text-slate-500">
+						<span class={ "text-2xs leading-5", inkClass(ctx, domain.InkSecondary) }>
 							This workspace already uses <code class="font-mono">{ r.From }</code>, so the copy will be called <code class="font-mono">{ r.To }</code>.
 						</span>
 					}
 					if len(t.AddShared) > 0 {
-						<span class="text-2xs leading-5 text-slate-500">
+						<span class={ "text-2xs leading-5", inkClass(ctx, domain.InkSecondary) }>
 							{ fmt.Sprintf("Adds the shared %s this application needs.", strings.Join(t.AddShared, " and ")) }
 						</span>
 					}
@@ -114,7 +114,7 @@ templ installableCard(t InstallableTemplate) {
 				@csrfHiddenInput()
 				<input type="hidden" name="template" value={ t.ApplicationID }/>
 				if len(t.Roles) > 0 {
-					<label for={ "role-" + t.ApplicationID } class="text-2xs text-slate-500">Your role here</label>
+					<label for={ "role-" + t.ApplicationID } class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Your role here</label>
 					<select id={ "role-" + t.ApplicationID } name="role" class={ fieldClasses(ctx) }>
 						for _, role := range t.Roles {
 							<option value={ role }>{ role }</option>

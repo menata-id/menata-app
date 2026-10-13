@@ -97,25 +97,25 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 			// empty list means one of two things and the copy must say which: nothing installed, or
 			// installed Applications that all declare roles this viewer holds none of.
 			if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-				<div class="text-sm text-slate-500">No applications are installed in this workspace yet.</div>
+				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No applications are installed in this workspace yet.</div>
 			} else if len(apps) == 0 {
-				<div class="text-sm text-slate-500">You have no role in any application here yet.</div>
+				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>You have no role in any application here yet.</div>
 			} else {
-				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_home") }</div>
+				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_home") }</div>
 			}
 		</div>
 		if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
 			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
-				<span class="text-sm font-medium text-slate-700">Nothing installed here yet</span>
-				<span class="max-w-md text-2xs text-slate-500">
+				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>Nothing installed here yet</span>
+				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
 					An application appears here once it is installed into this workspace. Until then this
 					workspace holds only its members and their records.
 				</span>
 			</div>
 		} else if len(apps) == 0 {
 			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white px-6 py-12 text-center" }>
-				<span class="text-sm font-medium text-slate-700">No application to open yet</span>
-				<span class="max-w-md text-2xs text-slate-500">
+				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>No application to open yet</span>
+				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
 					Applications appear here based on the roles assigned to you. Ask a workspace admin to
 					give you one.
 				</span>
@@ -125,7 +125,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				for i, app := range apps {
 					<a
 						href={ templ.SafeURL(app.HomeRoute) }
-						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 					>
 						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium", appIconClasses(app.Color) }>
 							if app.Icon != "" {
@@ -137,15 +137,15 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ app.Name }</span>
 							if app.Description != "" {
-								<span class="text-xs leading-4.5 text-slate-500">{ app.Description }</span>
+								<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>{ app.Description }</span>
 							}
 							// The role reads under the name below `sm` and in its own column above it:
 							// the mockup's desktop row has four columns of its own, and a phone has room
 							// for one.
 							<span class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:hidden" }>Your role: { displayRole(app.Role) }</span>
 						</span>
-						<span class="hidden w-42 shrink-0 text-xs text-slate-500 sm:block">
-							Your role: <span class="text-slate-900">{ displayRole(app.Role) }</span>
+						<span class={ "hidden w-42 shrink-0 text-xs", inkClass(ctx, domain.InkSecondary), "sm:block" }>
+							Your role: <span class={ inkClass(ctx, domain.InkStrong) }>{ displayRole(app.Role) }</span>
 						</span>
 						// No fixed width below `sm`: a phone has ~100px of slack on this row, and
 						// reserving a column for a count that may not exist was enough to wrap every
@@ -203,7 +203,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 		// M04a-Settings.dc.html, not to Members directly. Fixed here rather than left stale a second
 		// time: this row now opens the hub, same as workspaceMenu's own settings row.
 		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-			<div class={ "mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500" }>
+			<div class={ "mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm " + inkClass(ctx, domain.InkSecondary) }>
 				// Only when there is a role to name. displayRole renders "—" for an empty one, which
 				// reads fine in a table cell and reads broken inside a pill -- and empty is exactly
 				// the shared admin credential's case, which still sees this row because it can open
@@ -234,7 +234,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 id="new-application-h" class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>Add an application</h2>
-			<span class="max-w-xl text-xs leading-5 text-slate-500">
+			<span class={ "max-w-xl text-xs leading-5", inkClass(ctx, domain.InkSecondary) }>
 				Describe what your team needs. Menata asks a few questions, shows what it will build,
 				then generates it as a draft — nobody else sees it until you publish.
 			</span>
@@ -261,7 +261,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		// install-from-library concept, because nothing could install one when it was drawn -- so this
 		// is one declared line inside the section that already exists rather than a second section
 		// competing with it. Route and label come from its own runtime screen, never retyped.
-		<span class="text-xs text-slate-500">
+		<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>
 			Already know what you need?
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 				{ labelByID(ctx, "nav_install_application") } →
@@ -287,13 +287,13 @@ type HomeDraftApplicationRow struct {
 templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 	for _, r := range rows {
 		if inList {
-			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
+			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
 				<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 					@icon("sparkle", "size-5")
 				</span>
 				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ r.Name }</span>
-					<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
+					<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
 				</span>
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 				<span class="shrink-0 text-slate-300">
@@ -301,13 +301,13 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				</span>
 			</a>
 		} else {
-		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5" }>
+		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5" }>
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 				@icon("sparkle", "size-5")
 			</span>
 			<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 				<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ r.Name }</span>
-				<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
+				<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
 			</span>
 			@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 		</a>

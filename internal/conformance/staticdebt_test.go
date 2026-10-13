@@ -43,7 +43,7 @@ var handWrittenMutedParagraphs = map[string]int{
 	"approvalinbox.templ":      2,
 	"inference.templ":          3,
 	"installapplication.templ": 1,
-	"newapplication.templ":     1,
+	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it
 	"workspacemembers.templ":   1,
 	"workspacesettings.templ":  1,
 }
@@ -72,7 +72,9 @@ func TestHandWrittenMutedParagraphsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := mutedParaNote.ReplaceAllString(string(b), "")
+		// Ink readers read as their default literal (inkReadersAsLiterals, rencana 3.2d), and class expressions are
+		// joined, so a paragraph whose ink moved to inkClass is still the hand-written paragraph it was.
+		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
 		for _, m := range mutedParaTag.FindAllStringSubmatch(src, -1) {
 			if mutedParaM0.MatchString(m[1]) && mutedParaSize.MatchString(m[1]) && mutedParaInk.MatchString(m[1]) {
 				actual[e.Name()]++
@@ -197,6 +199,7 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 // a `<span>`/`<div>`/`<label>` (20+ exist and several are not captions at all), so it states what is present
 // and concludes nothing about absence.
 var handWrittenCaptions = map[string]int{
+	"chooseworkspace.templ":    1, // the archived-workspaces note: `px-0.5 leading-4` (seen since rencana 3.2d joined class expressions)
 	"account.templ":            3, // :78 `mb-2` spacing; :127 apostrophe escapes to &#39;; :161 inline <span>
 	"documentsubmit.templ":     2, // :102 multi-line with an expression run; :190 multi-line text
 	"groups.templ":             1, // apostrophe ("Group's")
@@ -227,7 +230,7 @@ func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
 		}
 		// Read through joinClassExpressions since 2026-10-12: rencana 0.2b spliced a radius reader into one caption's
 		// class, and a literal-only pattern lost the site by that edit alone (L13).
-		src := joinClassExpressions(mutedParaNote.ReplaceAllString(string(b), ""))
+		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
 		for _, m := range captionPara.FindAllStringSubmatch(src, -1) {
 			if has(m[1], "m-0") && has(m[1], "text-2xs") && has(m[1], "text-slate-500") {
 				actual[e.Name()]++
@@ -373,7 +376,7 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(mutedParaNote.ReplaceAllString(string(b), ""))
+		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
 		for _, tag := range fieldTagOpen.FindAllString(src, -1) {
 			if m := fieldTagClass.FindStringSubmatch(tag); m != nil && has300.MatchString(m[1]) {
 				actual[e.Name()]++

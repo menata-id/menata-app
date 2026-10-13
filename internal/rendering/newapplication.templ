@@ -41,7 +41,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticOverline, "Step 1 of 2")
 			@staticText(domain.StaticHeading, "New application")
-			<div class="text-sm text-slate-500">Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
+			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
 			<section aria-label="Conversation" class={ "flex min-h-96 flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
@@ -93,10 +93,10 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 			<aside aria-label="What will be built" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					@staticText(domain.StaticPanelHeading, "What will be built")
-					<span class="text-xs text-slate-500">Updated as you answer.</span>
+					<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>Updated as you answer.</span>
 				</div>
 				if !view.ReadyToReview {
-					<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>Nothing to show yet -- keep answering.</p>
+					@staticText(domain.StaticNote, "Nothing to show yet -- keep answering.")
 				} else {
 					@changeSummary(view.Summary)
 					<a href={ templ.SafeURL("/new-application/" + view.SessionID + "/review") } class={ buttonClasses(ctx, domain.ButtonPrimary) + " justify-center" }>
@@ -142,7 +142,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			if app.Description != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>What it does</span>
-					<span class="text-slate-700">{ app.Description }</span>
+					<span class={ inkClass(ctx, domain.InkBody) }>{ app.Description }</span>
 				</div>
 			}
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
@@ -156,7 +156,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			if len(app.Navigation) > 0 {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>Menu</span>
-					<ol class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapHair), "pl-4 text-slate-700" }>
+					<ol class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapHair), "pl-4 " + inkClass(ctx, domain.InkBody) }>
 						for _, item := range app.Navigation {
 							<li>{ item.Label }</li>
 						}
@@ -218,7 +218,7 @@ templ updatePlan(plan aiassist.Plan) {
 			if items := planItemsFor(plan, op); len(items) > 0 {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class={ "text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ planOpLabel(op) }</span>
-					<ul class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapMicro), "pl-4 text-slate-700" }>
+					<ul class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapMicro), "pl-4 " + inkClass(ctx, domain.InkBody) }>
 						for _, item := range items {
 							<li>
 								{ item.What }
@@ -273,7 +273,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			} else {
 				@staticText(domain.StaticHeading, "Update " + change.TargetAppID)
 			}
-			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
+			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
 			@panelLayout() {
@@ -287,7 +287,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			<aside class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
-					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
+					<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
 				} else if change.Kind == aiassist.KindNewApplication {
 					@staticText(domain.StaticNote, "This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.")
 				} else {
@@ -299,7 +299,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				</form>
 				// The draft is already stored (Home lists it as a row), so this is a way out that says so, not
 				// a save: it only leaves.
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900", hoverWashClass(ctx) }>Keep as draft</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Keep as draft</a>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()
 					<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>

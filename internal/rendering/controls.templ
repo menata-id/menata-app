@@ -47,7 +47,7 @@ func tableHeadCellClasses(ctx context.Context) string {
 // so a column of figures aligns right without a second, competing text-align utility whose winner would depend on
 // the order Tailwind emits them (the reason fieldClasses returns no width).
 func tableHeadCellClassesFor(ctx context.Context, a domain.TableAlign) string {
-	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 " + tableAlignClass(a) + " text-2xs font-medium tracking-wide text-slate-500 uppercase"
+	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 " + tableAlignClass(a) + " text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase"
 }
 
 // fieldClasses is the one place an input's look is decided, and the first reader of `BorderControl` -- the
@@ -298,7 +298,7 @@ func computedDisplay(current any) string {
 templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
 	switch {
 		case f.Compute != nil:
-			<span class="text-sm text-slate-500" title="Calculated automatically when saved">{ computedDisplay(current) }</span>
+			<span class={ "text-sm", inkClass(ctx, domain.InkSecondary) } title="Calculated automatically when saved">{ computedDisplay(current) }</span>
 		case f.Type == domain.FieldTypeStatus:
 			<select name={ f.ID } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
@@ -335,10 +335,10 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 			if key := toString(current); key != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<a href={ templ.URL("/uploads/" + key) } target="_blank" class={ "truncate text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ storage.DisplayName(key) }</a>
-					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
+					<input type="file" name={ f.ID } class={ "w-full font-sans text-xs", inkClass(ctx, domain.InkSecondary) }/>
 				</div>
 			} else {
-				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
+				<input type="file" name={ f.ID } class={ "w-full font-sans text-xs", inkClass(ctx, domain.InkSecondary) }/>
 			}
 		default:
 			<input type="text" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>

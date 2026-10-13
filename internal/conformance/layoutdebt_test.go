@@ -248,6 +248,22 @@ var (
 	borderDefaults   = map[string]string{"BorderSurface": "border-slate-200", "BorderControl": "border-slate-300", "BorderDivider": "border-slate-100"}
 )
 
+// inkReadersAsLiterals rewrites `inkClass(ctx, domain.Ink*)` as the palette class it draws under the default Theme. Only
+// the shape gates that recognise a hand-written element partly by its ink apply it (the muted paragraph and the
+// caption): rencana 3.2d moved 217 ink literals to inkClass, and without this both lost every floor while the paragraphs
+// stayed hand-written in every other respect (L13 again). The value gates must not, because for them a reader is the
+// migration. `TestInkRewriteMatchesTheDefaultTheme` holds inkDefaults to the defaults derived from the code.
+func inkReadersAsLiterals(src string) string {
+	return inkReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		return `"` + inkDefaults[inkReaderCall.FindStringSubmatch(m)[1]] + `"`
+	})
+}
+
+var (
+	inkReaderCall = regexp.MustCompile(`inkClass\(ctx, domain\.(Ink\w+)\)`)
+	inkDefaults   = map[string]string{"InkStrong": "text-slate-900", "InkBody": "text-slate-700", "InkSecondary": "text-slate-500", "InkFaint": "text-slate-400", "InkAccent": "text-blue-600"}
+)
+
 // joinClassLiterals is joinClassExpressions without the reader rewrite: string literals only.
 func joinClassLiterals(src string) string {
 	return classExpression.ReplaceAllStringFunc(src, func(m string) string {

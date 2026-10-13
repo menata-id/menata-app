@@ -96,7 +96,7 @@ templ workspaceFileEditor(view WorkspaceFilesView) {
 		@stackLayout(domain.GapComfortable) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticOverline, wfEditingLabel)
-				<span class="font-mono text-sm text-slate-700">{ view.Path }</span>
+				<span class={ "font-mono text-sm", inkClass(ctx, domain.InkBody) }>{ view.Path }</span>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files")) } class="text-xs text-blue-600 hover:text-blue-800">{ wfBack }</a>
 			</div>
 			<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
@@ -116,7 +116,7 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 			@statusBadge(view.Review.VerdictLabel, view.Review.Tone, domain.BadgeRegular)
 		</div>
 		if view.Review.Reason != "" {
-			<pre class="m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap text-slate-700">{ view.Review.Reason }</pre>
+			<pre class={ "m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap", inkClass(ctx, domain.InkBody) }>{ view.Review.Reason }</pre>
 		}
 		@fileDiffList(view.Review.Diffs)
 		if view.Review.CanApply {
@@ -135,7 +135,7 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 templ fileDiffList(diffs []FileDiffView) {
 	for _, d := range diffs {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<span class="font-mono text-xs text-slate-700">{ d.Path }</span>
+			<span class={ "font-mono text-xs", inkClass(ctx, domain.InkBody) }>{ d.Path }</span>
 			if d.Changed {
 				<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
 					for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {

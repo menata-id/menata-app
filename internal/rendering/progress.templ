@@ -28,7 +28,7 @@ templ progressRow(label, value, max string) {
 		>
 			<div class={ "h-full rounded-full", markGoodFill() } style={ fmt.Sprintf("width:%d%%", pct) }></div>
 		</div>
-		<span class="w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-500">{ value + " of " + max }</span>
+		<span class={ "w-16 shrink-0 text-right text-xs whitespace-nowrap", inkClass(ctx, domain.InkSecondary) }>{ value + " of " + max }</span>
 	}
 	</div>
 }

@@ -129,7 +129,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 	@appShell(titleByID(ctx, "nav_workspace_settings"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_settings"))
-			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_workspace_settings") }</p>
+			<p class={ "m-0 text-sm leading-6", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_workspace_settings") }</p>
 		</div>
 		<div class={ "flex max-w-md flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
@@ -166,7 +166,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 						<ul class="m-0 flex list-none flex-col p-0">
 							for _, snap := range snapshots {
 								<li class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), "border-b py-2 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
-									<span class="text-sm text-slate-700">{ snapshotLabel(snap) }</span>
+									<span class={ "text-sm", inkClass(ctx, domain.InkBody) }>{ snapshotLabel(snap) }</span>
 									<form method="POST" action="/restore-workspace-snapshot" hx-confirm={ wsRestoreConfirm }>
 										@csrfHiddenInput()
 										@button(wsRestoreLabel, domain.ButtonSecondary, "snapshot", snap.ID)
@@ -185,7 +185,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 					<button type="submit" class={ "flex w-full cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left", toneHoverFillClass(ctx, domain.ToneBad) }>
 						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad) }>Archive workspace</span>
-							<span class="text-xs text-slate-500">Read-only and hidden from members until restored.</span>
+							<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>Read-only and hidden from members until restored.</span>
 						</span>
 					</button>
 				</form>

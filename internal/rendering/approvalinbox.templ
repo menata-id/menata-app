@@ -179,7 +179,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticHeading, titleByID(ctx, navID))
 				if desc := descriptionByID(ctx, navID); desc != "" {
-					<div class="text-sm text-slate-500">{ desc }</div>
+					<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ desc }</div>
 				}
 			</div>
 			// "+ New Document" is Pending/My Documents' own call to action -- Assigned to me is a
@@ -289,7 +289,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 // table idiom -- this screen's rows are exactly as tabular as that one's.
 templ assignedTable(rows []AssignedRow) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
 			<span class="grow">Document</span>
 			<span class="w-32">From</span>
 			<span class="w-28">Requested</span>
@@ -300,11 +300,11 @@ templ assignedTable(rows []AssignedRow) {
 		for _, r := range rows {
 			<div class={ dividedRowClasses(ctx, domain.GapTight) }>
 				<div class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-					<span class="truncate text-sm font-medium text-slate-900">{ r.Title }</span>
+					<span class={ "truncate text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ r.Title }</span>
 					<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ r.Reference } · { r.DocumentType }</span>
 				</div>
-				<div class="text-xs text-slate-500 sm:w-32"><span class="sm:hidden">From </span>{ r.From }</div>
-				<div class="text-xs text-slate-500 sm:w-28">
+				<div class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:w-32" }><span class="sm:hidden">From </span>{ r.From }</div>
+				<div class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:w-28" }>
 					if r.RequestedAt != "" {
 						{ r.RequestedAt }
 					} else {
@@ -344,7 +344,7 @@ templ assignedDecisionLabel(key, label string) {
 	<span
 		class={ "text-xs",
 			templ.KV("font-medium text-blue-700", key == "waiting"),
-			templ.KV("text-slate-500", key != "waiting") }
+			templ.KV(inkClass(ctx, domain.InkSecondary), key != "waiting") }
 	>
 		{ label }
 	</span>
@@ -362,7 +362,7 @@ templ pendingApprovalCardGrid(cards []PendingApprovalCard) {
 }
 
 templ inboxEmpty(message string) {
-	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500" }>
+	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white p-8 text-center text-sm " + inkClass(ctx, domain.InkSecondary) }>
 		{ message }
 	</div>
 }
@@ -390,7 +390,7 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
 		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
-			templ.KV(borderClass(ctx, domain.BorderControl)+" text-slate-500 hover:border-slate-400", !f.Active) }
+			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " hover:border-slate-400", !f.Active) }
 	>
 		{ f.Label } ({ fmt.Sprint(f.Count) })
 	</a>
@@ -434,7 +434,7 @@ func approvalCardEdge(ctx context.Context, overdue bool) string {
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
-		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white", paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300",
+		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white", paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300",
 			approvalCardEdge(ctx, overdue) }
 	>
 		<a href={ templ.SafeURL(c.Href) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
@@ -451,14 +451,14 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			}
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ c.Title }</h2>
-				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>{ c.Reference } · { c.DocumentType }</p>
+				@staticText(domain.StaticCaption, c.Reference+" · "+c.DocumentType)
 			</div>
 			// A Draft's own line (Flow 2 mockup: "Not submitted / Last edited {date}") takes
 			// priority over the ordinary submitted-by line below, which a Draft would otherwise
 			// also qualify for (Submitter is empty on every My Documents card, Draft included, so
 			// that branch alone would render nothing at all for one -- this is its real content).
 			if c.Status == "draft" {
-				<p class="m-0 text-xs text-slate-500">
+				<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>
 					Not submitted
 					if c.SubmittedAt != "" {
 						{ " · Last edited " + c.SubmittedAt }
@@ -468,8 +468,8 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				// Omitted entirely when there is no submitter to name, which is what My Documents
 				// passes: every card there was submitted by the viewer, so the line would read
 				// "Submitted by you" on every one of them (composition.Inbox.Mine).
-				<p class="m-0 text-xs text-slate-500">
-					Submitted by <span class="text-slate-700">{ c.Submitter }</span>
+				<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>
+					Submitted by <span class={ inkClass(ctx, domain.InkBody) }>{ c.Submitter }</span>
 					if c.SubmittedAt != "" {
 						{ " · " + c.SubmittedAt }
 					}
@@ -505,7 +505,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				<span
 					class={ "text-xs",
 						templ.KV("font-medium text-red-700", overdue),
-						templ.KV("text-slate-500", !overdue) }
+						templ.KV(inkClass(ctx, domain.InkSecondary), !overdue) }
 				>
 					if c.SLA.Present {
 						{ c.SLA.Detail }

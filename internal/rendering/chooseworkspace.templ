@@ -86,7 +86,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 							class={ "flex w-full cursor-pointer items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-4 text-left hover:border-blue-300" }
 						>
 							<span class="flex grow flex-col gap-1">
-								<span class="text-[15px] font-medium text-slate-900">{ c.Name }</span>
+								<span class={ "text-[15px] font-medium", inkClass(ctx, domain.InkStrong) }>{ c.Name }</span>
 								<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ c.Slug } · { fmt.Sprint(c.MemberCount) } member{ pluralS(c.MemberCount) }</span>
 							</span>
 							if c.Role == "admin" {
@@ -115,7 +115,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 		if len(archived) > 0 {
 			<div class="flex w-full max-w-112 flex-col gap-2">
 				<details class="flex flex-col gap-2">
-					<summary class="flex cursor-pointer list-none items-center gap-1 self-start text-xs text-slate-500 [&::-webkit-details-marker]:hidden">
+					<summary class={ "flex cursor-pointer list-none items-center gap-1 self-start text-xs", inkClass(ctx, domain.InkSecondary), "[&::-webkit-details-marker]:hidden" }>
 						Archived workspaces ({ fmt.Sprint(len(archived)) })
 						@icon("chevron-right", "size-3 shrink-0 " + inkClass(ctx, domain.InkFaint))
 					</summary>
@@ -123,13 +123,13 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 						for _, c := range archived {
 							<div class={ "flex items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-3.5" }>
 								<span class="flex min-w-0 grow flex-col gap-1">
-									<span class="text-sm text-slate-500">{ c.Name }</span>
+									<span class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ c.Name }</span>
 									<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>archived { c.ArchivedAt }</span>
 								</span>
 								<form method="POST" action={ templ.SafeURL(action + "/restore") }>
 									@csrfHiddenInput()
 									<input type="hidden" name="workspace_id" value={ c.ID }/>
-									<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900 hover:bg-slate-50" }>Restore</button>
+									<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm " + inkClass(ctx, domain.InkStrong) + " hover:bg-slate-50" }>Restore</button>
 								</form>
 							</div>
 						}
@@ -142,7 +142,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 			if signedInEmail != "" {
 				Signed in as { signedInEmail } ·
 			}
-			<a href={ templ.SafeURL(backHref) } class="text-slate-500 hover:text-slate-700">← { backLabel }</a>
+			<a href={ templ.SafeURL(backHref) } class={ inkClass(ctx, domain.InkSecondary), "hover:text-slate-700" }>← { backLabel }</a>
 		}
 	}
 }

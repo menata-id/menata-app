@@ -39,7 +39,7 @@ templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit
 	@stackLayout(domain.GapTight) {
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			@staticText(domain.StaticSubheading, m.Name)
-			<span class="text-xs text-slate-500">{ checklistProgress(c) }</span>
+			<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ checklistProgress(c) }</span>
 		}
 		<ul class={ "m-0 flex list-none flex-col", layoutGap(ctx, domain.GapMicro), "p-0" }>
 			for _, it := range foldHead(c.Items, foldAfter) {
@@ -86,7 +86,7 @@ templ checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) {
 					</button>
 				</form>
 			}
-			<span class={ "text-sm", templ.KV("text-slate-500 line-through", it.Complete.Done) }>{ it.Text }</span>
+			<span class={ "text-sm", templ.KV(inkClass(ctx, domain.InkSecondary) + " line-through", it.Complete.Done) }>{ it.Text }</span>
 		}
 	</li>
 }

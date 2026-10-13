@@ -1145,6 +1145,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - Open: in `app.css` the role classes sort before some palette classes, so an element carrying both a role and a
     conflicting literal colour would change which one wins. None was found (the 106-page computed diff is 0), but
     parameters and states the dev DB cannot reach are not covered.
+- **Rencana 3.2d, tinta (2026-10-13):** every literal `text-slate-900|700|500` in a `.templ` reads
+  `inkClass` (217 sites, pre-auth screens included, since a reader there falls back to the `@theme` default). So
+  `TestHandWrittenThemeTokensOnlyShrink`'s ink count is **zero** in every file. The computed-style diff of 106 pages
+  showed no change from the migration itself. Two things it taught:
+  - **L13 a third time.** The muted-paragraph and caption ratchets recognise their floors partly by `text-slate-500`,
+    and both lost every floor. They now read `inkReadersAsLiterals` (held to the code's defaults by
+    `TestInkRewriteMatchesTheDefaultTheme`). The muted-paragraph gate also joins class expressions now; it used to read
+    raw attributes only.
+  - **That widening found sites 1.2b had made.** Faint text moved to `secondary` had become exactly a
+    `StaticMessage`/`StaticCaption` shape, and the gate could not see it. Five such sites moved to `staticText`; two stay
+    as floors with reasons (a scripted `hidden` note, `px-0.5 leading-4`).
+
+  Variant-prefixed inks (`hover:text-slate-900`, …) and values no role names are still hand-written. They are the
+  rest of 3.2d.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

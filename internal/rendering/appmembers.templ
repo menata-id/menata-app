@@ -73,7 +73,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 				</div>
 			}
 			if len(v.Rows) > 0 {
-				<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+				<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
 					<span class="grow">Member</span>
 					<span>Role in this application</span>
 				</div>
@@ -93,7 +93,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 								<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Deactivated</span>
 							}
 							for _, role := range row.GroupRoles {
-								<span class="text-2xs text-slate-500">+ { role } through a Group</span>
+								<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>+ { role } through a Group</span>
 							}
 						</span>
 					</div>

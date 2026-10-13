@@ -48,7 +48,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticEyebrow, "Step 1 of 2")
 			@staticText(domain.StaticHeading, "Document details")
-			<div class="text-sm text-slate-500">Submit a document for approval.</div>
+			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Submit a document for approval.</div>
 		</div>
 		<form
 			hx-post={ documentSubmitAction(ctx, draft) }
@@ -99,7 +99,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 							class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }
 						>+ Add approver</button>
 					}
-					<p class="m-0 text-2xs text-slate-500">
+					<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>
 						Each step is one person or a whole group. The order below is used only when
 						{ mode.Name } is { firstOption(mode) } — use ▲/▼ to reorder.
 					</p>
@@ -108,7 +108,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 					</div>
 				}
 			}
-			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), "text-sm text-slate-700" }>
+			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), "text-sm " + inkClass(ctx, domain.InkBody) }>
 				<input type="checkbox" name="save_as_default_flow" value="1" checked class="size-4 accent-blue-500"/>
 				<span>Save this as the default approval flow for <span id="default-flow-type" class="font-medium">{ defaultFlowTypeLabel(draft.DocumentType) }</span></span>
 			</label>
@@ -188,7 +188,7 @@ templ modeFieldsetOOB(mode domain.Field, selected string) {
 
 templ modeFieldsetContent(mode domain.Field, selected string) {
 	<legend class="px-1 text-sm font-medium">{ mode.Name }</legend>
-	<p class="m-0 text-2xs text-slate-500">
+	<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>
 		Sequential activates each step in order. Parallel allows all assigned approvers to
 		decide independently.
 	</p>
@@ -296,7 +296,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 	<div class={ "approver-row flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), tileClasses(ctx), "p-2.5 [counter-increment:approver-step]" }>
 		// Board 08's "Step N approver" label. The number is the same CSS counter the circle reads, for the
 		// same reason it is not passed from Go: rows are added, removed and reordered in the browser.
-		<span class="w-full text-2xs text-slate-500">Step <span class="before:[content:counter(approver-step)]"></span> approver</span>
+		<span class={ "w-full text-2xs", inkClass(ctx, domain.InkSecondary) }>Step <span class="before:[content:counter(approver-step)]"></span> approver</span>
 		<span
 			aria-hidden="true"
 			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"

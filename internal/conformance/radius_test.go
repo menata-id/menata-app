@@ -142,3 +142,23 @@ func TestRadiusRewriteMatchesTheDefaultTheme(t *testing.T) {
 		}
 	}
 }
+
+// TestInkRewriteMatchesTheDefaultTheme holds inkDefaults, the table inkReadersAsLiterals rewrites with, to the ink
+// defaults derived from the code (themeRoleDefaults reads DefaultTheme and inkShadeVar's arms), so the rewrite cannot
+// drift from what the reader draws.
+func TestInkRewriteMatchesTheDefaultTheme(t *testing.T) {
+	seen := 0
+	for _, r := range themeRoleDefaults(t) {
+		if r.category != "Ink" {
+			continue
+		}
+		key := "Ink" + strings.ToUpper(r.name[:1]) + r.name[1:]
+		if inkDefaults[key] != r.class {
+			t.Errorf("inkDefaults[%s] = %q, the code draws %q -- update inkDefaults", key, inkDefaults[key], r.class)
+		}
+		seen++
+	}
+	if seen != len(inkDefaults) {
+		t.Errorf("inkDefaults has %d entries, the Theme has %d ink roles", len(inkDefaults), seen)
+	}
+}

@@ -22,12 +22,12 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 		<div class={ "flex items-start justify-between", layoutGap(ctx, domain.GapDefault) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticHeading, "Notifications")
-				<div class="text-sm text-slate-500">Approval requests and decisions that concern you.</div>
+				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Approval requests and decisions that concern you.</div>
 			</div>
 			if hasUnread(rows) {
 				<form method="POST" action="/notifications/mark-all-read">
 					@csrfHiddenInput()
-					<button type="submit" class={ "flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium text-slate-900", hoverWashClass(ctx) }>Mark all as read</button>
+					<button type="submit" class={ "flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Mark all as read</button>
 				</form>
 			}
 		</div>
@@ -36,7 +36,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 				@notificationRow(n)
 			}
 			if len(rows) == 0 {
-				<p class="text-sm text-slate-500">No notifications yet.</p>
+				<p class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No notifications yet.</p>
 			}
 		</div>
 	}
@@ -53,7 +53,7 @@ templ notificationRow(n NotificationRow) {
 			<span class="size-2 shrink-0 rounded-full bg-transparent" aria-hidden="true"></span>
 		}
 		<span class="min-w-0 flex-1">
-			<span class={ "block text-sm text-slate-900", templ.KV("font-medium", n.Unread) }>{ n.Message }</span>
+			<span class={ "block text-sm " + inkClass(ctx, domain.InkStrong), templ.KV("font-medium", n.Unread) }>{ n.Message }</span>
 			<span class={ "block text-xs", inkClass(ctx, domain.InkSecondary) }>{ n.CreatedAt }</span>
 		</span>
 	</a>

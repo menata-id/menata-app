@@ -79,7 +79,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_members"))
-				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_workspace_members") }</div>
+				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_workspace_members") }</div>
 			</div>
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapComfortable) }>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ labelByID(ctx, "nav_workspace_groups") } →</a>
@@ -105,10 +105,10 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 		</details>
 		@searchBox(routeByID(ctx, "nav_workspace_members"), q, "Search members…", nil)
 		if len(members) == 0 && q != "" {
-			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
+			<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>No member matches "{ q }".</p>
 		}
 		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-			<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+			<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
 				<span class="grow">Member</span>
 				<span class="w-28">Workspace role</span>
 				// Each cell names its own Application, one line per Application that declares a vocabulary (board 04).
@@ -138,7 +138,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							<span class={ "text-sm", inkClass(ctx, domain.InkFaint) }>—</span>
 						}
 						for _, app := range roleApps {
-							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
+							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
 						}
 					</div>
 					<div class={ "flex flex-wrap", layoutGap(ctx, domain.GapMicro), "sm:w-32" }>
@@ -167,7 +167,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
 					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials("", inv.Email), inv.Email, domain.AvatarInline, domain.AvatarPending)
-						<span class="truncate text-sm text-slate-500">{ inv.Email }</span>
+						<span class={ "truncate text-sm", inkClass(ctx, domain.InkSecondary) }>{ inv.Email }</span>
 					</div>
 					<div class="sm:w-28">
 						@workspaceRoleBadge(inv.WorkspaceRole)
@@ -177,7 +177,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							<span class={ "text-sm", inkClass(ctx, domain.InkFaint) }>—</span>
 						}
 						for _, app := range roleApps {
-							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
+							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
 						}
 					</div>
 					<div class="sm:w-32"></div>
@@ -187,7 +187,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
 						@csrfHiddenInput()
 						<input type="hidden" name="email" value={ inv.Email }/>
-						<button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-sm text-slate-500 hover:text-red-600">Revoke</button>
+						<button type="submit" class={ "cursor-pointer border-0 bg-transparent p-0 text-sm", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>Revoke</button>
 					</form>
 				</div>
 			}
@@ -264,7 +264,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 				}
 			}
 			<div class={ "flex items-center justify-end", layoutGap(ctx, domain.GapDefault) }>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-sm", inkClass(ctx, domain.InkSecondary), "hover:text-slate-700" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -287,7 +287,7 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
 			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")
-			<p class="m-0 text-2xs text-slate-500">
+			<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>
 				if m.Deactivated {
 					This member cannot open { workspaceName }. Their documents and approval history stay.
 				} else {
@@ -298,7 +298,7 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 		if m.Deactivated {
 			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/reactivate") }>
 				@csrfHiddenInput()
-				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900", hoverWashClass(ctx) }>Reactivate member</button>
+				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Reactivate member</button>
 			</form>
 		} else {
 			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/deactivate") } hx-confirm="Deactivate this member? They will no longer be able to open this workspace.">
@@ -317,7 +317,7 @@ templ workspaceRoleChoice(role, description string, selected bool) {
 		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
 		<span class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<span class="text-sm font-medium">{ displayRole(role) }</span>
-			<span class="text-2xs text-slate-500">{ description }</span>
+			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 		</span>
 	</label>
 }
@@ -353,7 +353,7 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 		if len(m.Groups) == 0 {
 			@staticText(domain.StaticCaption, "This member belongs to no Group, so their effective access is exactly the direct assignment above.")
 		} else {
-			<p class="m-0 text-2xs text-slate-500">
+			<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>
 				Group-derived access cannot be removed from this screen; change the Group's own membership or roles instead.
 			</p>
 		}

@@ -29,7 +29,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 				@staticText(domain.StaticSubheading, "Comments and activity")
 				if hasEvents(extras.Activity) {
-					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), "text-xs text-slate-500" }>
+					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
 						<input type="checkbox" class="size-3.5"/>
 						Show details
 					</label>
@@ -100,7 +100,7 @@ templ commentRow(a ActivityEntry) {
 				<span class="text-sm font-medium">{ a.Actor }</span>
 				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
 			}
-			<p class="m-0 whitespace-pre-wrap text-sm text-slate-700">{ a.Summary }</p>
+			<p class={ "m-0 whitespace-pre-wrap text-sm", inkClass(ctx, domain.InkBody) }>{ a.Summary }</p>
 		}
 	}
 }

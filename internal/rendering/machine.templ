@@ -348,7 +348,7 @@ func avatarClasses(ctx context.Context, size domain.AvatarSize, presence domain.
 	case domain.AvatarCompact:
 		dim = "size-6 text-3xs"
 	}
-	tone := "bg-slate-200 text-slate-700"
+	tone := "bg-slate-200 " + inkClass(ctx, domain.InkBody)
 	if presence == domain.AvatarPending {
 		tone = "border border-dashed border-slate-300 " + inkClass(ctx, domain.InkFaint)
 	}
@@ -433,14 +433,14 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 			for i, m := range machines {
 				<a
 					href={ templ.URL("/machines/" + m.ID) }
-					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900", hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
 					<span class="grow font-medium">{ m.Name }</span>
 					<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 				</a>
 			}
 			if len(machines) == 0 {
-				<div class="px-4 py-8 text-center text-sm text-slate-500">No machines are installed in this workspace.</div>
+				<div class={ "px-4 py-8 text-center text-sm", inkClass(ctx, domain.InkSecondary) }>No machines are installed in this workspace.</div>
 			}
 		</div>
 	}
@@ -559,9 +559,9 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 		<nav class={ "inline-flex", layoutGap(ctx, domain.GapHair), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label="View">
 			for _, o := range views {
 				if o.ID == selected.ID {
-					<span class="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900" aria-current="true">{ o.Name }</span>
+					<span class={ "rounded bg-slate-100 px-3 py-1 text-xs font-medium", inkClass(ctx, domain.InkStrong) } aria-current="true">{ o.Name }</span>
 				} else {
-					<a class="rounded px-3 py-1 text-xs text-slate-500 hover:text-slate-900" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
+					<a class={ "rounded px-3 py-1 text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-slate-900" } href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
 				}
 			}
 		</nav>
@@ -578,7 +578,7 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 templ cardsLayout(m *domain.Machine, cards []RecordCard) {
 	@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols2) {
 		for _, c := range cards {
-			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class={ "flex flex-col gap-1.5", surfaceClasses(ctx), "p-4 text-slate-900 hover:border-blue-300" }>
+			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class={ "flex flex-col gap-1.5", surfaceClasses(ctx), "p-4 " + inkClass(ctx, domain.InkStrong) + " hover:border-blue-300" }>
 				<span class="text-sm font-medium">{ recordTitle(m, c.Record) }</span>
 				<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
 					for _, f := range c.Fields {
@@ -759,8 +759,8 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 		for _, col := range columns {
 			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
 				<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
-					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
-					<span class={ radiusClass(ctx, domain.RadiusPill), "bg-white px-1.5 text-2xs text-slate-500" }>{ fmt.Sprint(len(col.Records)) }</span>
+					<h3 class={ "m-0 text-xs font-medium", inkClass(ctx, domain.InkBody) }>{ col.Label }</h3>
+					<span class={ radiusClass(ctx, domain.RadiusPill), "bg-white px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
 				if col.Hint != "" {
 					@staticText(domain.StaticCaption, col.Hint)
@@ -891,7 +891,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		if canEdit && mv.Field != "" {
 			draggable="true"
 		}
-		class={ "group/card relative flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 text-slate-900 hover:shadow-sm" }
+		class={ "group/card relative flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 " + inkClass(ctx, domain.InkStrong) + " hover:shadow-sm" }
 	>
 		if len(c.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
@@ -935,7 +935,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
 						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs text-slate-500" }>
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
 								Move to list
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
@@ -943,7 +943,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 									}
 								</select>
 							</label>
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs text-slate-500" }>
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
 								Position
 								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 							</label>
@@ -955,7 +955,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 			<a
 				href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) }
 				draggable="false"
-				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV("text-slate-500", done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6 pointer-coarse:pl-7", canEdit && c.Complete != nil), templ.KV("pointer-coarse:pr-6", canEdit), templ.KV("pl-7 pr-6", done && canEdit) }
+				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV(inkClass(ctx, domain.InkSecondary), done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6 pointer-coarse:pl-7", canEdit && c.Complete != nil), templ.KV("pointer-coarse:pr-6", canEdit), templ.KV("pl-7 pr-6", done && canEdit) }
 			>{ title }</a>
 		</span>
 		{{ person := cardRole(c, domain.CardFieldRolePerson) }}
@@ -1013,7 +1013,7 @@ func cardTitleFieldID(m *domain.Machine) string {
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
 templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 	<details class="group">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs text-slate-500 hover:text-slate-900 group-open:hidden" }>Add a card</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " hover:text-slate-900 group-open:hidden" }>Add a card</summary>
 		<form
 			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
@@ -1041,7 +1041,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 		>
 			for _, f := range m.Fields {
 				if f.Compute == nil && f.Type != domain.FieldTypeFile {
-					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-xs text-slate-500" }>
+					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
 						{ f.Name }
 						@fieldInput(f, nil, relations, groups)
 					</label>
@@ -1231,7 +1231,7 @@ templ projectedFieldValue(p ProjectedField) {
 	if p.Role == string(domain.CardFieldRoleStatus) {
 		@statusBadge(p.Display, domain.ToneInfo, domain.BadgeCompact)
 	} else {
-		<span class="text-slate-500">{ p.Display }</span>
+		<span class={ inkClass(ctx, domain.InkSecondary) }>{ p.Display }</span>
 	}
 }
 
