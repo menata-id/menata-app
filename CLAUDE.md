@@ -1332,6 +1332,33 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   records, so a Component held only by a node a real record would hide (`when:`) still counts as used. **Nothing at runtime reads Status yet**, and that is deliberate: the day a Component is
   deprecated, `metadata.validatePages` should warn on a new use and name `ReplacedBy`. No input can reach that branch
   today.
+
+- **Raw buttons, rencana 2.3a (2026-10-13): the plan's premise failed on measurement, and the slice became the gate it
+  needed.** 2.3a was written as "Button variants `text`/`icon`/`menu` for 29 raw `<button>`s". Reading all 45 buttons
+  outside the Button renderer found three things:
+  - **The 29 was a gate's blind spot.** It is 45, minus the 12 that call `buttonClasses(`, minus the 4 literal `h-9`
+    buttons: exactly the population `TestHandWrittenButtonsOnlyShrink` could not see. It is not a population of one
+    meaning.
+  - **`icon` and `menu` are not variants.** Every site carries what a Component must not accept (007 §12.3):
+    `popovertarget`, `hx-*`, a hyperscript `_=`, `aria-pressed`, `aria-controls`, `onclick`. What is missing is the
+    `actions` capability the section names.
+  - **`text` is a link look, not a button.** `text-xs`, the accent ink and its hover are written on 25 elements: 19 `<a>`,
+    4 `<button>`, a `<summary>` and a `<span>`. A Button variant would hold 4 of the 25 and split one look across two
+    places.
+
+  So nothing was registered. Built instead: `TestHandWrittenRawButtonsOnlyShrink` (the ratchet's third population: 29
+  across 16 files, shrink-only, a reason per file) and `TestEveryButtonNamesItsType` (zero floor: a `<button>` with no
+  `type` is a submit button). `buttonOpenTags` scans quote- and brace-aware, because a regexp stopping at the first `>`
+  mis-reads `onclick="… => …"`; `TestButtonOpenTags` pins the shapes. Reading found five buttons with no `type`
+  (record Edit/Delete in `detail.templ` and `machine.templ`, and a disabled Enable); none was inside a `<form>`, so
+  nothing was wrong yet. All five got `type="button"`. A render-diff of 109 pages against HEAD: 77 identical, 32 differ
+  only by that attribute on 81 lines (40 Edit, 40 Delete, 1 Enable), and 0 other differences once volatile ids,
+  timestamps and CSRF tokens were normalised. Mutation-proved 9 ways.
+
+  **Four things are the owner's, not taken** (`design-system-decisions.md`): whether the link look's size reads the
+  `meta` text role; whether the four quiet-destructive text actions fold to one resting ink; whether the five bordered
+  compact controls fold `px-3` into `px-4`; and building `actions` (popover, menu) as a capability, which is what would
+  let icon and menu buttons be declared.
   **The independent review measured the values in Chromium**, painting each token's colour to a canvas, light and dark,
   under the default Theme and two moved ones. It found 0 differences, but three mutants that only the snapshot caught,
   and running `make tokens` would have re-blessed each one:

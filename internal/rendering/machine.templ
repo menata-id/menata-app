@@ -1110,6 +1110,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
+					type="button"
 					class={ buttonClasses(ctx, domain.ButtonSecondary) + " mr-1" }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
@@ -1119,6 +1120,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 			{{ deletable, _ := action.CanDelete(m, r.Values, nil) }}
 			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
+					type="button"
 					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }

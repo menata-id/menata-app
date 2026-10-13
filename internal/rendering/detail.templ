@@ -217,6 +217,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
+					type="button"
 					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target="#record-detail"
@@ -226,6 +227,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@recordActionsMenu(m, r, extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor), extras.Move, authorization.AllowsAction(m, domain.ActionCreate, r.Values, actor), extras.Copy)
 			if deletable {
 				<button
+					type="button"
 					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"

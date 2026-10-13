@@ -333,6 +333,218 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 	check("hand-written h-9 button(s)", "use `@button(...)`; a literal button is the shape the Component replaces", literals, handWrittenButtonLiterals)
 }
 
+// handWrittenRawButtons is the third population of TestHandWrittenButtonsOnlyShrink (rencana 2.3a, 2026-10-13): every
+// `<button>` in `internal/rendering/*.templ` that is neither a `buttonClasses(` caller nor a literal `h-9` button, which
+// the two maps above already count. Before it, nothing counted these, so a new one could be added without anyone
+// asking whether `@button` could draw it. **29 across 16 files**, each a floor with a reason read from the site.
+//
+// **The plan's "29 raw buttons" was this gate's blind spot, not a population of one meaning.** 2.3a was written as
+// "Button variants `text`/`icon`/`menu`". Reading all 45 buttons outside the Button renderer showed the three
+// variants do not hold:
+//   - *icon* and *menu* sites all carry what a Component must not accept (007 §12.3): `popovertarget`, `hx-*`, a
+//     hyperscript `_=`, `aria-pressed`, `aria-controls`, `onclick`. What is missing is the `actions` capability the
+//     section names, not a variant.
+//   - *text* is a **link look** (`text-xs`, the accent ink, its hover) written on 25 elements, 19 of them `<a>`; the
+//     four `<button>`s are links that act instead of navigating. A Button variant would hold 4 of the 25 and split one
+//     look across two places.
+//   - what remains is per-site: a quiet destructive text action (4 sites, three different resting inks), a bordered
+//     compact control (`px-3`, the D8 floor), pre-auth screens, two toggles, one draggable marker, one row with a
+//     title and a description inside it.
+//
+// Counting method: syntactic and quote- and brace-aware (`buttonOpenTags`), `//` and HTML comments removed. It cannot
+// see a button drawn by a Go function or a `<button>` assembled in a string.
+var handWrittenRawButtons = map[string]struct {
+	n   int
+	why string
+}{
+	"account.templ":            {2, "'Sign out of other devices' is an h-11 bordered control at the 15px touch size, which no variant has; the disabled 'Enable' is a tile"},
+	"appshell.templ":           {7, "six popover triggers and the shade (`popovertarget`: control behaviour, 007 §12.3 `actions`, unbuilt) and the Sign out menu row"},
+	"approvalinbox.templ":      {1, "'Revise →': the link look (accent text, 25 sites on 19 `<a>`, 4 `<button>`, a `<summary>`, a `<span>`), in a form"},
+	"attachments.templ":        {1, "an icon-only delete: `hx-delete`, `hx-target=\"closest li\"` and a glyph named by aria-label"},
+	"authshell.templ":          {2, "pre-auth (no Theme reaches it): the password reveal toggle (aria-controls, aria-pressed, onclick) and the primary submit at h-11 sm:h-9"},
+	"checklist.templ":          {1, "the completion circle: an `aria-pressed` toggle drawn as a glyph"},
+	"chooseworkspace.templ":    {1, "a workspace card that submits: the whole tile is the button; pre-auth, no Workspace on ctx"},
+	"detail.templ":             {1, "the Share row of the record menu: an `onclick` that copies the link and rewrites its own hint"},
+	"documentsubmit.templ":     {4, "'+ Add approver' (`hx-get`, the link look) and the step's ▲ ▼ ✕ icon buttons, each a hyperscript `_=` that moves or removes its row"},
+	"groups.templ":             {1, "'Delete this group': a quiet destructive text action, red at rest with an underline on hover"},
+	"machine.templ":            {1, "the completion circle: an `aria-pressed` toggle drawn as a glyph"},
+	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same meaning as groups' and workspacemembers', with a third resting ink"},
+	"reviewdocument.templ":     {1, "'Clear': the link look with a `sig-modal-clear` hook class a script finds"},
+	"signatureplacement.templ": {2, "the draggable signature marker (`sig-marker`, its own shape) and 'Re-centre': the link look"},
+	"workspacemembers.templ":   {1, "'Revoke': a quiet destructive text action at text-sm with `p-0`, grey at rest and red on hover"},
+	"workspacesettings.templ":  {1, "'Archive workspace': a danger row with a title and a description inside the button (a layout in a button)"},
+}
+
+// buttonOpenTags returns the text of every `<button ...>` opening tag in a templ source, in order. A `>` inside a
+// quoted attribute value (`onclick="... => ..."`) or inside a `{ ... }` templ expression (which may hold its own strings
+// and nested braces, as `if name != "" { name={ name } }` does) does not close the tag; a regexp stopping at the first
+// `>` would, and the 3.5-era `fieldTagOpen` pattern has the same limit.
+func buttonOpenTags(src string) []string {
+	var out []string
+	for i := 0; i < len(src); {
+		j := strings.Index(src[i:], "<button")
+		if j < 0 {
+			break
+		}
+		start := i + j
+		k := start + len("<button")
+		if k < len(src) && !strings.ContainsRune(" \t\r\n>", rune(src[k])) {
+			i = k // `<buttons`, `<button-group`: another tag name
+			continue
+		}
+		end := scanTagEnd(src, k)
+		out = append(out, src[start:end])
+		i = end
+	}
+	return out
+}
+
+// scanTagEnd returns the index just past the `>` that closes the tag whose attributes begin at k.
+func scanTagEnd(src string, k int) int {
+	depth := 0
+	var quote byte
+	for ; k < len(src); k++ {
+		c := src[k]
+		switch {
+		case quote != 0:
+			if c == '\\' && quote != '`' {
+				k++ // an escaped character inside a string
+			} else if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '`' || (c == '\'' && depth > 0):
+			quote = c
+		case c == '{':
+			depth++
+		case c == '}':
+			if depth > 0 {
+				depth--
+			}
+		case c == '>' && depth == 0:
+			return k + 1
+		}
+	}
+	return len(src)
+}
+
+// TestButtonOpenTags pins the scanner on the shapes a regexp stopping at the first `>` gets wrong.
+func TestButtonOpenTags(t *testing.T) {
+	for _, tc := range []struct {
+		name, src string
+		want      []string
+	}{
+		{"plain", `<button type="submit">Go</button>`, []string{`<button type="submit">`}},
+		{"arrow in an attribute", `<button type="button" onclick="a.then(() => { b() })">x</button>`, []string{`<button type="button" onclick="a.then(() => { b() })">`}},
+		{"nested braces and a comparison", `<button type="submit" if name != "" { name={ name } } class={ f(ctx, a > b) }>x</button>`, []string{`<button type="submit" if name != "" { name={ name } } class={ f(ctx, a > b) }>`}},
+		{"a brace inside a string inside braces", `<button class={ "a}", g(ctx) } type="button">x</button>`, []string{`<button class={ "a}", g(ctx) } type="button">`}},
+		{"another tag name", `<buttons><button-group></button-group><button type="button">x</button>`, []string{`<button type="button">`}},
+		{"two", `<button type="a">1</button><button type="b">2</button>`, []string{`<button type="a">`, `<button type="b">`}},
+		{"newline before the end", "<button\n\ttype=\"button\"\n>x</button>", []string{"<button\n\ttype=\"button\"\n>"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buttonOpenTags(tc.src)
+			if strings.Join(got, "\x00") != strings.Join(tc.want, "\x00") {
+				t.Errorf("buttonOpenTags(%q) = %q, want %q", tc.src, got, tc.want)
+			}
+		})
+	}
+}
+
+// isLiteralH9Button reports whether a button tag is one of handWrittenButtonLiterals' population: a literal `h-9` button
+// with a white or slate-900 fill, read the way TestHandWrittenButtonsOnlyShrink reads it.
+func isLiteralH9Button(tag string) bool {
+	for _, m := range buttonLiteralOpen.FindAllStringSubmatch(joinClassExpressions(colourReadersAsLiterals(tag)), -1) {
+		has := func(tok string) bool {
+			return regexp.MustCompile(`(?:^|\s)` + regexp.QuoteMeta(tok) + `(?:\s|$)`).MatchString(m[1])
+		}
+		if has("h-9") && (has("bg-white") || has("bg-slate-900")) {
+			return true
+		}
+	}
+	return false
+}
+
+// renderingTemplSources returns every hand-written `.templ` source under internal/rendering with comments removed.
+func renderingTemplSources(t *testing.T) map[string]string {
+	t.Helper()
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	out := map[string]string{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		out[e.Name()] = stripTemplComments(string(b))
+	}
+	return out
+}
+
+// TestHandWrittenRawButtonsOnlyShrink is the third population of the button ratchet: a `<button>` that neither calls
+// `buttonClasses(` nor is a literal h-9 button. Shrink-only both ways, a reason per file. A new one fails with the
+// question the Component exists to answer: can `@button(label, variant, name, value)` draw it? It cannot when the
+// button carries behaviour (`popovertarget`, `hx-*`, a script hook, `aria-pressed`) -- 007 §12.3 -- and then it goes in
+// handWrittenRawButtons with that reason.
+func TestHandWrittenRawButtonsOnlyShrink(t *testing.T) {
+	actual, seen := map[string]int{}, 0
+	for name, src := range renderingTemplSources(t) {
+		for _, tag := range buttonOpenTags(src) {
+			seen++
+			if strings.Contains(tag, "buttonClasses(") || isLiteralH9Button(tag) {
+				continue // counted by TestHandWrittenButtonsOnlyShrink
+			}
+			actual[name]++
+		}
+	}
+	if seen < 40 {
+		t.Fatalf("only %d <button> tags were found in internal/rendering (45 outside the Button renderer, 49 with it, on 2026-10-13) -- the scan is measuring far less than it appears to", seen)
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenRawButtons[f].n; {
+		case actual[f] > w:
+			t.Errorf("%s: %d raw <button>(s), frozen at %d -- can `@button(label, variant, name, value)` draw it? If it carries behaviour the Component must not accept (popovertarget, hx-*, a script hook, aria-pressed, 007 §12.3), say which in handWrittenRawButtons rather than widening the contract", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d raw <button>(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenRawButtons) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenRawButtons still names %s, which no longer has one -- remove the entry", f)
+		}
+		if strings.TrimSpace(handWrittenRawButtons[f].why) == "" {
+			t.Errorf("handWrittenRawButtons names %s with no reason", f)
+		}
+	}
+}
+
+// TestEveryButtonNamesItsType is a zero-floor gate: every `<button>` in internal/rendering says `type=`. A button with
+// no type is a submit button, so inside a `<form>` it submits the form whatever its htmx attributes say. Reading
+// the 45 buttons for 2.3a found five without one (the record Edit/Delete buttons in detail.templ and machine.templ, and
+// account's disabled Enable); none was inside a form, so nothing was wrong yet, and nothing would have said so if one
+// had been moved into one.
+func TestEveryButtonNamesItsType(t *testing.T) {
+	typed := regexp.MustCompile(`\stype=`)
+	seen := 0
+	sources := renderingTemplSources(t)
+	for _, name := range sortedFileNames(sources) {
+		for _, tag := range buttonOpenTags(sources[name]) {
+			seen++
+			if !typed.MatchString(tag) {
+				t.Errorf("%s: a <button> with no type= is a submit button, so inside a <form> it submits the form -- add type=\"button\" (or \"submit\" if it should): %.90q", name, strings.Join(strings.Fields(tag), " "))
+			}
+		}
+	}
+	if seen < 40 {
+		t.Fatalf("only %d <button> tags were found -- the scan is measuring far less than it appears to", seen)
+	}
+}
+
 // handWrittenFieldFloors are the `.templ` sites that draw an `<input>`/`<select>`/`<textarea>` with a literal
 // `border-slate-300` instead of reading `border.control`. **The four that remain are all on pre-auth screens, and
 // that is the reason rather than the 15px size** (2026-10-07): `currentWorkspace` is installed only inside the
