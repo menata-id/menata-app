@@ -1339,9 +1339,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - **The 29 was a gate's blind spot.** It is 45, minus the 12 that call `buttonClasses(`, minus the 4 literal `h-9`
     buttons: exactly the population `TestHandWrittenButtonsOnlyShrink` could not see. It is not a population of one
     meaning.
-  - **`icon` and `menu` are not variants.** Every site carries what a Component must not accept (007 §12.3):
-    `popovertarget`, `hx-*`, a hyperscript `_=`, `aria-pressed`, `aria-controls`, `onclick`. What is missing is the
-    `actions` capability the section names.
+  - **`icon` and `menu` are not variants.** 14 of the 16 glyph, popover-trigger and menu-row sites carry what a
+    Component must not accept (007 §12.3): `popovertarget`, `hx-*`, a hyperscript `_=`, `aria-pressed`,
+    `aria-controls`, `onclick`. The other two are Sign out (a plain submit in a form) and Archive (a title and a
+    description inside the button), each alone in its shape. What is missing is the `actions` capability the section
+    names. The first version of this bullet said "every site"; the independent review found Sign out.
   - **`text` is a link look, not a button.** `text-xs`, the accent ink and its hover are written on 25 elements: 19 `<a>`,
     4 `<button>`, a `<summary>` and a `<span>`. A Button variant would hold 4 of the 25 and split one look across two
     places.
@@ -1354,6 +1356,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   nothing was wrong yet. All five got `type="button"`. A render-diff of 109 pages against HEAD: 77 identical, 32 differ
   only by that attribute on 81 lines (40 Edit, 40 Delete, 1 Enable), and 0 other differences once volatile ids,
   timestamps and CSRF tokens were normalised. Mutation-proved 9 ways.
+
+  **The independent review confirmed every count** with its own tokenizer (49 with the renderer, 45 without, 12, 4, 29,
+  per file) and the 25-element link look, found no behaviour risk in the five `type="button"` additions (none sits
+  in a form), and found two gate holes and two wrong sentences, all fixed:
+  - `<BUTTON` in capitals was invisible to the scanner.
+  - `<button title='it>s'>` truncated the tag at the inner `>`, so a typed button read as untyped.
+  - `title="set type=x"` satisfied the `type` gate, because it matched the text `type=` anywhere in the tag. It reads
+    attribute *names* now (`tagAttrNames`, which also reads through a templ `if … { … }` block).
+  - The `appshell.templ` reason summed to eight, and this bullet's "every site".
+
+  Fixing the single-quote hole needed a proof in both directions: with the fix removed, a typed button holding a
+  `>` in a single-quoted value is wrongly reported untyped; with it, accepted. An earlier run of that check printed
+  "ok" because its mutation had not applied (the pattern occurs in two functions), the failure mode this file warns
+  about.
 
   **Four things are the owner's, not taken** (`design-system-decisions.md`): whether the link look's size reads the
   `meta` text role; whether the four quiet-destructive text actions fold to one resting ink; whether the five bordered

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -341,24 +342,29 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 // **The plan's "29 raw buttons" was this gate's blind spot, not a population of one meaning.** 2.3a was written as
 // "Button variants `text`/`icon`/`menu`". Reading all 45 buttons outside the Button renderer showed the three
 // variants do not hold:
-//   - *icon* and *menu* sites all carry what a Component must not accept (007 §12.3): `popovertarget`, `hx-*`, a
-//     hyperscript `_=`, `aria-pressed`, `aria-controls`, `onclick`. What is missing is the `actions` capability the
-//     section names, not a variant.
+//   - *icon* and *menu*: 14 of the 16 glyph, popover-trigger and menu-row sites carry what a Component must not
+//     accept (007 §12.3): `popovertarget`, `hx-*`, a hyperscript `_=`, `aria-pressed`, `aria-controls`, `onclick`.
+//     The other two are Sign out (a plain submit in a form) and Archive (a title and a description inside the button),
+//     each alone in its shape, so neither is a system. What is missing is the `actions` capability the section names,
+//     not a variant. (The first version of this comment said "all"; the 2.3a review found Sign out.)
 //   - *text* is a **link look** (`text-xs`, the accent ink, its hover) written on 25 elements, 19 of them `<a>`; the
 //     four `<button>`s are links that act instead of navigating. A Button variant would hold 4 of the 25 and split one
 //     look across two places.
-//   - what remains is per-site: a quiet destructive text action (4 sites, three different resting inks), a bordered
+//   - what remains is per-site: a quiet destructive text action (4 sites, two resting inks and two sizes), a bordered
 //     compact control (`px-3`, the D8 floor), pre-auth screens, two toggles, one draggable marker, one row with a
 //     title and a description inside it.
 //
 // Counting method: syntactic and quote- and brace-aware (`buttonOpenTags`), `//` and HTML comments removed. It cannot
-// see a button drawn by a Go function or a `<button>` assembled in a string.
+// see a button drawn by a Go function or a `<button>` assembled in a string, and a `<button` inside a Go raw string or a
+// `<script>` string is counted as a tag (an over-count, none exists). **A reason can go stale at a constant count**: swap
+// one raw button for another in the same file and the number holds while the sentence is false. That is inherent to
+// counting; read the file's reason when you change one of its buttons.
 var handWrittenRawButtons = map[string]struct {
 	n   int
 	why string
 }{
 	"account.templ":            {2, "'Sign out of other devices' is an h-11 bordered control at the 15px touch size, which no variant has; the disabled 'Enable' is a tile"},
-	"appshell.templ":           {7, "six popover triggers and the shade (`popovertarget`: control behaviour, 007 §12.3 `actions`, unbuilt) and the Sign out menu row"},
+	"appshell.templ":           {7, "five popover triggers and the shade (`popovertarget`: control behaviour, 007 §12.3 `actions`, unbuilt), and the Sign out menu row (a plain submit in a form)"},
 	"approvalinbox.templ":      {1, "'Revise →': the link look (accent text, 25 sites on 19 `<a>`, 4 `<button>`, a `<summary>`, a `<span>`), in a form"},
 	"attachments.templ":        {1, "an icon-only delete: `hx-delete`, `hx-target=\"closest li\"` and a glyph named by aria-label"},
 	"authshell.templ":          {2, "pre-auth (no Theme reaches it): the password reveal toggle (aria-controls, aria-pressed, onclick) and the primary submit at h-11 sm:h-9"},
@@ -368,7 +374,7 @@ var handWrittenRawButtons = map[string]struct {
 	"documentsubmit.templ":     {4, "'+ Add approver' (`hx-get`, the link look) and the step's ▲ ▼ ✕ icon buttons, each a hyperscript `_=` that moves or removes its row"},
 	"groups.templ":             {1, "'Delete this group': a quiet destructive text action, red at rest with an underline on hover"},
 	"machine.templ":            {1, "the completion circle: an `aria-pressed` toggle drawn as a glyph"},
-	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same meaning as groups' and workspacemembers', with a third resting ink"},
+	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same resting ink and hover as workspacemembers' Revoke (groups' is red at rest)"},
 	"reviewdocument.templ":     {1, "'Clear': the link look with a `sig-modal-clear` hook class a script finds"},
 	"signatureplacement.templ": {2, "the draggable signature marker (`sig-marker`, its own shape) and 'Re-centre': the link look"},
 	"workspacemembers.templ":   {1, "'Revoke': a quiet destructive text action at text-sm with `p-0`, grey at rest and red on hover"},
@@ -382,22 +388,22 @@ var handWrittenRawButtons = map[string]struct {
 func buttonOpenTags(src string) []string {
 	var out []string
 	for i := 0; i < len(src); {
-		j := strings.Index(src[i:], "<button")
-		if j < 0 {
+		loc := buttonTagStart.FindStringIndex(src[i:])
+		if loc == nil {
 			break
 		}
-		start := i + j
-		k := start + len("<button")
-		if k < len(src) && !strings.ContainsRune(" \t\r\n>", rune(src[k])) {
-			i = k // `<buttons`, `<button-group`: another tag name
-			continue
-		}
-		end := scanTagEnd(src, k)
+		start := i + loc[0]
+		end := scanTagEnd(src, i+loc[1]-1) // loc[1]-1 is the byte after `<button`, which the pattern consumed
 		out = append(out, src[start:end])
 		i = end
 	}
 	return out
 }
+
+// buttonTagStart matches `<button` as a whole tag name in any case (HTML names are case-insensitive, and the 2.3a
+// review passed a `<BUTTON>` through the first version): the next byte is whitespace or `>`, so `<buttons` and
+// `<button-group` are not it. The match consumes that byte.
+var buttonTagStart = regexp.MustCompile(`(?i)<button[\s>]`)
 
 // scanTagEnd returns the index just past the `>` that closes the tag whose attributes begin at k.
 func scanTagEnd(src string, k int) int {
@@ -412,7 +418,9 @@ func scanTagEnd(src string, k int) int {
 			} else if c == quote {
 				quote = 0
 			}
-		case c == '"' || c == '`' || (c == '\'' && depth > 0):
+		case c == '"' || c == '`' || c == '\'':
+			// A single quote delimits an attribute value at tag level as well (`title='a>b'`); inside a templ
+			// expression it is a rune literal. The 2.3a review passed `<button title='it>s'>` through the first version.
 			quote = c
 		case c == '{':
 			depth++
@@ -440,6 +448,9 @@ func TestButtonOpenTags(t *testing.T) {
 		{"another tag name", `<buttons><button-group></button-group><button type="button">x</button>`, []string{`<button type="button">`}},
 		{"two", `<button type="a">1</button><button type="b">2</button>`, []string{`<button type="a">`, `<button type="b">`}},
 		{"newline before the end", "<button\n\ttype=\"button\"\n>x</button>", []string{"<button\n\ttype=\"button\"\n>"}},
+		{"upper case", `<BUTTON type="button">x</BUTTON>`, []string{`<BUTTON type="button">`}},
+		{"mixed case", `<Button type="button">x</Button>`, []string{`<Button type="button">`}},
+		{"a single-quoted value holding >", `<button title='it>s' type="button">x</button>`, []string{`<button title='it>s' type="button">`}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := buttonOpenTags(tc.src)
@@ -523,19 +534,161 @@ func TestHandWrittenRawButtonsOnlyShrink(t *testing.T) {
 	}
 }
 
-// TestEveryButtonNamesItsType is a zero-floor gate: every `<button>` in internal/rendering says `type=`. A button with
-// no type is a submit button, so inside a `<form>` it submits the form whatever its htmx attributes say. Reading
-// the 45 buttons for 2.3a found five without one (the record Edit/Delete buttons in detail.templ and machine.templ, and
-// account's disabled Enable); none was inside a form, so nothing was wrong yet, and nothing would have said so if one
-// had been moved into one.
+// tagAttrNames returns the attribute names of an opening tag, lower-cased: the words in name position, never the text
+// of a value. A value is skipped whole -- a quoted string, a `{ ... }` templ expression (balanced, strings inside it
+// respected) or a bare word -- and a templ conditional (`if cond { name={ n } }`, `else { ... }`) is read through, so
+// an attribute set only in one branch still counts. The first version of the `type` gate matched `\stype=` anywhere in the
+// tag, and the 2.3a review passed `<button title="set type=x">` and a `type=` inside an `onclick` string.
+func tagAttrNames(tag string) []string {
+	i := strings.IndexAny(tag, " \t\r\n>") // past the tag name
+	if i < 0 {
+		return nil
+	}
+	names, _ := parseAttrs(tag, i, '>')
+	return names
+}
+
+// parseAttrs reads attributes from s[i:] up to the unquoted byte closer, returning the names and the index after it.
+func parseAttrs(s string, i int, closer byte) ([]string, int) {
+	var names []string
+	skipValue := func() { // s[i] is the first byte of a value
+		switch c := s[i]; {
+		case c == '"' || c == '\'' || c == '`':
+			for i++; i < len(s) && s[i] != c; i++ {
+				if s[i] == '\\' && c != '`' {
+					i++
+				}
+			}
+			i++
+		case c == '{':
+			i = skipBraces(s, i)
+		default: // a bare word
+			for i < len(s) && !strings.ContainsRune(" \t\r\n>", rune(s[i])) {
+				i++
+			}
+		}
+	}
+	for i < len(s) {
+		for i < len(s) && strings.ContainsRune(" \t\r\n/", rune(s[i])) {
+			i++
+		}
+		if i >= len(s) {
+			break
+		}
+		if s[i] == closer {
+			return names, i + 1
+		}
+		if s[i] == '{' { // a spread: `{ attrs... }`
+			i = skipBraces(s, i)
+			continue
+		}
+		start := i
+		for i < len(s) && !strings.ContainsRune(" \t\r\n=>{}/", rune(s[i])) {
+			i++
+		}
+		name := strings.ToLower(s[start:i])
+		if name == "if" || name == "else" {
+			// A conditional: skip the condition up to the `{` that opens the block, then read the block's attributes.
+			for i < len(s) && s[i] != '{' && s[i] != '>' {
+				if s[i] == '"' || s[i] == '`' {
+					skipQuoted := s[i]
+					for i++; i < len(s) && s[i] != skipQuoted; i++ {
+					}
+				}
+				i++
+			}
+			if i < len(s) && s[i] == '{' {
+				var inner []string
+				inner, i = parseAttrs(s, i+1, '}')
+				names = append(names, inner...)
+			}
+			continue
+		}
+		if name != "" {
+			names = append(names, name)
+		}
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+		if i < len(s) && s[i] == '=' {
+			i++
+			for i < len(s) && strings.ContainsRune(" \t\r\n", rune(s[i])) {
+				i++
+			}
+			if i < len(s) {
+				skipValue()
+			}
+		}
+		if name == "" && i < len(s) && s[i] != closer && !strings.ContainsRune(" \t\r\n=", rune(s[i])) {
+			i++ // never stall on a byte that is neither a name nor a value
+		}
+	}
+	return names, i
+}
+
+// skipBraces returns the index after the `}` matching the `{` at s[i], reading strings inside the braces whole.
+func skipBraces(s string, i int) int {
+	depth := 0
+	for ; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"' || c == '`' || c == '\'':
+			for i++; i < len(s) && s[i] != c; i++ {
+				if s[i] == '\\' && c != '`' {
+					i++
+				}
+			}
+		case c == '{':
+			depth++
+		case c == '}':
+			depth--
+			if depth == 0 {
+				return i + 1
+			}
+		}
+	}
+	return len(s)
+}
+
+// TestTagAttrNames pins the attribute reader on what a substring match gets wrong.
+func TestTagAttrNames(t *testing.T) {
+	for _, tc := range []struct {
+		name, tag string
+		want      string // space-joined
+	}{
+		{"plain", `<button type="submit" class="a">`, "type class"},
+		{"type only inside a title", `<button title="set type=x" class="a">`, "title class"},
+		{"type only inside onclick", `<button class="a" onclick="this.type=1; f({type:2})">`, "class onclick"},
+		{"type only inside an hx-vals expression", `<button class="a" hx-vals={ "{\"type\": 1}" }>`, "class hx-vals"},
+		{"bare attribute", `<button disabled type="button" class={ f(ctx) }>`, "disabled type class"},
+		{"newline separated", "<button\n\ttype=\"button\"\n\tclass={ a }\n>", "type class"},
+		{"conditional attributes", `<button type="submit" if name != "" { name={ name } value={ value } } class={ b }>`, "type name value class"},
+		{"conditional type in both branches", `<button if x { type="button" } else { type="submit" } class="c">`, "type type class"},
+		{"hyperscript attribute", `<button type="button" _="on click remove closest <.row/>">`, "type _"},
+		{"data-type is not type", `<button data-type="x" class="a">`, "data-type class"},
+		{"upper-case names", `<button TYPE="button" CLASS="a">`, "type class"},
+		{"apostrophe in a value", `<button title="it's" type="button">`, "title type"},
+		{"single quoted value", `<button title='a>b' type="button">`, "title type"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := strings.Join(tagAttrNames(tc.tag), " "); got != tc.want {
+				t.Errorf("tagAttrNames(%q) = %q, want %q", tc.tag, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestEveryButtonNamesItsType is a zero-floor gate: every `<button>` in internal/rendering has a `type` attribute. A
+// button with no type is a submit button, so inside a `<form>` it submits the form whatever its htmx attributes say.
+// Reading the 45 buttons for 2.3a found five without one (the record Edit/Delete buttons in detail.templ and
+// machine.templ, and account's disabled Enable); none was inside a form, so nothing was wrong yet, and nothing would
+// have said so if one had been moved into one. It reads attribute *names* (`tagAttrNames`), not the tag's text.
 func TestEveryButtonNamesItsType(t *testing.T) {
-	typed := regexp.MustCompile(`\stype=`)
 	seen := 0
 	sources := renderingTemplSources(t)
 	for _, name := range sortedFileNames(sources) {
 		for _, tag := range buttonOpenTags(sources[name]) {
 			seen++
-			if !typed.MatchString(tag) {
+			if !slices.Contains(tagAttrNames(tag), "type") {
 				t.Errorf("%s: a <button> with no type= is a submit button, so inside a <form> it submits the form -- add type=\"button\" (or \"submit\" if it should): %.90q", name, strings.Join(strings.Fields(tag), " "))
 			}
 		}
