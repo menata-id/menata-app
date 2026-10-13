@@ -205,21 +205,24 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 		// (sunken): base is also the hover wash (DS-D11), so base == raised draws no hover and no edge between page and
 		// panel, and base == sunken makes a hovered row look selected (2026-10-12 review of DS-D11).
 		// A colour value is measured rather than compared by name: two values that differ by a digit are the same
-		// surface to the eye (domain.SurfaceSeparationMin).
+		// surface to the eye (domain.SurfaceSeparationMin). Raised and sunken are kept apart as well: a lane or a
+		// selected row that equals its card disappears into it.
 		th := domain.Theme{Background: t.Background}
-		base := th.BackgroundFor(domain.BackgroundBase)
-		for _, other := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundSunken} {
-			o := th.BackgroundFor(other)
-			if base == o {
-				issues = append(issues, fmt.Sprintf("theme.background: base and %s are both %q -- base is the page behind surfaces and the hover wash, so it must differ from %s", other, o, other))
-			} else if r := domain.ContrastRatio(domain.BackgroundShadeColour(base), domain.BackgroundShadeColour(o)); r < domain.SurfaceSeparationMin {
-				issues = append(issues, fmt.Sprintf("theme.background: base (%s) and %s (%s) are %.3f:1 apart -- base is the page behind surfaces and the hover wash, so it must differ visibly from %s (at least %.2f:1)", base, other, o, r, other, domain.SurfaceSeparationMin))
+		for _, pair := range [][2]domain.BackgroundRole{{domain.BackgroundBase, domain.BackgroundRaised}, {domain.BackgroundBase, domain.BackgroundSunken}, {domain.BackgroundSunken, domain.BackgroundRaised}} {
+			a, b := th.BackgroundFor(pair[0]), th.BackgroundFor(pair[1])
+			if a == b {
+				issues = append(issues, fmt.Sprintf("theme.background: %s and %s are both %q -- base is the page behind surfaces and the hover wash, and sunken is a lane or a selected row, so each must differ from the surface it sits beside", pair[0], pair[1], a))
+			} else if r := domain.ContrastRatio(domain.BackgroundShadeColour(a), domain.BackgroundShadeColour(b)); r < domain.SurfaceSeparationMin {
+				issues = append(issues, fmt.Sprintf("theme.background: %s (%s) and %s (%s) are %.3f:1 apart -- they must differ visibly (at least %.2f:1): base is the hover wash, and sunken is a lane or a selected row", pair[0], a, pair[1], b, r, domain.SurfaceSeparationMin))
 			}
 		}
-		// mark-good, a finished mark, is drawn on raised and on a sunken progress track (WCAG 1.4.11, 3:1).
-		for _, on := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundSunken} {
-			if r := domain.ContrastRatio(domain.MarkGoodColour, domain.BackgroundShadeColour(th.BackgroundFor(on))); r < domain.GraphicContrastMin {
-				issues = append(issues, fmt.Sprintf("theme.background.%s: the finished mark (mark-good) is %.2f:1 on it, below the %.0f:1 a meaningful graphic needs -- choose a lighter surface", on, r, domain.GraphicContrastMin))
+		// A value may tint a surface, never darken it past the darkest closed shade (domain.SurfaceLuminanceFloor):
+		// that is what keeps every colour the loader does not measure -- hand-written literals, tone inks, white
+		// fields, mark-good -- as readable as it already is on that shade.
+		for _, role := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase, domain.BackgroundSunken} {
+			v := th.BackgroundFor(role)
+			if c, ok := domain.ParseColourValue(string(v)); ok && c.Luminance() < domain.SurfaceLuminanceFloor()-1e-9 {
+				issues = append(issues, fmt.Sprintf("theme.background.%s: %s is darker than the darkest surface shade (light) -- a surface value may tint, not darken: colours the runtime draws on surfaces without a role (a field's white box, a tone's ink, hand-written text) are only guaranteed readable down to that shade. Dark surfaces belong to a dark mode", role, v))
 			}
 		}
 	}

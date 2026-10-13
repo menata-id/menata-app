@@ -323,15 +323,37 @@ func TestTextOnSunkenMeetsContrast(t *testing.T) {
 	}
 }
 
-// TestMarkGoodColourMatchesTheCompiledCSS holds domain.MarkGoodColour -- what the loader measures a Workspace's
-// surface against (rencana 3.2c) -- to the colour markGoodFill really compiles to.
-func TestMarkGoodColourMatchesTheCompiledCSS(t *testing.T) {
-	got, err := compiledColours(t).lookup(markGoodFill(), oklchColour{L: 1})
-	if err != nil {
-		t.Fatal(err)
+// TestSurfaceFloorKeepsFixedColoursReadable holds the reason the loader may stop measuring what it does not know
+// about: a surface value may be no darker than the `light` shade (domain.SurfaceLuminanceFloor), and contrast is
+// luminance alone, so a fixed colour that passes on `light` passes on every accepted value. This checks the ones that
+// matter on the floor shade itself: mark-good (3:1), and the fixed inks drawn on surfaces without a role -- the page's
+// own text, a field's text, and each tone's ink alone (4.5:1). A change that darkens `light`, or a fixed colour that
+// fails on it, fails here rather than in a Workspace.
+func TestSurfaceFloorKeepsFixedColoursReadable(t *testing.T) {
+	css := compiledColours(t)
+	white := oklchColour{L: 1}
+	floor, ok := css[strings.TrimPrefix(backgroundShadeVar(domain.BackgroundShadeLight), "--color-")]
+	if !ok {
+		t.Fatal("the light shade has no compiled colour")
 	}
-	want := domain.MarkGoodColour
-	if math.Abs(got.L-want.L) > 1e-9 || math.Abs(got.C-want.C) > 1e-9 || math.Abs(got.H-want.H) > 1e-9 {
-		t.Errorf("domain.MarkGoodColour %+v, %s compiles to %+v -- move domain.MarkGoodColour", want, markGoodFill(), got)
+	if d := math.Abs(luminance(floor) - domain.SurfaceLuminanceFloor()); d > 1e-6 {
+		t.Errorf("domain.SurfaceLuminanceFloor differs from the compiled light shade by %g", d)
+	}
+	check := func(name, class string, min float64) {
+		c, err := css.lookup(class, white)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if r := contrastRatio(c, floor); r < min {
+			t.Errorf("%s (%s) is %.2f:1 on the light shade, below %.1f:1 -- a surface value at the floor would make it unreadable", name, class, r, min)
+		}
+	}
+	check("mark-good", markGoodFill(), 3)
+	check("the page's own text", "text-slate-900", 4.5)
+	for tone := range domain.KnownBadgeTones {
+		if tone == domain.ToneMuted || tone == domain.ToneNeutral {
+			continue // drawn on their own fill (badges), not alone; muted is low by design
+		}
+		check("tone "+string(tone)+" ink alone", "text-"+strings.TrimPrefix(toneInkVar(domain.DefaultTheme().ToneFor(tone)), "--color-"), 4.5)
 	}
 }

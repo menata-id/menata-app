@@ -120,12 +120,13 @@ func InkSurfaces(role InkRole) []BackgroundRole {
 	}
 }
 
-// MarkGoodColour is the Design System's `mark-good` (a finished mark, emerald-600), which WCAG 1.4.11 holds to 3:1 on
-// the surfaces it is drawn on (raised and sunken). Held to app.css by rendering.TestMarkGoodColourMatchesTheCompiledCSS.
-var MarkGoodColour = Colour{L: 0.596, C: 0.145, H: 163.225}
-
-// GraphicContrastMin is WCAG 1.4.11's floor for a meaningful graphic.
-const GraphicContrastMin = 3.0
+// SurfaceLuminanceFloor is how dark a surface colour value may be: no darker than the darkest closed shade a surface
+// role may already take (`light`, slate-100). WCAG contrast depends on luminance alone, so every fixed colour drawn on
+// a surface -- a hand-written `text-slate-900`, a tone's ink alone, a field's `bg-white` box, mark-good -- reads at
+// least as well on any accepted value as it does on that shade, which the gates measure. A value may tint a surface; it
+// may not darken one. Dark surfaces are dark mode's job (rencana 3.3), with their own inks. The 2026-10-13 review of
+// 3.2c loaded a navy theme with white inks, and every field's typed text became white on white.
+func SurfaceLuminanceFloor() float64 { return BackgroundShadeColour(BackgroundShadeLight).Luminance() }
 
 // SurfaceSeparationMin is how far apart `base` must stay from `raised` and `sunken` (as a contrast ratio): base is the
 // page behind every surface and the hover wash (DS-D11), so too close and a hover draws nothing or looks selected. The

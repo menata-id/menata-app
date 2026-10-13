@@ -1094,9 +1094,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   came first (3.2a). Since 3.2b **every colour role** draws through one: border (`border-border-surface`), surface
   (`bg-bg-raised`), `hover-wash` (an alias of `bg-base` in `@theme`, so moving the page moves the hover), and each
   tone's fill, ink and edge (`bg-tone-good-bg`, `text-tone-good-ink`, `border-tone-good-border`). Only ink takes a
-  colour value so far; the others still choose a shade or palette. Since 3.2c `background` takes one too: every ink is
-  measured on it, mark-good must keep 3:1 on raised and sunken, and base must sit at least 1.02:1 from raised and
-  sunken (it is the hover wash). Border and tone stay closed, because a decorative edge has no honest floor (the
+  colour value so far; the others still choose a shade or palette. Since 3.2c `background` takes one too. A value may
+  **tint, not darken**: no darker than the `light` shade (`domain.SurfaceLuminanceFloor`). Contrast is luminance
+  alone, so every colour the loader does not measure stays as readable as on that shade: hand-written literals, tone
+  inks, `bg-white` fields and mark-good. `TestSurfaceFloorKeepsFixedColoursReadable` checks that on the floor shade.
+  The 3.2c review loaded a navy theme with white inks, and every field's text was white on white. Inks are still
+  measured, and all three surfaces must sit at least 1.02:1 apart: base is the hover wash, sunken a lane or a
+  selected row. Border and tone stay closed, because a decorative edge has no honest floor (the
   default surface edge is about 1.2:1) and a tone is a triple. Verified in Chromium: the hover wash follows a value
   base through its alias. Radius and space follow:
   - `inkClass` answers one class per role (`text-ink-body`, `text-accent`), the same under every theme. The

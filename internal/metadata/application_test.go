@@ -1689,27 +1689,40 @@ func TestResolveTheme_inkColourValue(t *testing.T) {
 	}
 }
 
-// TestResolveTheme_backgroundColourValue is rencana 3.2c (DS-D15 stage 2): a surface role may take a colour value, and
-// the loader measures what is drawn on it -- every ink on its surfaces, mark-good on raised and sunken -- and keeps base
-// visibly apart from the surfaces it washes behind. Each refusal below breaks exactly one of those; the ratios are
+// TestResolveTheme_backgroundColourValue is rencana 3.2c (DS-D15 stage 2): a surface role may take a colour value. The
+// loader refuses one darker than the darkest closed shade (contrast is luminance alone, so every unmeasured colour stays
+// as readable as on that shade), measures every ink on its surfaces, and keeps the three surfaces visibly apart. Each refusal below breaks exactly one of those; the ratios are
 // measured (domain.ContrastRatio), not guessed.
 func TestResolveTheme_backgroundColourValue(t *testing.T) {
-	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "#FEFCF8", "sunken": "#f6f1e7"}})
+	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "#FEFCF8", "sunken": "#f8f5ef"}})
 	if len(issues) != 0 {
-		t.Fatalf("a warm base (secondary 4.65:1) and sunken (accent 4.67:1, mark-good 3.26:1) should load: %v", issues)
+		t.Fatalf("a warm base (secondary 4.65:1) and sunken (accent 4.83:1, just above the light floor) should load: %v", issues)
 	}
-	if th.BackgroundFor(domain.BackgroundBase) != "#fefcf8" || th.BackgroundFor(domain.BackgroundSunken) != "#f6f1e7" {
+	if th.BackgroundFor(domain.BackgroundBase) != "#fefcf8" || th.BackgroundFor(domain.BackgroundSunken) != "#f8f5ef" {
 		t.Errorf("values must load lowercased and resolve: %+v", th.Background)
+	}
+	// The review's full navy theme, light inks included, must not load.
+	if _, issues := resolveTheme(&themeDoc{
+		Ink:        map[string]string{"strong": "#ffffff", "body": "#f1f5f9", "secondary": "#cbd5e1", "accent": "#93c5fd"},
+		Background: map[string]string{"raised": "#0f172a", "base": "#020617", "sunken": "#1e293b"},
+	}); len(issues) == 0 {
+		t.Error("a dark theme with light inks loaded; white field text on white boxes is what it draws")
 	}
 	for _, tc := range []struct {
 		doc  map[string]string
 		want string
 	}{
 		{map[string]string{"base": "#f6f1e7", "sunken": "#ece4d4"}, "theme.ink.secondary: medium is 4.23:1 on the base background (#f6f1e7)"},
-		{map[string]string{"sunken": "#ece4d4"}, "theme.ink.accent: blue is 4.16:1 on the sunken background (#ece4d4)"},
-		{map[string]string{"sunken": "#ece4d4"}, "theme.background.sunken: the finished mark (mark-good) is 2.90:1"},
+		{map[string]string{"sunken": "#f7f3ec"}, "theme.background.sunken: #f7f3ec is darker than the darkest surface shade"},
+		{map[string]string{"sunken": "#ece4d4"}, "theme.background.sunken: #ece4d4 is darker than the darkest surface shade"},
+		// The review's navy theme: inks set light enough to pass on it, and every unmeasured colour unreadable.
+		{map[string]string{"raised": "#0f172a", "base": "#020617", "sunken": "#1e293b"}, "theme.background.raised: #0f172a is darker than the darkest surface shade"},
+		{map[string]string{"sunken": "#FFFFFF"}, "sunken (#ffffff) and raised (lightest) are 1.000:1 apart"},
+		{map[string]string{"sunken": "#fefefe"}, "sunken (#fefefe) and raised (lightest) are 1.009:1 apart"},
 		{map[string]string{"raised": "#f8fafc", "base": "#f9fbfd"}, "base (#f9fbfd) and raised (#f8fafc) are 1.009:1 apart"},
-		{map[string]string{"raised": "#334155"}, "theme.ink.strong: darkest is 1.72:1 on the raised background (#334155)"},
+		{map[string]string{"raised": "#334155"}, "theme.background.raised: #334155 is darker than the darkest surface shade"},
+		// Above the floor and still refused: the floor keeps unmeasured colours safe, the ink check still binds the roles.
+		{map[string]string{"base": "#f8f5ef"}, "theme.ink.secondary: medium is"},
 		{map[string]string{"base": ""}, "must be quoted"},
 		{map[string]string{"base": "#f8fafc;}*{x:y"}, "is not a surface shade or colour value"},
 	} {
