@@ -922,7 +922,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 				</form>
 			}
 			if canEdit {
-				<details class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md" }>
+				<details class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:border " + openSurfaceClasses(ctx) + " open:p-2 open:opacity-100 open:shadow-md" }>
 					<summary aria-label={ "Edit " + title } class={ "grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden" }>
 						@icon("pencil", "size-3.5")
 					</summary>

@@ -1733,6 +1733,30 @@ func TestResolveTheme_backgroundColourValue(t *testing.T) {
 	}
 }
 
+// TestResolveTheme_fillPairs holds the pairs rencana 3.2d's reader forms created, each from the 2026-10-13 review: a
+// tone's ink drawn alone and as a filled badge, the primary button's hover, and an avatar's initials.
+func TestResolveTheme_fillPairs(t *testing.T) {
+	for _, tc := range []struct {
+		doc  themeDoc
+		want string
+	}{
+		{themeDoc{Tone: map[string]string{"bad": "grey-faint"}}, "theme.tone.bad: the grey-faint palette's ink is 2.63:1 on the raised background"},
+		{themeDoc{Ink: map[string]string{"strong": "#707070"}}, "theme.ink.strong: the primary button's hover (#707070 at 90%) carries its text at 4.06:1"},
+		{themeDoc{Ink: map[string]string{"body": "#707070"}}, "theme.ink.body: an avatar's initials (body on border.surface as a fill) are 4.02:1"},
+	} {
+		_, issues := resolveTheme(&tc.doc)
+		if !strings.Contains(strings.Join(issues, "\n"), tc.want) {
+			t.Errorf("%+v: want an issue containing %q, got %v", tc.doc, tc.want, issues)
+		}
+	}
+	// muted is low by design and may take the faint palette; every other remap of the defaults loads.
+	for _, doc := range []themeDoc{{Tone: map[string]string{"muted": "grey-faint", "warn": "red", "info": "grey"}}, {Border: map[string]string{"surface": "defined"}}} {
+		if _, issues := resolveTheme(&doc); len(issues) != 0 {
+			t.Errorf("%+v should load: %v", doc, issues)
+		}
+	}
+}
+
 // TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
 // Secondary ink moves with the darker base: the default (medium) would be 4.35:1 on it and is refused since DS-D15
 // stage 2 (TestResolveTheme_inkColourValue).

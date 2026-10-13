@@ -560,7 +560,7 @@ templ approverChip(a StepApprover) {
 		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusPill), "py-0.5 pr-2.5 pl-0.5 text-2xs",
 			approverChipTone(ctx, a.State) }
 	>
-		<span class="flex size-5 items-center justify-center rounded-full bg-white/70 text-3xs font-medium">
+		<span class={ "flex size-5 items-center justify-center rounded-full", raisedTintClass(ctx), "text-3xs font-medium" }>
 			if a.Initials != "" {
 				{ a.Initials }
 			} else {

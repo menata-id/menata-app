@@ -227,6 +227,7 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 		}
 	}
 	issues = append(issues, inkContrastIssues(t)...)
+	issues = append(issues, fillPairIssues(t)...)
 	if len(doc.Padding) > 0 {
 		t.Padding = map[domain.PaddingRole]domain.PaddingAmount{}
 		for role, amount := range doc.Padding {
@@ -272,6 +273,54 @@ func inkContrastIssues(t domain.Theme) []string {
 			if ratio < domain.TextContrastMin {
 				issues = append(issues, fmt.Sprintf("theme.ink.%s: %s is %.2f:1 on the %s background (%s), below the %.1f:1 text needs -- choose a darker ink or a lighter background", role, shade, ratio, bg, bgShade, domain.TextContrastMin))
 			}
+		}
+	}
+	return issues
+}
+
+// fillPairIssues measures the pairs 3.2d's reader forms put a colour role in, which inkContrastIssues does not see
+// (the 2026-10-13 review of 3.2d: `tone.bad: grey-faint` loaded and turned every count badge white on slate-400, 2.63:1):
+//   - each tone's ink (but `muted`, low by design) on raised and base: it is drawn alone as danger or warning text, and
+//     as a solid fill under raised text on a count badge -- the same pair, since contrast is symmetric;
+//   - the primary button's hover: raised text on `strong` at 90% over raised;
+//   - `body` text on `border.surface` used as a fill (an avatar's initials).
+func fillPairIssues(t domain.Theme) []string {
+	if len(t.Ink) == 0 && len(t.Background) == 0 && len(t.Tone) == 0 && len(t.Border) == 0 {
+		return nil
+	}
+	var issues []string
+	raised := domain.BackgroundShadeColour(t.BackgroundFor(domain.BackgroundRaised))
+	base := domain.BackgroundShadeColour(t.BackgroundFor(domain.BackgroundBase))
+	tones := make([]string, 0, len(domain.KnownBadgeTones))
+	for tone := range domain.KnownBadgeTones {
+		tones = append(tones, string(tone))
+	}
+	slices.Sort(tones)
+	for _, tone := range tones {
+		if domain.BadgeTone(tone) == domain.ToneMuted {
+			continue
+		}
+		p := t.ToneFor(domain.BadgeTone(tone))
+		ink := domain.TonePaletteInkColour(p)
+		for _, bg := range []struct {
+			name string
+			c    domain.Colour
+		}{{"raised", raised}, {"base", base}} {
+			if r := domain.ContrastRatio(ink, bg.c); r < domain.TextContrastMin {
+				issues = append(issues, fmt.Sprintf("theme.tone.%s: the %s palette's ink is %.2f:1 on the %s background, below %.1f:1 -- it is drawn alone as text and as a filled badge under %s text; choose a darker palette", tone, p, r, bg.name, domain.TextContrastMin, "raised"))
+			}
+		}
+	}
+	if strong, ok := domain.InkColour(t.InkFor(domain.InkStrong)); ok {
+		hover := strong.Over(raised, domain.PrimaryHoverAlpha)
+		if r := domain.ContrastRatio(raised, hover); r < domain.TextContrastMin {
+			issues = append(issues, fmt.Sprintf("theme.ink.strong: the primary button's hover (%s at %.0f%%) carries its text at %.2f:1, below %.1f:1 -- the button is strong as a fill with the raised colour as text; choose a darker strong ink", t.InkFor(domain.InkStrong), domain.PrimaryHoverAlpha*100, r, domain.TextContrastMin))
+		}
+	}
+	if body, ok := domain.InkColour(t.InkFor(domain.InkBody)); ok {
+		fill := domain.BorderShadeColour(t.BorderFor(domain.BorderSurface))
+		if r := domain.ContrastRatio(body, fill); r < domain.TextContrastMin {
+			issues = append(issues, fmt.Sprintf("theme.ink.body: an avatar's initials (body on border.surface as a fill) are %.2f:1, below %.1f:1 -- choose a darker body ink or a softer surface border", r, domain.TextContrastMin))
 		}
 	}
 	return issues

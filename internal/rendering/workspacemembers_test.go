@@ -49,10 +49,11 @@ func TestHomeDraftApplicationRows_listFormIsARowNotACard(t *testing.T) {
 	rows := []HomeDraftApplicationRow{{Name: "Leave", ReviewHref: "/new-application/s1/review"}}
 	render := func(inList bool) string {
 		var buf bytes.Buffer
-		if err := HomeDraftApplicationRows(rows, inList).Render(WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Acme", false), &buf); err != nil {
+		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Acme", false)
+		if err := HomeDraftApplicationRows(rows, inList).Render(ctx, &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 	if got := render(true); strings.Contains(got, "border-dashed border-indigo-200 bg-white px-4") || !strings.Contains(got, "border-t") {
 		t.Errorf("list form should be a divided row, got %s", got)

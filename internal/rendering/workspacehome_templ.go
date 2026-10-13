@@ -1433,7 +1433,7 @@ func HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) templ
 					return templ_7745c5c3_Err
 				}
 			} else {
-				var templ_7745c5c3_Var100 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5"}
+				var templ_7745c5c3_Var100 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var100...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

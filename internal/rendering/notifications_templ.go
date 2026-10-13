@@ -251,7 +251,7 @@ func notificationRow(n NotificationRow) templ.Component {
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var16 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised) + " p-3.5" + " " + accentEdgeHoverClass(ctx), templ.KV(accentEdgeClass(ctx)+" "+"bg-blue-50/40", n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread)}
+		var templ_7745c5c3_Var16 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised) + " p-3.5" + " " + accentEdgeHoverClass(ctx), templ.KV(accentEdgeClass(ctx)+" "+unreadTintClass(ctx), n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

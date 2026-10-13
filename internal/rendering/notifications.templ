@@ -45,7 +45,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 templ notificationRow(n NotificationRow) {
 	<a
 		href={ templ.URL(n.Link) }
-		class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised) + " p-3.5" + " " + accentEdgeHoverClass(ctx), templ.KV(accentEdgeClass(ctx) + " " + "bg-blue-50/40", n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread) }
+		class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised) + " p-3.5" + " " + accentEdgeHoverClass(ctx), templ.KV(accentEdgeClass(ctx) + " " + unreadTintClass(ctx), n.Unread), templ.KV(borderClass(ctx, domain.BorderSurface), !n.Unread) }
 	>
 		if n.Unread {
 			<span class={ "size-2 shrink-0 rounded-full", inkFillClass(ctx, domain.InkAccent) } aria-hidden="true"></span>

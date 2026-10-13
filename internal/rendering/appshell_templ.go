@@ -903,7 +903,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			}
 		}
 		if len(overflow) > 0 {
-			var templ_7745c5c3_Var43 = []any{"ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium "+accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+""+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow))}
+			var templ_7745c5c3_Var43 = []any{"ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium "+accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow))}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var43...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1237,7 +1237,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+""+" "+toneInkFillClass(ctx, domain.ToneBad)+" "+"px-1 text-3xs "+onFillClass(ctx)+" empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneInkFillClass(ctx, domain.ToneBad)+" "+"px-1 text-3xs "+onFillClass(ctx)+" empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2659,7 +2659,7 @@ func sheetPanel(id string, aboveBar bool, desktop string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var161 = []any{"absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(desktop)}
+		var templ_7745c5c3_Var161 = []any{"absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(ctx, desktop)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var161...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -2734,11 +2734,11 @@ func sheetContainerClasses(desktop string) string {
 
 // sheetPanelClasses turns the sheet's own white panel back into an ordinary dropdown body at `sm`:
 // no longer pinned to the bottom of its container, squared-off shadow, its own border.
-func sheetPanelClasses(desktop string) string {
+func sheetPanelClasses(ctx context.Context, desktop string) string {
 	if desktop == "" {
 		return ""
 	}
-	return "sm:static sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border sm:border-slate-200 sm:pb-2 sm:shadow-lg"
+	return "sm:static sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border " + surfaceFromSm(ctx) + " sm:pb-2 sm:shadow-lg"
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from

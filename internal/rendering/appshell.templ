@@ -396,7 +396,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<button
 				type="button"
 				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " " + ""+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
+				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
 			>
 				More
 				@icon("chevron-down", "size-3.5")
@@ -471,7 +471,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 			>
 				<span class="relative flex">
 					@icon(item.Icon, "size-5.5")
-					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+"" + " " + toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
+					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" " + toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
 				</span>
 				{ item.Label }
 			</a>
@@ -716,7 +716,7 @@ templ sheetPanel(id string, aboveBar bool, desktop string) {
 			aria-label="Close"
 			class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0 sm:hidden"
 		></button>
-		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(desktop) }>
+		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(ctx, desktop) }>
 			<div class={ "mx-auto mb-2 h-1 w-10 rounded-full", borderFillClass(ctx, domain.BorderSurface), "sm:hidden" }></div>
 			{ children... }
 		</div>
@@ -742,11 +742,11 @@ func sheetContainerClasses(desktop string) string {
 
 // sheetPanelClasses turns the sheet's own white panel back into an ordinary dropdown body at `sm`:
 // no longer pinned to the bottom of its container, squared-off shadow, its own border.
-func sheetPanelClasses(desktop string) string {
+func sheetPanelClasses(ctx context.Context, desktop string) string {
 	if desktop == "" {
 		return ""
 	}
-	return "sm:static sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border sm:border-slate-200 sm:pb-2 sm:shadow-lg"
+	return "sm:static sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border " + surfaceFromSm(ctx) + " sm:pb-2 sm:shadow-lg"
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from

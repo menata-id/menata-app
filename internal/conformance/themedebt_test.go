@@ -82,7 +82,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"signatureplacement.templ": {size: 14, ink: 0, weight: 3, fill: 0},
 	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
 	"workspacefiles.templ":     {size: 8, ink: 0, weight: 0, fill: 0},
-	"workspacehome.templ":      {size: 21, ink: 0, weight: 4, fill: 3},
+	"workspacehome.templ":      {size: 21, ink: 0, weight: 4, fill: 2},
 	"workspacemembers.templ":   {size: 29, ink: 0, weight: 4, fill: 0},
 	"workspacesettings.templ":  {size: 7, ink: 0, weight: 3, fill: 0},
 }

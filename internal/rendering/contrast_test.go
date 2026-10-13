@@ -357,3 +357,24 @@ func TestSurfaceFloorKeepsFixedColoursReadable(t *testing.T) {
 		check("tone "+string(tone)+" ink alone", "text-"+strings.TrimPrefix(toneInkVar(domain.DefaultTheme().ToneFor(tone)), "--color-"), 4.5)
 	}
 }
+
+// TestToneInkAndBorderColoursMatchTheCompiledCSS holds domain.TonePaletteInkColour and domain.BorderShadeColour --
+// what the loader measures 3.2d's fill pairs with -- to the steps toneInkVar and borderShadeVar name in app.css.
+func TestToneInkAndBorderColoursMatchTheCompiledCSS(t *testing.T) {
+	css := compiledColours(t)
+	near := func(a oklchColour, b domain.Colour) bool {
+		return math.Abs(a.L-b.L) < 1e-9 && math.Abs(a.C-b.C) < 1e-9 && math.Abs(a.H-b.H) < 1e-9
+	}
+	for p := range domain.KnownTonePalettes {
+		name := strings.TrimPrefix(toneInkVar(p), "--color-")
+		if !near(css[name], domain.TonePaletteInkColour(p)) {
+			t.Errorf("palette %q: domain %+v, %s compiles to %+v", p, domain.TonePaletteInkColour(p), name, css[name])
+		}
+	}
+	for b := range domain.KnownBorderShades {
+		name := strings.TrimPrefix(borderShadeVar(b), "--color-")
+		if !near(css[name], domain.BorderShadeColour(b)) {
+			t.Errorf("border %q: domain %+v, %s compiles to %+v", b, domain.BorderShadeColour(b), name, css[name])
+		}
+	}
+}

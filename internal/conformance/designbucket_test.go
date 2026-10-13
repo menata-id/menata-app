@@ -81,13 +81,11 @@ var unnamedDesignValues = map[string]struct {
 	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
 	"bg-brand":        {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
-	"bg-blue-600":     {4, "the accent as a fill (current step, numbered approver, signature marker, unread dot): D3 held background.accent"},
+	"bg-blue-600":     {4, "signature markers and their legend on the PDF paper layer (CP5); the current step, numbered approver and unread dot read inkFillClass(InkAccent) since CP2"},
 	"bg-slate-400":    {3, "a waiting signature chip's dot, and the read-only marker's"},
-	"bg-blue-50/40":   {1, "an unread notification's translucent wash: opacity has no role"},
 	"bg-blue-50/80":   {1, "the editable signature marker's translucent fill"},
 	"bg-slate-50/80":  {1, "the read-only signature marker's translucent fill"},
 	"bg-slate-900/40": {1, "DS `scrim` (GS1 dsUnmapped): the mobile sheet's backdrop"},
-	"bg-white/70":     {1, "the inbox count chip over a coloured tab"},
 	// edge
 	"border-indigo-200": {3, "the review tile's dashed indigo rim; see text-indigo-600"},
 	"border-slate-400":  {2, "a waiting signature marker's rim, and a waiting chip's"},

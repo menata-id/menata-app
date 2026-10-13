@@ -268,7 +268,11 @@ var (
 // palette class it draws under the default Theme. Rencana 3.2d moved 143 more colour literals to readers, and four
 // shape gates (chips, h-9 buttons, fields, panel titles) lost floors that were still hand-written in every other
 // respect: L13 a fourth time. Only shape gates apply it; a value gate counts the reader as the migration it is.
-// `TestColourRewriteMatchesTheDefaultTheme` holds the table to the defaults derived from the code.
+// `TestColourRewriteMatchesTheDefaultTheme` holds every entry to the reader's own return, resolved through input.css.
+// The hover, variant and translucent forms (inkHoverClass, toneInkHoverClass, inkFillHoverClass, accent*,
+// inkClassFromSm, surfaceFromSm, openSurfaceClasses, raisedTintClass, unreadTintClass, baseTintClass,
+// controlAccentClass, checkedFillClass, sunkenHoverClass, toneInkFillClass) are deliberately not rewritten: no shape
+// gate recognises a shape by a hover or a tint, so they stay opaque calls there.
 func colourReadersAsLiterals(src string) string {
 	src = inkReadersAsLiterals(borderReadersAsLiterals(src))
 	return colourReaderCall.ReplaceAllStringFunc(src, func(m string) string {

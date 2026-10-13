@@ -301,7 +301,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				</span>
 			</a>
 		} else {
-		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5" }>
+		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5" }>
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 				@icon("sparkle", "size-5")
 			</span>

@@ -74,3 +74,17 @@ func TestInkShadeFitsAColourValueOnEveryRoleButFaint(t *testing.T) {
 		t.Error("an uppercase value must not fit: the loader lowercases it, so one that reaches InkFor unnormalised is a Theme built without the loader")
 	}
 }
+
+// Over composites in gamma-encoded sRGB, as a browser does for `bg-x/90`: black at 90% over white is #1a1a1a.
+func TestOverCompositesInSRGB(t *testing.T) {
+	black, _ := ParseColourValue("#000000")
+	white, _ := ParseColourValue("#ffffff")
+	want, _ := ParseColourValue("#1a1a1a")
+	// Within one sRGB code (#191919 or #1a1a1a): white round-trips through OKLCH as 0.99999, and 25.5 rounds down.
+	if got := black.Over(white, 0.9); ContrastRatio(got, want) > 1.02 {
+		t.Errorf("black at 90%% over white = %+v, want #1a1a1a", got)
+	}
+	if got := white.Over(white, 0.5); ContrastRatio(got, white) > 1.0001 {
+		t.Errorf("white over white must stay white, got %+v", got)
+	}
+}

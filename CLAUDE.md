@@ -1180,6 +1180,21 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     forms: `toneInkHoverClass`, `toneInkFillClass`, `inkFillHoverClass`, `accentEdgeClass`/`accentEdgeHoverClass`,
     `accentRingClass`, `inkClassFromSm`. The board's drag-and-drop slot is mark-good in a script now
     (`markGoodScriptUses`), and `markGoodExempt` is empty.
+- `TestHandWrittenColoursHaveAReason`: **the closing gate of 3.2d.** Every palette colour still written anywhere in
+  `internal/rendering` is counted per file, and each count carries a reason (`handWrittenColours`). That covers a class
+  attribute, a templ expression, a Go string and a script string. What remains is the focus ring and scrim (CP4), the
+  PDF paper layer, the categorical palettes (CP5), the brand glyph, the htmx toast's script string, and the mark-good
+  readers. Anything else must draw through a role.
+  - It exists because the 3.2d review put `bg-red-600` back into the nav badge's Go string argument, and every other
+    gate stayed green. The design bucket reads class attributes only.
+  - It counts with a loop, because RE2 has no lookahead and `FindAll` swallowed one of two adjacent tokens.
+  - The same review found:
+    - `tone.bad: grey-faint` loaded and drew every count badge white on slate-400 (2.63:1). The loader's
+      `fillPairIssues` now measures each tone's ink (but `muted`) on raised and base, the primary hover (`strong` at
+      90% over raised, composited in sRGB by `domain.Colour.Over`), and `body` on the `border.surface` fill
+      (avatars). Their colour tables are held to `app.css`.
+    - `TestColourRewriteMatchesTheDefaultTheme` checked only 15 of its 22 entries. It now derives every entry from
+      the reader's own return.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

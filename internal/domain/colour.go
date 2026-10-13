@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -55,6 +56,34 @@ func ParseColourValue(s string) (Colour, bool) {
 		h += 360
 	}
 	return Colour{L: L, C: math.Hypot(A, B), H: h}, true
+}
+
+// srgb is the colour in gamma-encoded sRGB, each channel clamped to 0..1.
+func (c Colour) srgb() (float64, float64, float64) {
+	a := c.C * math.Cos(c.H*math.Pi/180)
+	b := c.C * math.Sin(c.H*math.Pi/180)
+	l := math.Pow(c.L+0.3963377774*a+0.2158037573*b, 3)
+	m := math.Pow(c.L-0.1055613458*a-0.0638541728*b, 3)
+	s := math.Pow(c.L-0.0894841775*a-1.2914855480*b, 3)
+	enc := func(v float64) float64 {
+		v = math.Min(1, math.Max(0, v))
+		if v <= 0.0031308 {
+			return 12.92 * v
+		}
+		return 1.055*math.Pow(v, 1/2.4) - 0.055
+	}
+	return enc(4.0767416621*l - 3.3077115913*m + 0.2309699292*s), enc(-1.2684380046*l + 2.6097574011*m - 0.3413193965*s),
+		enc(-0.0041960863*l - 0.7034186147*m + 1.7076147010*s)
+}
+
+// Over is c drawn at opacity alpha over the colour beneath, composited the way a browser composites `bg-x/90`: in
+// gamma-encoded sRGB.
+func (c Colour) Over(beneath Colour, alpha float64) Colour {
+	r1, g1, b1 := c.srgb()
+	r2, g2, b2 := beneath.srgb()
+	mix := func(x, y float64) uint64 { return uint64(math.Round((alpha*x + (1-alpha)*y) * 255)) }
+	out, _ := ParseColourValue(fmt.Sprintf("#%02x%02x%02x", mix(r1, r2), mix(g1, g2), mix(b1, b2)))
+	return out
 }
 
 // Luminance is WCAG 2.x relative luminance, from OKLCH through linear sRGB (clamped to the sRGB gamut).
@@ -133,6 +162,41 @@ func SurfaceLuminanceFloor() float64 { return BackgroundShadeColour(BackgroundSh
 // closest default pair, slate-50 against slate-100, is 1.04:1; 1.02 refuses a value that is the same colour in all
 // but name.
 const SurfaceSeparationMin = 1.02
+
+// TonePaletteInkColour is the colour of each tone palette's ink, the half that is drawn alone (danger text) and as a
+// solid fill under raised text (a count badge, CP3). Held to app.css by rendering.TestToneInkColoursMatchTheCompiledCSS.
+func TonePaletteInkColour(p TonePalette) Colour {
+	switch p {
+	case PaletteGreyFaint:
+		return Colour{L: 0.704, C: 0.04, H: 256.788}
+	case PaletteBlue:
+		return Colour{L: 0.488, C: 0.243, H: 264.376}
+	case PaletteGreen:
+		return Colour{L: 0.508, C: 0.118, H: 165.612}
+	case PaletteRed:
+		return Colour{L: 0.505, C: 0.213, H: 27.518}
+	case PaletteAmber:
+		return Colour{L: 0.473, C: 0.137, H: 46.201}
+	default:
+		return Colour{L: 0.446, C: 0.043, H: 257.281}
+	}
+}
+
+// BorderShadeColour is the colour of each closed border shade, for text drawn on an edge role used as a fill (an
+// avatar's initials on `border.surface`, CP2). Held to app.css by rendering.TestBorderShadeColoursMatchTheCompiledCSS.
+func BorderShadeColour(s BorderShade) Colour {
+	switch s {
+	case BorderFaint:
+		return Colour{L: 0.968, C: 0.007, H: 247.896}
+	case BorderDefined:
+		return Colour{L: 0.869, C: 0.022, H: 252.894}
+	default:
+		return Colour{L: 0.929, C: 0.013, H: 255.508}
+	}
+}
+
+// PrimaryHoverAlpha is the primary fill's hover opacity (`hover:bg-ink-strong/90`, CP1).
+const PrimaryHoverAlpha = 0.9
 
 // BackgroundShadeColour is the colour each closed background shade renders, or a colour value parsed, so the loader can
 // measure every ink against the Workspace's own surfaces. These are colour values, not Tailwind names (§15.2);

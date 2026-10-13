@@ -25,7 +25,7 @@ var handWrittenControlBorders = map[string]struct {
 	n   int
 	why string
 }{
-	"reviewdocument.templ": {2, "signature markers: a waiting box's dashed outline, a dotted signing line, the dashed drawing canvas"},
+	"reviewdocument.templ": {2, "signature markers on the PDF paper layer (CP5: paper stays light): a waiting box's dashed outline and a dotted signing line; the drawing canvas's rim reads border.control since CP7"},
 }
 
 func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {

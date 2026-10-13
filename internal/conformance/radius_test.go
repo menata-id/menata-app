@@ -163,26 +163,86 @@ func TestInkRewriteMatchesTheDefaultTheme(t *testing.T) {
 	}
 }
 
-// TestColourRewriteMatchesTheDefaultTheme holds colourDefaults to the role defaults derived from the code: every
-// background and tone entry against themeRoleDefaults, so the shape gates read what the readers really draw.
+// TestColourRewriteMatchesTheDefaultTheme holds every entry of colourDefaults to the code: the reader's own `return` for
+// that argument in layout.templ, resolved through input.css's `@theme` defaults to the palette class it draws. The first
+// version derived only the background and tone entries, and the 2026-10-13 review changed four of the seven reader-form
+// readers (onFillClass to text-black, among them) with the whole suite green.
 func TestColourRewriteMatchesTheDefaultTheme(t *testing.T) {
-	want := map[string]string{}
-	for _, r := range themeRoleDefaults(t) {
-		switch r.category {
-		case "Background":
-			want["backgroundClass(ctx, domain.Background"+strings.ToUpper(r.name[:1])+r.name[1:]+")"] = r.class
-		case "Tone":
-			f := strings.Fields(r.class)
-			tone := strings.ToUpper(r.name[:1]) + r.name[1:]
-			want["toneFillClass(ctx, domain.Tone"+tone+")"], want["toneInkClass(ctx, domain.Tone"+tone+")"] = f[0], f[1]
+	layout, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "rendering", "layout.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	css, err := os.ReadFile(filepath.Join(repoRoot(), "static", "css", "input.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	props := map[string]string{}
+	for _, m := range regexp.MustCompile(`--color-([a-z0-9-]+):\s*var\(--color-([a-z0-9-]+)\);`).FindAllStringSubmatch(string(css), -1) {
+		props[m[1]] = m[2]
+	}
+	resolve := func(class string) string {
+		best := ""
+		for name := range props {
+			if strings.HasSuffix(class, "-"+name) && len(name) > len(best) {
+				best = name
+			}
+		}
+		if prefix, ok := strings.CutSuffix(class, "-"+best); best != "" && ok && prefix != "" {
+			{
+				v := props[best]
+				for i := 0; i < 4; i++ {
+					next, alias := props[v]
+					if !alias {
+						break
+					}
+					v = next
+				}
+				return prefix + "-" + v
+			}
+		}
+		return class
+	}
+	call := regexp.MustCompile(`^(\w+)\(ctx(?:, ([\w.]+))?\)$`)
+	for key, want := range colourDefaults {
+		m := call.FindStringSubmatch(key)
+		if m == nil {
+			t.Fatalf("colourDefaults key %q is not a reader call", key)
+		}
+		body := funcBody(t, string(layout), m[1])
+		class := returnFor(body, m[2])
+		if class == "" {
+			t.Errorf("%s: found no return for %q in layout.templ", key, m[2])
+			continue
+		}
+		if got := resolve(class); got != want {
+			t.Errorf("colourDefaults[%s] = %q, the reader returns %q, which draws %q", key, want, class, got)
 		}
 	}
-	for k, v := range want {
-		if colourDefaults[k] != v {
-			t.Errorf("colourDefaults[%s] = %q, the code draws %q", k, colourDefaults[k], v)
+}
+
+// funcBody returns the text of `func name(` up to its closing brace at column 0.
+func funcBody(t *testing.T, src, name string) string {
+	t.Helper()
+	i := strings.Index(src, "func "+name+"(")
+	if i < 0 {
+		t.Fatalf("no func %s in layout.templ", name)
+	}
+	j := strings.Index(src[i:], "\n}\n")
+	return src[i : i+j]
+}
+
+// returnFor picks the literal a reader returns for an argument: a `case`/`if ==` arm naming it, else the last return.
+func returnFor(body, arg string) string {
+	if arg != "" {
+		for _, re := range []string{`case [^:]*\b` + regexp.QuoteMeta(arg) + `\b[^:]*:\s*return "([^"]+)"`, `== ` + regexp.QuoteMeta(arg) + ` \{\s*return "([^"]+)"`} {
+			if m := regexp.MustCompile(re).FindStringSubmatch(body); m != nil {
+				return m[1]
+			}
 		}
 	}
-	if len(want) != 15 {
-		t.Errorf("derived %d background and tone defaults, want 15 (3 surfaces, 6 tones x 2)", len(want))
+	all := regexp.MustCompile(`return "([^"]+)"`).FindAllStringSubmatch(body, -1)
+	if len(all) == 0 {
+		return ""
 	}
+	return all[len(all)-1][1]
 }
