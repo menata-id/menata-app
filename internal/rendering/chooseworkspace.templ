@@ -83,7 +83,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 						<input type="hidden" name="workspace_id" value={ c.ID }/>
 						<button
 							type="submit"
-							class={ "flex w-full cursor-pointer items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-4 text-left hover:border-blue-300" }
+							class={ "flex w-full cursor-pointer items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-4 text-left" + " " + accentEdgeHoverClass(ctx) }
 						>
 							<span class="flex grow flex-col gap-1">
 								<span class={ "text-[15px] font-medium", inkClass(ctx, domain.InkStrong) }>{ c.Name }</span>
@@ -100,7 +100,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 				if canCreateWorkspace {
 					<a
 						href="/create-workspace"
-						class={ "flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition hover:border-blue-400", toneHoverFillClass(ctx, domain.ToneInfo) }
+						class={ "flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition" + " " + accentEdgeHoverClass(ctx), toneHoverFillClass(ctx, domain.ToneInfo) }
 					>
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
 						Add workspace

@@ -23,9 +23,8 @@ var handWrittenWellFills = map[string]struct {
 	n   int
 	why string
 }{
-	"approvalstepper.templ": {1, "a waiting step's circle: a marker, not a surface"},
-	"reviewdocument.templ":  {1, "the reference <code> chip and a waiting signature marker"},
-	"workspacehome.templ":   {1, "an Application's default icon colour (a palette) and a suggestion chip"},
+	"reviewdocument.templ": {1, "the reference <code> chip and a waiting signature marker"},
+	"workspacehome.templ":  {1, "an Application's default icon colour (a palette) and a suggestion chip"},
 }
 
 func TestHandWrittenWellFillsOnlyShrink(t *testing.T) {

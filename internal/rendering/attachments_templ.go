@@ -421,7 +421,7 @@ func attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) templ.Com
 				return templ_7745c5c3_Err
 			}
 			if canEdit {
-				var templ_7745c5c3_Var26 = []any{"grid size-7 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " hover:text-slate-600"}
+				var templ_7745c5c3_Var26 = []any{"grid size-7 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

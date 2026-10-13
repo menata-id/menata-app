@@ -682,10 +682,13 @@ func TestStaticCaption_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 // `controlSecondary` and `controlDanger` held, so a default theme is provably the same bytes. They are written
 // out here rather than read from the code, because a test that reads the answer from the thing under test
 // cannot fail.
+//
+// The primary hover changed once on purpose (owner decision CP1, 2026-10-13): slate-800 became `strong` at 90%, so the
+// button's hover follows the fill it belongs to.
 func TestButtonClasses_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 	ctx := context.Background()
 	for variant, want := range map[domain.ButtonVariant]string{
-		domain.ButtonPrimary:   "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800",
+		domain.ButtonPrimary:   "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-900/90",
 		domain.ButtonSecondary: "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-4 font-sans text-sm text-slate-700 hover:bg-slate-50",
 		domain.ButtonDanger:    "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50",
 	} {
@@ -775,11 +778,11 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 		},
 		"approve": {
 			render(button("Approve", domain.ButtonPrimary, "decision", "approved")),
-			`<button type="submit" name="decision" value="approved" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800">Approve</button>`,
+			`<button type="submit" name="decision" value="approved" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-900/90">Approve</button>`,
 		},
 		"install": {
 			render(button("Install", domain.ButtonPrimary, "", "")),
-			`<button type="submit" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800">Install</button>`,
+			`<button type="submit" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-900/90">Install</button>`,
 		},
 	} {
 		if c.got != c.want {
@@ -1420,8 +1423,8 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 		c    templ.Component
 		want string
 	}{
-		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300 border-slate-200"`},
-		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-300 border-slate-200"`},
+		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-600/40 border-slate-200"`},
+		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-600/40 border-slate-200"`},
 		"signature dialog":     {signatureModal("s1"), `class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40"`},
 		"signature frame":      {reviewSignaturePanel(ReviewView{SignaturePage: 1, SignaturePreviewHref: "/p", SignatureStepCount: 1}), `class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50"`},
 		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2`},

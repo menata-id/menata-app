@@ -160,7 +160,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 								</span>
 							}
 						</span>
-						<span class="shrink-0 text-slate-300">
+						<span class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
 							@icon("chevron-right", "size-4")
 						</span>
 					</a>
@@ -247,7 +247,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		if len(suggestions) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				for _, s := range suggestions {
-					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs text-slate-600 " + sunkenHoverClass(ctx) }>
+					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs" + " " + toneInkClass(ctx, domain.ToneNeutral) + " " + sunkenHoverClass(ctx) }>
 						{ s.Label }
 					</a>
 				}
@@ -296,7 +296,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 					<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
 				</span>
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
-				<span class="shrink-0 text-slate-300">
+				<span class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
 					@icon("chevron-right", "size-4")
 				</span>
 			</a>

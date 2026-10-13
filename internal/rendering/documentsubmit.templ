@@ -109,7 +109,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 				}
 			}
 			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), "text-sm " + inkClass(ctx, domain.InkBody) }>
-				<input type="checkbox" name="save_as_default_flow" value="1" checked class="size-4 accent-blue-500"/>
+				<input type="checkbox" name="save_as_default_flow" value="1" checked class={ "size-4", controlAccentClass(ctx) }/>
 				<span>Save this as the default approval flow for <span id="default-flow-type" class="font-medium">{ defaultFlowTypeLabel(draft.DocumentType) }</span></span>
 			</label>
 			@staticText(domain.StaticCaption, "New submissions of this "+documentType.Name+" will start pre-filled with these steps and mode. Still editable per document before it's sent.")
@@ -193,8 +193,8 @@ templ modeFieldsetContent(mode domain.Field, selected string) {
 		decide independently.
 	</p>
 	for i, opt := range mode.Options {
-		<label class={ "flex cursor-pointer items-center gap-2.5", tileClasses(ctx), "p-3 text-sm hover:border-blue-300" }>
-			<input type="radio" name={ mode.ID } value={ opt } checked?={ modeChecked(selected, opt, i) } class="size-4 accent-blue-500"/>
+		<label class={ "flex cursor-pointer items-center gap-2.5", tileClasses(ctx), "p-3 text-sm" + " " + accentEdgeHoverClass(ctx) }>
+			<input type="radio" name={ mode.ID } value={ opt } checked?={ modeChecked(selected, opt, i) } class={ "size-4", controlAccentClass(ctx) }/>
 			{ opt }
 		</label>
 	}
@@ -333,7 +333,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<span class={ "ml-auto flex items-center", layoutGap(ctx, domain.GapMicro) }>
 			<button type="button" title="Move up" aria-label="Move step up" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) } _="on click if the previous &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; before the previous &lt;.approver-row/&gt; end">▲</button>
 			<button type="button" title="Move down" aria-label="Move step down" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) } _="on click if the next &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; after the next &lt;.approver-row/&gt; end">▼</button>
-			<button type="button" title="Remove" aria-label="Remove step" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" } _="on click remove closest &lt;.approver-row/&gt;">✕</button>
+			<button type="button" title="Remove" aria-label="Remove step" class={ "cursor-pointer px-1.5", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) } _="on click remove closest &lt;.approver-row/&gt;">✕</button>
 		</span>
 	</div>
 }

@@ -390,7 +390,7 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
 		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
 			templ.KV(inkEdgeClass(ctx) + " " + inkFillClass(ctx, domain.InkStrong) + " " + onFillClass(ctx), f.Active),
-			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " hover:border-slate-400", !f.Active) }
+			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " " + accentEdgeHoverClass(ctx), !f.Active) }
 	>
 		{ f.Label } ({ fmt.Sprint(f.Count) })
 	</a>
@@ -434,7 +434,7 @@ func approvalCardEdge(ctx context.Context, overdue bool) string {
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
-		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300",
+		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx),
 			approvalCardEdge(ctx, overdue) }
 	>
 		<a href={ templ.SafeURL(c.Href) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
@@ -547,7 +547,7 @@ func approverChipTone(ctx context.Context, state string) string {
 	case "rejected":
 		return toneClass(ctx, domain.ToneBad)
 	case "waiting":
-		return backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkSecondary)
+		return backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkBody)
 	}
 	return ""
 }

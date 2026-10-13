@@ -160,7 +160,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@staticText(domain.StaticPanelHeading, "Delete account")
 				@staticText(domain.StaticCaption, "Remove your login and personal details. Work you created stays, without your name.")
 			</div>
-			<div><a href="/account-delete" class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:text-red-800" }>Delete my account</a></div>
+			<div><a href="/account-delete" class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:underline" }>Delete my account</a></div>
 		}
 		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>

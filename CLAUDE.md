@@ -1173,6 +1173,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     G2, still unbuilt.
   - **L13 a fourth time.** The chip, h-9 button and panel-title gates read `colourReadersAsLiterals`, held to the
     code by `TestColourRewriteMatchesTheDefaultTheme`. The field gate does not: it is a value gate.
+  - **Slice B (owner decision CP6) folded 14 inconsistencies, and the result is visible.** Measured in Chromium:
+    576 chevron SVGs (slate-300 → faint), 79 count-badge fills and 31 danger inks (red-600 → red-700), the danger
+    heading (red-400), two warn inks (amber-900), and 12 hover sets. The hover sets are link hovers to blue-700, card
+    edges to `accent`/40, the primary hover to `strong`/90, and danger hovers to the bad ink or an underline. New
+    forms: `toneInkHoverClass`, `toneInkFillClass`, `inkFillHoverClass`, `accentEdgeClass`/`accentEdgeHoverClass`,
+    `accentRingClass`, `inkClassFromSm`. The board's drag-and-drop slot is mark-good in a script now
+    (`markGoodScriptUses`), and `markGoodExempt` is empty.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

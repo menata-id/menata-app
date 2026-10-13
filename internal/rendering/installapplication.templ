@@ -89,7 +89,7 @@ templ installableCard(t InstallableTemplate) {
 		</div>
 		if len(t.Refusals) > 0 {
 			<div class={ "flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneWarn) + " px-3.5 py-3" }>
-				<span class="text-xs font-medium text-amber-900">Cannot be installed in this workspace</span>
+				<span class={ "text-xs font-medium", toneInkClass(ctx, domain.ToneWarn) }>Cannot be installed in this workspace</span>
 				for _, reason := range t.Refusals {
 					<span class={ "text-2xs leading-5", toneInkClass(ctx, domain.ToneWarn) }>{ reason }</span>
 				}

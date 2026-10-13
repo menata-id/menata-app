@@ -187,7 +187,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
 						@csrfHiddenInput()
 						<input type="hidden" name="email" value={ inv.Email }/>
-						<button type="submit" class={ "cursor-pointer border-0 bg-transparent p-0 text-sm", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>Revoke</button>
+						<button type="submit" class={ "cursor-pointer border-0 bg-transparent p-0 text-sm", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>Revoke</button>
 					</form>
 				</div>
 			}
@@ -313,8 +313,8 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 // sentence explaining what holding it means, which the board puts under every option rather than
 // leaving "admin" and "member" to speak for themselves.
 templ workspaceRoleChoice(role, description string, selected bool) {
-	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3 hover:border-blue-300" }>
-		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
+	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" + " " + accentEdgeHoverClass(ctx) }>
+		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class={ "mt-0.5 size-4", controlAccentClass(ctx) }/>
 		<span class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<span class="text-sm font-medium">{ displayRole(role) }</span>
 			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ description }</span>

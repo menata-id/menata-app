@@ -71,7 +71,7 @@ templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 			<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 				@staticText(domain.StaticPanelHeading, roleMatrixTitle)
 				if len(app.Roles) > 0 && membersHref != "" {
-					<a href={ templ.SafeURL(membersHref) } class={ "shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent) + " hover:text-blue-800" }>
+					<a href={ templ.SafeURL(membersHref) } class={ "shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent) + " " + accentHoverClass(ctx) }>
 						{ membersRolesTitle } →
 					</a>
 				}
@@ -134,7 +134,7 @@ templ roleMatrixClosingNote() {
 	<div class={ tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-3.5" }>
 		<p class={ "m-0 max-w-[760px]", textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 			Some rules aren’t this application’s to decide: who can manage people is set in
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ inkClass(ctx, domain.InkAccent), "hover:text-blue-800" }>{ labelByID(ctx, "nav_workspace_members") }</a>,
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ labelByID(ctx, "nav_workspace_members") }</a>,
 			and the activity history can’t be changed by anyone.
 		</p>
 	</div>

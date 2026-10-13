@@ -106,7 +106,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 				if view.SessionID != "" {
 					<form method="post" action={ templ.SafeURL("/new-application/" + view.SessionID + "/discard") }>
 						@csrfHiddenInput()
-						<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>Discard this conversation</button>
+						<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>Discard this conversation</button>
 					</form>
 				}
 			</aside>
@@ -123,7 +123,7 @@ templ conversationBubble(t ConversationTurn) {
 		<div class="flex flex-col gap-1.5">
 			<div class={ "max-w-md rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-2.5 text-sm" }>{ t.Message }</div>
 			if t.CapabilityGap != "" {
-				<span class="text-2xs text-amber-600">Noted for later: "{ t.CapabilityGap }" isn't something Menata can build yet.</span>
+				<span class={ "text-2xs", toneInkClass(ctx, domain.ToneWarn) }>Noted for later: "{ t.CapabilityGap }" isn't something Menata can build yet.</span>
 			}
 		</div>
 	}
@@ -223,7 +223,7 @@ templ updatePlan(plan aiassist.Plan) {
 							<li>
 								{ item.What }
 								if item.Confirm != "" {
-									<label class={ "mt-1 flex items-center", layoutGap(ctx, domain.GapTight), "text-xs text-slate-600" }>
+									<label class={ "mt-1 flex items-center", layoutGap(ctx, domain.GapTight), "text-xs" + " " + inkClass(ctx, domain.InkBody) }>
 										<input type="checkbox" name="confirm_remove" value={ item.Confirm } form={ publishFormID }/>
 										Remove it from the Application. Values already stored in records are kept, unseen.
 									</label>
@@ -302,7 +302,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Keep as draft</a>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()
-					<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), "hover:text-red-600" }>
+					<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>
 						if change.Kind == aiassist.KindNewApplication {
 							Discard application
 						} else {

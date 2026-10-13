@@ -24,7 +24,9 @@ var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", 
 	"toneFillClass", "toneInkClass", "toneEdgeClass", "toneHoverFillClass",
 	// 3.2d's reader forms: an existing role in another utility.
 	"inkFillClass", "inkEdgeClass", "checkedFillClass", "onFillClass", "borderFillClass", "inkHoverClass", "sunkenHoverClass",
-	"controlAccentClass", "accentActiveClass", "baseTintClass"}
+	"controlAccentClass", "accentActiveClass", "baseTintClass",
+	// 3.2d slice B's forms.
+	"toneInkHoverClass", "toneInkFillClass", "inkFillHoverClass", "accentEdgeClass", "accentEdgeHoverClass", "accentRingClass", "inkClassFromSm"}
 
 // TestColourRoleClassesComeOnlyFromTheirReaders is a zero-floor gate beside DS-D15 stage 2. A colour role is a
 // custom property now, so `text-ink-body` written by hand would still follow the Workspace's theme -- the danger is

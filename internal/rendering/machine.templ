@@ -504,7 +504,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 						</td>
 						<td class={ tableCellClasses(ctx) }>
 							if f.Required {
-								<span class="text-xs font-medium text-red-600">yes</span>
+								<span class={ "text-xs font-medium", toneInkClass(ctx, domain.ToneBad) }>yes</span>
 							} else {
 								<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>no</span>
 							}
@@ -578,7 +578,7 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 templ cardsLayout(m *domain.Machine, cards []RecordCard) {
 	@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols2) {
 		for _, c := range cards {
-			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class={ "flex flex-col gap-1.5", surfaceClasses(ctx), "p-4 " + inkClass(ctx, domain.InkStrong) + " hover:border-blue-300" }>
+			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class={ "flex flex-col gap-1.5", surfaceClasses(ctx), "p-4 " + inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx) }>
 				<span class="text-sm font-medium">{ recordTitle(m, c.Record) }</span>
 				<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
 					for _, f := range c.Fields {
@@ -657,7 +657,7 @@ templ boardDragScript() {
 			var dragged = null, slot = null;
 			function clear() {
 				document.querySelectorAll("[data-board-column].ring-2").forEach(function (c) {
-					c.classList.remove("ring-2", "ring-emerald-500");
+					c.classList.remove("ring-2", "ring-emerald-600");
 				});
 				if (slot) { slot.remove(); slot = null; }
 			}
@@ -691,10 +691,10 @@ templ boardDragScript() {
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "move";
 				clear();
-				col.classList.add("ring-2", "ring-emerald-500");
+				col.classList.add("ring-2", "ring-emerald-600");
 				var p = placeIn(col, e.clientY);
 				slot = document.createElement("div");
-				slot.className = "h-1 rounded-full bg-emerald-500";
+				slot.className = "h-1 rounded-full bg-emerald-600";
 				col.querySelector("[data-cards]").insertBefore(slot, p.cards[p.idx] || null);
 			});
 			document.addEventListener("drop", function (e) {
@@ -1031,7 +1031,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
 templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
 	<details class="relative">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 text-xs font-medium " + onFillClass(ctx) + " hover:bg-slate-800" }>{ "New " + strings.ToLower(m.Name) }</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 text-xs font-medium " + onFillClass(ctx) + " " + inkFillHoverClass(ctx) }>{ "New " + strings.ToLower(m.Name) }</summary>
 		<form
 			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-4 shadow-lg" }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }

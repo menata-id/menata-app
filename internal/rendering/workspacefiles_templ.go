@@ -132,7 +132,7 @@ func WorkspaceFilesPage(view WorkspaceFilesView, workspaceName string, viewer Vi
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var5 = []any{"text-xs", inkClass(ctx, domain.InkAccent), "hover:text-blue-800"}
+			var templ_7745c5c3_Var5 = []any{"text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -303,7 +303,7 @@ func workspaceFilePicker(files []string) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var15 = []any{"font-mono text-sm", inkClass(ctx, domain.InkAccent), "hover:text-blue-800"}
+					var templ_7745c5c3_Var15 = []any{"font-mono text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -499,7 +499,7 @@ func workspaceFileEditor(view WorkspaceFilesView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 = []any{"text-xs", inkClass(ctx, domain.InkAccent), "hover:text-blue-800"}
+			var templ_7745c5c3_Var28 = []any{"text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -976,13 +976,13 @@ func fileDiffList(diffs []FileDiffView) templ.Component {
 func diffLineClass(ctx context.Context, line string) string {
 	switch {
 	case strings.HasPrefix(line, "+"):
-		return "bg-green-50 px-3 text-green-800"
+		return toneFillClass(ctx, domain.ToneGood) + " " + "px-3" + " " + toneInkClass(ctx, domain.ToneGood)
 	case strings.HasPrefix(line, "-"):
-		return "bg-red-50 px-3 text-red-800"
+		return toneFillClass(ctx, domain.ToneBad) + " " + "px-3" + " " + toneInkClass(ctx, domain.ToneBad)
 	case strings.HasPrefix(line, "@@"):
 		return "px-3 " + inkClass(ctx, domain.InkFaint)
 	default:
-		return "px-3 text-slate-600"
+		return "px-3" + " " + toneInkClass(ctx, domain.ToneNeutral)
 	}
 }
 

@@ -174,7 +174,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					// "nav_home"), which would panic if an Application ever declared no home item.
 					if hasAppMenu {
 						<nav aria-label="Breadcrumb" class="flex min-w-0 flex-col justify-center">
-							<a href="/home" class={ "truncate text-xs leading-4 font-medium", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm sm:text-slate-900" }>{ workspaceName }</a>
+							<a href="/home" class={ "truncate text-xs leading-4 font-medium", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm" + " " + inkClassFromSm(ctx, domain.InkStrong) }>{ workspaceName }</a>
 							<span class={ "truncate text-sm leading-5 font-medium", inkClass(ctx, domain.InkStrong), "sm:hidden" }>{ currentApp.Name }</span>
 						</nav>
 					} else {
@@ -396,7 +396,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<button
 				type="button"
 				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium " + accentActiveClass(ctx), anyActive(overflow)), templ.KV("text-slate-600 "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
+				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " " + ""+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
 			>
 				More
 				@icon("chevron-down", "size-3.5")
@@ -471,7 +471,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 			>
 				<span class="relative flex">
 					@icon(item.Icon, "size-5.5")
-					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" bg-red-600 px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
+					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+"" + " " + toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
 				</span>
 				{ item.Label }
 			</a>
@@ -531,7 +531,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					<span class={ "text-sm", inkClass(ctx, domain.InkStrong) }>{ labelByID(ctx, "nav_home") }</span>
 					<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ workspaceName }</span>
 				</span>
-				<span class="text-slate-300">
+				<span class={ inkClass(ctx, domain.InkFaint) }>
 					@icon("chevron-right", "size-4")
 				</span>
 			</a>
@@ -543,7 +543,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ "text-sm", inkClass(ctx, domain.InkStrong) }>{ hub.Title }</span>
 					</span>
-					<span class="text-slate-300">
+					<span class={ inkClass(ctx, domain.InkFaint) }>
 						@icon("chevron-right", "size-4")
 					</span>
 				</a>
@@ -566,7 +566,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 							<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ other.Description }</span>
 						}
 					</span>
-					<span class="text-slate-300">
+					<span class={ inkClass(ctx, domain.InkFaint) }>
 						@icon("chevron-right", "size-4")
 					</span>
 				</a>
@@ -791,7 +791,7 @@ templ notificationBell() {
 	>
 		@icon("bell", "size-4.5")
 		<span
-			class={ "absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center", radiusClass(ctx, domain.RadiusPill), "bg-red-600 px-1 text-3xs " + onFillClass(ctx) + " empty:hidden" }
+			class={ "absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center", radiusClass(ctx, domain.RadiusPill), toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden" }
 			hx-get="/api/notifications/unread-count"
 			hx-trigger="load"
 			hx-swap="innerHTML"

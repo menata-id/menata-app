@@ -172,7 +172,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var6 = []any{"flex w-full cursor-pointer items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-4 text-left hover:border-blue-300"}
+					var templ_7745c5c3_Var6 = []any{"flex w-full cursor-pointer items-center gap-3", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-4 text-left" + " " + accentEdgeHoverClass(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -307,7 +307,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					}
 				}
 				if canCreateWorkspace {
-					var templ_7745c5c3_Var16 = []any{"flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition hover:border-blue-400", toneHoverFillClass(ctx, domain.ToneInfo)}
+					var templ_7745c5c3_Var16 = []any{"flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition" + " " + accentEdgeHoverClass(ctx), toneHoverFillClass(ctx, domain.ToneInfo)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

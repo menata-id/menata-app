@@ -47,7 +47,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 		}
 		@gridLayout(domain.GapComfortable, domain.GridCols1, domain.GridCols2) {
 			for _, g := range groups {
-				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300" }>
+				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx) }>
 					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ g.Name }</span>
 						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
@@ -107,8 +107,8 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 					@staticText(domain.StaticMessage, "This Workspace has no members to add.")
 				}
 				for _, m := range members {
-					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3 hover:border-blue-300" }>
-						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class="size-4 accent-blue-500"/>
+					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" + " " + accentEdgeHoverClass(ctx) }>
+						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class={ "size-4", controlAccentClass(ctx) }/>
 						@avatar(personInitials("", m.Email), m.Email, domain.AvatarInline, domain.AvatarPresent)
 						<span class="truncate text-sm">{ m.Email }</span>
 					</label>
@@ -141,7 +141,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 		}
 		<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/delete") } class="flex justify-end">
 			@csrfHiddenInput()
-			<button type="submit" class="cursor-pointer text-xs text-red-600 hover:text-red-700">Delete this group</button>
+			<button type="submit" class={ "cursor-pointer text-xs", toneInkClass(ctx, domain.ToneBad), "hover:underline" }>Delete this group</button>
 		</form>
 		}
 	}

@@ -31,7 +31,6 @@ var handWrittenTonePairs = map[string]struct {
 }{
 	"appshell.templ":       {1, "the error toast is a class string inside a <script>, built in the browser where no ctx reaches"},
 	"reviewdocument.templ": {1, "the PDF file badge: red-100 is the file type's colour, not a bad state"},
-	"workspacefiles.templ": {2, "added and removed lines of a diff (green and red -800): a diff's own colours, not tones"},
 	"workspacehome.templ":  {3, "an Application's icon colour: a palette an author picks (domain.KnownApplicationColors), like Tag, not a tone"},
 }
 
@@ -174,7 +173,6 @@ var handWrittenToneEdges = map[string]struct {
 	why string
 }{
 	"appshell.templ":       {1, "the error toast is a class string inside a <script>"},
-	"notifications.templ":  {1, "an unread row's blue edge beside a /40 tint: an unread highlight, not a tone"},
 	"reviewdocument.templ": {1, "the signed signature marker's emerald-300 edge: a marker state beside mark-good, counted since the 2026-10-12 review widened the gate to -300"},
 }
 

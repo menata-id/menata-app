@@ -77,11 +77,12 @@ func TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereI
 		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, ctx, buf.String())
 	}
 
 	files := render(GeneratedFilesView{Files: []FileDiffView{{Path: "acme/leave.yaml", Changed: true, Diff: "+id: mch_leave\n-id: old\n"}}})
-	for _, want := range []string{"The files this would write", "acme/leave.yaml", "bg-green-50 px-3 text-green-800", "bg-red-50 px-3 text-red-800"} {
+	// Diff lines read the good and bad tones since owner decision CP6 (2026-10-13; they were green-50/800 and red-50/800).
+	for _, want := range []string{"The files this would write", "acme/leave.yaml", "bg-emerald-50 px-3 text-emerald-700", "bg-red-50 px-3 text-red-700"} {
 		if !strings.Contains(files, want) {
 			t.Errorf("the panel is missing %q", want)
 		}

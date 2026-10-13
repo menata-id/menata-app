@@ -106,8 +106,9 @@ func tableCellClasses(ctx context.Context) string {
 // bytes (`TestButtonClasses_defaultIsTheLiteralEachSiteReplaced`).
 //
 // **What is deliberately still a literal, and why each is a finding rather than debt.**
-//   - The primary fill (`bg-slate-900`, `text-white`) is a dark surface, and D3 declined to make those a role:
-//     the 17 dark surfaces are three different jobs.
+//   - The primary fill is no longer a literal: since owner decision CP1 (2026-10-13) it is `strong` as a fill with the
+//     raised colour as its text (inkFillClass, onFillClass), an inverse pair, so D3's "dark surfaces are not a role"
+//     still holds -- no surface role was added.
 //   - The danger border and ink (`red-200`, `red-700`) are a tone, and a tone is a palette pair a Component
 //     owns, not an ink role; a button's background is white where the `red` palette's is tinted.
 //   - **The border of `secondary` reads `BorderSurface`, not `BorderControl` (owner decision D8, 2026-10-07).**
@@ -124,7 +125,7 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 	text := textClass(ctx, domain.RoleBody)
 	switch variant {
 	case domain.ButtonPrimary:
-		return strings.Join([]string{prefix, radius, "border-0 " + inkFillClass(ctx, domain.InkStrong) + " px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx) + " hover:bg-slate-800"}, " ")
+		return strings.Join([]string{prefix, radius, "border-0 " + inkFillClass(ctx, domain.InkStrong) + " px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx) + " " + inkFillHoverClass(ctx)}, " ")
 	case domain.ButtonDanger:
 		// The danger recipe reads the `bad` tone's edge, ink and hover fill (DS-D16, DS-D11).
 		return strings.Join([]string{prefix, radius, "border", toneEdgeClass(ctx, domain.ToneBad), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 font-sans", text, toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad)}, " ")

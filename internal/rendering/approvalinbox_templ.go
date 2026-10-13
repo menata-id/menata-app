@@ -1231,7 +1231,7 @@ func filterChip(f FilterChip, hrefPrefix string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var59 = []any{radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
 			templ.KV(inkEdgeClass(ctx)+" "+inkFillClass(ctx, domain.InkStrong)+" "+onFillClass(ctx), f.Active),
-			templ.KV(borderClass(ctx, domain.BorderControl)+" "+inkClass(ctx, domain.InkSecondary)+" hover:border-slate-400", !f.Active)}
+			templ.KV(borderClass(ctx, domain.BorderControl)+" "+inkClass(ctx, domain.InkSecondary)+" "+accentEdgeHoverClass(ctx), !f.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var59...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1353,7 +1353,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad
-		var templ_7745c5c3_Var65 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " hover:border-blue-300",
+		var templ_7745c5c3_Var65 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border " + backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx),
 			approvalCardEdge(ctx, overdue)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var65...)
 		if templ_7745c5c3_Err != nil {
@@ -1888,7 +1888,7 @@ func approverChipTone(ctx context.Context, state string) string {
 	case "rejected":
 		return toneClass(ctx, domain.ToneBad)
 	case "waiting":
-		return backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkSecondary)
+		return backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkBody)
 	}
 	return ""
 }

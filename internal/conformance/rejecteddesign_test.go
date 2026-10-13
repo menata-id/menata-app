@@ -108,5 +108,4 @@ var rejectedDesignExempt = map[string]struct {
 	reason string
 }{
 	"body-compact|appshell.templ": {1, "the workspace monogram in a 36px square -- a glyph, like the artifact's brand-glyph, not running text between meta and body"},
-	"mark-good-500|machine.templ": {1, "the board's drag-and-drop slot, a JavaScript drop target -- not a finished mark (same exemption as markGoodExempt)"},
 }

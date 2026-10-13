@@ -1076,7 +1076,7 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var67 = []any{"text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:text-red-800"}
+				var templ_7745c5c3_Var67 = []any{"text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:underline"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var67...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

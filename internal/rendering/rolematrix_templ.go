@@ -143,7 +143,7 @@ func roleMatrixApp(app RoleMatrixApp, membersHref string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(app.Roles) > 0 && membersHref != "" {
-			var templ_7745c5c3_Var6 = []any{"shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent) + " hover:text-blue-800"}
+			var templ_7745c5c3_Var6 = []any{"shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent) + " " + accentHoverClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -674,7 +674,7 @@ func roleMatrixClosingNote() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var46 = []any{inkClass(ctx, domain.InkAccent), "hover:text-blue-800"}
+		var templ_7745c5c3_Var46 = []any{inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var46...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

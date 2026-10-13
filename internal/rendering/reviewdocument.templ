@@ -184,8 +184,8 @@ templ reviewDocumentCard(v ReviewView) {
 			@staticText(domain.StaticPanelHeading, "Document")
 			if v.FileHref != "" {
 				<div class={ "flex", layoutGap(ctx, domain.GapTight) }>
-					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs hover:border-blue-300" }>View PDF</a>
-					<a href={ templ.SafeURL(v.FileHref) } download class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs hover:border-blue-300" }>Download</a>
+					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs" + " " + accentEdgeHoverClass(ctx) }>View PDF</a>
+					<a href={ templ.SafeURL(v.FileHref) } download class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs" + " " + accentEdgeHoverClass(ctx) }>Download</a>
 				</div>
 			}
 		}
@@ -251,9 +251,9 @@ templ reviewStepMarker(s StepApprover, position int) {
 		aria-hidden="true"
 		class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-3xs font-medium",
 			templ.KV(markGoodFill()+" " + onFillClass(ctx), s.State == "done"),
-			templ.KV(inkFillClass(ctx, domain.InkAccent) + " " + onFillClass(ctx) + " ring-4 ring-blue-100", s.State == "current"),
-			templ.KV("bg-red-500 text-white", s.State == "rejected"),
-			templ.KV("bg-slate-200 " + inkClass(ctx, domain.InkSecondary), s.State == "waiting") }
+			templ.KV(inkFillClass(ctx, domain.InkAccent) + " " + onFillClass(ctx) + " ring-4" + " " + accentRingClass(ctx), s.State == "current"),
+			templ.KV(toneInkFillClass(ctx, domain.ToneBad) + " " + onFillClass(ctx), s.State == "rejected"),
+			templ.KV(backgroundClass(ctx, domain.BackgroundSunken) + " " + inkClass(ctx, domain.InkBody), s.State == "waiting") }
 	>
 		switch s.State {
 			case "done":
@@ -472,7 +472,7 @@ templ reviewDecisionBar(v ReviewView) {
 				if v.SLALabel == "" {
 					<span class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No due date</span>
 				} else {
-					<span class={ "text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV(inkClass(ctx, domain.InkSecondary), !v.SLAOverdue) }>
+					<span class={ "text-sm", templ.KV(toneInkClass(ctx, domain.ToneBad), v.SLAOverdue), templ.KV(inkClass(ctx, domain.InkSecondary), !v.SLAOverdue) }>
 						{ v.SLALabel }
 					</span>
 				}
@@ -530,7 +530,7 @@ templ signatureModal(stepID string) {
 		<div class={ "mt-3 flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			<button type="button" class={ "sig-modal-clear cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Clear</button>
 			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
-				<input type="checkbox" name="save_signature" class="size-4 accent-blue-500"/>
+				<input type="checkbox" name="save_signature" class={ "size-4", controlAccentClass(ctx) }/>
 				Save my signature for next time
 			</label>
 		</div>

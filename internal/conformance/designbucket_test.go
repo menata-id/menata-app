@@ -72,25 +72,17 @@ var unnamedDesignValues = map[string]struct {
 	why string
 }{
 	// ink
-	"text-white":       {3, "ink on a filled mark (primary button, step circle, count badge, done check): the Design System has `primary` but no on-fill ink, and a role waits on a fill role beside it (D3 holds background.accent)"},
-	"text-slate-300":   {7, "chevrons: decoration, lighter than `faint`; no ink role sits below faint. The '(planned)' aside was content and reads secondary since 1.2b"},
-	"text-slate-600":   {3, "the neutral tone's ink (DS tone-neutral-ink): a reference code chip that is the neutral pair written by hand, and plain labels; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
-	"text-red-600":     {4, "a lone danger word (pre-auth error, Delete group link, overdue SLA, a 'yes'): DS danger-ink is red-700, and folding 600 into it is a decision (R1)"},
+	"text-white": {2, "the brand glyph on bg-brand, and a signature marker's number on the PDF paper layer (owner decision CP5: paper stays light); every other on-fill ink reads onFillClass since CP1 (D3 holds background.accent)"},
+
 	"text-indigo-600":  {2, "the review tile's indigo: a hue outside the five tones and the Design System's colours"},
-	"text-amber-600":   {1, "New Application's capability-gap note: a warn ink one step lighter than tone warn"},
-	"text-amber-900":   {1, "Install Application's refusal title: a warn ink one step darker than tone warn"},
 	"text-emerald-600": {1, "the signed marker's ink beside markGoodBorder: mark-good is a mark, not an ink"},
-	"text-red-400":     {1, "the danger zone's heading: the bad tone has no faint step (open finding f of the Phase 1 review)"},
 	// weight
 	"font-semibold": {2, "two small labels at 600 (an uppercase pill, an inference role heading); the weight ladder is normal and medium only"},
 	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
 	"bg-brand":        {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
 	"bg-blue-600":     {4, "the accent as a fill (current step, numbered approver, signature marker, unread dot): D3 held background.accent"},
-	"bg-slate-200":    {1, "DS avatar-fill, and the same grey as a track, a drag handle and a rule: geometry, not a surface"},
 	"bg-slate-400":    {3, "a waiting signature chip's dot, and the read-only marker's"},
-	"bg-red-500":      {1, "the rejected step circle: a filled bad mark, which the bad tone (a -50 wash) does not name"},
-	"bg-red-600":      {1, "a notification count's red: a filled mark, not tone bad's wash"},
 	"bg-blue-50/40":   {1, "an unread notification's translucent wash: opacity has no role"},
 	"bg-blue-50/80":   {1, "the editable signature marker's translucent fill"},
 	"bg-slate-50/80":  {1, "the read-only signature marker's translucent fill"},
@@ -103,8 +95,7 @@ var unnamedDesignValues = map[string]struct {
 	"border-blue-500":   {1, "your signature chip's rim: the accent as an edge"},
 	"border-blue-600":   {1, "the editable signature marker's rim: the accent as an edge"},
 	"border-white":      {1, "a badge's knock-out ring over a mark"},
-	"ring-blue-100":     {2, "DS `accent-ring` (GS1 dsUnmapped): the current step's ring and your signature box"},
-	"accent-blue-500":   {5, "a native checkbox's or radio's accent-color; two steps for one job (see accent-blue-600), and folding them is a decision (R1)"},
+	"ring-blue-100":     {1, "your signature box on the PDF paper layer (CP5); the current step's ring reads accentRingClass since CP3"},
 	// gap
 	"gap-2.5": {10, "10px, between the ladder's rungs; xtight (6px) is the only half-step token, and folding is a decision (R1)"},
 	"gap-3.5": {6, "14px, between the ladder's rungs; see gap-2.5"},

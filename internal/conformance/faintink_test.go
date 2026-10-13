@@ -27,19 +27,23 @@ var faintInkSites = map[string]struct {
 	n      int
 	reason string
 }{
-	"account.templ:SecurityPage":                  {1, "the disabled Enable button: a disabled control is exempt from WCAG 1.4.3"},
-	"approvalstepper.templ:approvalStepRow":       {1, "the number of a step not reached yet, beside its readable name"},
-	"chooseworkspace.templ:ChooseWorkspacePage":   {1, "the chevron on a Workspace row: decoration"},
-	"detail.templ:RecordDetailView":               {1, "a record's technical id, shown for support; the document reference people cite reads secondary"},
-	"detail.templ:RecordDetailEdit":               {1, "the same technical id in the aside"},
-	"inference.templ:inferenceRoleBlock":          {3, "the developer inspector's not-applicable rows, its em dash for no value, and the `uncast` badge in the muted tone: de-emphasised on purpose (muted's own reason in TestThemeColourPairsMeetContrast)"},
-	"inference.templ:inferenceStepBlock":          {2, "the same inspector's not-applicable rows and em dash, for a step"},
-	"layout.templ:collectionBody":                 {2, "a Collection's ordinal, aria-hidden because the <ol> announces position"},
-	"machine.templ:avatarClasses":                 {1, "a pending member's initials in a dashed ring; the avatar's name is its aria-label"},
-	"machine.templ:MachineList":                   {1, "a Machine's technical id"},
-	"machine.templ:machineScreen":                 {1, "a Machine's technical id"},
-	"workspacefiles.templ:diffLineClass":          {1, "a diff's hunk header (`@@ -1 +1 @@`): position metadata for the reader of a diff"},
-	"workspacemembers.templ:WorkspaceMembersPage": {2, "the em dash for no value"},
+	"account.templ:SecurityPage":                   {1, "the disabled Enable button: a disabled control is exempt from WCAG 1.4.3"},
+	"appsettings.templ:settingsListRow":            {1, "a row's chevron: decoration (it was slate-300, below the ladder; folded to faint by owner decision CP6)"},
+	"appsettings.templ:settingsRow":                {1, "a row's chevron: decoration"},
+	"appshell.templ:moreSheet":                     {3, "the More sheet rows' chevrons: decoration"},
+	"workspacehome.templ:WorkspaceHomePage":        {1, "an Application card's chevron: decoration"},
+	"workspacehome.templ:HomeDraftApplicationRows": {1, "a draft review row's chevron: decoration"},
+	"chooseworkspace.templ:ChooseWorkspacePage":    {1, "the chevron on a Workspace row: decoration"},
+	"detail.templ:RecordDetailView":                {1, "a record's technical id, shown for support; the document reference people cite reads secondary"},
+	"detail.templ:RecordDetailEdit":                {1, "the same technical id in the aside"},
+	"inference.templ:inferenceRoleBlock":           {3, "the developer inspector's not-applicable rows, its em dash for no value, and the `uncast` badge in the muted tone: de-emphasised on purpose (muted's own reason in TestThemeColourPairsMeetContrast)"},
+	"inference.templ:inferenceStepBlock":           {2, "the same inspector's not-applicable rows and em dash, for a step"},
+	"layout.templ:collectionBody":                  {2, "a Collection's ordinal, aria-hidden because the <ol> announces position"},
+	"machine.templ:avatarClasses":                  {1, "a pending member's initials in a dashed ring; the avatar's name is its aria-label"},
+	"machine.templ:MachineList":                    {1, "a Machine's technical id"},
+	"machine.templ:machineScreen":                  {1, "a Machine's technical id"},
+	"workspacefiles.templ:diffLineClass":           {1, "a diff's hunk header (`@@ -1 +1 @@`): position metadata for the reader of a diff"},
+	"workspacemembers.templ:WorkspaceMembersPage":  {2, "the em dash for no value"},
 }
 
 // faintInkReaderFuncs are the functions in layout.templ whose bodies name a faint role as a reader, not as a site.

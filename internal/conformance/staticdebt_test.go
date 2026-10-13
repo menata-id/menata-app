@@ -849,9 +849,11 @@ func TestNoHandWrittenMarkGood(t *testing.T) {
 			readers += len(found)
 			continue
 		}
-		for _, m := range found {
-			t.Errorf("%s: hand-written %q -- a finished mark reads markGoodFill/markGoodBorder/markGoodHoverBorder "+
-				"(the Design System artifact's `mark-good`), so the colour stays decided in one place", e.Name(), m[1])
+		if want := markGoodScriptUses[e.Name()]; len(found) != want {
+			for _, m := range found {
+				t.Errorf("%s: hand-written %q -- a finished mark reads markGoodFill/markGoodBorder/markGoodHoverBorder "+
+					"(the Design System artifact's `mark-good`), so the colour stays decided in one place (markGoodScriptUses allows %d here)", e.Name(), m[1], want)
+			}
 		}
 		n := len(rejected.FindAllStringSubmatch(comment.ReplaceAllString(string(b), ""), -1))
 		if want := markGoodExempt[e.Name()]; n != want {
@@ -875,9 +877,11 @@ func TestNoHandWrittenMarkGood(t *testing.T) {
 	}
 }
 
-// markGoodExempt is the closed list of emerald-500 uses that are not a finished mark, with the count per file.
-var markGoodExempt = map[string]int{
-	// The board's drag-and-drop: `slot.className = "h-1 rounded-full bg-emerald-500"`, the line drawn where a dragged
-	// card will land. A transient drop target in JavaScript, not a record's finished state.
-	"machine.templ": 1,
-}
+// markGoodExempt is the closed list of emerald-500 uses that are not a finished mark, with the count per file. Empty
+// since owner decision CP6 (2026-10-13) moved the board's drag-and-drop slot to mark-good; it stays declared.
+var markGoodExempt = map[string]int{}
+
+// markGoodScriptUses is the closed list of mark-good literals a reader cannot reach: a class written by JavaScript.
+// The board's drag-and-drop draws its landing slot (`slot.className = "h-1 rounded-full bg-emerald-600"`) and the
+// target lane's ring in a script, where no Go reader runs (CP6, 2026-10-13: emerald-500 folded to mark-good).
+var markGoodScriptUses = map[string]int{"machine.templ": 1}
