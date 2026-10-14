@@ -1434,7 +1434,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   (the form and its rule stay the caller's); and it declares `toggle`, the first Component action that is not a write, because a native
   `<details>` opens and closes with no script. **That is the honest size of `actions` for a native element.** The native Popover API is declarative too
   (`popovertarget`, six app-shell triggers, no script), so popovers and the menus built on them are the next candidate, as a Component of their own;
-  only the two modal dialogs need script (`showModal()`). An independent review corrected this bullet, which first said popovers needed a script. The tail fold (`foldedRest`, which
+  only the two modal dialogs need script (`showModal()`). **T-A is closed on that measurement (2026-10-14)**: popovers are already one shared fragment (`sheetPanel`, five app-shell menus) whose triggers are five different looks and which no declared page can need, so nothing is registered; the two modal dialogs differ in behaviour (`dialogClasses` is their shared shell). Register a popover when an Application screen, not the shell, needs a menu. An independent review corrected this bullet, which first said popovers needed a script. The tail fold (`foldedRest`, which
   hides its own summary once open), the card menus and the archived fold are other jobs and stay hand-written. `experimental`: no installed
   `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
   on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.
