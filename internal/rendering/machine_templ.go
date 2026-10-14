@@ -3354,7 +3354,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var173 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden"}
+		var templ_7745c5c3_Var173 = []any{"cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var173...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

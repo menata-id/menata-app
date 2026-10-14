@@ -166,11 +166,11 @@
 	   the draft tile. They are an author's choice, not a role, so no Workspace key moves them; they are properties only so
 	   that dark mode can give each hue its own step. A Tag draws its hue as ink, at 10% as fill and at 20% as edge. Read
 	   through tagClasses, appIconClasses and the tile readers, never written by hand. */
-	--color-tag-blue: var(--color-blue-600);
+	--color-tag-blue: var(--color-blue-700);
 	--color-tag-violet: var(--color-violet-600);
-	--color-tag-amber: var(--color-amber-700);
-	--color-tag-emerald: var(--color-emerald-700);
-	--color-tag-cyan: var(--color-cyan-700);
+	--color-tag-amber: var(--color-amber-800);
+	--color-tag-emerald: var(--color-emerald-800);
+	--color-tag-cyan: var(--color-cyan-800);
 	--color-tag-rose: var(--color-rose-700);
 	--color-tag-slate: var(--color-slate-600);
 	--color-app-blue-bg: var(--color-blue-50);

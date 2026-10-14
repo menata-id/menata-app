@@ -1439,6 +1439,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
   on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.
   Mutation-proved seven ways, including the walker arm in the generated file (renderer tests read `*_templ.go`).
+- **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
+  data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
+  4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,
+  emerald-800 and cyan-800 (5.55 to 6.21 now). That is a Design System token change, so all three homes moved together (R8): the artifact
+  (`1791992280-76db`), `design-system/tokens.json`, the DTCG export, and the 88 `:root` blocks of the UI canvas (v163) and the Builder
+  canvas's copy (v35). `TestLightTagHuesMeetContrast` is the light twin of the dark Tag pairs (both surfaces), mutation-proved. **The
+  current section** (today's cell, on the `info` fill) reads `secondary` as the body ink through a property override in
+  `sectionFillClass` (4.38 to 9.52, measured; an ordinary section keeps secondary as it is). **"Add a card"** reads `body` (it sat
+  on a sunken lane, which the 2026-10-13 rule already forbids for `secondary`). The mutation on the `.templ` of `sectionFillClass` was a
+  false green again; the generated file's mutation bites.
 - `TestEveryNativeCheckableReadsTheAccent` — rencana 2.3b (2026-10-14), a zero-floor gate with no new Component. The plan said
   "`accent-blue-500`, no control role"; measured, the literal was already gone (CP2 moved it to `controlAccentClass`) and
   7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal
@@ -1451,8 +1461,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   "2 sites" was right and its "Dialog Component" was not: the two modal dialogs (`signatureModal`, `leaveWorkspaceGuard`) share only
   a class shell (surface, panel padding, strong ink, elevation, scrim), while what makes each a dialog is when it opens and closes
   (a dirty-form check; a canvas with its own submit capture), which is 007 §12.3's `actions` with no declaration. So the shell is a
-  class reader and width stays per site (`max-w-110` against `max-w-md` plus a mobile width: folding 440 into 448px is a decision
-  not taken). The signature dialog's bytes are unchanged; the leave guard's classes are the same set in another order. Two
+  class reader. (Width stayed per site that day; **owner decision DW-1, 2026-10-14, folded it into the reader**: `max-w-md`, a mobile
+  `w-[calc(100%-2rem)]` and `m-auto`. Measuring the fold found the signature dialog, which had a 440px width and no auto margin,
+  opened in the page's top-left corner, because Tailwind's preflight zeroes the margin a browser centres a modal with; both dialogs
+  are now centred at 448px, 16px from the edge on a 360px screen.) The signature dialog's bytes were unchanged that day; the leave guard's classes are the same set in another order. Two
   ratchets reacted and were adjusted on reading, not silenced: `handWrittenSurfaceFloors` lost `reviewdocument.templ`, whose reason
   ("a dialog with no raised fill") had been false since the dialog read the raised background, and the padding-reader sanity floor
   went 14 to 13 (both dialogs' readers moved: 15 counted before, 13 now). The independent review found the gate matched

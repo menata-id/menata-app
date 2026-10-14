@@ -1015,7 +1015,7 @@ func cardTitleFieldID(m *domain.Machine) string {
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
 templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 	<details class="group">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
 		<form
 			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }

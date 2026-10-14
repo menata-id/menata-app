@@ -1109,7 +1109,7 @@ func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := resolveColourRoles(t, context.Background(), buf.String())
-	for _, want := range []string{"Urgent", "bg-amber-700/10 text-amber-700", "size-1.5 rounded-full bg-amber-700"} {
+	for _, want := range []string{"Urgent", "bg-amber-800/10 text-amber-800", "size-1.5 rounded-full bg-amber-800"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("declared Tag missing %q:\n%s", want, buf.String())
 		}
@@ -1427,7 +1427,7 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 	}{
 		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-600/40 border-slate-200"`},
 		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-600/40 border-slate-200"`},
-		"signature dialog":     {signatureModal("s1"), `class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"`},
+		"signature dialog":     {signatureModal("s1"), `class="sig-modal m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"`},
 		"signature frame":      {reviewSignaturePanel(ReviewView{SignaturePage: 1, SignaturePreviewHref: "/p", SignatureStepCount: 1}), `class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50"`},
 		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2`},
 		"pdf thumbnail":        {pdfThumbnail("mch_document", "rec_1"), `class="block max-w-40 rounded border border-slate-200 bg-white"`},
@@ -1564,7 +1564,7 @@ func TestDialogShell_bothDialogsFollowTheTheme(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
 	// The shell pinned whole under the default theme (the review of 2.3d: moving only radius, padding and border and then
 	// comparing each dialog with the reader itself let an ink, background, elevation or scrim swap through).
-	const defaultShell = "rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"
+	const defaultShell = "m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"
 	if got := resolveColourRoles(t, context.Background(), dialogClasses(context.Background())); got != defaultShell {
 		t.Errorf("the dialog shell under the default theme changed:\n got %s\nwant %s", got, defaultShell)
 	}

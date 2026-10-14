@@ -688,13 +688,14 @@ func surfaceClasses(ctx context.Context) string {
 
 // dialogClasses is the shell of a modal `<dialog>` (rencana 2.3d, 2026-10-14): the surface recipe with panel padding,
 // the strong ink, an elevation and the scrim. Two dialogs drew it, `signatureModal` as a literal list and
-// `leaveWorkspaceGuard` in another order; one reader keeps a Workspace's `theme:` moving both. **Width is not in it**:
-// the two differ (`max-w-110` against `max-w-md` and a mobile `w-[calc(100%-2rem)]`), and folding 440 into 448px is a
-// decision nobody took. It is a class reader and not a registered Component: what makes a dialog a dialog here is when
+// `leaveWorkspaceGuard` in another order; one reader keeps a Workspace's `theme:` moving both. **Width and centring are
+// in it since owner decision DW-1 (2026-10-14)**: `max-w-md` (448px), a mobile `w-[calc(100%-2rem)]` and `m-auto`. The
+// signature dialog was 440px wide with no auto margin, and Tailwind's preflight zeroes the margin the browser
+// centres a modal with, so it opened in the page's top-left corner (measured in Chromium, 1280 and 360px wide). It is a class reader and not a registered Component: what makes a dialog a dialog here is when
 // it opens and closes (a dirty-form check, a canvas), which is 007 §12.3's `actions` and has no declaration yet.
 func dialogClasses(ctx context.Context) string {
 	return strings.Join([]string{
-		radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel),
+		"m-auto w-[calc(100%-2rem)] max-w-md", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel),
 		backgroundClass(ctx, domain.BackgroundRaised), inkClass(ctx, domain.InkStrong), "shadow-lg", scrimClass(true),
 	}, " ")
 }
@@ -986,9 +987,13 @@ templ sectionSurface(gap domain.Gap, current bool) {
 	</section>
 }
 
+// sectionFillClass is a section's fill. The current one sits on the `info` tone's fill, where `secondary` ink measures
+// 4.38:1 (Chromium audit, 2026-10-14; the pair passes on white and fails on blue-50), and any section child may carry
+// secondary ink (a placeholder, a meta line). So inside it `secondary` is the body ink: the property the role classes
+// read is redefined for the subtree, which keeps every child's own class and needs no per-child decision.
 func sectionFillClass(ctx context.Context, current bool) string {
 	if current {
-		return toneFillClass(ctx, domain.ToneInfo)
+		return toneFillClass(ctx, domain.ToneInfo) + " [--color-ink-secondary:var(--color-ink-body)]"
 	}
 	return backgroundClass(ctx, domain.BackgroundRaised)
 }
