@@ -392,7 +392,8 @@ func TestPanelAndSectionPaddingMatchTheirElement(t *testing.T) {
 			}
 		}
 	}
-	// 14 when rencana 0.4 migrated them; 13 since 2.3d, when the signature dialog's moved into `dialogClasses` (layout.templ).
+	// 14 when rencana 0.4 migrated them (15 counted by 2.3d's review, one over the floor); 13 since 2.3d, when both dialogs' moved
+	// into `dialogClasses` (layout.templ).
 	if seen < 13 {
 		t.Fatalf("found %d panel/section padding readers, want at least 13 -- the scan is reading the wrong text", seen)
 	}

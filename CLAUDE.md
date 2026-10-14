@@ -1442,8 +1442,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   not taken). The signature dialog's bytes are unchanged; the leave guard's classes are the same set in another order. Two
   ratchets reacted and were adjusted on reading, not silenced: `handWrittenSurfaceFloors` lost `reviewdocument.templ`, whose reason
   ("a dialog with no raised fill") had been false since the dialog read the raised background, and the padding-reader sanity floor
-  went 14 to 13. **A comment of mine leaked `.shadow` into app.css again** (the bare word); found by the CSS diff after
-  `make generate`, not by a gate. Mutation-proved nine ways, including the generated file, since renderer tests read `*_templ.go`.
+  went 14 to 13 (both dialogs' readers moved: 15 counted before, 13 now). The independent review found the gate matched
+  `dialogClasses(` by substring (a `templ.KV(…, false)` and a string literal passed; it reads the call as a bare class part now,
+  `hasBareClassPart`) and that the R9 test, comparing each dialog with the reader itself, let an ink, background, elevation or scrim
+  swap through (it pins the default shell whole and moves ink now). **A comment of mine leaked `.shadow` into app.css again** (the bare word); found by the CSS diff after
+  `make generate`, not by a gate. Mutation-proved sixteen ways, including the generated file, since renderer tests read `*_templ.go`.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):
