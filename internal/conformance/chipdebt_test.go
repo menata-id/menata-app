@@ -14,7 +14,7 @@ import (
 // it should have used.
 //
 // Built after two slices moved 25 chips onto `statusBadge` (2026-10-05); the build-migrate-then-gate order
-// this repo uses. **Three floors remain, and none is debt** -- each carries something `statusBadge` must
+// this repo uses. **Two floors remain, and none is debt** -- each carries something `statusBadge` must
 // not accept, which is the boundary working:
 //
 //   - `approvalinbox.templ`: the pending card's SLA chip. Uppercase, tracking and semibold on the same
@@ -24,8 +24,10 @@ import (
 //     `inkClass`/`weightClass`, so no literal tint or size remains for this pattern to see. It is still a
 //     hand-written chip (uppercase and tracking are what `statusBadge` must not accept); what changed is that its
 //     colours follow the Theme, and the typography gate below is what now holds that.
-//   - `machine.templ`: the **selected tab**. Chip-shaped, but not a status -- it is §12.2's `tabs`, which
-//     design-system-decisions D0b records as unbuilt. It will leave this list when that primitive does.
+//   - `machine.templ` left 2026-10-14: the **selected tab** was the view switch's knob, chip-shaped but not a status.
+//     It is `SegmentedControl` now (the fourteenth registered Component), and its size and weight read the Theme, so
+//     no literal remains for this pattern to see. The finding stands: it was never a status, and `tabs` (§12.2) is
+//     still unbuilt.
 //   - `reviewdocument.templ`: a `<code>` reference. Monospace content in a different element; choosing the
 //     element is the capability `statusBadge` lacks (the same finding as `row`'s `<form>`/`<span>` floor).
 //
@@ -38,7 +40,6 @@ import (
 // judgement rather than a miss). Concluding a chip is absent still needs reading the screen.
 var handWrittenChips = map[string]int{
 	"approvalinbox.templ":  1,
-	"machine.templ":        1,
 	"reviewdocument.templ": 1,
 }
 

@@ -1439,6 +1439,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
   on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.
   Mutation-proved seven ways, including the walker arm in the generated file (renderer tests read `*_templ.go`).
+- `TestNoHandWrittenSegmentedControl` — rencana 2.5 step 1 (2026-10-14), the **fourteenth registered Component**, `SegmentedControl`. A row of
+  mutually exclusive choices of the page, one marked: `viewSwitcher`'s "Board / List / Calendar" was the one site, and the first use. Four required
+  inputs (`label`, `query`, `options` as `value=Label` lines, `selected`); a choice is a link to the page's own route with `?query=value`, so the
+  control holds no route, and the marked one is `<span aria-current="true">`. **The 2026-10-11 kajian counted the Builder mockup's control as a second
+  case, and measured it is not:** that one is `role="radiogroup"`, a choice held in the page and switched by script, with a different track. It shares
+  a look and not an element, semantics or behaviour, so only the navigation shape is registered and the radiogroup waits on `actions`. The link went
+  from `/machines/<id>?view=<view>` to `?view=<view>` (the same address: both callers render only on the Machine's own page, and the htmx swaps resolve
+  against the document URL). Size and weight now read the Theme, so two ratchets lowered on their own (`machine.templ` text 23→21, weight 8→7, and the
+  chip floor for the view switch's "selected tab" left, 1→0 there). `experimental`. An input named `param` collided with the page key a Metric already
+  uses, caught by the page-loader test, so the input is `query`. Mutation-proved fourteen ways, including the generated file.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

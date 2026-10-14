@@ -1033,6 +1033,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
 | `Disclosure` | experimental | No installed `page:` declares one yet: Groups and Members draw it in Go ("+ New group", "+ Invite member") |
+| `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -1394,6 +1395,24 @@ script) wait on a declaration for that; none is covered.
   children:
     - component: Form
       # ... a bound Form, as under "Form" above
+```
+
+**`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one
+marked. `label` names the group for assistive technology, `query` is the query parameter the choice travels in,
+`options` lists `value=Label` pairs (two or more, values unique, no spaces or URL punctuation in a value) and `selected`
+is one of the values. A choice is a link to the page's own route with `?query=value`, so you never type a route.
+**`experimental`**: the record list's view switch draws it, and no installed page declares one, because a declared
+page has no handler that reads the parameter yet. It is the navigation shape only; a choice held in the page and switched
+by script (the Builder mockup's `radiogroup`) needs `actions` and is not covered.
+
+```yaml
+- component: SegmentedControl
+  label: Range
+  query: range
+  options: |-
+    week=Week
+    month=Month
+  selected: week
 ```
 
 **A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with

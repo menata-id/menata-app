@@ -57,6 +57,72 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentCallout:     {Contract: calloutContract, Validate: validateCallout},
 	domain.ComponentEmptyState:  {Contract: emptyStateContract, Validate: validateEmptyState},
 	domain.ComponentDisclosure:  {Contract: disclosureContract, Validate: validateDisclosure},
+
+	domain.ComponentSegmentedControl: {Contract: segmentedControlContract, Validate: validateSegmentedControl},
+}
+
+// segmentedControlContract is a short row of mutually exclusive choices of the page itself, one marked.
+//
+// **Four required inputs, no slot, no action.** `label` names the group (the only name a screen-reader user gets for
+// "Board / List / Calendar"), `query` is the query parameter on the page's own route the choice travels in, `options`
+// lists `value=Label` pairs, and `selected` is one of the values. A choice is a link to the same route with `?query=value`,
+// so the control never holds a route of its own (007 §12.3: nothing typed that metadata declares) and needs no script;
+// the page decides what the parameter means. **That is the navigation shape only.** The Builder mockup's
+// `role="radiogroup"` is a choice held in the page and switched by script, which needs `actions` and is not registered.
+//
+// What the contract forces that a reviewer would not have asked for: a selected value outside the options is refused
+// (a control with nothing marked looks like one with no state), and so is a lone option (one choice is not a choice;
+// `viewSwitcher` already drew nothing below two).
+var segmentedControlContract = domain.ComponentContract{
+	Type:   domain.ComponentSegmentedControl,
+	Status: domain.ComponentStatusExperimental,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+		{Name: "options", Kind: "string", Required: true},
+		{Name: "selected", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "a <nav> named by `label`; the selected option is a <span aria-current=\"true\"> and the others are links, so the keyboard reaches every other choice and the current one is announced; a blank label is refused because it is the group's only name",
+	Renderer:         "segmentedControl",
+}
+
+// validateSegmentedControl checks a use against the declared inputs, then the shape of each.
+func validateSegmentedControl(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(segmentedControlContract, inputs, "SegmentedControl")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "SegmentedControl label is blank -- the group's only accessible name")
+	}
+	if p, ok := inputs["query"]; ok && p != "" {
+		for i, r := range p {
+			if !(r >= 'a' && r <= 'z' || r == '_' || i > 0 && r >= '0' && r <= '9') {
+				issues = append(issues, fmt.Sprintf("SegmentedControl query %q must be lowercase letters, digits and underscores, starting with a letter", p))
+				break
+			}
+		}
+	}
+	opts := domain.ParseSegmentOptions(inputs["options"])
+	if inputs["options"] != "" && len(opts) < 2 {
+		issues = append(issues, "SegmentedControl options hold fewer than two choices -- one choice is not a choice")
+	}
+	seen := map[string]bool{}
+	for _, o := range opts {
+		switch {
+		case strings.TrimSpace(o.Value) == "" || o.Value != strings.TrimSpace(o.Value) || strings.ContainsAny(o.Value, "&?#% "):
+			issues = append(issues, fmt.Sprintf("SegmentedControl option value %q must be non-blank with no spaces or URL punctuation -- it travels in a query string", o.Value))
+		case strings.TrimSpace(o.Label) == "":
+			issues = append(issues, fmt.Sprintf("SegmentedControl option %q has no label -- write it as value=Label", o.Value))
+		case seen[o.Value]:
+			issues = append(issues, fmt.Sprintf("SegmentedControl option value %q appears twice", o.Value))
+		}
+		seen[o.Value] = true
+	}
+	if sel := inputs["selected"]; sel != "" && !seen[sel] {
+		issues = append(issues, fmt.Sprintf("SegmentedControl selected %q is not one of its options", sel))
+	}
+	return issues
 }
 
 // disclosureContract is a panel that opens to show what its summary promises.

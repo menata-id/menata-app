@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // BadgeTone is the semantic urgency of a status badge, as a closed set.
 //
@@ -140,6 +143,16 @@ const (
 	// accent summary and a form under a rule. It is the *panel* disclosure only. The tail-folding "Show all N" link
 	// (`foldedRest`, the record detail's fold) hides its own summary once open, the card menus open a floating list, and the Archived-workspaces fold is a quiet line on a pre-auth-adjacent screen; each is a different job.
 	ComponentDisclosure ComponentType = "Disclosure"
+
+	// ComponentSegmentedControl is a short row of mutually exclusive choices of one page, the selected one marked: the
+	// record list's "Board / List / Calendar" switch (`viewSwitcher`), which every Machine with two or more Views draws.
+	//
+	// **It is the navigation shape only.** Each unselected option is a link to the page's own route with one query
+	// parameter changed, and the selected one carries `aria-current`. The Builder mockup's `role="radiogroup"` control
+	// looks like it but is another job: a choice held in the page, switched by a script. The 2026-10-11 kajian counted
+	// the two as one "second case"; they share a track and a knob, and differ in element, semantics and behaviour
+	// (the second needs 007 §12.3's `actions`). The radiogroup is not registered here.
+	ComponentSegmentedControl ComponentType = "SegmentedControl"
 )
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not
@@ -368,4 +381,38 @@ func (c ComponentContract) StatusProblems() []string {
 		issues = append(issues, fmt.Sprintf("%s names itself as its own ReplacedBy", c.Type))
 	}
 	return issues
+}
+
+// SegmentOption is one choice of a SegmentedControl: the value the page's query parameter takes and the words drawn.
+type SegmentOption struct {
+	Value string
+	Label string
+}
+
+// SegmentOptionSep separates a SegmentedControl option's value from its label inside the one `options` string property
+// (`board=Board`). The first one splits, so a label may hold the character; a value may not.
+const SegmentOptionSep = "="
+
+// ParseSegmentOptions reads the `options` property of a SegmentedControl: one `value=Label` per line
+// (`InputOptionsSep`). An entry with no separator reads as a value with an empty label, which the registry's validator
+// refuses; the renderer therefore never meets one from a loaded page.
+func ParseSegmentOptions(s string) []SegmentOption {
+	if s == "" {
+		return nil
+	}
+	var out []SegmentOption
+	for _, line := range strings.Split(s, InputOptionsSep) {
+		v, l, _ := strings.Cut(line, SegmentOptionSep)
+		out = append(out, SegmentOption{Value: v, Label: l})
+	}
+	return out
+}
+
+// JoinSegmentOptions is the inverse, for a caller that holds the choices already resolved.
+func JoinSegmentOptions(opts []SegmentOption) string {
+	parts := make([]string, len(opts))
+	for i, o := range opts {
+		parts[i] = o.Value + SegmentOptionSep + o.Label
+	}
+	return strings.Join(parts, InputOptionsSep)
 }

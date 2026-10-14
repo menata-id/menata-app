@@ -133,7 +133,7 @@ func TestMachineBody_viewSwitcherUsesDeclaredNames(t *testing.T) {
 	if !strings.Contains(got, ">Table<") || !strings.Contains(got, ">Cards<") {
 		t.Errorf("switcher did not render both declared names:\n%s", got)
 	}
-	if !strings.Contains(got, "/machines/mch_document?view=vw_document_cards") {
+	if !strings.Contains(got, "?view=vw_document_cards") {
 		t.Error("switcher did not link to the other view by query parameter")
 	}
 }

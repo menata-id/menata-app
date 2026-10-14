@@ -562,3 +562,42 @@ func TestValidateDisclosure(t *testing.T) {
 		t.Errorf("Disclosure declares slots %v and actions %v, want [body] and [toggle]", c.Slots, c.Actions)
 	}
 }
+
+func TestValidateSegmentedControl(t *testing.T) {
+	ok := map[string]string{"label": "View", "query": "view", "options": "a=A\nb=B", "selected": "a"}
+	if issues := ValidateComponentUse(domain.ComponentSegmentedControl, ok); len(issues) != 0 {
+		t.Errorf("a complete use must validate, got %v", issues)
+	}
+	with := func(k, v string) map[string]string {
+		m := map[string]string{}
+		for a, b := range ok {
+			m[a] = b
+		}
+		if v == "-" {
+			delete(m, k)
+		} else {
+			m[k] = v
+		}
+		return m
+	}
+	for name, in := range map[string]map[string]string{
+		"no label":           with("label", "-"),
+		"a blank label":      with("label", "  "),
+		"no query":           with("query", "-"),
+		"a bad query":        with("query", "View"),
+		"a digit-led query":  with("query", "1view"),
+		"no options":         with("options", "-"),
+		"one option":         with("options", "a=A"),
+		"an option no label": with("options", "a=A\nb"),
+		"a duplicate value":  with("options", "a=A\na=B"),
+		"a spaced value":     with("options", "a b=A\nc=C"),
+		"selected not in":    with("selected", "z"),
+		"no selected":        with("selected", "-"),
+		"a class":            with("class", "mt-2"),
+		"a hook":             with("hx-get", "/x"),
+	} {
+		if issues := ValidateComponentUse(domain.ComponentSegmentedControl, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+}

@@ -73,7 +73,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"installapplication.templ": {size: 10, ink: 0, weight: 2, fill: 0},
 	"layout.templ":             {size: 4, ink: 0, weight: 0, fill: 0},
 	"login.templ":              {size: 3, ink: 0, weight: 2, fill: 0},
-	"machine.templ":            {size: 23, ink: 0, weight: 8, fill: 0},
+	"machine.templ":            {size: 21, ink: 0, weight: 7, fill: 0},
 	"newapplication.templ":     {size: 24, ink: 0, weight: 0, fill: 0},
 	"notifications.templ":      {size: 5, ink: 0, weight: 2, fill: 0},
 	"progress.templ":           {size: 2, ink: 0, weight: 0, fill: 0},

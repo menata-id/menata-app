@@ -1,0 +1,28 @@
+package rendering
+
+import (
+	"fmt"
+	"net/url"
+
+	"menata.app/internal/domain"
+)
+
+// segmentedControl is the registered renderer for `domain.ComponentSegmentedControl`: a row of mutually exclusive
+// choices of the page itself, the selected one marked. It is the markup `viewSwitcher` drew by hand, with the group's
+// name and the query parameter as inputs instead of the literals "View" and `view`.
+//
+// An unselected option is a link to the page's own route with one parameter (`?view=list`), relative on purpose: the
+// control never holds a route, so no path appears here that no navigation item declares (007 §12.3), and on the record
+// list it resolves to the address the hand-written link spelled out. The selected option is a `<span aria-current>`.
+// The track and the knob follow the Theme (surface tile, raised and sunken fills, strong and secondary ink).
+templ segmentedControl(label, query, options, selected string) {
+	<nav class={ "inline-flex", layoutGap(ctx, domain.GapHair), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label={ label }>
+		for _, o := range domain.ParseSegmentOptions(options) {
+			if o.Value == selected {
+				<span class={ "rounded " + backgroundClass(ctx, domain.BackgroundSunken) + " px-3 py-1", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) } aria-current="true">{ o.Label }</span>
+			} else {
+				<a class={ "rounded px-3 py-1", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) } href={ templ.URL(fmt.Sprintf("?%s=%s", query, url.QueryEscape(o.Value))) }>{ o.Label }</a>
+			}
+		}
+	</nav>
+}

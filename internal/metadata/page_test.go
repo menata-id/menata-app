@@ -1050,3 +1050,29 @@ func TestPage_aDisclosureLoadsWithABodyAndABlankSummaryIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// TestPage_aSegmentedControlLoadsAndABadOneIsRefused: a page may declare `component: SegmentedControl` with its four
+// inputs; a lone option, a selected value outside the options, a bad parameter name and any undeclared property are
+// load errors.
+func TestPage_aSegmentedControlLoadsAndABadOneIsRefused(t *testing.T) {
+	page := func(label, query, options, selected, extra string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: SegmentedControl\n" +
+			"          label: " + label + "\n          query: " + query + "\n          options: |-\n" + options + "          selected: " + selected + "\n" + extra
+	}
+	two := "            week=Week\n            month=Month\n"
+	if err := pageFixture(t, page("Range", "range", two, "week", "")); err != nil {
+		t.Errorf("a valid SegmentedControl was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ doc, want string }{
+		"one option":        {page("Range", "range", "            week=Week\n", "week", ""), "fewer than two"},
+		"selected not in":   {page("Range", "range", two, "year", ""), "selected"},
+		"a bad query":       {page("Range", "Range", two, "week", ""), "query"},
+		"a blank label":     {page("\"  \"", "range", two, "week", ""), "label"},
+		"an undeclared key": {page("Range", "range", two, "week", "          class: mt-2\n"), "class"},
+	} {
+		err := pageFixture(t, c.doc)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: got %v, want an error naming %q", name, err, c.want)
+		}
+	}
+}

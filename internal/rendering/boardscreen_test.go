@@ -83,7 +83,7 @@ func TestBoardScreen_rendersColumnsCardsAndSummary(t *testing.T) {
 		`aria-label="Silvia Rini"`, ">SR<",
 		"New task", "Add a card",
 		`name="fld_list" value="lst_a"`,
-		`/machines/mch_task?view=vw_task_table`,
+		`href="?view=vw_task_table"`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("board is missing %q", want)
