@@ -1442,13 +1442,25 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,
-  emerald-800 and cyan-800 (5.55 to 6.21 now). That is a Design System token change, so all three homes moved together (R8): the artifact
+  emerald-800 and cyan-800 (5.6 to 6.5 on the card and the canvas, 5.3 on a lane). That is a Design System token change, so all three homes moved together (R8): the artifact
   (`1791992280-76db`), `design-system/tokens.json`, the DTCG export, and the 88 `:root` blocks of the UI canvas (v163) and the Builder
   canvas's copy (v35). `TestLightTagHuesMeetContrast` is the light twin of the dark Tag pairs (both surfaces), mutation-proved. **The
   current section** (today's cell, on the `info` fill) reads `secondary` as the body ink through a property override in
   `sectionFillClass` (4.38 to 9.52, measured; an ordinary section keeps secondary as it is). **"Add a card"** reads `body` (it sat
   on a sunken lane, which the 2026-10-13 rule already forbids for `secondary`). The mutation on the `.templ` of `sectionFillClass` was a
   false green again; the generated file's mutation bites.
+  **The independent review (same day) confirmed the numbers** (its own OKLCH method: Tag hues 4.58 to 6.47 light on all four surfaces,
+  6.3 or more dark; today's cell 4.37 to 9.49) **and found five things, all acted on:**
+  - the board lane's "Other" hint was still `secondary` on the sunken lane (4.35:1): it reads `body`; a hand-written sunken surface
+    stays the blind spot of `TestTextOnSunkenMeetsContrast`;
+  - `TestLightTagHuesMeetContrast` hard-coded the 10% fill (a `/40` chip passed) and met only two surfaces: it reads the alpha from
+    the chip's class and covers raised, base, sunken and the info fill (28 pairs);
+  - the current-section test passed when the two classes were glued: it reads whole class parts;
+  - the role-class gate could not see an arbitrary-property redefinition of a role property: `TestNoRolePropertyRedefinedOutsideItsReader`
+    allows exactly the one site (mutation-proved);
+  - **a defect older than the slice: the signature canvas drew ink away from the pointer on a narrow screen** (a 400px bitmap shown
+    286px wide at 360px, pointer in CSS pixels): the handler scales to the bitmap now, measured in Chromium at 1280 and 360px (ink at
+    0.90 of the width where 0.90 was drawn).
 - `TestEveryNativeCheckableReadsTheAccent` — rencana 2.3b (2026-10-14), a zero-floor gate with no new Component. The plan said
   "`accent-blue-500`, no control role"; measured, the literal was already gone (CP2 moved it to `controlAccentClass`) and
   7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal

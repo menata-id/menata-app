@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -415,11 +416,14 @@ func TestToneInkAndBorderColoursMatchTheCompiledCSS(t *testing.T) {
 	}
 }
 
-// TestLightTagHuesMeetContrast holds a Tag's ink over its own 10% fill on both surfaces a chip sits on (the raised card and
-// the page canvas), in light mode. The dark twin is in TestDarkColourPairsMeetContrast, which only covers `raised`.
-// Added 2026-10-14 after a Chromium audit found a blue chip on the record page at 4.32:1; measuring every hue then found
-// blue, amber, emerald and cyan below 4.5:1 on one surface or both (the audit had met only the one the dev data holds).
+// TestLightTagHuesMeetContrast holds a Tag's ink over its own fill on every surface a chip really sits on in light mode:
+// the raised card, the page canvas, a sunken lane (board cards) and the `info` fill of today's calendar cell. The fill's
+// alpha is read from the chip's own `bg-tag-<hue>/N` class, so a change of the fill is measured and not assumed. The dark
+// twin is in TestDarkColourPairsMeetContrast, which covers `raised` only (a reviewer measured dark at 6.3:1 or more on all of
+// them). Added 2026-10-14 after a Chromium audit found a blue chip at 4.32:1; measuring every hue then found blue, amber,
+// emerald and cyan below 4.5:1 on one surface or more (the audit had met only what the dev data holds).
 func TestLightTagHuesMeetContrast(t *testing.T) {
+	ctx := context.Background()
 	css := compiledColours(t)
 	col := func(name string) domain.Colour {
 		t.Helper()
@@ -429,21 +433,42 @@ func TestLightTagHuesMeetContrast(t *testing.T) {
 		}
 		return domain.Colour(c)
 	}
-	raised := col(strings.TrimPrefix(backgroundClass(context.Background(), domain.BackgroundRaised), "bg-"))
-	base := col(strings.TrimPrefix(backgroundClass(context.Background(), domain.BackgroundBase), "bg-"))
-	tags := 0
+	surfaces := map[string]domain.Colour{
+		"raised": col(strings.TrimPrefix(backgroundClass(ctx, domain.BackgroundRaised), "bg-")),
+		"base":   col(strings.TrimPrefix(backgroundClass(ctx, domain.BackgroundBase), "bg-")),
+		"sunken": col(strings.TrimPrefix(backgroundClass(ctx, domain.BackgroundSunken), "bg-")),
+		"info":   col(strings.TrimPrefix(toneFillClass(ctx, domain.ToneInfo), "bg-")),
+	}
+	pairs := 0
 	for _, tc := range []domain.TagColor{domain.TagBlue, domain.TagPurple, domain.TagAmber, domain.TagEmerald, domain.TagCyan, domain.TagRose, domain.TagSlate} {
 		chip, _ := tagClasses(tc)
-		hue := col(strings.TrimPrefix(strings.Fields(chip)[2], "text-")) // `text-tag-<hue>`
-		for name, surface := range map[string]domain.Colour{"raised": raised, "base": base} {
-			tags++
-			if r := domain.ContrastRatio(hue, hue.Over(surface, 0.1)); r < 4.5 {
+		var hue domain.Colour
+		haveHue := false
+		alpha := -1.0
+		for _, part := range strings.Fields(chip) {
+			switch {
+			case strings.HasPrefix(part, "text-tag-"):
+				hue, haveHue = col(strings.TrimPrefix(part, "text-")), true
+			case strings.HasPrefix(part, "bg-tag-"):
+				n, err := strconv.Atoi(part[strings.Index(part, "/")+1:])
+				if err != nil {
+					t.Fatalf("tag %s: fill %q has no numeric alpha", tc, part)
+				}
+				alpha = float64(n) / 100
+			}
+		}
+		if !haveHue || alpha < 0 {
+			t.Fatalf("tag %s: could not read its ink and fill from %q", tc, chip)
+		}
+		for name, surface := range surfaces {
+			pairs++
+			if r := domain.ContrastRatio(hue, hue.Over(surface, alpha)); r < 4.5 {
 				t.Errorf("tag %s on %s is %.2f:1, below 4.5:1 -- darken its light step in input.css (and the Design System token)", tc, name, r)
 			}
 		}
 	}
-	if tags != 14 {
-		t.Fatalf("measured %d tag pairs, want 14", tags)
+	if pairs != 28 {
+		t.Fatalf("measured %d tag pairs, want 28", pairs)
 	}
 }
 
@@ -453,8 +478,9 @@ func TestLightTagHuesMeetContrast(t *testing.T) {
 func TestCurrentSectionReadsSecondaryAsBody(t *testing.T) {
 	ctx := context.Background()
 	const override = "[--color-ink-secondary:var(--color-ink-body)]"
-	if got := sectionFillClass(ctx, true); !strings.Contains(got, override) || !strings.Contains(got, "bg-tone-info-bg") {
-		t.Errorf("the current section lost its fill or the secondary override: %q", got)
+	// Whole class parts: the two classes must be separate tokens, or gluing them breaks both (a reviewer's mutation).
+	if parts := strings.Fields(sectionFillClass(ctx, true)); !slices.Contains(parts, override) || !slices.Contains(parts, "bg-tone-info-bg") {
+		t.Errorf("the current section lost its fill or the secondary override as separate class parts: %q", parts)
 	}
 	if got := sectionFillClass(ctx, false); strings.Contains(got, "ink-secondary") {
 		t.Errorf("an ordinary section must not redefine secondary: %q", got)

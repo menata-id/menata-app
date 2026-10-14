@@ -763,7 +763,9 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 					<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
 				if col.Hint != "" {
-					@staticText(domain.StaticCaption, col.Hint)
+					// A caption in the lane's sunken surface: `secondary` ink measures 4.35:1 there (the 2026-10-13 rule), so the hint
+					// reads `body` rather than going through the caption kind.
+					<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkBody) }>{ col.Hint }</p>
 				}
 				<div data-cards class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					for i, r := range col.Records {
@@ -838,8 +840,9 @@ func cardRole(c RecordCard, role domain.CardFieldRole) string {
 // An unknown entry takes the neutral one, the same fallback composition applies before it gets here.
 //
 // Each hue is a property, `--color-tag-<hue>` (owner decision DK8, 2026-10-13), so dark mode gives it its own step;
-// input.css holds both. The light steps are the ones the palette always drew (emerald-700, not green-700: owner
-// decision T1, 2026-10-12).
+// input.css holds both. The light steps of blue, amber, emerald and cyan were deepened on 2026-10-14 (blue-700,
+// amber-800, emerald-800, cyan-800) so the ink reaches 4.5:1 over its own 10% fill on the page canvas, a card and a lane
+// (TestLightTagHuesMeetContrast); emerald, not green, is owner decision T1 (2026-10-12).
 func tagClasses(c domain.TagColor) (chip, dot string) {
 	switch c {
 	case domain.TagBlue:

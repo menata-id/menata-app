@@ -575,8 +575,10 @@ templ signatureModal(stepID string) {
 				if (!canvas) return;
 				drawing = true;
 				var rect = canvas.getBoundingClientRect();
-				lastX = e.clientX - rect.left;
-				lastY = e.clientY - rect.top;
+				// The bitmap has a fixed size and the element is width: 100%, so on a narrow screen one CSS pixel is
+				// not one bitmap pixel; scale, or the ink lands away from the pointer (measured: 28% off at 360px).
+				lastX = (e.clientX - rect.left) * canvas.width / rect.width;
+				lastY = (e.clientY - rect.top) * canvas.height / rect.height;
 				canvas.setPointerCapture(e.pointerId);
 			});
 			document.addEventListener("pointermove", function (e) {
@@ -584,8 +586,8 @@ templ signatureModal(stepID string) {
 				var canvas = e.target.closest(".sig-modal-canvas");
 				if (!canvas) return;
 				var rect = canvas.getBoundingClientRect();
-				var x = e.clientX - rect.left;
-				var y = e.clientY - rect.top;
+				var x = (e.clientX - rect.left) * canvas.width / rect.width;
+				var y = (e.clientY - rect.top) * canvas.height / rect.height;
 				var ctx = canvas.getContext("2d");
 				ctx.strokeStyle = "#1a1a1a";
 				ctx.lineWidth = 2;

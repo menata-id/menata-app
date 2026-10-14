@@ -203,3 +203,47 @@ func countPaletteColours(src string) int {
 	}
 	return n
 }
+
+// TestNoRolePropertyRedefinedOutsideItsReader closes a hole the 2026-10-14 review found in the role-class gate above: it
+// matches role *classes*, not an arbitrary-property class that redefines a role's *property* for a subtree
+// (`[--color-ink-secondary:var(--color-ink-body)]`), so any site could move a role without a gate noticing. One site does
+// it on purpose, the current section's fill (`sectionFillClass`, where `secondary` measures 4.38:1 on the info fill); it is
+// the whole of `rolePropertyRedefinitions`, closed both ways. Comments are stripped first. Go `.go` files are read too.
+func TestNoRolePropertyRedefinedOutsideItsReader(t *testing.T) {
+	rolePropertyRedefinitions := map[string]int{"layout.templ": 1}
+	re := regexp.MustCompile(`\[--color-[a-z0-9-]+:`)
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	got := map[string]int{}
+	scanned := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") || !(strings.HasSuffix(name, ".templ") || strings.HasSuffix(name, ".go")) {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		scanned++
+		if n := len(re.FindAllString(stripTemplComments(string(b)), -1)); n > 0 {
+			got[name] = n
+		}
+	}
+	if scanned < 20 {
+		t.Fatalf("only %d files scanned -- the gate is reading the wrong directory", scanned)
+	}
+	for name, n := range got {
+		if want := rolePropertyRedefinitions[name]; n != want {
+			t.Errorf("%s redefines a colour role's property %d time(s), allowed %d -- a role moves through its reader or the Theme, not through an arbitrary-property class (add the site to rolePropertyRedefinitions with its reason only if a subtree truly needs another ink)", name, n, want)
+		}
+	}
+	for name, want := range rolePropertyRedefinitions {
+		if got[name] != want {
+			t.Errorf("rolePropertyRedefinitions expects %d in %s, found %d -- remove or lower the entry", want, name, got[name])
+		}
+	}
+}
