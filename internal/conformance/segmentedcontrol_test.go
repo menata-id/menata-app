@@ -18,6 +18,10 @@ import (
 // What it cannot see: a choice row drawn with another marker (`aria-pressed`, a radio group), a class from a Go function.
 // The Builder mockup's `role="radiogroup"` is another job (a choice held in the page, switched by script) and is not
 // registered.
+// segmentMarker is `aria-current` set to "true" in any of the quoting forms templ accepts (`"true"`, `'true'`,
+// `{ "true" }`); the review found the first version read only the double-quoted one.
+var segmentMarker = regexp.MustCompile(`aria-current\s*=\s*(?:\{\s*)?["'` + "`" + `]true["'` + "`" + `]`)
+
 func TestNoHandWrittenSegmentedControl(t *testing.T) {
 	open := regexp.MustCompile(`(?i)<[a-z][a-z0-9]*[\s>]`)
 	own := 0
@@ -32,7 +36,7 @@ func TestNoHandWrittenSegmentedControl(t *testing.T) {
 			end := scanTagEnd(src, i+loc[1]-1)
 			tag := src[start:end]
 			i = end
-			marker := strings.Contains(tag, `aria-current="true"`)
+			marker := segmentMarker.MatchString(tag)
 			track := strings.Contains(tag, "tileClasses(") && strings.Contains(tag, "p-0.5")
 			if name == "segmentedcontrol.templ" {
 				if marker {

@@ -568,6 +568,10 @@ func TestValidateSegmentedControl(t *testing.T) {
 	if issues := ValidateComponentUse(domain.ComponentSegmentedControl, ok); len(issues) != 0 {
 		t.Errorf("a complete use must validate, got %v", issues)
 	}
+	trailing := map[string]string{"label": "View", "query": "view", "options": "a=A\nb=B\n", "selected": "a"}
+	if issues := ValidateComponentUse(domain.ComponentSegmentedControl, trailing); len(issues) != 0 {
+		t.Errorf("a YAML | block's trailing newline must not read as an empty option, got %v", issues)
+	}
 	with := func(k, v string) map[string]string {
 		m := map[string]string{}
 		for a, b := range ok {
@@ -590,7 +594,12 @@ func TestValidateSegmentedControl(t *testing.T) {
 		"one option":         with("options", "a=A"),
 		"an option no label": with("options", "a=A\nb"),
 		"a duplicate value":  with("options", "a=A\na=B"),
-		"a spaced value":     with("options", "a b=A\nc=C"),
+		"a spaced value":     with("options", "a=A\nb c=C"),
+		"an ampersand":       with("options", "a=A\nb&c=C"),
+		"a question mark":    with("options", "a=A\nb?c=C"),
+		"a hash":             with("options", "a=A\nb#c=C"),
+		"a percent":          with("options", "a=A\nb%c=C"),
+		"a trailing tab":     with("options", "a=A\nc\t=C"),
 		"selected not in":    with("selected", "z"),
 		"no selected":        with("selected", "-"),
 		"a class":            with("class", "mt-2"),

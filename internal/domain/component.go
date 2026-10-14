@@ -394,7 +394,8 @@ type SegmentOption struct {
 const SegmentOptionSep = "="
 
 // ParseSegmentOptions reads the `options` property of a SegmentedControl: one `value=Label` per line
-// (`InputOptionsSep`). An entry with no separator reads as a value with an empty label, which the registry's validator
+// (`InputOptionsSep`). A blank line is skipped, so a YAML `|` block's trailing newline is not read as an empty option
+// (the independent review found only `|-` loaded). An entry with no separator reads as a value with an empty label, which the registry's validator
 // refuses; the renderer therefore never meets one from a loaded page.
 func ParseSegmentOptions(s string) []SegmentOption {
 	if s == "" {
@@ -402,6 +403,9 @@ func ParseSegmentOptions(s string) []SegmentOption {
 	}
 	var out []SegmentOption
 	for _, line := range strings.Split(s, InputOptionsSep) {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
 		v, l, _ := strings.Cut(line, SegmentOptionSep)
 		out = append(out, SegmentOption{Value: v, Label: l})
 	}

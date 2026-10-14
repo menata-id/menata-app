@@ -468,6 +468,14 @@ func TestValidate_viewRequiresAName(t *testing.T) {
 	assertIssue(t, m, "must declare a name")
 }
 
+// The view switch is a SegmentedControl whose options are one per line, so a name with a line break would draw a
+// second, empty choice (independent review of SegmentedControl, 2026-10-14).
+func TestValidate_viewNameIsOneLine(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{{ID: "vw_task_table", Name: "Line1\nLine2", Type: domain.ViewTable}}
+	assertIssue(t, m, "line break")
+}
+
 func TestValidate_viewIDPattern(t *testing.T) {
 	m := validMachine()
 	m.Views = []domain.View{{ID: "board", Type: domain.ViewTable}}

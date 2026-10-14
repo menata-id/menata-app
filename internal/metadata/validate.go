@@ -277,6 +277,11 @@ func validateView(m *domain.Machine, v domain.View, fieldsByID map[string]domain
 	if strings.TrimSpace(v.Name) == "" {
 		issues = append(issues, fmt.Sprintf("machine %q: view %q must declare a name -- it is what a viewer reads when choosing an arrangement", m.ID, v.ID))
 	}
+	if strings.ContainsAny(v.Name, "\r\n") {
+		// The view switch is a SegmentedControl, whose options are one `value=Label` per line: a name holding a line
+		// break would split into a second, empty choice.
+		issues = append(issues, fmt.Sprintf("machine %q: view %q has a line break in its name -- a view name is one line", m.ID, v.ID))
+	}
 	if seen[v.ID] {
 		issues = append(issues, fmt.Sprintf("machine %q: view id %q is declared more than once", m.ID, v.ID))
 	}

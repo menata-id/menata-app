@@ -50,6 +50,14 @@ func TestSegmentedControl_followsTheThemeAndEscapes(t *testing.T) {
 	}
 }
 
+// The selected option's label is escaped too (the review found only the unselected one was tested).
+func TestSegmentedControl_escapesTheSelectedLabel(t *testing.T) {
+	got := renderSegments(t, context.Background(), "L", "p", "a=<A>\nb=B", "a")
+	if !strings.Contains(got, `aria-current="true">&lt;A&gt;</span>`) {
+		t.Errorf("the selected label is not escaped: %s", got)
+	}
+}
+
 // Exactly the selected option is marked, and it is not a link.
 func TestSegmentedControl_marksOnlyTheSelectedOption(t *testing.T) {
 	got := renderSegments(t, context.Background(), "L", "p", "a=A\nb=B\nc=C", "b")

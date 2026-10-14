@@ -155,8 +155,17 @@ func compiledCSSModes(t *testing.T, css string) (light, dark string) {
 	return before + after, ";" + dark + ";"
 }
 
+// classRuleRe matches one compiled class rule (`.x{...}`), so a utility that sets a custom property is not read as the
+// theme's declaration of it.
+var classRuleRe = regexp.MustCompile(`\.[^{}]*\{[^{}]*\}`)
+
 func parseCompiledColours(t *testing.T, css string) compiledCSS {
 	t.Helper()
+	// A class rule that redefines a role (`sectionFillClass`'s `[--color-ink-secondary:var(--color-ink-body)]`, which
+	// holds only inside today's calendar cell) is not the role's value on a page. Read only the theme's own
+	// declarations: without this the last alias in the file wins, and from 2026-10-14 to the design-system audit that
+	// day GS3 measured `secondary` as `body` (10.34:1 where the role is 4.77:1).
+	css = classRuleRe.ReplaceAllString(css, "")
 	out := compiledCSS{}
 	re := regexp.MustCompile(`--color-([a-z]+-[0-9]+):oklch\(([0-9.]+)% ([0-9.]+) ([0-9.]+)\)`)
 	for _, m := range re.FindAllStringSubmatch(css, -1) {
@@ -484,5 +493,15 @@ func TestCurrentSectionReadsSecondaryAsBody(t *testing.T) {
 	}
 	if got := sectionFillClass(ctx, false); strings.Contains(got, "ink-secondary") {
 		t.Errorf("an ordinary section must not redefine secondary: %q", got)
+	}
+}
+
+// TestCompiledColoursReadTheThemeNotAClassOverride pins what GS3 measures for `secondary`: slate-500 in light mode, as
+// the theme declares it, and not the body ink a class override gives it inside today's calendar cell. The audit of
+// 2026-10-14 found GS3 printing 10.34:1 for a role that is 4.77:1, so a lighter secondary would have passed.
+func TestCompiledColoursReadTheThemeNotAClassOverride(t *testing.T) {
+	light := compiledColours(t)
+	if light["ink-secondary"] != light["slate-500"] || light["ink-secondary"] == light["ink-body"] {
+		t.Errorf("ink-secondary resolves to %v, want slate-500 %v (body is %v)", light["ink-secondary"], light["slate-500"], light["ink-body"])
 	}
 }
