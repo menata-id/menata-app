@@ -1028,3 +1028,25 @@ func TestPage_aNodeHiddenByAParameterConditionIsStillChecked(t *testing.T) {
 		t.Errorf("a guarded link to a missing destination loaded: %v", err)
 	}
 }
+
+// TestPage_aDisclosureLoadsWithABodyAndABlankSummaryIsRefused: a page may declare `component: Disclosure` with a summary
+// and children in its `body` slot; a blank or missing summary and any undeclared property are load errors.
+func TestPage_aDisclosureLoadsWithABodyAndABlankSummaryIsRefused(t *testing.T) {
+	page := func(props string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: Disclosure\n" + props
+	}
+	body := "          children:\n            - static: message\n              text: Inside.\n"
+	if err := pageFixture(t, page("          summary: More\n"+body)); err != nil {
+		t.Errorf("a valid Disclosure was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ props, want string }{
+		"no summary":      {body, "summary"},
+		"a blank summary": {"          summary: \"  \"\n" + body, "blank"},
+		"a class":         {"          summary: More\n          class: mt-2\n" + body, "class"},
+	} {
+		err := pageFixture(t, page(c.props))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: got %v, want an error naming %q", name, err, c.want)
+		}
+	}
+}

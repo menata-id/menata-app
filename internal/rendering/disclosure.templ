@@ -1,0 +1,17 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// disclosure is the registered renderer for `domain.ComponentDisclosure`: a panel that opens to show what its summary
+// names. A native `<details>`, so opening and closing is the browser's (the contract's `toggle`), with the surface
+// recipe, an accent summary and the caller's body beneath it.
+//
+// It replaces the "+ New group" panel on Groups and the "+ Invite member" panel on Members, which drew this markup
+// by hand, byte for byte (`TestDisclosure_reproducesThePreMigrationMarkup`). The body is the slot: the form, and the
+// rule above it, stay the caller's, because what opens is not the Component's to know (007 §12.3).
+templ disclosure(summary string) {
+	<details class={ surfaceClasses(ctx) }>
+		<summary class={ "cursor-pointer list-none px-5 py-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>{ summary }</summary>
+		{ children... }
+	</details>
+}

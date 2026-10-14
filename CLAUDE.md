@@ -1428,6 +1428,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   decides the owner's question: Calendar declares `empty: "—"` on a Collection inside a seven-column grid, a per-day
   placeholder where a `p-8` dashed card would be wrong. So the recommendation in `design-system-decisions.md` is not a
   blanket change to `Collection.empty:`.
+- `TestNoHandWrittenDisclosure` — T-A, first step (2026-10-14), the **thirteenth registered Component**, `Disclosure`. Groups' "+ New group" and
+  Members' "+ Invite member" drew one panel by hand (a surface, an accent summary, a form under a rule); rendering both at HEAD and after
+  differs by a single inter-tag space after `</details>` in a flex column (Groups: byte-identical). One required input, `summary`; one slot, `body`
+  (the form and its rule stay the caller's); and it declares `toggle`, the first Component action that is not a write, because a native
+  `<details>` opens and closes with no script. **That is the honest size of `actions` for a native element.** Popovers (six app-shell triggers),
+  menus and the two modal dialogs need a script to open and close, and still wait on a declaration for that. The tail fold (`foldedRest`, which
+  hides its own summary once open), the card menus and the archived fold are other jobs and stay hand-written. `experimental`: no installed
+  `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
+  on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.
+  Mutation-proved nine ways, including the walker arm in the generated file (renderer tests read `*_templ.go`).
 - `TestEveryNativeCheckableReadsTheAccent` — rencana 2.3b (2026-10-14), a zero-floor gate with no new Component. The plan said
   "`accent-blue-500`, no control role"; measured, the literal was already gone (CP2 moved it to `controlAccentClass`) and
   7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal

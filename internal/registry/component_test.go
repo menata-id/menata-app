@@ -539,3 +539,24 @@ func TestCatalogueProblems_isCleanAndCatchesEachFault(t *testing.T) {
 		t.Errorf("a deprecation naming a registered, live successor should be clean, got %v", got)
 	}
 }
+
+func TestValidateDisclosure(t *testing.T) {
+	if issues := ValidateComponentUse(domain.ComponentDisclosure, map[string]string{"summary": "+ New group"}); len(issues) != 0 {
+		t.Errorf("a complete use must validate, got %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"no summary":    {},
+		"a blank":       {"summary": "   "},
+		"an open state": {"summary": "More", "open": "true"},
+		"a class":       {"summary": "More", "class": "mt-2"},
+		"a hook":        {"summary": "More", "hx-get": "/x"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentDisclosure, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+	c := Components[domain.ComponentDisclosure].Contract
+	if len(c.Slots) != 1 || c.Slots[0] != "body" || len(c.Actions) != 1 || c.Actions[0] != "toggle" {
+		t.Errorf("Disclosure declares slots %v and actions %v, want [body] and [toggle]", c.Slots, c.Actions)
+	}
+}

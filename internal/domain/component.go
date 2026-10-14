@@ -130,6 +130,17 @@ const (
 	// whether it should draw this card instead is a visible change and the owner's decision
 	// (design-system-decisions.md, "Tombol, rencana 2.3a" was the last such note; this one is "Keadaan kosong").
 	ComponentEmptyState ComponentType = "EmptyState"
+
+	// ComponentDisclosure is a panel that opens on a click to show what is behind its summary: "+ New group" over the
+	// form that creates one, "+ Invite member" over the invitation form. It is a native `<details>`, so opening and
+	// closing needs no script and no request, and it is the first Component to declare an action that is not a
+	// write: `toggle`.
+	//
+	// **It already existed unregistered, twice, byte for byte**: Groups and Members drew the same surface, the same
+	// accent summary and a form under a rule. It is the *panel* disclosure only. The tail-folding "Show all N" link
+	// (`foldedRest`, the record detail's fold) hides its own summary once open, the card menus are popovers with
+	// script, and the Archived-workspaces fold is a quiet line on a pre-auth-adjacent screen; each is a different job.
+	ComponentDisclosure ComponentType = "Disclosure"
 )
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not

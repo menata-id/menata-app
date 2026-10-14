@@ -68,7 +68,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"detail.templ":             {size: 22, ink: 0, weight: 7, fill: 0},
 	"documentsubmit.templ":     {size: 12, ink: 0, weight: 5, fill: 0},
 	"forgotpassword.templ":     {size: 1, ink: 0, weight: 0, fill: 0},
-	"groups.templ":             {size: 11, ink: 0, weight: 1, fill: 0},
+	"groups.templ":             {size: 10, ink: 0, weight: 0, fill: 0},
 	"inference.templ":          {size: 8, ink: 0, weight: 0, fill: 0},
 	"installapplication.templ": {size: 10, ink: 0, weight: 2, fill: 0},
 	"layout.templ":             {size: 4, ink: 0, weight: 0, fill: 0},
@@ -83,7 +83,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
 	"workspacefiles.templ":     {size: 8, ink: 0, weight: 0, fill: 0},
 	"workspacehome.templ":      {size: 21, ink: 0, weight: 4, fill: 0},
-	"workspacemembers.templ":   {size: 29, ink: 0, weight: 4, fill: 0},
+	"workspacemembers.templ":   {size: 28, ink: 0, weight: 3, fill: 0},
 	"workspacesettings.templ":  {size: 7, ink: 0, weight: 3, fill: 0},
 }
 

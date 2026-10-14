@@ -56,6 +56,42 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentProgress:    {Contract: progressContract, Validate: validateProgress},
 	domain.ComponentCallout:     {Contract: calloutContract, Validate: validateCallout},
 	domain.ComponentEmptyState:  {Contract: emptyStateContract, Validate: validateEmptyState},
+	domain.ComponentDisclosure:  {Contract: disclosureContract, Validate: validateDisclosure},
+}
+
+// disclosureContract is a panel that opens to show what its summary promises.
+//
+// **One input, required, and one slot.** The summary is the whole of the closed state, so a disclosure with no words
+// is a bar that opens onto something unnamed and is refused. What opens is the `body` slot, composed by the caller:
+// the Component never knows it holds a form. **It declares `toggle`, the first Component action that is not a
+// write**, and that is the honest size of 007 §12.3's `actions` for a native element: opening and closing are the
+// browser's own, so there is no event for a page to wire and nothing a page may attach (`hx-*`, a script hook).
+// Popovers, menus and modal dialogs need a script to open and close, and stay outside until a declaration for that
+// exists.
+//
+// What the contract forces that a reviewer would not have asked for: the control is a real `<summary>`, so the
+// keyboard (Enter, Space) and the open state reach assistive technology without an `aria-expanded` anyone must keep
+// in sync.
+var disclosureContract = domain.ComponentContract{
+	Type:   domain.ComponentDisclosure,
+	Status: domain.ComponentStatusExperimental,
+	Inputs: []domain.ComponentInput{
+		{Name: "summary", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"body"},
+	Actions:          []string{"toggle"},
+	Accessibility:    "a native <details> with a <summary>: Enter and Space toggle it, the browser announces the expanded state, and a blank summary is refused because it is the only name the closed panel has",
+	Renderer:         "disclosure",
+}
+
+// validateDisclosure checks a use against the declared input and refuses a blank summary.
+func validateDisclosure(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(disclosureContract, inputs, "Disclosure")
+	if v, ok := inputs["summary"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Disclosure summary is blank -- a closed panel with no words is a bar that opens onto something unnamed")
+	}
+	return issues
 }
 
 // emptyStateContract is the message a list shows when it holds nothing, in a dashed box.

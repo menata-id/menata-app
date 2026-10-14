@@ -1032,6 +1032,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
+| `Disclosure` | experimental | No installed `page:` declares one yet: Groups and Members draw it in Go ("+ New group", "+ Invite member") |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -1377,6 +1378,22 @@ Declare a `component: EmptyState` yourself only for a message that is always tru
 ```yaml
 - component: EmptyState
   text: Reports build overnight, so there is nothing to show before the first run.
+```
+
+**`component: Disclosure`** (2026-10-14) is a panel that opens on a click to show what is under its `summary`. `summary` is
+required and a blank one is a load error; the `body` slot holds the children, which may be any node (a `Form`, text, a
+list). It is a native `<details>`, so it opens and closes with no script and no request, and a page writes no `open`,
+`class`, `id` or `hx-*`. The surface, the summary's size, weight and ink follow the Workspace's `theme:`. **It is
+`experimental`**: Groups and Members draw it in Go ("+ New group", "+ Invite member"), and no installed page declares one.
+It declares `toggle`, the first Component action that is not a write; popovers, menus and dialogs, which need a script to
+open and close, are not covered.
+
+```yaml
+- component: Disclosure
+  summary: + New label
+  children:
+    - component: Form
+      # ... a bound Form, as under "Form" above
 ```
 
 **A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with

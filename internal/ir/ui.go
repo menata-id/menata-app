@@ -234,6 +234,7 @@ var allowedProps = map[string][]string{
 	"component/Progress":    {"label", "value", "max"},
 	"component/Callout":     {"text", "tone"},
 	"component/EmptyState":  {"text"},
+	"component/Disclosure":  {"summary"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

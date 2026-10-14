@@ -86,23 +86,22 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		}
-		<details class={ surfaceClasses(ctx) }>
-			<summary class={ "cursor-pointer list-none px-5 py-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>+ Invite member</summary>
-			<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
-				@csrfHiddenInput()
-				// Email and roles only. The invitee's own name is theirs to state when they accept
-				// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record
-				// created on their behalf is exactly what moving the name onto the identity removed.
-				@authField("invite_email", "email", "Email", "email", "email", false)
-				for _, app := range roleApps {
-					<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-						<label for={ "invite_" + app.ID } class="text-sm font-medium">{ app.Name } role</label>
-						@roleSelect("invite_"+app.ID, app, "")
-					</div>
-				}
-				@authSubmit("Send invitation")
-			</form>
-		</details>
+		@disclosure("+ Invite member") {
+				<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+					@csrfHiddenInput()
+					// Email and roles only. The invitee's own name is theirs to state when they accept
+					// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record
+					// created on their behalf is exactly what moving the name onto the identity removed.
+					@authField("invite_email", "email", "Email", "email", "email", false)
+					for _, app := range roleApps {
+						<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
+							<label for={ "invite_" + app.ID } class="text-sm font-medium">{ app.Name } role</label>
+							@roleSelect("invite_"+app.ID, app, "")
+						</div>
+					}
+					@authSubmit("Send invitation")
+				</form>
+		}
 		@searchBox(routeByID(ctx, "nav_workspace_members"), q, "Search members…", nil)
 		if len(members) == 0 && q != "" {
 			<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>No member matches "{ q }".</p>

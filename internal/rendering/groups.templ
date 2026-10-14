@@ -32,14 +32,13 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 				{ labelByID(ctx, "nav_workspace_members") } →
 			</a>
 		}
-		<details class={ surfaceClasses(ctx) }>
-			<summary class={ "cursor-pointer list-none px-5 py-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>+ New group</summary>
-			<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
-				@csrfHiddenInput()
-				@authField("group_name", "name", "Group name", "text", "off", false)
-				@authSubmit("Create group")
-			</form>
-		</details>
+		@disclosure("+ New group") {
+				<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+					@csrfHiddenInput()
+					@authField("group_name", "name", "Group name", "text", "off", false)
+					@authSubmit("Create group")
+				</form>
+		}
 		if len(groups) == 0 {
 			@emptyState("No groups yet. Create one to grant a role to several people at once.")
 		}
