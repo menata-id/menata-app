@@ -632,7 +632,7 @@ type CardTag struct {
 templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
+			<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ machineHeading(ctx, m) }</h1>
 			@staticText(domain.StaticMessage, boardSummary(m, v, len(records), cards))
 		</div>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {

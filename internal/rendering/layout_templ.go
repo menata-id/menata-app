@@ -985,8 +985,8 @@ func paperInkClass(role domain.InkRole) string {
 // follows a Workspace's tone and dark mode like every other message. A script clones it from a `<template>` (appShell),
 // because a class string written inside a script is one no reader moves.
 func htmxErrorToastClasses(ctx context.Context) string {
-	return "fixed inset-x-4 bottom-20 z-50 mx-auto max-w-md cursor-pointer rounded-lg border " + toneEdgeClass(ctx, domain.ToneBad) + " " +
-		toneFillClass(ctx, domain.ToneBad) + " px-4 py-3 text-sm " + toneInkClass(ctx, domain.ToneBad) + " shadow-lg sm:bottom-6"
+	return "fixed inset-x-4 bottom-20 z-50 mx-auto max-w-md cursor-pointer border " + radiusClass(ctx, domain.RadiusSurface) + " " + toneEdgeClass(ctx, domain.ToneBad) + " " +
+		toneFillClass(ctx, domain.ToneBad) + " px-4 py-3 " + textClass(ctx, domain.RoleBody) + " " + toneInkClass(ctx, domain.ToneBad) + " shadow-lg sm:bottom-6"
 }
 
 // draftTileEdgeClass and draftTileInkClass are the generated-draft tile's indigo (DK8: a categorical colour, so a

@@ -234,3 +234,20 @@ func TestSLAPill_readsTheBadAndWarnTones(t *testing.T) {
 		t.Errorf("a remapped warn tone must move the due-today pill, got %q", got)
 	}
 }
+
+// The active filter chip is told to assistive technology, not by colour alone (gap-plan P3a, 2026-10-14); the others are not.
+func TestFilterChip_marksOnlyTheActiveOne(t *testing.T) {
+	render := func(f FilterChip) string {
+		var buf bytes.Buffer
+		if err := filterChip(f, "?filter=").Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	if got := render(FilterChip{Key: "all", Label: "All", Count: 3, Active: true}); !strings.Contains(got, `aria-current="true"`) {
+		t.Errorf("the active chip carries no aria-current: %s", got)
+	}
+	if got := render(FilterChip{Key: "late", Label: "Late", Count: 1}); strings.Contains(got, "aria-current") {
+		t.Errorf("an inactive chip is marked current: %s", got)
+	}
+}

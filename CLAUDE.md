@@ -1460,6 +1460,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   now); the gate read only the double-quoted marker (`'true'` and `{ "true" }` too now); and `ir.allowedProps` could widen past a
   contract with nothing failing, because the registry validator refused first -- `TestPermittedPropsAreTheContractsInputs` holds the
   two lists together for every Component.
+- **Gap plan P3 (2026-10-14)**, no visual change: computed style over 96 pages at 1280 and 360px, 0 differences (one `/home` element
+  count flipped once at 360 and was stable on four reloads). The table header and the htmx error toast read `textClass`/`radiusClass`;
+  two paper-layer `bg-white` read `paperClass()`; two screen titles that were hand-written 24px `<h1>`s read `RoleDisplay`, and
+  `TestNoHandWrittenHeadingOrEyebrow` refuses `text-2xl` now (it matched only `text-xl`, so it never saw them). `filterChip` marks the
+  active chip with `aria-current`; `segmentedControlExempt` lists that one site (closed both ways). `avatarClasses` stays literal on
+  purpose: the circle's size and its initials' size are one pair, and a text role would let a theme change one without the other.
+  `TestUnmappedLengthTokensMatchTheirLiterals` and `TestUnmappedShadowTokensMatchTheirCode` give the artifact's `control-height`,
+  `pad-control-x`, `pad-metric` and four shadows a comparison where GS1 only had a reason (every token of the same utility in the
+  named function must equal the class: a three-variant recipe with one drifted variant first survived). Mutation-proved.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

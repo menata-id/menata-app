@@ -55,7 +55,7 @@ func tableHeadCellClasses(ctx context.Context) string {
 // so a column of figures aligns right without a second, competing text-align utility whose winner would depend on
 // the order Tailwind emits them (the reason fieldClasses returns no width).
 func tableHeadCellClassesFor(ctx context.Context, a domain.TableAlign) string {
-	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 " + tableAlignClass(a) + " text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase"
+	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 " + tableAlignClass(a) + " " + textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase"
 }
 
 // fieldClasses is the one place an input's look is decided, and the first reader of `BorderControl` -- the

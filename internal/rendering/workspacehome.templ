@@ -94,7 +94,7 @@ func appIconClasses(color string) string {
 templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, apps []ApplicationCard, suggestions []domain.ApplicationSuggestion) {
 	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
 		<div class="flex flex-col gap-1.5">
-			<h1 class="m-0 text-2xl font-medium">{ titleByID(ctx, "nav_home") }</h1>
+			<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ titleByID(ctx, "nav_home") }</h1>
 			// apps holds only what this viewer can open (internal/web.canOpenApplication, S0.1), so an
 			// empty list means one of two things and the copy must say which: nothing installed, or
 			// installed Applications that all declare roles this viewer holds none of.

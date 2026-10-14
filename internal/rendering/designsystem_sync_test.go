@@ -131,10 +131,10 @@ var dsUnmapped = map[string]string{
 	"accent-ring": "the stepper's current-step ring: `accentRingClass` reads `ring-accent/20`, which is a translucent accent and not the artifact's solid blue-100 (light) / blue-900 (dark); the difference is owner decision K-08 in the 2026-10-14 remediation plan", "focus-ring": "not a reader: a base :focus-visible rule in input.css (DS-D14) and the field focus utilities, both blue-300 (TestKeyboardFocusRuleCoversInteractiveElements)",
 	"primary-hover": "inkFillHoverClass: strong at 90% over raised (CP1), a mix no single value spells; the loader measures it",
 	"scrim":         "scrimClass: --color-scrim is a color-mix (slate-900 40%, black 60% in dark, DK10), the artifact writes rgba",
-	"pad-metric":    "metric's literal p-3", "pad-control-x": "buttonClasses' literal px-4",
-	"control-height": "the literal h-9 in buttonClasses/fieldClasses; no height role", "brand-mark-size": "auth shell literal",
+	"pad-metric":    "metric's literal p-3 (held by TestUnmappedLengthTokensMatchTheirLiterals)", "pad-control-x": "buttonClasses' literal px-4 (held by TestUnmappedLengthTokensMatchTheirLiterals)",
+	"control-height": "the literal h-9 in buttonClasses/fieldClasses; no height role (held by TestUnmappedLengthTokensMatchTheirLiterals)", "brand-mark-size": "auth shell literal",
 	"radius-brand-mark": "auth shell one-off", "radius-sheet": "the mobile sheet's literal rounded-t-2xl",
-	"shadow-card-auth": "shadow is not a Theme category (D0a)", "shadow-hover": "as above", "shadow-popover": "as above",
+	"shadow-card-auth": "shadow is not a Theme category (D0a); compared by TestUnmappedShadowTokensMatchTheirCode", "shadow-hover": "as above", "shadow-popover": "as above",
 	"shadow-sheet": "as above", "brand-glyph": "pre-auth, out of Theme's reach",
 	"auth-heading": "pre-auth literal text-[21px]", "auth-subtitle": "pre-auth literal text-[15px]",
 }

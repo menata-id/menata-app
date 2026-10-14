@@ -373,7 +373,9 @@ func activeFilterKey(filters []FilterChip) string {
 	return ""
 }
 
-// filterChip is one SLA filter chip. It preserves the active tab for the same reason the tabs
+// filterChip is one SLA filter chip. The active one carries `aria-current` (gap-plan P3a, 2026-10-14): until then the
+// selection was told by colour alone. It is not a SegmentedControl -- a pill with a count, one per filter, on a row
+// of its own -- and `TestNoHandWrittenSegmentedControl` lists it as the one exemption. It preserves the active tab for the same reason the tabs
 // preserve the active filter -- neither may silently discard the other.
 // hrefPrefix is everything before the chip's own key: a declared nav route plus the query
 // separator and param name for that tab's own filter ("?filter=" on the Inbox's own route, which
@@ -382,6 +384,9 @@ func activeFilterKey(filters []FilterChip) string {
 templ filterChip(f FilterChip, hrefPrefix string) {
 	<a
 		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
+		if f.Active {
+			aria-current="true"
+		}
 		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
 			templ.KV(inkEdgeClass(ctx) + " " + inkFillClass(ctx, domain.InkStrong) + " " + onFillClass(ctx), f.Active),
 			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " " + accentEdgeHoverClass(ctx), !f.Active) }

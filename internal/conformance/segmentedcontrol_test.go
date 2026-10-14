@@ -22,9 +22,19 @@ import (
 // `{ "true" }`); the review found the first version read only the double-quoted one.
 var segmentMarker = regexp.MustCompile(`aria-current\s*=\s*(?:\{\s*)?["'` + "`" + `]true["'` + "`" + `]`)
 
+// segmentedControlExempt are the hand-written places that carry the marker without being a segmented control, each with
+// the count and why. Closed both ways.
+var segmentedControlExempt = map[string]struct {
+	n   int
+	why string
+}{
+	"approvalinbox.templ": {1, "filterChip: a pill with a count, one per SLA filter; the active one is marked for assistive technology (gap-plan P3a). Folding it into the control would change its look and its count"},
+}
+
 func TestNoHandWrittenSegmentedControl(t *testing.T) {
 	open := regexp.MustCompile(`(?i)<[a-z][a-z0-9]*[\s>]`)
 	own := 0
+	exempt := map[string]int{}
 	for _, name := range sortedFileNames(renderingTemplSources(t)) {
 		src := stripTemplComments(renderingTemplSources(t)[name])
 		for i := 0; i < len(src); {
@@ -44,9 +54,20 @@ func TestNoHandWrittenSegmentedControl(t *testing.T) {
 				}
 				continue
 			}
+			if marker && !track {
+				if _, ok := segmentedControlExempt[name]; ok {
+					exempt[name]++
+					continue
+				}
+			}
 			if marker || track {
 				t.Errorf("%s: a hand-written segmented control (%.90q) -- a row of exclusive choices reads @segmentedControl(label, query, options, selected)", name, strings.Join(strings.Fields(tag), " "))
 			}
+		}
+	}
+	for name, e := range segmentedControlExempt {
+		if exempt[name] != e.n {
+			t.Errorf("%s: %d exempt marker(s), listed %d (%s) -- update segmentedControlExempt, or remove the entry if the site is gone", name, exempt[name], e.n, e.why)
 		}
 	}
 	if own != 1 {

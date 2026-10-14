@@ -162,6 +162,11 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 			if hasToken(m[1], "text-xl") {
 				t.Errorf("%s: a hand-written heading at text-xl -- use `@staticText(domain.StaticHeading, text)` (007 §12.6; theme.text.heading)", e.Name())
 			}
+			if hasToken(m[1], "text-2xl") {
+				// 2026-10-14 (gap-plan P3d): two screen titles were hand-written 24px `<h1>`s that this gate, matching only
+				// text-xl, never saw. No StaticText kind draws the display size, so the fix is the role, not a kind.
+				t.Errorf("%s: a hand-written heading at text-2xl -- read `textClass(ctx, domain.RoleDisplay)` and `weightClass(ctx, domain.WeightEmphasis)` (theme.text.display)", e.Name())
+			}
 		}
 		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
 			if strings.HasPrefix(strings.TrimSpace(m[0]), "<h2") && hasToken(m[1], "text-sm") && hasToken(m[1], "font-medium") &&
