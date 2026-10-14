@@ -659,6 +659,22 @@
         "hex": "#002c22"
       }
     },
+    "tone-good-border": {
+      "$extensions": {
+        "app.menata": {
+          "property": "--color-tone-good-border"
+        }
+      },
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.432,
+          0.095,
+          166.913
+        ],
+        "hex": "#006045"
+      }
+    },
     "tone-good-ink": {
       "$extensions": {
         "app.menata": {
@@ -689,6 +705,22 @@
           267.935
         ],
         "hex": "#162456"
+      }
+    },
+    "tone-info-border": {
+      "$extensions": {
+        "app.menata": {
+          "property": "--color-tone-info-border"
+        }
+      },
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.424,
+          0.199,
+          265.638
+        ],
+        "hex": "#193cb8"
       }
     },
     "tone-info-ink": {
@@ -723,6 +755,22 @@
         "hex": "#020618"
       }
     },
+    "tone-muted-border": {
+      "$extensions": {
+        "app.menata": {
+          "property": "--color-tone-muted-border"
+        }
+      },
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.279,
+          0.041,
+          260.031
+        ],
+        "hex": "#1d293d"
+      }
+    },
     "tone-muted-ink": {
       "$extensions": {
         "app.menata": {
@@ -753,6 +801,22 @@
           260.031
         ],
         "hex": "#1d293d"
+      }
+    },
+    "tone-neutral-border": {
+      "$extensions": {
+        "app.menata": {
+          "property": "--color-tone-neutral-border"
+        }
+      },
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.372,
+          0.044,
+          257.287
+        ],
+        "hex": "#314158"
       }
     },
     "tone-neutral-ink": {
