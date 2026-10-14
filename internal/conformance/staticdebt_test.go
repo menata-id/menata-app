@@ -41,12 +41,12 @@ import (
 // one at `text-2xs` (16 sites in 6 files by exact literal, a caption that no text role names -- see domain.StaticNote), or one
 // using another ink shade. Concluding a muted sentence is absent still needs reading the screen.
 var handWrittenMutedParagraphs = map[string]int{
-	"approvalinbox.templ":      2,
-	"inference.templ":          3,
-	"installapplication.templ": 1,
-	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it
-	"workspacemembers.templ":   1,
-	"workspacesettings.templ":  1,
+	"approvalinbox.templ":      2, // the card's submitter line: "Not submitted" and "Submitted by <span>name</span>" hold inline markup and a conditional run
+	"inference.templ":          3, // `max-w-prose` (two) and `mt-3`: per-site width and spacing; the third is a multi-line sentence in a conditional
+	"installapplication.templ": 1, // `leading-6`: a roomier line height for a screen description, no text role names it
+	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it; and an escaped quote around an expression
+	"workspacemembers.templ":   1, // an expression inside quotes ("No member matches "{ q }""), which StaticMessage's escaped text cannot carry
+	"workspacesettings.templ":  1, // `leading-6`, as installapplication
 }
 
 var (

@@ -695,6 +695,13 @@ var avatarContract = domain.ComponentContract{
 // catalogue two catalogues.
 func validateAvatar(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(avatarContract, inputs, "Avatar")
+	// Required means present; whitespace is present. A label of spaces is an accessible name of nothing, which is the
+	// defect the contract's accessibility clause exists to prevent.
+	for _, k := range []string{"label", "initials"} {
+		if v, ok := inputs[k]; ok && v != "" && strings.TrimSpace(v) == "" {
+			issues = append(issues, fmt.Sprintf("Avatar %s is blank -- the circle would carry no name", k))
+		}
+	}
 	if v := inputs["size"]; v != "" && !domain.KnownAvatarSizes[domain.AvatarSize(v)] {
 		issues = append(issues, fmt.Sprintf("Avatar size %q is not one of the declared sizes", v))
 	}

@@ -610,3 +610,21 @@ func TestValidateSegmentedControl(t *testing.T) {
 		}
 	}
 }
+
+// A label or initials of whitespace is present and names nothing (found writing the Avatar authoring guide, 2026-10-14).
+func TestValidateAvatar_whitespaceIsNotAName(t *testing.T) {
+	ok := map[string]string{"initials": "AP", "label": "Ana Putri", "size": "inline", "presence": "present"}
+	if issues := ValidateComponentUse(domain.ComponentAvatar, ok); len(issues) != 0 {
+		t.Fatalf("a complete use must validate, got %v", issues)
+	}
+	for _, k := range []string{"label", "initials"} {
+		bad := map[string]string{}
+		for a, b := range ok {
+			bad[a] = b
+		}
+		bad[k] = "   "
+		if issues := ValidateComponentUse(domain.ComponentAvatar, bad); len(issues) == 0 {
+			t.Errorf("a whitespace %s must be refused", k)
+		}
+	}
+}

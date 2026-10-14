@@ -2,11 +2,10 @@
    (check-generated verifies it isn't stale) so `go build ./cmd/server` needs neither Node nor the
    Tailwind binary -- the same posture the generated *_templ.go files already have.
 
-   Scope note (Fase 1, 2026-09-20): only the pre-auth pages render from this stylesheet so far.
-   Every authenticated screen still renders from machine.templ's own hand-written pageStyles
-   block, deliberately -- those screens change chrome in Fase 2 (breadcrumb + app launcher), and
-   restyling them before their own port would leave fourteen pages half-migrated. The two systems
-   coexisting is a planned transition, not drift. */
+   Scope (updated 2026-10-14): every page, pre-auth and authenticated, renders from this stylesheet. The Fase 1
+   note that only the pre-auth pages did, with the authenticated screens on a hand-written pageStyles block,
+   described a transition that finished when those screens were ported. The colour properties below hold the
+   Design System's tokens in both modes; see CLAUDE.md "The design system has three homes". */
 
 /* source(none) turns OFF Tailwind's automatic content detection, so the only inputs are the
    @source lines below. This is load-bearing, not tidiness: auto-detection walks the whole repo,

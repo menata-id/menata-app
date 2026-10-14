@@ -405,8 +405,7 @@ Rules that follow from it:
   slightly different palette from the v4 tokens, so converting it is owner decision K1, not a substitution.
 - **Artifact and code are held in sync by GS1** (`TestDesignSystemTokensMatchTheCode` over
   `design-system/tokens.json`). As of 2026-10-12, all four tokens the artifact accepted are in code (`mark-good`,
-  `gap-xtight`, `gap-region`, `control-height-compact`), so `dsAcceptedNotInCode` is empty. Still open:
-  - `gap-1`/`gap-0.5`, which neither side owns;
+  `gap-xtight`, `gap-region`, `control-height-compact`), so `dsAcceptedNotInCode` is empty. (`gap-1`/`gap-0.5` became `gap-micro`/`gap-hair` the same day.) Still open:
   - green-700 on Tag `emerald`;
   - the 15px question;
   - the pre-auth `auth-*` sizes (unmapped).

@@ -39,8 +39,8 @@ import (
 // (`approvalinbox`'s `approverChip` is an avatar-plus-name pill and is *not* a status chip, so that is a
 // judgement rather than a miss). Concluding a chip is absent still needs reading the screen.
 var handWrittenChips = map[string]int{
-	"approvalinbox.templ":  1,
-	"reviewdocument.templ": 1,
+	"approvalinbox.templ":  1, // the pending card's SLA chip: uppercase, tracking and semibold on one element, and a tone chosen by a local `overdue`
+	"reviewdocument.templ": 1, // a `<code>` reference: monospace content in a different element, which statusBadge cannot choose
 }
 
 var (

@@ -202,9 +202,9 @@ var loneToneHalves = map[string]struct {
 	n   int
 	why string
 }{
-	"bg-blue-50":       {1, "New Application's assistant bubble (a chat bubble, not the info tone) and your signature box"},
-	"bg-emerald-50":    {1, "a signed signature box, beside its -300 rim"},
-	"text-blue-700":    {2, "the active nav, desktop and mobile alike (owner decision 2026-10-13: blue-700 in both, one step darker than the accent), the inbox tab, and your signature's labels"},
+	"bg-blue-50":       {1, "the paper layer: your signature box on the review page (a mark over a document page, fixed in both modes, DK9)"},
+	"bg-emerald-50":    {1, "a signed signature box on the paper layer, beside its -300 rim"},
+	"text-blue-700":    {2, "your signature box's labels on the review page (the paper layer; the nav and the inbox tab read the Theme now)"},
 	"text-emerald-700": {1, "a signed signature's label"},
 }
 

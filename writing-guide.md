@@ -1397,6 +1397,21 @@ script) wait on a declaration for that; none is covered.
       # ... a bound Form, as under "Form" above
 ```
 
+**`component: Avatar`** is a person's initials in a circle. All four inputs are required: `initials` (one to three letters you
+write, never derived), `label` (the person's name or email, which becomes the `aria-label` and the hover `title`, because two
+letters are not a name), `size` (`inline` beside other content in a row, `lead` to head a detail screen, `compact` in the footer
+of a dense card) and `presence` (`present`, or `pending` for someone who has only been invited, drawn with a dashed ring). A blank
+label is a load error, and so is any property that is not one of the four. The circle's fill, ink and size follow the Workspace's
+`theme:`. **It is `experimental`**: the members, assignee and app-shell screens draw it in Go, and no installed page declares one.
+
+```yaml
+- component: Avatar
+  initials: AP
+  label: Ana Putri
+  size: inline
+  presence: present
+```
+
 **`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one
 marked. `label` names the group for assistive technology, `query` is the query parameter the choice travels in,
 `options` lists `value=Label` pairs (two or more, values unique, no spaces or URL punctuation in a value) and `selected`
