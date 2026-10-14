@@ -119,11 +119,11 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 		</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<code class={ "rounded", toneFillClass(ctx, domain.ToneNeutral), "px-2 py-0.5 text-2xs", toneInkClass(ctx, domain.ToneNeutral) }>{ v.Reference }</code>
+				<code class={ "rounded", toneFillClass(ctx, domain.ToneNeutral), "px-2 py-0.5", textClass(ctx, domain.RoleLabel), toneInkClass(ctx, domain.ToneNeutral) }>{ v.Reference }</code>
 				@reviewStatusPill(v.Status)
 			}
 			@staticText(domain.StaticHeading, v.Title)
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 				{ v.DocumentType }
 				if v.SubmittedBy != "" {
 					{ " · submitted by " + v.SubmittedBy }
@@ -184,8 +184,8 @@ templ reviewDocumentCard(v ReviewView) {
 			@staticText(domain.StaticPanelHeading, "Document")
 			if v.FileHref != "" {
 				<div class={ "flex", layoutGap(ctx, domain.GapTight) }>
-					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs" + " " + accentEdgeHoverClass(ctx) }>View PDF</a>
-					<a href={ templ.SafeURL(v.FileHref) } download class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 text-xs" + " " + accentEdgeHoverClass(ctx) }>Download</a>
+					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 " + textClass(ctx, domain.RoleMeta) + " " + accentEdgeHoverClass(ctx) }>View PDF</a>
+					<a href={ templ.SafeURL(v.FileHref) } download class={ "flex", controlHeightCompact(), "items-center", tileClasses(ctx), "px-3 " + textClass(ctx, domain.RoleMeta) + " " + accentEdgeHoverClass(ctx) }>Download</a>
 				</div>
 			}
 		}
@@ -193,11 +193,11 @@ templ reviewDocumentCard(v ReviewView) {
 			@staticText(domain.StaticMessage, "No file is attached to this document.")
 		} else {
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3" }>
-				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), fileTypeTileClasses(), "text-2xs font-medium" }>PDF</span>
+				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), fileTypeTileClasses(), "text-2xs", weightClass(ctx, domain.WeightEmphasis) }>PDF</span>
 				<span class="flex min-w-0 flex-col">
-					<span class="truncate text-sm">{ v.FileName }</span>
+					<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ v.FileName }</span>
 					if v.PDFPages > 0 {
-						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d page", v.PDFPages) }{ pluralS(v.PDFPages) }</span>
+						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d page", v.PDFPages) }{ pluralS(v.PDFPages) }</span>
 					}
 				</span>
 			</div>
@@ -221,7 +221,7 @@ templ reviewProgress(steps []StepApprover) {
 					@reviewStepMarker(s, i+1)
 					<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight) }>
-							<span class="text-sm">
+							<span class={ textClass(ctx, domain.RoleBody) }>
 								if s.Label != "" {
 									{ s.Label }
 								} else {
@@ -232,9 +232,9 @@ templ reviewProgress(steps []StepApprover) {
 								@statusBadge("You", domain.ToneInfo, domain.BadgeCompact)
 							}
 						</span>
-						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ reviewStepStatusLine(s) }</span>
+						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ reviewStepStatusLine(s) }</span>
 						if s.SignaturePage > 0 {
-							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ reviewStepSignatureLine(s) }</span>
+							<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ reviewStepSignatureLine(s) }</span>
 						}
 					</span>
 				</li>
@@ -249,7 +249,7 @@ templ reviewProgress(steps []StepApprover) {
 templ reviewStepMarker(s StepApprover, position int) {
 	<span
 		aria-hidden="true"
-		class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-3xs font-medium",
+		class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-3xs", weightClass(ctx, domain.WeightEmphasis),
 			templ.KV(markGoodFill()+" " + onFillClass(ctx), s.State == "done"),
 			templ.KV(inkFillClass(ctx, domain.InkAccent) + " " + onFillClass(ctx) + " ring-4" + " " + accentRingClass(ctx), s.State == "current"),
 			templ.KV(toneInkFillClass(ctx, domain.ToneBad) + " " + onFillClass(ctx), s.State == "rejected"),
@@ -338,7 +338,7 @@ templ reviewSignaturePanel(v ReviewView) {
 			</div>
 			<div class={ "text-right text-3xs", inkClass(ctx, domain.InkSecondary) }>{ reviewSignaturePageLabel(v) }</div>
 			@reviewSignatureLegend()
-			<p class={ "m-0 text-2xs leading-5", inkClass(ctx, domain.InkSecondary) }>
+			<p class={ "m-0", textClass(ctx, domain.RoleCaption), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 				Numbers match the approval steps on the left. Boxes sit where the submitter placed them.
 				@staticLink(v.AllPositionsHref, "See all positions →")
 			</p>
@@ -382,7 +382,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 			}
 			<span
 				aria-hidden="true"
-				class={ "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border text-3xs font-medium", paperClass(),
+				class={ "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border text-3xs", weightClass(ctx, domain.WeightEmphasis), paperClass(),
 					templ.KV(markGoodBorder()+" text-emerald-600", b.Kind == "signed"),
 					templ.KV("border-blue-500 text-blue-600", b.Kind == "yours"),
 					templ.KV("border-slate-400 " + paperInkClass(domain.InkSecondary), b.Kind == "waiting") }
@@ -470,9 +470,9 @@ templ reviewDecisionBar(v ReviewView) {
 			<span class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticOverline, "SLA")
 				if v.SLALabel == "" {
-					<span class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No due date</span>
+					<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>No due date</span>
 				} else {
-					<span class={ "text-sm", templ.KV(toneInkClass(ctx, domain.ToneBad), v.SLAOverdue), templ.KV(inkClass(ctx, domain.InkSecondary), !v.SLAOverdue) }>
+					<span class={ textClass(ctx, domain.RoleBody), templ.KV(toneInkClass(ctx, domain.ToneBad), v.SLAOverdue), templ.KV(inkClass(ctx, domain.InkSecondary), !v.SLAOverdue) }>
 						{ v.SLALabel }
 					</span>
 				}
@@ -490,7 +490,7 @@ templ reviewDecisionBar(v ReviewView) {
 			} else if v.Decision != action.DecisionPending {
 				@statusBadge(v.Decision, domain.ToneNeutral, domain.BadgeRegular)
 			} else {
-				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Awaiting its own assignee's decision</span>
+				<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Awaiting its own assignee's decision</span>
 			}
 		}
 	}
@@ -524,12 +524,12 @@ templ reviewDecisionBar(v ReviewView) {
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
 	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal", dialogClasses(ctx) }>
-		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
-		<p class={ "mt-1.5 mb-3 text-2xs", inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
+		<h3 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>Add your signature</h3>
+		<p class={ "mt-1.5 mb-3", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
 		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + paperClass() } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
 		<div class={ "mt-3 flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			<button type="button" class={ "sig-modal-clear cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Clear</button>
-			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
+			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
 				<input type="checkbox" name="save_signature" class={ "size-4", controlAccentClass(ctx) }/>
 				Save my signature for next time
 			</label>

@@ -144,6 +144,28 @@ func TestRadiusRewriteMatchesTheDefaultTheme(t *testing.T) {
 	}
 }
 
+// TestTypeRewriteMatchesTheDefaultTheme holds `typeDefaults`, the table `typeReadersAsLiterals` rewrites with, to the
+// size and weight each role draws under the default Theme (derived from the code, like the ink and radius tables).
+func TestTypeRewriteMatchesTheDefaultTheme(t *testing.T) {
+	seen := 0
+	for _, r := range themeRoleDefaults(t) {
+		if r.category != "Text" && r.category != "Weight" {
+			continue
+		}
+		key := "Role" + strings.ToUpper(r.name[:1]) + r.name[1:]
+		if r.category == "Weight" {
+			key = "Weight" + strings.ToUpper(r.name[:1]) + r.name[1:]
+		}
+		if typeDefaults[key] != r.class {
+			t.Errorf("typeDefaults[%s] = %q, the code draws %q -- update typeDefaults", key, typeDefaults[key], r.class)
+		}
+		seen++
+	}
+	if seen != len(typeDefaults) {
+		t.Errorf("typeDefaults has %d entries, the Theme has %d text and weight roles", len(typeDefaults), seen)
+	}
+}
+
 // TestInkRewriteMatchesTheDefaultTheme holds inkDefaults, the table inkReadersAsLiterals rewrites with, to the ink
 // defaults derived from the code (themeRoleDefaults reads DefaultTheme and inkShadeVar's arms), so the rewrite cannot
 // drift from what the reader draws.

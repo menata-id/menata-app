@@ -137,7 +137,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// enforces it. One banner on every authenticated page rather than disabling each
 			// individual form/button across the app -- the server refuses the write regardless.
 			if CurrentWorkspaceArchived(ctx) {
-				<div class={ "border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn) }>This workspace is archived and read-only.</div>
+				<div class={ "border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneWarn) }>This workspace is archived and read-only.</div>
 			}
 			// The current Application's own menu (defaultAppMenu below) -- owner spec, ui-sample/
 			// README.md's "Menu Navigasi": level 2 is "untuk desktop ada di atas" (a second row inside
@@ -174,13 +174,13 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					// "nav_home"), which would panic if an Application ever declared no home item.
 					if hasAppMenu {
 						<nav aria-label="Breadcrumb" class="flex min-w-0 flex-col justify-center">
-							<a href="/home" class={ "truncate text-xs leading-4 font-medium", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm" + " " + inkClassFromSm(ctx, domain.InkStrong) }>{ workspaceName }</a>
-							<span class={ "truncate text-sm leading-5 font-medium", inkClass(ctx, domain.InkStrong), "sm:hidden" }>{ currentApp.Name }</span>
+							<a href="/home" class={ "truncate", textClass(ctx, domain.RoleMeta), "leading-4", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm" + " " + inkClassFromSm(ctx, domain.InkStrong) }>{ workspaceName }</a>
+							<span class={ "truncate", textClass(ctx, domain.RoleBody), "leading-5", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong), "sm:hidden" }>{ currentApp.Name }</span>
 						</nav>
 					} else {
 						// gap-1.5 rather than spaces inside the separator: both parts are flex items, and
 					// whitespace at a flex item's own edge collapses, so " / " rendered as "/Title".
-					<nav aria-label="Breadcrumb" class={ "flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), "text-sm " + inkClass(ctx, domain.InkSecondary) }>
+					<nav aria-label="Breadcrumb" class={ "flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary) }>
 							@workspaceMenu(workspaceName, viewer, switchWorkspaceHref)
 							// Workspace Home names itself in its own <h1>, so repeating it here as
 							// "Dokter Kecil / Home" is the duplication board 03 leaves out -- its
@@ -376,14 +376,14 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 					@icon(app.Icon, "size-3.5")
 				</span>
 			}
-			<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
+			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
 		</span>
 		<span aria-hidden="true" class={ "mr-2 ml-1 h-5 w-px", borderFillClass(ctx, domain.BorderSurface) }></span>
 		{{ tabs, overflow := splitAppMenu(menu) }}
 		for _, item := range tabs {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm", templ.KV("font-medium " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !item.Active) }
+				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -396,7 +396,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<button
 				type="button"
 				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
+				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
 			>
 				More
 				@icon("chevron-down", "size-3.5")
@@ -405,7 +405,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				for _, item := range overflow {
 					<a
 						href={ templ.SafeURL(item.Href) }
-						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm", hoverWashClass(ctx), templ.KV("font-medium " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkBody), !item.Active) }
+						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2", textClass(ctx, domain.RoleBody), hoverWashClass(ctx), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkBody), !item.Active) }
 						if item.Active {
 							aria-current="page"
 						}
@@ -418,7 +418,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		if hub, ok := settingsHubItem(app); ok {
 			<a
 				href={ templ.SafeURL(hub.Route) }
-				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm " + inkClass(ctx, domain.InkSecondary), hoverWashClass(ctx), inkHoverClass(ctx, domain.InkStrong), templ.KV("ml-auto", len(overflow) == 0) }
+				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary), hoverWashClass(ctx), inkHoverClass(ctx, domain.InkStrong), templ.KV("ml-auto", len(overflow) == 0) }
 			>
 				@icon(hub.Icon, "size-4")
 				{ hub.Label }
@@ -464,7 +464,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary), !item.Active) }
+				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2", textClass(ctx, domain.RoleCaption), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary), !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -513,23 +513,23 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 		<button
 			type="button"
 			popovertarget="menata-more-sheet"
-			class={ "menata-more-tab flex w-full cursor-pointer flex-col items-center", layoutGap(ctx, domain.GapMicro), "border-0 bg-transparent py-2 font-sans text-2xs " + inkClass(ctx, domain.InkSecondary) }
+			class={ "menata-more-tab flex w-full cursor-pointer flex-col items-center", layoutGap(ctx, domain.GapMicro), "border-0 bg-transparent py-2 font-sans " + textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }
 		>
 			@icon("more", "size-5.5")
 			More
 		</button>
 		@sheetPanel("menata-more-sheet", true, "") {
 			<div class="flex items-center justify-between px-3 pt-1 pb-2">
-				<span class={ "text-base font-medium", inkClass(ctx, domain.InkStrong) }>More</span>
-				<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ app.Name }</span>
+				<span class={ textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>More</span>
+				<span class={ "truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ app.Name }</span>
 			</div>
 			<a href="/home" class={ "flex items-center gap-3.5", radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
 				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), inkClass(ctx, domain.InkSecondary) }>
 					@icon("home", "size-5")
 				</span>
 				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-					<span class={ "text-sm", inkClass(ctx, domain.InkStrong) }>{ labelByID(ctx, "nav_home") }</span>
-					<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ workspaceName }</span>
+					<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ labelByID(ctx, "nav_home") }</span>
+					<span class={ "truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ workspaceName }</span>
 				</span>
 				<span class={ inkClass(ctx, domain.InkFaint) }>
 					@icon("chevron-right", "size-4")
@@ -541,7 +541,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 						@icon(hub.Icon, "size-5")
 					</span>
 					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-						<span class={ "text-sm", inkClass(ctx, domain.InkStrong) }>{ hub.Title }</span>
+						<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ hub.Title }</span>
 					</span>
 					<span class={ inkClass(ctx, domain.InkFaint) }>
 						@icon("chevron-right", "size-4")
@@ -561,9 +561,9 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 						@icon(other.Icon, "size-5")
 					</span>
 					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-						<span class={ "text-sm " + inkClass(ctx, domain.InkStrong), templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
+						<span class={ textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), other.ID == app.ID) }>{ other.Name }</span>
 						if other.Description != "" {
-							<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ other.Description }</span>
+							<span class={ "truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ other.Description }</span>
 						}
 					</span>
 					<span class={ inkClass(ctx, domain.InkFaint) }>
@@ -573,7 +573,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			}
 			if switchWorkspaceHref != "" {
 				<div class={ "mx-2.5 my-1.5 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "block", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), hoverWashClass(ctx) }>All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "block", radiusClass(ctx, domain.RadiusControl), "p-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), hoverWashClass(ctx) }>All Workspaces →</a>
 			}
 		}
 	</div>
@@ -611,20 +611,20 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			type="button"
 			popovertarget="menata-workspace-menu"
 			aria-haspopup="menu"
-			class={ "flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1 font-sans text-sm font-medium " + inkClass(ctx, domain.InkStrong) + " " + sunkenHoverClass(ctx) }
+			class={ "flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1 font-sans " + textClass(ctx, domain.RoleBody) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " " + sunkenHoverClass(ctx) }
 		>
 			<span class="truncate">{ workspaceName }</span>
 			@icon("chevron-down", "size-3.5 shrink-0 " + inkClass(ctx, domain.InkSecondary))
 		</button>
 		@sheetPanel("menata-workspace-menu", false, "left") {
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-3 pt-1 pb-2.5" }>
-				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", inkFillClass(ctx, domain.InkStrong), "text-[13px] font-medium", onFillClass(ctx) }>
+				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", inkFillClass(ctx, domain.InkStrong), "text-[13px]", weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx) }>
 					{ personInitials(workspaceName, "") }
 				</span>
 				<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
-					<span class={ "truncate text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ workspaceName }</span>
+					<span class={ "truncate", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ workspaceName }</span>
 					if viewer.WorkspaceRole != "" {
-						<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ displayRole(viewer.WorkspaceRole) }</span>
+						<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ displayRole(viewer.WorkspaceRole) }</span>
 					}
 				</span>
 			</div>
@@ -635,7 +635,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			// fully reachable -- one hop further, through the hub's own People section -- and
 			// Workspace Home's own "Manage members" link (workspacehome.templ) is untouched.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("settings", "size-4")
 					</span>
@@ -657,7 +657,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				// §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own
 				// "What comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("sparkle", "size-4")
 					</span>
@@ -665,7 +665,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("switch", "size-4")
 					</span>
@@ -805,7 +805,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			type="button"
 			popovertarget="menata-account-menu"
 			aria-label="Account menu"
-			class={ "flex size-8 cursor-pointer items-center justify-center rounded-full border-0 " + borderFillClass(ctx, domain.BorderSurface) + " font-sans text-xs font-medium", inkClass(ctx, domain.InkBody) }
+			class={ "flex size-8 cursor-pointer items-center justify-center rounded-full border-0 " + borderFillClass(ctx, domain.BorderSurface) + " font-sans text-xs " + weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }
 		>
 			{ viewer.Initials }
 		</button>
@@ -816,17 +816,17 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			if viewer.Name != "" || viewer.Email != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair), "px-3 pt-1 pb-2" }>
 					if viewer.Name != "" {
-						<span class={ "truncate text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ viewer.Name }</span>
+						<span class={ "truncate", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ viewer.Name }</span>
 					}
 					if viewer.Email != "" {
-						<span class={ "truncate text-xs", inkClass(ctx, domain.InkSecondary) }>{ viewer.Email }</span>
+						<span class={ "truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ viewer.Email }</span>
 					}
 				</div>
 				<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
 			}
-			<a href="/account-profile" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Profile</a>
-			<a href="/account-notifications" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Notifications</a>
-			<a href="/account-security" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Security</a>
+			<a href="/account-profile" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Profile</a>
+			<a href="/account-notifications" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Notifications</a>
+			<a href="/account-security" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Security</a>
 			<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
 			// Workspaces (AccountMenu.dc.html, Flow 2 canvas re-audit -- ROADMAP.md, 2026-09-27):
 			// loaded lazily, not threaded through appShell's own parameters, because appShell
@@ -849,7 +849,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
 			<form method="POST" action="/logout">
 				@csrfHiddenInput()
-				<button type="submit" class={ "w-full", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-left font-sans text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Sign out</button>
+				<button type="submit" class={ "w-full", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-left font-sans " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Sign out</button>
 			</form>
 		}
 	</div>
@@ -863,16 +863,16 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 // chooseworkspace.templ's own type, reused as-is rather than declaring a second one for the
 // identical shape.
 templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID string) {
-	<div class={ "px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Workspaces</div>
+	<div class={ "px-3 pt-1 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Workspaces</div>
 	for _, c := range choices {
-		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>
+		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>
 			if c.ID == currentWorkspaceID {
 				@icon("check", "size-3.5 shrink-0 " + inkClass(ctx, domain.InkAccent))
 			} else {
 				<span class="size-3.5 shrink-0"></span>
 			}
 			<span class="grow truncate">{ c.Name }</span>
-			<span class={ "shrink-0 text-xs", inkClass(ctx, domain.InkSecondary) }>{ displayRole(c.Role) }</span>
+			<span class={ "shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ displayRole(c.Role) }</span>
 		</a>
 	}
 	<a href="/switch-workspace" class={ "block px-3 py-2 text-xs", inkClass(ctx, domain.InkAccent) }>Switch workspace →</a>
@@ -921,8 +921,8 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 		</button>
 		@sheetPanel("menata-app-launcher", aboveBar, "left") {
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "mb-1 flex flex-col", layoutGap(ctx, domain.GapHair), radiusClass(ctx, domain.RadiusControl), "p-3", hoverWashClass(ctx), "sm:p-2" }>
-				<span class={ "text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase" }>Workspace</span>
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ workspaceName }</span>
+				<span class={ textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase" }>Workspace</span>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ workspaceName }</span>
 			</a>
 			for _, app := range viewer.Applications {
 				@launcherAppCard(app)
@@ -935,8 +935,8 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			// items in the first place; the fix here is additive, not a reversal of that gate.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 				<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
-				<div class={ "px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:px-2" }>Administration</div>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2" }>
+				<div class={ "px-3 pt-1 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:px-2" }>Administration</div>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2" }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("settings", "size-4")
 					</span>
@@ -946,7 +946,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 						// `description:` (that is the subtitle on the screen itself, and says something else), and
 						// no navigation key declares a menu hint -- the missing capability is 007 §12.3's ActionBar
 						// (below). It names what the destination holds, so it moves with that screen.
-						<span class={ "text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
+						<span class={ textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
 					</span>
 				</a>
 				// METADATA CANNOT EXPRESS THIS YET, same exception workspaceMenu's own copy of
@@ -956,18 +956,18 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				// capability: 007 §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own "What
 				// comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2" }>
+				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2" }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("sparkle", "size-4")
 					</span>
 					<span class="flex flex-col">
 						New application
-						<span class={ "text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Describe it, Menata builds a draft</span>
+						<span class={ textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Describe it, Menata builds a draft</span>
 					</span>
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs font-medium", inkClass(ctx, domain.InkAccent), hoverWashClass(ctx), "sm:p-2" }>All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), hoverWashClass(ctx), "sm:p-2" }>All Workspaces →</a>
 			}
 		}
 	</div>
@@ -983,9 +983,9 @@ templ launcherAppCard(app domain.Application) {
 			@icon(app.Icon, "size-4.5")
 		</span>
 		<span class="flex min-w-0 flex-col">
-			<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
+			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
 			if app.Description != "" {
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ app.Description }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ app.Description }</span>
 			}
 		</span>
 	</a>
@@ -1028,14 +1028,14 @@ templ activityEntryRow(a ActivityEntry) {
 	if a.Actor != "" {
 		@statusBadge(a.Actor, domain.ToneNeutral, domain.BadgeCompact)
 	}
-	<span class={ "ml-auto text-xs", inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
+	<span class={ "ml-auto", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
 }
 
 templ sectionHeaderRow(title, linkHref, linkLabel string) {
 	<div class="flex items-center justify-between">
 		@staticText(domain.StaticSubheading, title)
 		if linkHref != "" {
-			<a href={ templ.URL(linkHref) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ linkLabel }</a>
+			<a href={ templ.URL(linkHref) } class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ linkLabel }</a>
 		}
 	</div>
 }

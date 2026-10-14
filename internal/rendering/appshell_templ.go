@@ -271,7 +271,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			return templ_7745c5c3_Err
 		}
 		if CurrentWorkspaceArchived(ctx) {
-			var templ_7745c5c3_Var12 = []any{"border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn)}
+			var templ_7745c5c3_Var12 = []any{"border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneWarn)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -329,7 +329,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var16 = []any{"truncate text-xs leading-4 font-medium", inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm" + " " + inkClassFromSm(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var16 = []any{"truncate", textClass(ctx, domain.RoleMeta), "leading-4", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) + " sm:text-sm" + " " + inkClassFromSm(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -354,7 +354,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 177, Col: 225}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 177, Col: 282}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -364,7 +364,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var19 = []any{"truncate text-sm leading-5 font-medium", inkClass(ctx, domain.InkStrong), "sm:hidden"}
+			var templ_7745c5c3_Var19 = []any{"truncate", textClass(ctx, domain.RoleBody), "leading-5", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong), "sm:hidden"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -389,7 +389,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(currentApp.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 178, Col: 127}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 178, Col: 184}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -404,7 +404,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var22 = []any{"flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), "text-sm " + inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var22 = []any{"flex min-w-0 items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -802,7 +802,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var36 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+		var templ_7745c5c3_Var36 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var36...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -827,7 +827,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 379, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 379, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -861,7 +861,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 		}
 		tabs, overflow := splitAppMenu(menu)
 		for _, item := range tabs {
-			var templ_7745c5c3_Var41 = []any{"flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm", templ.KV("font-medium "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !item.Active)}
+			var templ_7745c5c3_Var41 = []any{"flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis)+" "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !item.Active)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var41...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -925,7 +925,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			}
 		}
 		if len(overflow) > 0 {
-			var templ_7745c5c3_Var45 = []any{"ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium "+accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow))}
+			var templ_7745c5c3_Var45 = []any{"ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis)+" "+accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow))}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var45...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -968,7 +968,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, item := range overflow {
-					var templ_7745c5c3_Var48 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm", hoverWashClass(ctx), templ.KV("font-medium "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkBody), !item.Active)}
+					var templ_7745c5c3_Var48 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2", textClass(ctx, domain.RoleBody), hoverWashClass(ctx), templ.KV(weightClass(ctx, domain.WeightEmphasis)+" "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkBody), !item.Active)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var48...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1035,7 +1035,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			}
 		}
 		if hub, ok := settingsHubItem(app); ok {
-			var templ_7745c5c3_Var52 = []any{"flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm " + inkClass(ctx, domain.InkSecondary), hoverWashClass(ctx), inkHoverClass(ctx, domain.InkStrong), templ.KV("ml-auto", len(overflow) == 0)}
+			var templ_7745c5c3_Var52 = []any{"flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary), hoverWashClass(ctx), inkHoverClass(ctx, domain.InkStrong), templ.KV("ml-auto", len(overflow) == 0)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var52...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1210,7 +1210,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			return templ_7745c5c3_Err
 		}
 		for _, item := range items {
-			var templ_7745c5c3_Var62 = []any{"flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary), !item.Active)}
+			var templ_7745c5c3_Var62 = []any{"flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2", textClass(ctx, domain.RoleCaption), templ.KV(weightClass(ctx, domain.WeightEmphasis)+" "+accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary), !item.Active)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var62...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1346,7 +1346,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var67 = []any{"menata-more-tab flex w-full cursor-pointer flex-col items-center", layoutGap(ctx, domain.GapMicro), "border-0 bg-transparent py-2 font-sans text-2xs " + inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var67 = []any{"menata-more-tab flex w-full cursor-pointer flex-col items-center", layoutGap(ctx, domain.GapMicro), "border-0 bg-transparent py-2 font-sans " + textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var67...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1392,7 +1392,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var70 = []any{"text-base font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var70 = []any{textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var70...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1414,7 +1414,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var72 = []any{"truncate text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var72 = []any{"truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var72...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1439,7 +1439,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var74 string
 			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 524, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 524, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 			if templ_7745c5c3_Err != nil {
@@ -1523,7 +1523,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var81 = []any{"text-sm", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var81 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var81...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1548,7 +1548,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_home"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 531, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 531, Col: 114}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
@@ -1558,7 +1558,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var84 = []any{"truncate text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var84 = []any{"truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var84...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1583,7 +1583,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var86 string
 			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 532, Col: 91}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 532, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 			if templ_7745c5c3_Err != nil {
@@ -1711,7 +1711,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var96 = []any{"text-sm", inkClass(ctx, domain.InkStrong)}
+				var templ_7745c5c3_Var96 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var96...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1736,7 +1736,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var98 string
 				templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(hub.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 544, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 544, Col: 98}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 				if templ_7745c5c3_Err != nil {
@@ -1901,7 +1901,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var110 = []any{"text-sm " + inkClass(ctx, domain.InkStrong), templ.KV("font-medium", other.ID == app.ID)}
+				var templ_7745c5c3_Var110 = []any{textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), other.ID == app.ID)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var110...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1926,7 +1926,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var112 string
 				templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(other.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 564, Col: 124}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 564, Col: 177}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
 				if templ_7745c5c3_Err != nil {
@@ -1937,7 +1937,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 					return templ_7745c5c3_Err
 				}
 				if other.Description != "" {
-					var templ_7745c5c3_Var113 = []any{"truncate text-xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var113 = []any{"truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var113...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1962,7 +1962,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 					var templ_7745c5c3_Var115 string
 					templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(other.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 566, Col: 97}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 566, Col: 122}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
 					if templ_7745c5c3_Err != nil {
@@ -2035,7 +2035,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var120 = []any{"block", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), hoverWashClass(ctx)}
+				var templ_7745c5c3_Var120 = []any{"block", radiusClass(ctx, domain.RadiusControl), "p-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), hoverWashClass(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var120...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2136,7 +2136,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var124 = []any{"flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1 font-sans text-sm font-medium " + inkClass(ctx, domain.InkStrong) + " " + sunkenHoverClass(ctx)}
+		var templ_7745c5c3_Var124 = []any{"flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1 font-sans " + textClass(ctx, domain.RoleBody) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " " + sunkenHoverClass(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var124...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -2213,7 +2213,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var130 = []any{"flex size-9 shrink-0 items-center justify-center rounded-lg", inkFillClass(ctx, domain.InkStrong), "text-[13px] font-medium", onFillClass(ctx)}
+			var templ_7745c5c3_Var130 = []any{"flex size-9 shrink-0 items-center justify-center rounded-lg", inkFillClass(ctx, domain.InkStrong), "text-[13px]", weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var130...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2270,7 +2270,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var135 = []any{"truncate text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var135 = []any{"truncate", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var135...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2295,7 +2295,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 			var templ_7745c5c3_Var137 string
 			templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 625, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 625, Col: 154}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var137))
 			if templ_7745c5c3_Err != nil {
@@ -2306,7 +2306,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				return templ_7745c5c3_Err
 			}
 			if viewer.WorkspaceRole != "" {
-				var templ_7745c5c3_Var138 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var138 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var138...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2331,7 +2331,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var140 string
 				templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(displayRole(viewer.WorkspaceRole))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 627, Col: 103}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 627, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 				if templ_7745c5c3_Err != nil {
@@ -2369,7 +2369,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				return templ_7745c5c3_Err
 			}
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				var templ_7745c5c3_Var143 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
+				var templ_7745c5c3_Var143 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var143...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2447,7 +2447,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var149 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
+				var templ_7745c5c3_Var149 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var149...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2505,7 +2505,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				return templ_7745c5c3_Err
 			}
 			if switchWorkspaceHref != "" {
-				var templ_7745c5c3_Var153 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
+				var templ_7745c5c3_Var153 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var153...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2917,7 +2917,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var175 = []any{"flex size-8 cursor-pointer items-center justify-center rounded-full border-0 " + borderFillClass(ctx, domain.BorderSurface) + " font-sans text-xs font-medium", inkClass(ctx, domain.InkBody)}
+		var templ_7745c5c3_Var175 = []any{"flex size-8 cursor-pointer items-center justify-center rounded-full border-0 " + borderFillClass(ctx, domain.BorderSurface) + " font-sans text-xs " + weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var175...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -2992,7 +2992,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if viewer.Name != "" {
-					var templ_7745c5c3_Var181 = []any{"truncate text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+					var templ_7745c5c3_Var181 = []any{"truncate", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var181...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -3017,7 +3017,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					var templ_7745c5c3_Var183 string
 					templ_7745c5c3_Var183, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 819, Col: 99}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 819, Col: 153}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var183))
 					if templ_7745c5c3_Err != nil {
@@ -3029,7 +3029,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					}
 				}
 				if viewer.Email != "" {
-					var templ_7745c5c3_Var184 = []any{"truncate text-xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var184 = []any{"truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var184...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -3054,7 +3054,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					var templ_7745c5c3_Var186 string
 					templ_7745c5c3_Var186, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Email)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 822, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 822, Col: 116}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var186))
 					if templ_7745c5c3_Err != nil {
@@ -3096,7 +3096,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var189 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
+			var templ_7745c5c3_Var189 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var189...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3118,7 +3118,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var191 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
+			var templ_7745c5c3_Var191 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var191...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3140,7 +3140,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var193 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
+			var templ_7745c5c3_Var193 = []any{"block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var193...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3210,7 +3210,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var199 = []any{"w-full", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-left font-sans text-sm " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
+			var templ_7745c5c3_Var199 = []any{"w-full", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-left font-sans " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var199...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3274,7 +3274,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			templ_7745c5c3_Var201 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var202 = []any{"px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase"}
+		var templ_7745c5c3_Var202 = []any{"px-3 pt-1 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var202...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -3297,7 +3297,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			return templ_7745c5c3_Err
 		}
 		for _, c := range choices {
-			var templ_7745c5c3_Var204 = []any{"flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
+			var templ_7745c5c3_Var204 = []any{"flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var204...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3347,7 +3347,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var207 = []any{"shrink-0 text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var207 = []any{"shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var207...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3372,7 +3372,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			var templ_7745c5c3_Var209 string
 			templ_7745c5c3_Var209, templ_7745c5c3_Err = templ.JoinStringErrs(displayRole(c.Role))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 875, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 875, Col: 120}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var209))
 			if templ_7745c5c3_Err != nil {
@@ -3543,7 +3543,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var219 = []any{"text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase"}
+			var templ_7745c5c3_Var219 = []any{textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var219...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3565,7 +3565,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var221 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var221 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var221...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3590,7 +3590,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 			var templ_7745c5c3_Var223 string
 			templ_7745c5c3_Var223, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 925, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 925, Col: 141}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var223))
 			if templ_7745c5c3_Err != nil {
@@ -3633,7 +3633,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var226 = []any{"px-3 pt-1 pb-1 text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:px-2"}
+				var templ_7745c5c3_Var226 = []any{"px-3 pt-1 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:px-2"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var226...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3655,7 +3655,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var228 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2"}
+				var templ_7745c5c3_Var228 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var228...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3729,7 +3729,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var234 = []any{"text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody)}
+				var templ_7745c5c3_Var234 = []any{textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var234...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3751,7 +3751,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var236 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2"}
+				var templ_7745c5c3_Var236 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:p-2"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var236...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3803,7 +3803,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var240 = []any{"text-xs " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody)}
+				var templ_7745c5c3_Var240 = []any{textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var240...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3831,7 +3831,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				return templ_7745c5c3_Err
 			}
 			if switchWorkspaceHref != "" {
-				var templ_7745c5c3_Var242 = []any{"mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs font-medium", inkClass(ctx, domain.InkAccent), hoverWashClass(ctx), "sm:p-2"}
+				var templ_7745c5c3_Var242 = []any{"mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), hoverWashClass(ctx), "sm:p-2"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var242...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3971,7 +3971,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var251 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+		var templ_7745c5c3_Var251 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var251...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -3996,7 +3996,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 		var templ_7745c5c3_Var253 string
 		templ_7745c5c3_Var253, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 986, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 986, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var253))
 		if templ_7745c5c3_Err != nil {
@@ -4007,7 +4007,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if app.Description != "" {
-			var templ_7745c5c3_Var254 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var254 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var254...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -4032,7 +4032,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 			var templ_7745c5c3_Var256 string
 			templ_7745c5c3_Var256, templ_7745c5c3_Err = templ.JoinStringErrs(app.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 988, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 988, Col: 105}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var256))
 			if templ_7745c5c3_Err != nil {
@@ -4152,7 +4152,7 @@ func activityEntryRow(a ActivityEntry) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var260 = []any{"ml-auto text-xs", inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var260 = []any{"ml-auto", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var260...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -4177,7 +4177,7 @@ func activityEntryRow(a ActivityEntry) templ.Component {
 		var templ_7745c5c3_Var262 string
 		templ_7745c5c3_Var262, templ_7745c5c3_Err = templ.JoinStringErrs(a.When)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1031, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1031, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var262))
 		if templ_7745c5c3_Err != nil {
@@ -4221,7 +4221,7 @@ func sectionHeaderRow(title, linkHref, linkLabel string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if linkHref != "" {
-			var templ_7745c5c3_Var264 = []any{"text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
+			var templ_7745c5c3_Var264 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var264...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -4259,7 +4259,7 @@ func sectionHeaderRow(title, linkHref, linkLabel string) templ.Component {
 			var templ_7745c5c3_Var267 string
 			templ_7745c5c3_Var267, templ_7745c5c3_Err = templ.JoinStringErrs(linkLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1038, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1038, Col: 144}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var267))
 			if templ_7745c5c3_Err != nil {

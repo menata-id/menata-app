@@ -213,6 +213,31 @@ func joinClassExpressions(src string) string {
 	return joinClassLiterals(radiusReadersAsLiterals(src))
 }
 
+// typeReadersAsLiterals rewrites `textClass(ctx, domain.Role*)` and `weightClass(ctx, domain.Weight*)` as the quoted class
+// each answers under the default Theme (gap-plan P5). A shape gate that recognises a chip, a muted paragraph or a caption
+// partly by its literal size loses its floors when that size moves to a reader while the element stays hand-written in
+// every other respect (L13, a fifth time); such a gate applies this where it falls. It is **opt-in, not part of
+// `joinClassExpressions`**, because the Static kinds and the Components are implemented in `layout.templ` with these very
+// readers, and a gate that read them as literals would count the primitive as the hand-written copy it replaces.
+// `TestTypeRewriteMatchesTheDefaultTheme` holds `typeDefaults` to the Theme.
+func typeReadersAsLiterals(src string) string {
+	return typeReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		if v, ok := typeDefaults[typeReaderCall.FindStringSubmatch(m)[2]]; ok {
+			return `"` + v + `"`
+		}
+		return m
+	})
+}
+
+var (
+	typeReaderCall = regexp.MustCompile(`(textClass|weightClass)\(ctx, domain\.((?:Role|Weight)\w+)\)`)
+	typeDefaults   = map[string]string{
+		"RoleDisplay": "text-2xl", "RoleHeading": "text-xl", "RoleSubheading": "text-base", "RoleItem": "text-item",
+		"RoleBody": "text-sm", "RoleMeta": "text-xs", "RoleLabel": "text-2xs", "RoleCaption": "text-2xs", "RoleEyebrow": "text-3xs",
+		"WeightBody": "font-normal", "WeightEmphasis": "font-medium",
+	}
+)
+
 // radiusReadersAsLiterals rewrites `radiusClass(ctx, domain.Radius*)` as the quoted class it answers under the
 // default Theme.
 func radiusReadersAsLiterals(src string) string {

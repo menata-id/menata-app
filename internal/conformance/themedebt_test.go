@@ -56,7 +56,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"appmembers.templ":         {size: 8, ink: 0, weight: 0, fill: 0},
 	"approvalinbox.templ":      {size: 20, ink: 0, weight: 4, fill: 0},
 	"approvalstepper.templ":    {size: 9, ink: 0, weight: 6, fill: 0},
-	"appshell.templ":           {size: 49, ink: 0, weight: 22, fill: 0},
+	"appshell.templ":           {size: 4, ink: 0, weight: 0, fill: 0},
 	"attachments.templ":        {size: 4, ink: 0, weight: 1, fill: 0},
 	"authshell.templ":          {size: 3, ink: 0, weight: 3, fill: 0},
 	"checklist.templ":          {size: 2, ink: 0, weight: 0, fill: 0},
@@ -78,12 +78,12 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"notifications.templ":      {size: 5, ink: 0, weight: 2, fill: 0},
 	"progress.templ":           {size: 2, ink: 0, weight: 0, fill: 0},
 	"resendverification.templ": {size: 1, ink: 0, weight: 0, fill: 0},
-	"reviewdocument.templ":     {size: 25, ink: 0, weight: 4, fill: 0},
+	"reviewdocument.templ":     {size: 9, ink: 0, weight: 0, fill: 0},
 	"signatureplacement.templ": {size: 14, ink: 0, weight: 3, fill: 0},
 	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
 	"workspacefiles.templ":     {size: 8, ink: 0, weight: 0, fill: 0},
 	"workspacehome.templ":      {size: 20, ink: 0, weight: 3, fill: 0},
-	"workspacemembers.templ":   {size: 28, ink: 0, weight: 3, fill: 0},
+	"workspacemembers.templ":   {size: 3, ink: 0, weight: 0, fill: 0},
 	"workspacesettings.templ":  {size: 7, ink: 0, weight: 3, fill: 0},
 }
 
@@ -97,7 +97,7 @@ var (
 
 func countThemeTokens(src string) themeDebt {
 	src = chipNoLine.ReplaceAllString(src, "")
-	src = joinClassExpressions(src)
+	src = joinClassLiterals(src) // the raw form: this ratchet counts the size and weight literals themselves
 	var d themeDebt
 	for _, m := range themeClassValue.FindAllStringSubmatch(src, -1) {
 		for _, tok := range strings.Fields(m[1]) {

@@ -39,8 +39,10 @@ import (
 // (`approvalinbox`'s `approverChip` is an avatar-plus-name pill and is *not* a status chip, so that is a
 // judgement rather than a miss). Concluding a chip is absent still needs reading the screen.
 var handWrittenChips = map[string]int{
-	"approvalinbox.templ":  1, // the pending card's SLA chip: uppercase, tracking and semibold on one element, and a tone chosen by a local `overdue`
-	"reviewdocument.templ": 1, // a `<code>` reference: monospace content in a different element, which statusBadge cannot choose
+	"appsettings.templ":      1, // "Not built yet": uppercase and tracking on one element, and a sunken fill with the body ink (it reads the Theme; the typography is what statusBadge must not accept)
+	"approvalinbox.templ":    1, // the pending card's SLA chip: uppercase, tracking and semibold on one element, and a tone chosen by a local `overdue`
+	"segmentedcontrol.templ": 1, // the control's selected knob: chip-shaped, but it is the registered SegmentedControl's own renderer and not a status
+	"reviewdocument.templ":   1, // a `<code>` reference: monospace content in a different element, which statusBadge cannot choose
 }
 
 var (
@@ -70,7 +72,7 @@ func TestHandWrittenChipsOnlyShrink(t *testing.T) {
 		}
 		// A comment naming the shape is not a chip.
 		// A corner read through radiusClass is still a chip's corner (L13).
-		src := colourReadersAsLiterals(toneHelpersAsLiterals(radiusReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), ""))))
+		src := colourReadersAsLiterals(toneHelpersAsLiterals(radiusReadersAsLiterals(typeReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), "")))))
 		for _, m := range chipTag.FindAllStringSubmatch(src, -1) {
 			a := m[1]
 			if chipRound.MatchString(a) && chipTint.MatchString(a) && chipPadX.MatchString(a) && chipSize.MatchString(a) {

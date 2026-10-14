@@ -45,6 +45,8 @@ var handWrittenMutedParagraphs = map[string]int{
 	"inference.templ":          3, // `max-w-prose` (two) and `mt-3`: per-site width and spacing; the third is a multi-line sentence in a conditional
 	"installapplication.templ": 1, // `leading-6`: a roomier line height for a screen description, no text role names it
 	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it; and an escaped quote around an expression
+	"appsettings.templ":        2, // `leading-6`: the hub's description and its permissions subtitle, a roomier line no text role names (as installapplication)
+	"rolematrix.templ":         4, // `leading-5`, a `max-w-[760px]` measure and `px-4 py-4`: per-site width and spacing the Static kinds must not accept
 	"workspacemembers.templ":   1, // an expression inside quotes ("No member matches "{ q }""), which StaticMessage's escaped text cannot carry
 	"workspacesettings.templ":  1, // `leading-6`, as installapplication
 }
@@ -73,9 +75,13 @@ func TestHandWrittenMutedParagraphsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		// Ink readers read as their default literal (inkReadersAsLiterals, rencana 3.2d), and class expressions are
-		// joined, so a paragraph whose ink moved to inkClass is still the hand-written paragraph it was.
-		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
+		if e.Name() == "layout.templ" {
+			continue // the Static kinds are implemented here with the very readers this gate reads as literals
+		}
+		// Ink and type readers read as their default literal (inkReadersAsLiterals, rencana 3.2d; typeReadersAsLiterals,
+		// gap-plan P5), and class expressions are joined, so a paragraph whose ink or size moved to a reader is still
+		// the hand-written paragraph it was.
+		src := joinClassExpressions(inkReadersAsLiterals(typeReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), ""))))
 		for _, m := range mutedParaTag.FindAllStringSubmatch(src, -1) {
 			if mutedParaM0.MatchString(m[1]) && mutedParaSize.MatchString(m[1]) && mutedParaInk.MatchString(m[1]) {
 				actual[e.Name()]++
@@ -234,9 +240,12 @@ func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
+		if e.Name() == "layout.templ" {
+			continue // as the muted-paragraph gate: staticText itself is written here
+		}
 		// Read through joinClassExpressions since 2026-10-12: rencana 0.2b spliced a radius reader into one caption's
-		// class, and a literal-only pattern lost the site by that edit alone (L13).
-		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
+		// class, and a literal-only pattern lost the site by that edit alone (L13). Size readers read as literals too (P5).
+		src := joinClassExpressions(inkReadersAsLiterals(typeReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), ""))))
 		for _, m := range captionPara.FindAllStringSubmatch(src, -1) {
 			if has(m[1], "m-0") && has(m[1], "text-2xs") && has(m[1], "text-slate-500") {
 				actual[e.Name()]++
@@ -743,7 +752,7 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(inkReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), "")))
+		src := joinClassExpressions(inkReadersAsLiterals(typeReadersAsLiterals(mutedParaNote.ReplaceAllString(string(b), ""))))
 		for _, tag := range fieldTagOpen.FindAllString(src, -1) {
 			if m := fieldTagClass.FindStringSubmatch(tag); m != nil && has300.MatchString(m[1]) {
 				actual[e.Name()]++
