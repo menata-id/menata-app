@@ -179,7 +179,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticHeading, titleByID(ctx, navID))
 				if desc := descriptionByID(ctx, navID); desc != "" {
-					<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ desc }</div>
+					<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ desc }</div>
 				}
 			</div>
 			// "+ New Document" is Pending/My Documents' own call to action -- Assigned to me is a
@@ -289,7 +289,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 // table idiom -- this screen's rows are exactly as tabular as that one's.
 templ assignedTable(rows []AssignedRow) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
+		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
 			<span class="grow">Document</span>
 			<span class="w-32">From</span>
 			<span class="w-28">Requested</span>
@@ -300,11 +300,11 @@ templ assignedTable(rows []AssignedRow) {
 		for _, r := range rows {
 			<div class={ dividedRowClasses(ctx, domain.GapTight) }>
 				<div class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-					<span class={ "truncate text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ r.Title }</span>
-					<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ r.Reference } · { r.DocumentType }</span>
+					<span class={ "truncate", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ r.Title }</span>
+					<span class={ "truncate", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ r.Reference } · { r.DocumentType }</span>
 				</div>
-				<div class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:w-32" }><span class="sm:hidden">From </span>{ r.From }</div>
-				<div class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:w-28" }>
+				<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), "sm:w-32" }><span class="sm:hidden">From </span>{ r.From }</div>
+				<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), "sm:w-28" }>
 					if r.RequestedAt != "" {
 						{ r.RequestedAt }
 					} else {
@@ -314,17 +314,17 @@ templ assignedTable(rows []AssignedRow) {
 				<div class="sm:w-56">
 					@assignedDecisionLabel(r.DecisionKey, r.DecisionLabel)
 					if r.SLA.Present {
-						<div class={ "text-2xs", templ.KV(toneInkClass(ctx, domain.ToneBad), r.SLA.Urgent), templ.KV(inkClass(ctx, domain.InkSecondary), !r.SLA.Urgent) }>{ r.SLA.Detail }</div>
+						<div class={ textClass(ctx, domain.RoleCaption), templ.KV(toneInkClass(ctx, domain.ToneBad), r.SLA.Urgent), templ.KV(inkClass(ctx, domain.InkSecondary), !r.SLA.Urgent) }>{ r.SLA.Detail }</div>
 					}
 					if r.Via != "" {
-						<div class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>via { r.Via }</div>
+						<div class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>via { r.Via }</div>
 					}
 				</div>
 				<div class="sm:w-24">
 					@reviewStatusPill(r.Status)
 				</div>
 				<div class="sm:w-14">
-					<a href={ templ.SafeURL(r.Href) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
+					<a href={ templ.SafeURL(r.Href) } class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 							if r.Action != "" {
 								{ r.Action }
 							} else {
@@ -342,8 +342,8 @@ templ assignedTable(rows []AssignedRow) {
 // that reads as an alert rather than a status report.
 templ assignedDecisionLabel(key, label string) {
 	<span
-		class={ "text-xs",
-			templ.KV("font-medium " + accentActiveClass(ctx), key == "waiting"),
+		class={ textClass(ctx, domain.RoleMeta),
+			templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), key == "waiting"),
 			templ.KV(inkClass(ctx, domain.InkSecondary), key != "waiting") }
 	>
 		{ label }
@@ -387,7 +387,7 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 		if f.Active {
 			aria-current="true"
 		}
-		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
+		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1", textClass(ctx, domain.RoleMeta),
 			templ.KV(inkEdgeClass(ctx) + " " + inkFillClass(ctx, domain.InkStrong) + " " + onFillClass(ctx), f.Active),
 			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " " + accentEdgeHoverClass(ctx), !f.Active) }
 	>
@@ -442,7 +442,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			// a screen of calm cards is not a screen of amber labels.
 			if c.SLA.Present && c.SLA.Urgent {
 				<span
-					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
+					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5", textClass(ctx, domain.RoleEyebrow), "font-semibold tracking-wide uppercase",
 						slaPillTone(ctx, overdue) }
 				>
 					{ c.SLA.Label }
@@ -457,7 +457,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			// also qualify for (Submitter is empty on every My Documents card, Draft included, so
 			// that branch alone would render nothing at all for one -- this is its real content).
 			if c.Status == "draft" {
-				<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>
+				<p class={ "m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>
 					Not submitted
 					if c.SubmittedAt != "" {
 						{ " · Last edited " + c.SubmittedAt }
@@ -467,7 +467,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				// Omitted entirely when there is no submitter to name, which is what My Documents
 				// passes: every card there was submitted by the viewer, so the line would read
 				// "Submitted by you" on every one of them (composition.Inbox.Mine).
-				<p class={ "m-0 text-xs", inkClass(ctx, domain.InkSecondary) }>
+				<p class={ "m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>
 					Submitted by <span class={ inkClass(ctx, domain.InkBody) }>{ c.Submitter }</span>
 					if c.SubmittedAt != "" {
 						{ " · " + c.SubmittedAt }
@@ -502,8 +502,8 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 		if c.SLA.Present || c.Action != "" {
 			<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 				<span
-					class={ "text-xs",
-						templ.KV("font-medium " + toneInkClass(ctx, domain.ToneBad), overdue),
+					class={ textClass(ctx, domain.RoleMeta),
+						templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + toneInkClass(ctx, domain.ToneBad), overdue),
 						templ.KV(inkClass(ctx, domain.InkSecondary), !overdue) }
 				>
 					if c.SLA.Present {
@@ -511,7 +511,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 					}
 				</span>
 				if c.Action != "" {
-					<a href={ templ.SafeURL(c.Href) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ c.Action }</a>
+					<a href={ templ.SafeURL(c.Href) } class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ c.Action }</a>
 				}
 			</div>
 		}
@@ -556,10 +556,10 @@ func approverChipTone(ctx context.Context, state string) string {
 templ approverChip(a StepApprover) {
 	<li
 		aria-label={ a.Name + ", " + approverStateLabel(a.State) }
-		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusPill), "py-0.5 pr-2.5 pl-0.5 text-2xs",
+		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusPill), "py-0.5 pr-2.5 pl-0.5", textClass(ctx, domain.RoleCaption),
 			approverChipTone(ctx, a.State) }
 	>
-		<span class={ "flex size-5 items-center justify-center rounded-full", raisedTintClass(ctx), "text-3xs font-medium" }>
+		<span class={ "flex size-5 items-center justify-center rounded-full", raisedTintClass(ctx), "text-3xs", weightClass(ctx, domain.WeightEmphasis) }>
 			if a.Initials != "" {
 				{ a.Initials }
 			} else {
@@ -607,7 +607,7 @@ templ approvalProgress(status, rejecter string, approved, total int) {
 		>
 			<div class={ "h-full rounded-full", markGoodFill() } style={ progressWidth(approved, total) }></div>
 		</div>
-		<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ approvalStatusLine(status, rejecter, approved, total) }</span>
+		<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ approvalStatusLine(status, rejecter, approved, total) }</span>
 	</div>
 }
 

@@ -154,7 +154,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var9 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var9 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -344,7 +344,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var24 = []any{"hidden m-0 text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var24 = []any{"hidden m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -414,7 +414,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var30 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var30 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var30...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -577,7 +577,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var39 = []any{"max-w-md rounded-lg", toneFillClass(ctx, domain.ToneInfo), "px-3.5 py-2.5 text-sm"}
+			var templ_7745c5c3_Var39 = []any{"max-w-md rounded-lg", toneFillClass(ctx, domain.ToneInfo), "px-3.5 py-2.5", textClass(ctx, domain.RoleBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var39...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -602,7 +602,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(t.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 120, Col: 113}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 120, Col: 138}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
@@ -617,7 +617,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var42 = []any{"max-w-md rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-2.5 text-sm"}
+			var templ_7745c5c3_Var42 = []any{"max-w-md rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-2.5", textClass(ctx, domain.RoleBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -642,7 +642,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(t.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 124, Col: 121}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 124, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -653,7 +653,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if t.CapabilityGap != "" {
-				var templ_7745c5c3_Var45 = []any{"text-2xs", toneInkClass(ctx, domain.ToneWarn)}
+				var templ_7745c5c3_Var45 = []any{textClass(ctx, domain.RoleCaption), toneInkClass(ctx, domain.ToneWarn)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var45...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -678,7 +678,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(t.CapabilityGap)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 126, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 126, Col: 126}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -723,7 +723,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		if change.Kind == aiassist.KindNewApplication && change.Application != nil {
 			app := change.Application
-			var templ_7745c5c3_Var49 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm"}
+			var templ_7745c5c3_Var49 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), textClass(ctx, domain.RoleBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var49...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -767,7 +767,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var53 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+			var templ_7745c5c3_Var53 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var53...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -825,7 +825,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var58 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+				var templ_7745c5c3_Var58 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var58...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -905,7 +905,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var65 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+			var templ_7745c5c3_Var65 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var65...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -978,7 +978,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var70 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+				var templ_7745c5c3_Var70 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var70...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1069,7 +1069,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var77 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+				var templ_7745c5c3_Var77 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var77...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1125,7 +1125,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if change.Kind == aiassist.KindUpdateApplication && change.Application != nil {
-			var templ_7745c5c3_Var80 = []any{"flex flex-col", layoutGap(ctx, domain.GapMicro), "text-sm"}
+			var templ_7745c5c3_Var80 = []any{"flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var80...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1147,7 +1147,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var82 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+			var templ_7745c5c3_Var82 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var82...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1238,7 +1238,7 @@ func updatePlan(plan aiassist.Plan) templ.Component {
 			templ_7745c5c3_Var85 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var86 = []any{"flex flex-col", layoutGap(ctx, domain.GapComfortable), "text-sm"}
+		var templ_7745c5c3_Var86 = []any{"flex flex-col", layoutGap(ctx, domain.GapComfortable), textClass(ctx, domain.RoleBody)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var86...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1284,7 +1284,7 @@ func updatePlan(plan aiassist.Plan) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var90 = []any{"text-3xs", inkClass(ctx, domain.InkSecondary), "uppercase"}
+				var templ_7745c5c3_Var90 = []any{textClass(ctx, domain.RoleEyebrow), inkClass(ctx, domain.InkSecondary), "uppercase"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var90...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1309,7 +1309,7 @@ func updatePlan(plan aiassist.Plan) templ.Component {
 				var templ_7745c5c3_Var92 string
 				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(planOpLabel(op))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 220, Col: 98}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 220, Col: 122}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 				if templ_7745c5c3_Err != nil {
@@ -1360,7 +1360,7 @@ func updatePlan(plan aiassist.Plan) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if item.Confirm != "" {
-						var templ_7745c5c3_Var96 = []any{"mt-1 flex items-center", layoutGap(ctx, domain.GapTight), "text-xs" + " " + inkClass(ctx, domain.InkBody)}
+						var templ_7745c5c3_Var96 = []any{"mt-1 flex items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var96...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -1655,7 +1655,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pla
 					return templ_7745c5c3_Err
 				}
 			}
-			var templ_7745c5c3_Var113 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var113 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var113...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1757,7 +1757,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pla
 					return templ_7745c5c3_Err
 				}
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
-					var templ_7745c5c3_Var119 = []any{"m-0 text-xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var119 = []any{"m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var119...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1782,7 +1782,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pla
 					var templ_7745c5c3_Var121 string
 					templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinStringErrs(change.Application.PublisherRole)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 290, Col: 119}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 290, Col: 144}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 					if templ_7745c5c3_Err != nil {
@@ -1863,7 +1863,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pla
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var126 = []any{tileClasses(ctx), "inline-flex h-9 items-center justify-center " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
+				var templ_7745c5c3_Var126 = []any{tileClasses(ctx), "inline-flex h-9 items-center justify-center " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var126...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

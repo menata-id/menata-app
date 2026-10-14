@@ -99,25 +99,25 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 			// empty list means one of two things and the copy must say which: nothing installed, or
 			// installed Applications that all declare roles this viewer holds none of.
 			if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
-				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>No applications are installed in this workspace yet.</div>
+				<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>No applications are installed in this workspace yet.</div>
 			} else if len(apps) == 0 {
-				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>You have no role in any application here yet.</div>
+				<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>You have no role in any application here yet.</div>
 			} else {
-				<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_home") }</div>
+				<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_home") }</div>
 			}
 		</div>
 		if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
 			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center" }>
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>Nothing installed here yet</span>
-				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }>Nothing installed here yet</span>
+				<span class={ "max-w-md", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
 					An application appears here once it is installed into this workspace. Until then this
 					workspace holds only its members and their records.
 				</span>
 			</div>
 		} else if len(apps) == 0 {
 			<div class={ "flex flex-col items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-6 py-12 text-center" }>
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkBody) }>No application to open yet</span>
-				<span class={ "max-w-md text-2xs", inkClass(ctx, domain.InkSecondary) }>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }>No application to open yet</span>
+				<span class={ "max-w-md", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
 					Applications appear here based on the roles assigned to you. Ask a workspace admin to
 					give you one.
 				</span>
@@ -129,7 +129,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 						href={ templ.SafeURL(app.HomeRoute) }
 						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 					>
-						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium", appIconClasses(app.Color) }>
+						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base", weightClass(ctx, domain.WeightEmphasis), appIconClasses(app.Color) }>
 							if app.Icon != "" {
 								@icon(app.Icon, "size-5.5")
 							} else {
@@ -139,21 +139,21 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ app.Name }</span>
 							if app.Description != "" {
-								<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>{ app.Description }</span>
+								<span class={ textClass(ctx, domain.RoleMeta), "leading-4.5", inkClass(ctx, domain.InkSecondary) }>{ app.Description }</span>
 							}
 							// The role reads under the name below `sm` and in its own column above it:
 							// the mockup's desktop row has four columns of its own, and a phone has room
 							// for one.
-							<span class={ "text-xs", inkClass(ctx, domain.InkSecondary), "sm:hidden" }>Your role: { displayRole(app.Role) }</span>
+							<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), "sm:hidden" }>Your role: { displayRole(app.Role) }</span>
 						</span>
-						<span class={ "hidden w-42 shrink-0 text-xs", inkClass(ctx, domain.InkSecondary), "sm:block" }>
+						<span class={ "hidden w-42 shrink-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), "sm:block" }>
 							Your role: <span class={ inkClass(ctx, domain.InkStrong) }>{ displayRole(app.Role) }</span>
 						</span>
 						// No fixed width below `sm`: a phone has ~100px of slack on this row, and
 						// reserving a column for a count that may not exist was enough to wrap every
 						// Application's name onto two lines. The declared summary count is the part
 						// that gives way -- board M03 shows the pending badge and nothing else.
-						<span class="flex shrink-0 justify-end text-xs sm:w-30">
+						<span class={ "flex shrink-0 justify-end", textClass(ctx, domain.RoleMeta), "sm:w-30" }>
 							if app.ShowPending && app.PendingCount > 0 {
 								@statusBadge(fmt.Sprintf("%d pending", app.PendingCount), domain.ToneInfo, domain.BadgeRegular)
 							} else if app.ShowCount {
@@ -205,7 +205,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 		// M04a-Settings.dc.html, not to Members directly. Fixed here rather than left stale a second
 		// time: this row now opens the hub, same as workspaceMenu's own settings row.
 		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-			<div class={ "mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm " + inkClass(ctx, domain.InkSecondary) }>
+			<div class={ "mt-2 flex items-center", layoutGap(ctx, domain.GapDefault), "border-t", borderClass(ctx, domain.BorderSurface), "pt-4 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary) }>
 				// Only when there is a role to name. displayRole renders "—" for an empty one, which
 				// reads fine in a table cell and reads broken inside a pill -- and empty is exactly
 				// the shared admin credential's case, which still sees this row because it can open
@@ -236,7 +236,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 id="new-application-h" class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>Add an application</h2>
-			<span class={ "max-w-xl text-xs leading-5", inkClass(ctx, domain.InkSecondary) }>
+			<span class={ "max-w-xl", textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 				Describe what your team needs. Menata asks a few questions, shows what it will build,
 				then generates it as a draft — nobody else sees it until you publish.
 			</span>
@@ -249,21 +249,21 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		if len(suggestions) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				for _, s := range suggestions {
-					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs" + " " + toneInkClass(ctx, domain.ToneNeutral) + " " + sunkenHoverClass(ctx) }>
+					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + toneInkClass(ctx, domain.ToneNeutral) + " " + sunkenHoverClass(ctx) }>
 						{ s.Label }
 					</a>
 				}
-				<span class={ "ml-auto text-2xs", inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
+				<span class={ "ml-auto", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
 			}
 		} else {
-			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
+			<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Only workspace admins can add applications</span>
 		}
 		// The other way to add one: install a ready-made Application from the template library instead
 		// of describing a new one (2026-09-28). **Not on the mockup's board** -- it draws no
 		// install-from-library concept, because nothing could install one when it was drawn -- so this
 		// is one declared line inside the section that already exists rather than a second section
 		// competing with it. Route and label come from its own runtime screen, never retyped.
-		<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>
+		<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>
 			Already know what you need?
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 				{ labelByID(ctx, "nav_install_application") } →
@@ -295,7 +295,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				</span>
 				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ r.Name }</span>
-					<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
+					<span class={ textClass(ctx, domain.RoleMeta), "leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
 				</span>
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 				<span class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
@@ -309,7 +309,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 			</span>
 			<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 				<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ r.Name }</span>
-				<span class={ "text-xs leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
+				<span class={ textClass(ctx, domain.RoleMeta), "leading-4.5", inkClass(ctx, domain.InkSecondary) }>Generated from your description. Review it before anyone else can open it.</span>
 			</span>
 			@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 		</a>

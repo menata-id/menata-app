@@ -148,7 +148,7 @@ templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 // board View and the current list's title), so the breadcrumb and the Move panel cannot disagree about where
 // the card is.
 templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
-	<nav aria-label="Breadcrumb" class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
+	<nav aria-label="Breadcrumb" class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) }>
 		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ machineHeading(ctx, m) }</a>
 		<span aria-hidden="true">/</span>
 		<span aria-current="page">{ mv.CurrentLabel() }</span>
@@ -163,9 +163,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticHeading, recordTitle(m, r))
 			if action.IsDocument(m) {
-				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkSecondary) }>{ action.DocumentReference(r.SortOrder) }</code>
+				<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ action.DocumentReference(r.SortOrder) }</code>
 			} else {
-				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
+				<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
 			}
 		</div>
 		if len(extras.Tags) > 0 {
@@ -175,10 +175,10 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				}
 			}
 		}
-		<dl class={ "m-0 grid grid-cols-1 gap-x-4 gap-y-3", surfaceClasses(ctx), "p-4 text-sm sm:grid-cols-[10rem_1fr]" }>
+		<dl class={ "m-0 grid grid-cols-1 gap-x-4 gap-y-3", surfaceClasses(ctx), "p-4", textClass(ctx, domain.RoleBody), "sm:grid-cols-[10rem_1fr]" }>
 			for _, f := range m.Fields {
 				if !hiddenDetailField(m, f) {
-					<dt class={ "self-center text-2xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
+					<dt class={ "self-center", textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
 					<dd class={ "m-0", inkClass(ctx, domain.InkStrong) }>
 						if f.ID == m.SLAField {
 							@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
@@ -208,7 +208,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			// run for every Machine's detail page, mch_task included. Board 10 is that screen now;
 			// this links to it rather than rendering a second, quietly diverging copy of the same
 			// decision.
-			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class={ "text-sm font-medium", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Review and decide →</a>
+			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Review and decide →</a>
 		}
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
@@ -234,7 +234,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					hx-confirm="Delete this record?"
 				>Delete</button>
 			} else {
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) } title={ blockedReason }>Cannot delete: { blockedReason }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) } title={ blockedReason }>Cannot delete: { blockedReason }</span>
 			}
 		}
 		for _, cc := range children {
@@ -278,16 +278,16 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 		<div class={ "absolute top-full left-0 z-10 mt-1 flex w-72 flex-col", layoutGap(ctx, domain.GapMicro), surfaceClasses(ctx), "p-2 shadow-lg" }>
 			if canMove && move != nil {
 				<details>
-					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm", hoverWashClass(ctx) }>
+					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>
 						Move…
-						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Another list</span>
+						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Another list</span>
 					</summary>
 					<form
 						class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
 						hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, move.ViewID) }
 						hx-target="#record-detail"
 					>
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
 							List
 							<select name={ move.Field } class={ fieldClasses(ctx) + " w-full" }>
 								for _, t := range move.Targets {
@@ -296,7 +296,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 							</select>
 						</label>
 						for _, sc := range move.Scopes {
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
 								{ sc.Label }
 								<select name={ sc.Field } class={ fieldClasses(ctx) + " w-full" }>
 									if sc.Current == "" {
@@ -308,7 +308,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 								</select>
 							</label>
 						}
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
 							Position
 							<select name="position" class={ fieldClasses(ctx) + " w-full" }>
 								for i := 1; i <= move.Positions; i++ {
@@ -322,13 +322,13 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 			}
 			if canCopy && cp != nil {
 				<details>
-					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm", hoverWashClass(ctx) }>Copy…</summary>
+					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>Copy…</summary>
 					<form
 						class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
 						hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
 						hx-swap="none"
 					>
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
 							Title
 							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ fieldClasses(ctx) + " w-full" }/>
 						</label>
@@ -338,11 +338,11 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 			}
 			<button
 				type="button"
-				class={ "flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left text-sm", hoverWashClass(ctx) }
+				class={ "flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }
 				onclick="navigator.clipboard.writeText(location.href).then(() => { this.querySelector('[data-share-hint]').textContent = 'Link copied' })"
 			>
 				Share
-				<span data-share-hint class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Copy a link to this card</span>
+				<span data-share-hint class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Copy a link to this card</span>
 			</button>
 		</div>
 	</details>
@@ -411,11 +411,11 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 		>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticHeading, recordTitle(m, r))
-				<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
+				<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ r.ID }</code>
 			</div>
-			<dl class={ "m-0 grid grid-cols-1 items-center gap-x-4 gap-y-3", surfaceClasses(ctx), "p-4 text-sm sm:grid-cols-[10rem_1fr]" }>
+			<dl class={ "m-0 grid grid-cols-1 items-center gap-x-4 gap-y-3", surfaceClasses(ctx), "p-4", textClass(ctx, domain.RoleBody), "sm:grid-cols-[10rem_1fr]" }>
 				for _, f := range m.Fields {
-					<dt class={ "self-center text-2xs font-medium tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
+					<dt class={ "self-center", textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
 					<dd class="m-0">
 						@fieldInput(f, r.Values[f.ID], relations, groups)
 					</dd>
@@ -512,7 +512,7 @@ templ longText(text string) {
 		<details class="group/fold">
 			<summary class="cursor-pointer list-none group-open/fold:hidden">
 				<span class="whitespace-pre-wrap">{ string([]rune(text)[:longTextFold]) }…</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }> Read more</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }> Read more</span>
 			</summary>
 			<div class="whitespace-pre-wrap">{ text }</div>
 		</details>

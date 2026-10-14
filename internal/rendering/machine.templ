@@ -300,7 +300,7 @@ type Truncation struct {
 // Truncation unconditionally and the common case costs no markup.
 templ truncationNotice(t Truncation) {
 	if t.Hit && t.Limit > 0 {
-		<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-3 py-2 text-2xs", toneInkClass(ctx, domain.ToneWarn) }>
+		<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-3 py-2", textClass(ctx, domain.RoleCaption), toneInkClass(ctx, domain.ToneWarn) }>
 			Showing the first { fmt.Sprint(t.Limit) } only — more match than fit on this page.
 		</p>
 	}
@@ -392,7 +392,7 @@ templ metricTile(label, value, hint string, tone domain.BadgeTone) {
 		<div class={ textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis), metricValueClass(ctx, tone) }>{ value }</div>
 		<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ label }</div>
 		if hint != "" {
-			<div class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ hint }</div>
+			<div class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ hint }</div>
 		}
 	</div>
 }
@@ -433,14 +433,14 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 			for i, m := range machines {
 				<a
 					href={ templ.URL("/machines/" + m.ID) }
-					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
-					<span class="grow font-medium">{ m.Name }</span>
-					<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
+					<span class={ "grow", weightClass(ctx, domain.WeightEmphasis) }>{ m.Name }</span>
+					<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 				</a>
 			}
 			if len(machines) == 0 {
-				<div class={ "px-4 py-8 text-center text-sm", inkClass(ctx, domain.InkSecondary) }>No machines are installed in this workspace.</div>
+				<div class={ "px-4 py-8 text-center", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>No machines are installed in this workspace.</div>
 			}
 		</div>
 	}
@@ -490,7 +490,7 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, m.Name)
-		<code class={ "font-mono text-2xs", inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
+		<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 	</div>
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
@@ -504,9 +504,9 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 						</td>
 						<td class={ tableCellClasses(ctx) }>
 							if f.Required {
-								<span class={ "text-xs font-medium", toneInkClass(ctx, domain.ToneBad) }>yes</span>
+								<span class={ textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneBad) }>yes</span>
 							} else {
-								<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>no</span>
+								<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>no</span>
 							}
 						</td>
 					</tr>
@@ -581,8 +581,8 @@ templ cardsLayout(m *domain.Machine, cards []RecordCard) {
 	@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols2) {
 		for _, c := range cards {
 			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class={ "flex flex-col gap-1.5", surfaceClasses(ctx), "p-4 " + inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx) }>
-				<span class="text-sm font-medium">{ recordTitle(m, c.Record) }</span>
-				<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ recordTitle(m, c.Record) }</span>
+				<span class={ "flex flex-wrap items-baseline gap-x-2 gap-y-1", textClass(ctx, domain.RoleMeta) }>
 					for _, f := range c.Fields {
 						@projectedFieldValue(f)
 					}
@@ -761,8 +761,8 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 		for _, col := range columns {
 			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
 				<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
-					<h3 class={ "m-0 text-xs font-medium", inkClass(ctx, domain.InkBody) }>{ col.Label }</h3>
-					<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 text-2xs " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
+					<h3 class={ "m-0", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }>{ col.Label }</h3>
+					<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 " + textClass(ctx, domain.RoleLabel) + " " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
 				if col.Hint != "" {
 					// A caption in the lane's sunken surface: `secondary` ink measures 4.35:1 there (the 2026-10-13 rule), so the hint
@@ -872,7 +872,7 @@ func tagClasses(c domain.TagColor) (chip, dot string) {
 // `CardTag` before it gets here, and the callers pass its two fields.
 templ tagChip(label string, color domain.TagColor) {
 	{{ chip, dot := tagClasses(color) }}
-	<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "whitespace-nowrap", radiusClass(ctx, domain.RadiusPill), "border px-2 py-0.5 text-2xs", chip }>
+	<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "whitespace-nowrap", radiusClass(ctx, domain.RadiusPill), "border px-2 py-0.5", textClass(ctx, domain.RoleLabel), chip }>
 		<span class={ "size-1.5 rounded-full", dot } aria-hidden="true"></span>
 		{ label }
 	</span>
@@ -942,7 +942,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
 						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
 								Move to list
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
@@ -950,7 +950,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 									}
 								</select>
 							</label>
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
 								Position
 								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 							</label>
@@ -962,14 +962,14 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 			<a
 				href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) }
 				draggable="false"
-				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV(inkClass(ctx, domain.InkSecondary), done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6 pointer-coarse:pl-7", canEdit && c.Complete != nil), templ.KV("pointer-coarse:pr-6", canEdit), templ.KV("pl-7 pr-6", done && canEdit) }
+				class={ "block", textClass(ctx, domain.RoleBody), "leading-snug after:absolute after:inset-0", templ.KV(inkClass(ctx, domain.InkSecondary), done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6 pointer-coarse:pl-7", canEdit && c.Complete != nil), templ.KV("pointer-coarse:pr-6", canEdit), templ.KV("pl-7 pr-6", done && canEdit) }
 			>{ title }</a>
 		</span>
 		{{ person := cardRole(c, domain.CardFieldRolePerson) }}
 		if c.Date.Present || person != "" {
 			<span class={ "flex items-center justify-between", layoutGap(ctx, domain.GapTight) }>
 				if c.Date.Present {
-					<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, c.Date.Tone) }>
+					<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "rounded px-1.5 py-0.5", textClass(ctx, domain.RoleCaption), toneClass(ctx, c.Date.Tone) }>
 						if c.Date.Done {
 							@icon("check", "size-3")
 						} else {
@@ -1020,7 +1020,7 @@ func cardTitleFieldID(m *domain.Machine) string {
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
 templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 	<details class="group">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 text-xs " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
 		<form
 			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
@@ -1038,7 +1038,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
 templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
 	<details class="relative">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 text-xs font-medium " + onFillClass(ctx) + " " + inkFillHoverClass(ctx) }>{ "New " + strings.ToLower(m.Name) }</summary>
+		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + onFillClass(ctx) + " " + inkFillHoverClass(ctx) }>{ "New " + strings.ToLower(m.Name) }</summary>
 		<form
 			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-4 shadow-lg" }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
@@ -1048,7 +1048,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 		>
 			for _, f := range m.Fields {
 				if f.Compute == nil && f.Type != domain.FieldTypeFile {
-					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
+					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) }>
 						{ f.Name }
 						@fieldInput(f, nil, relations, groups)
 					</label>
@@ -1098,7 +1098,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		for i, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
 				if i == 0 {
-					<a class={ "font-medium", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
 					@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 				} else if f.Type == domain.FieldTypeFile {
