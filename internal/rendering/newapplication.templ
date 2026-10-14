@@ -224,7 +224,7 @@ templ updatePlan(plan aiassist.Plan) {
 								{ item.What }
 								if item.Confirm != "" {
 									<label class={ "mt-1 flex items-center", layoutGap(ctx, domain.GapTight), "text-xs" + " " + inkClass(ctx, domain.InkBody) }>
-										<input type="checkbox" name="confirm_remove" value={ item.Confirm } form={ publishFormID }/>
+										<input type="checkbox" name="confirm_remove" value={ item.Confirm } form={ publishFormID } class={ controlAccentClass(ctx) }/>
 										Remove it from the Application. Values already stored in records are kept, unseen.
 									</label>
 								}

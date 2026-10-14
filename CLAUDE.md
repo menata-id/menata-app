@@ -1426,6 +1426,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   decides the owner's question: Calendar declares `empty: "—"` on a Collection inside a seven-column grid, a per-day
   placeholder where a `p-8` dashed card would be wrong. So the recommendation in `design-system-decisions.md` is not a
   blanket change to `Collection.empty:`.
+- `TestEveryNativeCheckableReadsTheAccent` — rencana 2.3b (2026-10-14), a zero-floor gate with no new Component. The plan said
+  "`accent-blue-500`, no control role"; measured, the literal was already gone (CP2 moved it to `controlAccentClass`) and
+  7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal
+  confirmation) and drew the browser's blue; they read the accent now, sizes untouched. One is a `peer sr-only` input
+  behind a drawn switch (`account.templ`, never painted), the only exemption, closed both ways. The boolean control is
+  `FormInput`/`Field` kind `boolean` already. Blind spot: a tag assembled in Go. Mutation-proved five ways.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

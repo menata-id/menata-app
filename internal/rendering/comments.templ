@@ -30,7 +30,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 				@staticText(domain.StaticSubheading, "Comments and activity")
 				if hasEvents(extras.Activity) {
 					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
-						<input type="checkbox" class="size-3.5"/>
+						<input type="checkbox" class={ "size-3.5", controlAccentClass(ctx) }/>
 						Show details
 					</label>
 				}
