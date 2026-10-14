@@ -1437,7 +1437,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   hides its own summary once open), the card menus and the archived fold are other jobs and stay hand-written. `experimental`: no installed
   `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
   on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.
-  Mutation-proved nine ways, including the walker arm in the generated file (renderer tests read `*_templ.go`).
+  Mutation-proved seven ways, including the walker arm in the generated file (renderer tests read `*_templ.go`).
 - `TestEveryNativeCheckableReadsTheAccent` — rencana 2.3b (2026-10-14), a zero-floor gate with no new Component. The plan said
   "`accent-blue-500`, no control role"; measured, the literal was already gone (CP2 moved it to `controlAccentClass`) and
   7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal
