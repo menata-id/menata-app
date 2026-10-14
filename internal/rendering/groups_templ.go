@@ -1104,7 +1104,7 @@ func GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNam
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var73 = []any{"cursor-pointer text-xs", toneInkClass(ctx, domain.ToneBad), "hover:underline"}
+				var templ_7745c5c3_Var73 = []any{"cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var73...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

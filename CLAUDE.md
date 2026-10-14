@@ -1371,10 +1371,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   "ok" because its mutation had not applied (the pattern occurs in two functions), the failure mode this file warns
   about.
 
-  **Four things are the owner's, not taken** (`design-system-decisions.md`): whether the link look's size reads the
-  `meta` text role; whether the four quiet-destructive text actions fold to one resting ink; whether the five bordered
-  compact controls fold `px-3` into `px-4`; and building `actions` (popover, menu) as a capability, which is what would
-  let icon and menu buttons be declared.
+  **Four things were the owner's** (`design-system-decisions.md`), decided 2026-10-14 by following the recommendations: the link
+  look's size stays literal (T-L: no); the four quiet-destructive text actions fold to grey at rest and red on hover at
+  `text-xs` (T-D: yes, built: Delete this group lost its resting red and underline, Revoke went 14 to 12px, and
+  `TestQuietDestructiveActionsShareOneLook` holds it); the bordered compact controls keep `px-3` (T-C: no); and building
+  `actions` (popover, menu) as a capability (T-A: yes, its own slice), which is what would let icon and menu buttons be declared.
   **The independent review measured the values in Chromium**, painting each token's colour to a canvas, light and dark,
   under the default Theme and two moved ones. It found 0 differences, but three mutants that only the snapshot caught,
   and running `make tokens` would have re-blessed each one:

@@ -187,7 +187,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
 						@csrfHiddenInput()
 						<input type="hidden" name="email" value={ inv.Email }/>
-						<button type="submit" class={ "cursor-pointer border-0 bg-transparent p-0 text-sm", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>Revoke</button>
+						<button type="submit" class={ "cursor-pointer border-0 bg-transparent p-0 text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>Revoke</button>
 					</form>
 				</div>
 			}

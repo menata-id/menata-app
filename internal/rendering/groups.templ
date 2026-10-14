@@ -139,7 +139,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 		}
 		<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/delete") } class="flex justify-end">
 			@csrfHiddenInput()
-			<button type="submit" class={ "cursor-pointer text-xs", toneInkClass(ctx, domain.ToneBad), "hover:underline" }>Delete this group</button>
+			<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad) }>Delete this group</button>
 		</form>
 		}
 	}

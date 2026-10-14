@@ -1139,7 +1139,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var79 = []any{"cursor-pointer border-0 bg-transparent p-0 text-sm", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad)}
+					var templ_7745c5c3_Var79 = []any{"cursor-pointer border-0 bg-transparent p-0 text-xs", inkClass(ctx, domain.InkSecondary), toneInkHoverClass(ctx, domain.ToneBad)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var79...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
