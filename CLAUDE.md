@@ -1431,7 +1431,9 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   7 of 10 native checkboxes/radios read it. Two never had (comments' "Show details", New Application's removal
   confirmation) and drew the browser's blue; they read the accent now, sizes untouched. One is a `peer sr-only` input
   behind a drawn switch (`account.templ`, never painted), the only exemption, closed both ways. The boolean control is
-  `FormInput`/`Field` kind `boolean` already. Blind spot: a tag assembled in Go. Mutation-proved five ways.
+  `FormInput`/`Field` kind `boolean` already. Blind spot: a tag assembled in Go. Mutation-proved nine ways. The independent review found two survivors, both closed: a reader
+  named in a `data-*`/`title` attribute (the reader must sit in `class` itself) and a `type={ … }` expression, which dropped the input from
+  the count (refused now; `authField`'s computed `kind` is the one closed exemption, text/email/password at every caller).
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):
