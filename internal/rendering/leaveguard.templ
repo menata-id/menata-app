@@ -22,7 +22,7 @@ templ leaveWorkspaceGuard(workspaceName, role, switchHref string) {
 	<dialog
 		id="menata-leave-guard"
 		aria-label={ "Leave " + workspaceName + "?" }
-		class={ "m-auto w-[calc(100%-2rem)] max-w-md", surfaceClasses(ctx), inkClass(ctx, domain.InkStrong), paddingClass(ctx, domain.PaddingPanel), "shadow-lg", scrimClass(true) }
+		class={ "m-auto w-[calc(100%-2rem)] max-w-md", dialogClasses(ctx) }
 	>
 		@stackLayout(domain.GapDefault) {
 			@stackLayout(domain.GapTight) {

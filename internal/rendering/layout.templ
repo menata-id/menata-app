@@ -686,6 +686,19 @@ func surfaceClasses(ctx context.Context) string {
 	}, " ")
 }
 
+// dialogClasses is the shell of a modal `<dialog>` (rencana 2.3d, 2026-10-14): the surface recipe with panel padding,
+// the strong ink, an elevation and the scrim. Two dialogs drew it, `signatureModal` as a literal list and
+// `leaveWorkspaceGuard` in another order; one reader keeps a Workspace's `theme:` moving both. **Width is not in it**:
+// the two differ (`max-w-110` against `max-w-md` and a mobile `w-[calc(100%-2rem)]`), and folding 440 into 448px is a
+// decision nobody took. It is a class reader and not a registered Component: what makes a dialog a dialog here is when
+// it opens and closes (a dirty-form check, a canvas), which is 007 §12.3's `actions` and has no declaration yet.
+func dialogClasses(ctx context.Context) string {
+	return strings.Join([]string{
+		radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel),
+		backgroundClass(ctx, domain.BackgroundRaised), inkClass(ctx, domain.InkStrong), "shadow-lg", scrimClass(true),
+	}, " ")
+}
+
 // tileClasses is the look of a small box that sits inside a surface -- a selectable option, a list item, a card in a
 // column: the control radius and a one-pixel edge in the surface border role. **Two readings, both chosen so that the
 // default theme moves nothing.** The radius is `control`, not `surface`, because the default steps differ (a tile has

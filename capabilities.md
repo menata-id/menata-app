@@ -296,7 +296,7 @@ stay literal, each a region rule or the `divide-y` utility rather than a row sep
 `background.raised` through `surfaceClasses` (2026-10-06: 34 hand-written `rounded-lg border border-slate-200 bg-white`
 sites in 18 screens moved to it, and `panelLayout`/`sectionLayout`/`metric` now compose it instead of repeating the
 four reads), byte-identical by default; `conformance.TestHandWrittenSurfacesOnlyShrink` holds the 4 that stay literal
-(three whose border colour is state-conditional, one `<dialog>` with no raised fill). The small box that sits inside a
+(three whose border colour is state-conditional; the `<dialog>` that was the fourth reads `dialogClasses` since 2026-10-14, rencana 2.3d, which carries the surface recipe with panel padding, ink, elevation and scrim for both modal dialogs, width left to the site, and `conformance.TestEveryDialogReadsTheShell` holds it). The small box that sits inside a
 surface -- a selectable option, a list item, a card in a column -- reads `radius.control` and `border.surface` through
 `tileClasses` (2026-10-07: 11 `rounded-md border border-slate-200` sites in 8 screens, the four raised ones also reading
 `background.raised`), byte-identical by default; `conformance.TestHandWrittenTilesOnlyShrink` holds the 3 same-shaped

@@ -1551,3 +1551,41 @@ func TestRoleItem_followsTheTheme(t *testing.T) {
 		t.Errorf("item by default: %q, want text-item", got)
 	}
 }
+
+// Rencana 2.3d (R9): both modal dialogs draw their shell from dialogClasses, so one moved theme moves both. Radius,
+// panel padding and the surface edge are moved off their defaults, and each dialog must carry exactly the shell the
+// reader answers under that theme (not the default's).
+func TestDialogShell_bothDialogsFollowTheTheme(t *testing.T) {
+	th := domain.Theme{
+		Radius:  map[domain.RadiusRole]domain.RadiusStep{domain.RadiusSurface: domain.RadiusStepFull},
+		Padding: map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountThree},
+		Border:  map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	shell := strings.Fields(dialogClasses(ctx))
+	if !strings.Contains(dialogClasses(ctx), "rounded-full") || !strings.Contains(dialogClasses(ctx), "p-3") {
+		t.Fatalf("the moved theme never reached dialogClasses: %s", dialogClasses(ctx))
+	}
+	for name, c := range map[string]templ.Component{
+		"leave guard":     leaveWorkspaceGuard("WS", "admin", "/switch-workspace"),
+		"signature modal": signatureModal("s1"),
+	} {
+		var buf strings.Builder
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		m := regexp.MustCompile(`<dialog[^>]*\sclass="([^"]*)"`).FindStringSubmatch(buf.String())
+		if m == nil {
+			t.Fatalf("%s: no <dialog class> found", name)
+		}
+		have := map[string]bool{}
+		for _, tok := range strings.Fields(m[1]) {
+			have[tok] = true
+		}
+		for _, tok := range shell {
+			if !have[tok] {
+				t.Errorf("%s: dialog lacks shell class %q under the moved theme: %s", name, tok, m[1])
+			}
+		}
+	}
+}

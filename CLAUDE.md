@@ -1434,6 +1434,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `FormInput`/`Field` kind `boolean` already. Blind spot: a tag assembled in Go. Mutation-proved nine ways. The independent review found two survivors, both closed: a reader
   named in a `data-*`/`title` attribute (the reader must sit in `class` itself) and a `type={ … }` expression, which dropped the input from
   the count (refused now; `authField`'s computed `kind` is the one closed exemption, text/email/password at every caller).
+- `TestEveryDialogReadsTheShell` — rencana 2.3d (2026-10-14), a zero-floor gate beside `dialogClasses`; nothing registered. The plan's
+  "2 sites" was right and its "Dialog Component" was not: the two modal dialogs (`signatureModal`, `leaveWorkspaceGuard`) share only
+  a class shell (surface, panel padding, strong ink, elevation, scrim), while what makes each a dialog is when it opens and closes
+  (a dirty-form check; a canvas with its own submit capture), which is 007 §12.3's `actions` with no declaration. So the shell is a
+  class reader and width stays per site (`max-w-110` against `max-w-md` plus a mobile width: folding 440 into 448px is a decision
+  not taken). The signature dialog's bytes are unchanged; the leave guard's classes are the same set in another order. Two
+  ratchets reacted and were adjusted on reading, not silenced: `handWrittenSurfaceFloors` lost `reviewdocument.templ`, whose reason
+  ("a dialog with no raised fill") had been false since the dialog read the raised background, and the padding-reader sanity floor
+  went 14 to 13. **A comment of mine leaked `.shadow` into app.css again** (the bare word); found by the CSS diff after
+  `make generate`, not by a gate. Mutation-proved nine ways, including the generated file, since renderer tests read `*_templ.go`.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

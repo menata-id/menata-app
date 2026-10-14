@@ -2174,7 +2174,7 @@ func signatureModal(stepID string) templ.Component {
 			templ_7745c5c3_Var121 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var122 = []any{"sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), backgroundClass(ctx, domain.BackgroundRaised), inkClass(ctx, domain.InkStrong), "shadow-lg", scrimClass(true)}
+		var templ_7745c5c3_Var122 = []any{"sig-modal max-w-110", dialogClasses(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var122...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

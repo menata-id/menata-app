@@ -826,9 +826,8 @@ func TestHandWrittenDividersOnlyShrink(t *testing.T) {
 // `TestHandWrittenTilesOnlyShrink` below; the rest wait on D8. Dashed empty states (`border-slate-300`) and red
 // danger zones are other border colours.
 var handWrittenSurfaceFloors = map[string]int{
-	"approvalinbox.templ":  1, // border colour is conditional (red when overdue); a reader would have to take the state
-	"notifications.templ":  1, // an unread row swaps the border and fill; same shape
-	"reviewdocument.templ": 1, // a <dialog> with no raised fill: the user agent paints its Canvas, and adding bg-white would be a change
+	"approvalinbox.templ": 1, // border colour is conditional (red when overdue); a reader would have to take the state
+	"notifications.templ": 1, // an unread row swaps the border and fill; same shape
 }
 
 var (

@@ -523,7 +523,7 @@ templ reviewDecisionBar(v ReviewView) {
 // before any bubble-phase document listener) -- without that, htmx would read the hidden
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
-	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), backgroundClass(ctx, domain.BackgroundRaised), inkClass(ctx, domain.InkStrong), "shadow-lg", scrimClass(true) }>
+	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", dialogClasses(ctx) }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class={ "mt-1.5 mb-3 text-2xs", inkClass(ctx, domain.InkSecondary) }>Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
 		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed " + borderClass(ctx, domain.BorderControl) + " bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
