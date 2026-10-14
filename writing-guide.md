@@ -1032,7 +1032,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
-| `EmptyState` | experimental | No installed `page:` declares one yet: the Approval Inbox and Groups screens draw it, and a declared `Collection` says `empty:` as a plain message |
+| `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
 `binding: {dataset: ds_x, measure: msr_y, rows: dimension}`. It then stands for **one Metric per value of
@@ -1367,11 +1367,12 @@ No installed page declares one yet, because no declared screen shows a message t
 is its only input, it is required, and a blank one is a load error (a dashed box with no words says nothing). A page never
 writes a class, an icon, a title or an action. The corner, edge, fill, size and ink follow the Workspace's `theme:`
 (`radius.surface`, `border.control`, `background.raised`, `text.body`, `ink.secondary`). The Approval Inbox and Groups
-screens use it in Go. **It is `experimental`, and it is not what a `Collection`'s `empty:` draws**: `empty:` says the same thing as a plain
-`static: message`, with no box. A page cannot show an EmptyState *only when a list is empty*: it draws whenever it is
-declared, and `when:` tests a record's own role or the request's `week` parameter, never whether a Dataset lists anything. So the conditional use belongs to `Collection`'s `empty:`, and
-whether that should draw this card is a visible change on every page that declares `empty:` -- the owner's call. Declare
-a `component: EmptyState` yourself only for a message that is always true of the page.
+screens use it in Go. **It is `stable` since owner decision E-1 (2026-10-14): a layout's `empty:` (what a page says when
+everything it holds was hidden, My Tasks) lowers to this card**, because that is a whole region of the page. **A `Collection`'s
+`empty:` is not what draws it** (E-2, rule: no): it stays a plain `static: message`, since Calendar uses `empty: "—"` as a per-day-cell
+marker where a card would be wrong. A page cannot show an EmptyState *only when a list is empty*: it draws whenever it is
+declared, and `when:` tests a record's own role or the request's `week` parameter, never whether a Dataset lists anything.
+Declare a `component: EmptyState` yourself only for a message that is always true of the page.
 
 ```yaml
 - component: EmptyState

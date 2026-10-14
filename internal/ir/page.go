@@ -442,8 +442,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 
 // lowerLayoutEmpty consumes a layout's `empty:` -- the words a page says when everything it holds was hidden by its
 // data (every Collection `hide_empty`, every record condition false). When something is drawn the prop is dropped;
-// when nothing is, the layout holds one `static: message` with those words, so a quiet day is a short page and
-// not a layout with no children, which Validate refuses. It is valid only on a layout that declares children (an
+// when nothing is, the layout holds one `EmptyState` card with those words (owner decision E-1, 2026-10-14: a layout's
+// `empty:` is a whole region of the page and so draws the card, where a Collection's stays plain words), so a quiet day
+// is a short page and not a layout with no children, which Validate refuses. It is valid only on a layout that declares children (an
 // empty one is a fault whatever it says); on any other kind `empty` means something else or nothing, and is left
 // for that kind's own check.
 func lowerLayoutEmpty(n domain.PageNode, out *UINode, path string) error {
@@ -468,7 +469,7 @@ func lowerLayoutEmpty(n domain.PageNode, out *UINode, path string) error {
 	}
 	out.Props = props
 	if len(out.Children) == 0 {
-		out.Children = []UINode{{Kind: NodeStatic, Type: string(domain.StaticMessage), Props: map[string]string{"text": words}}}
+		out.Children = []UINode{{Kind: NodeComponent, Type: string(domain.ComponentEmptyState), Props: map[string]string{"text": words}}}
 	}
 	return nil
 }

@@ -1395,11 +1395,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   card, a pending avatar and draft tiles. Of the four, **two screens drew one card byte for byte**: the Approval Inbox's
   `inboxEmpty` (five calls) and a hand-written copy on Groups, compared as class expressions at HEAD. That is the
   registration. Workspace Home's two cards (a title and a description in a roomier box) are one screen, so they are
-  `emptyStateExempt` floors. `EmptyState` has one required input, `text`, and a blank one is refused. It is
-  `experimental`: **no installed page can use it as intended**, because a page cannot show a card only when a list is
-  empty (`when:` is per record), which is exactly what `Collection`'s `empty:` is for, and that draws a plain
-  `static: message`. Whether `empty:` should draw this card is a visible change on every page declaring it, and is the
-  owner's (`design-system-decisions.md`, "Keadaan kosong").
+  `emptyStateExempt` floors. `EmptyState` has one required input, `text`, and a blank one is refused. It was `experimental` until owner decision E-1
+  (2026-10-14): **a layout's `empty:` (My Tasks, two Workspaces) now lowers to this card** instead of a plain
+  `static: message`, which makes it `stable` (`ir.lowerLayoutEmpty`; `TestComponentStatusMatchesInstalledUse` counts a
+  layout `empty:` as a lowered use, because the load-time placeholder record never lets that day occur while
+  lowering). **E-2 was decided no**: a Collection's `empty:` stays plain words, since Calendar's `empty: "—"` is a
+  per-day-cell marker. Mutation-proved: the lowering reverted fails `TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers`.
 
   Gate: `TestNoHandWrittenEmptyState` (zero floor except `emptyStateExempt`) counts a class attribute holding
   `border-dashed` and `text-center`. Blind spots, stated in the test: an empty state with no dashed edge, and a class from a

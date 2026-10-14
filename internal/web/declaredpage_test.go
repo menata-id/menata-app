@@ -1620,6 +1620,13 @@ func TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers(t *testing.T) {
 	if !strings.Contains(quiet, "Nothing is assigned to you.") {
 		t.Errorf("a viewer with no Tasks was not told so:\n%s", quiet)
 	}
+	// E-1 (2026-10-14): a layout's `empty:` is the whole page being quiet, so it draws the EmptyState card, not bare words.
+	if i := strings.Index(quiet, "Nothing is assigned to you."); i >= 0 {
+		open := strings.LastIndex(quiet[:i], "<")
+		if !strings.Contains(quiet[open:i], "border-dashed") {
+			t.Errorf("the quiet page's words are not inside the EmptyState card: %q", quiet[open:i])
+		}
+	}
 	for _, heading := range []string{"Overdue", "Next 7 days", "Later", "Completed"} {
 		if strings.Contains(quiet, ">"+heading+"<") {
 			t.Errorf("the %q section is on a page with no Tasks", heading)

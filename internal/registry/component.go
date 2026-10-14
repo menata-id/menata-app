@@ -71,7 +71,7 @@ var Components = map[domain.ComponentType]Component{
 // an absence.
 var emptyStateContract = domain.ComponentContract{
 	Type:   domain.ComponentEmptyState,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "text", Kind: "string", Required: true},
 	},

@@ -1241,7 +1241,7 @@ func TestLower_layoutEmptySaysItsWordsOnlyWhenEverythingWasHidden(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(quiet.Children) != 1 || quiet.Children[0].Type != string(domain.StaticMessage) || quiet.Children[0].Props["text"] != "Nothing assigned." {
+	if len(quiet.Children) != 1 || quiet.Children[0].Kind != NodeComponent || quiet.Children[0].Type != string(domain.ComponentEmptyState) || quiet.Children[0].Props["text"] != "Nothing assigned." {
 		t.Fatalf("a layout whose children were all hidden did not say its words: %+v", quiet.Children)
 	}
 	if err := Validate(quiet); err != nil {
@@ -1252,7 +1252,7 @@ func TestLower_layoutEmptySaysItsWordsOnlyWhenEverythingWasHidden(t *testing.T) 
 		t.Fatal(err)
 	}
 	for _, c := range busy.Children {
-		if c.Type == string(domain.StaticMessage) {
+		if c.Type == string(domain.ComponentEmptyState) {
 			t.Errorf("the quiet message was drawn beside real content: %+v", busy.Children)
 		}
 	}

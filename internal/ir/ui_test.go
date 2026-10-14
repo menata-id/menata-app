@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	RegisterComponentTypes([]string{string(domain.ComponentStatusBadge), string(domain.ComponentAvatar)})
+	RegisterComponentTypes([]string{string(domain.ComponentStatusBadge), string(domain.ComponentAvatar), string(domain.ComponentEmptyState)})
 }
 
 func stack(children ...UINode) UINode {
