@@ -1193,7 +1193,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, i
 	} else if divided && ordered {
 		<ol class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for i, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0" }>
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
 					@it
 				</li>
@@ -1202,7 +1202,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, i
 	} else if divided {
 		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for _, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0" }>
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					@it
 				</li>
 			}
@@ -1210,7 +1210,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, i
 	} else if ordered {
 		<ol class={ "m-0 flex list-none flex-col p-0", layoutGap(ctx, gap) }>
 			for i, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), textClass(ctx, domain.RoleBody) }>
 					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
 					@it
 				</li>
@@ -1219,7 +1219,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, i
 	} else {
 		<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
 			for _, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), textClass(ctx, domain.RoleBody) }>
 					@it
 				</li>
 			}

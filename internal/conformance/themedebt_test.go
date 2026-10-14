@@ -48,42 +48,36 @@ type themeDebt struct {
 //     for a Theme key nobody has decided;
 //   - whether the *right* role was chosen. That a reader exists is what is checked, never that it is correct.
 //
-// **Each floor is a measurement of 2026-10-11, not a verdict.** They are what the tree held the day this was
+// **Since the gap plan's P5 (2026-10-14) the map holds only floors, 52 tokens in 18 files, each with its reason on its
+// line** (read the counts out of the map): a link look whose size owner decision T-L keeps literal, a glyph box whose size
+// is paired with a fixed circle (step numbers, initials, count badges), the 10px legends on a document marker, and one
+// monospace block. 392 tokens in 31 files moved to `textClass`/`weightClass` by meaning, mechanically and then checked:
+// `text-sm` is body, `text-xs` is meta, `text-2xs` is caption (label in a pill or an uppercase heading), `text-3xs` is
+// the eyebrow, `font-medium` is the emphasis weight. Computed style over 103 pages at 1280 and 360px: 0 differences.
+// **A role chosen by meaning is not checkable by a gate**, so the choice is recorded here; a different one is a decision.
+//
+// **Each remaining floor is a measurement of 2026-10-14, not a verdict.** The comment below is the 2026-10-11 original: They are what the tree held the day this was
 // written, mostly pre-auth screens (no Workspace on ctx, so no theme can reach them) and sites that predate
 // every Theme role. Read the entries out of the map; lower them as screens are touched.
 var handWrittenThemeTokens = map[string]themeDebt{
-	"account.templ":            {size: 12, ink: 0, weight: 7, fill: 0},
-	"appmembers.templ":         {size: 8, ink: 0, weight: 0, fill: 0},
-	"approvalinbox.templ":      {size: 2, ink: 0, weight: 0, fill: 0},
-	"approvalstepper.templ":    {size: 9, ink: 0, weight: 6, fill: 0},
-	"appshell.templ":           {size: 4, ink: 0, weight: 0, fill: 0},
-	"attachments.templ":        {size: 4, ink: 0, weight: 1, fill: 0},
-	"authshell.templ":          {size: 3, ink: 0, weight: 3, fill: 0},
-	"checklist.templ":          {size: 2, ink: 0, weight: 0, fill: 0},
-	"checkyouremail.templ":     {size: 1, ink: 0, weight: 1, fill: 0},
-	"chooseworkspace.templ":    {size: 7, ink: 0, weight: 2, fill: 0},
-	"comments.templ":           {size: 4, ink: 0, weight: 1, fill: 0},
-	"controls.templ":           {size: 5, ink: 0, weight: 0, fill: 0},
-	"deleteaccount.templ":      {size: 4, ink: 0, weight: 4, fill: 0},
-	"detail.templ":             {size: 2, ink: 0, weight: 0, fill: 0},
-	"documentsubmit.templ":     {size: 12, ink: 0, weight: 5, fill: 0},
-	"forgotpassword.templ":     {size: 1, ink: 0, weight: 0, fill: 0},
-	"groups.templ":             {size: 10, ink: 0, weight: 0, fill: 0},
-	"inference.templ":          {size: 8, ink: 0, weight: 0, fill: 0},
-	"installapplication.templ": {size: 10, ink: 0, weight: 2, fill: 0},
-	"layout.templ":             {size: 4, ink: 0, weight: 0, fill: 0},
-	"login.templ":              {size: 3, ink: 0, weight: 2, fill: 0},
-	"newapplication.templ":     {size: 4, ink: 0, weight: 0, fill: 0},
-	"notifications.templ":      {size: 5, ink: 0, weight: 2, fill: 0},
-	"progress.templ":           {size: 2, ink: 0, weight: 0, fill: 0},
-	"resendverification.templ": {size: 1, ink: 0, weight: 0, fill: 0},
-	"reviewdocument.templ":     {size: 9, ink: 0, weight: 0, fill: 0},
-	"signatureplacement.templ": {size: 14, ink: 0, weight: 3, fill: 0},
-	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
-	"workspacefiles.templ":     {size: 8, ink: 0, weight: 0, fill: 0},
-	"workspacehome.templ":      {size: 1, ink: 0, weight: 0, fill: 0},
-	"workspacemembers.templ":   {size: 3, ink: 0, weight: 0, fill: 0},
-	"workspacesettings.templ":  {size: 7, ink: 0, weight: 3, fill: 0},
+	"account.templ":            {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 10px marker legend (no role)
+	"appmembers.templ":         {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
+	"approvalinbox.templ":      {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L), 1 glyph box (size paired with a fixed circle)
+	"approvalstepper.templ":    {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 3 glyph box (size paired with a fixed circle)
+	"appshell.templ":           {size: 4, ink: 0, weight: 0, fill: 0}, // floors: 2 glyph box (size paired with a fixed circle), 2 link look (T-L)
+	"attachments.templ":        {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 1 glyph box (size paired with a fixed circle), 1 link look (T-L)
+	"controls.templ":           {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
+	"detail.templ":             {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
+	"documentsubmit.templ":     {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 1 glyph box (size paired with a fixed circle)
+	"groups.templ":             {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 3 link look (T-L)
+	"login.templ":              {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L)
+	"newapplication.templ":     {size: 4, ink: 0, weight: 0, fill: 0}, // floors: 4 link look (T-L)
+	"reviewdocument.templ":     {size: 9, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 3 glyph box (size paired with a fixed circle), 4 10px marker legend (no role)
+	"signatureplacement.templ": {size: 6, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 2 glyph box (size paired with a fixed circle), 2 10px marker legend (no role)
+	"workspacefiles.templ":     {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 1 monospace block (no code role)
+	"workspacehome.templ":      {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 glyph box (size paired with a fixed circle)
+	"workspacemembers.templ":   {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 3 link look (T-L)
+	"workspacesettings.templ":  {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L)
 }
 
 var (

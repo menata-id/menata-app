@@ -1469,6 +1469,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `TestUnmappedLengthTokensMatchTheirLiterals` and `TestUnmappedShadowTokensMatchTheirCode` give the artifact's `control-height`,
   `pad-control-x`, `pad-metric` and four shadows a comparison where GS1 only had a reason (every token of the same utility in the
   named function must equal the class: a three-variant recipe with one drifted variant first survived). Mutation-proved.
+- **Gap plan P5 (2026-10-14): text size and weight read the Theme everywhere.** `TestHandWrittenThemeTokensOnlyShrink` went from 444
+  tokens in 33 files to **52 in 18, every one a floor with its reason on its line**: a link look (owner decision T-L), a glyph box
+  whose size is paired with a fixed circle, the 10px legends on a document marker, one monospace block. The mapping was mechanical and
+  by meaning (`text-sm` body, `text-xs` meta, `text-2xs` caption, or label in a pill or an uppercase heading, `text-3xs` eyebrow,
+  `font-medium` emphasis); a different choice for a site is a decision, and no gate can see it. **Verified by computed style, not by
+  bytes**: 103 pages (96 authenticated, 7 pre-auth) at 1280 and 360px against a second server built from the previous commit,
+  0 differences. A pre-auth page must be snapshotted after `document.fonts.ready`: the first run showed 34 width and height
+  differences that were only the web font arriving late. **L13 a fifth time**: the chip, muted-paragraph and caption gates recognise
+  their floors partly by a literal size, so `typeReadersAsLiterals` (opt-in, not in `joinClassExpressions`, because the Static kinds and
+  Components are written in `layout.templ` with these readers) keeps them counting; it is skipped for `layout.templ` in the two
+  paragraph gates. Reading size as a literal found six more hand-written paragraphs that read the Theme (App Settings' two
+  `leading-6` descriptions, four `leading-5` role-matrix sentences), now floors with reasons, and the registered
+  SegmentedControl's selected knob as a chip-shaped floor.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

@@ -13,8 +13,8 @@ templ CheckYourEmailPage(email string) {
 	@authShell("Check your email", "Check your email", "We've sent a verification link to") {
 		@authCard("max-w-96") {
 			<div class="flex flex-col items-center gap-3 px-4 py-5 text-center sm:p-6">
-				<p class={ "text-[15px] font-medium break-all", inkClass(ctx, domain.InkStrong) }>{ email }</p>
-				<p class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Click it to finish setting up your workspace and sign in.</p>
+				<p class={ "text-[15px]", weightClass(ctx, domain.WeightEmphasis), "break-all", inkClass(ctx, domain.InkStrong) }>{ email }</p>
+				<p class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>Click it to finish setting up your workspace and sign in.</p>
 			</div>
 		}
 		@authFooterNote() {

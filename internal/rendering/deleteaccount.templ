@@ -11,13 +11,13 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Delete account")
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>This signs you out everywhere and cannot be undone.</div>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>This signs you out everywhere and cannot be undone.</div>
 		</div>
 		@sectionLayout(domain.GapComfortable) {
 			@deletionFacts()
 			if len(blockers) > 0 {
-				<div role="alert" class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad) }>
-					<p class="m-0 font-medium">Your account can't be deleted yet.</p>
+				<div role="alert" class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2", textClass(ctx, domain.RoleBody), toneInkClass(ctx, domain.ToneBad) }>
+					<p class={ "m-0", weightClass(ctx, domain.WeightEmphasis) }>Your account can't be deleted yet.</p>
 					<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 						for _, b := range blockers {
 							<li>{ b }</li>
@@ -44,12 +44,12 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 templ DeleteAccountInfoPage(done bool) {
 	@authShell("Delete your account", "Menata", "Delete your account") {
 		@authCard("max-w-xl") {
-			<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "px-4 py-5 text-sm sm:p-6" }>
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "px-4 py-5", textClass(ctx, domain.RoleBody), "sm:p-6" }>
 				if done {
 					@callout("Your account has been deleted and you have been signed out.", domain.ToneGood)
 				}
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-					<p class="m-0 font-medium">How to delete your account</p>
+					<p class={ "m-0", weightClass(ctx, domain.WeightEmphasis) }>How to delete your account</p>
 					<ol class={ "m-0 flex list-decimal flex-col", layoutGap(ctx, domain.GapMicro), "pl-5 " + inkClass(ctx, domain.InkBody) }>
 						<li><a href="/login" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>reset it</a> first.</li>
 						<li>Open your account menu, then Security, then Delete account.</li>
@@ -64,9 +64,9 @@ templ DeleteAccountInfoPage(done bool) {
 
 // deletionFacts is the shared statement of what deletion does, shown before and during the request.
 templ deletionFacts() {
-	<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm " + inkClass(ctx, domain.InkBody) }>
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody) }>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<p class="m-0 font-medium">Removed</p>
+			<p class={ "m-0", weightClass(ctx, domain.WeightEmphasis) }>Removed</p>
 			<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 				<li>Your email address, name and password. The address becomes free to register again.</li>
 				<li>Your access to every workspace, your roles and group memberships.</li>
@@ -76,7 +76,7 @@ templ deletionFacts() {
 			</ul>
 		</div>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<p class="m-0 font-medium">Kept, without your name</p>
+			<p class={ "m-0", weightClass(ctx, domain.WeightEmphasis) }>Kept, without your name</p>
 			<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 				<li>Documents, tasks and other records you created, and approval decisions you made. They stay in their workspace, attributed to "Deleted user", because the people you worked with still need that history.</li>
 				<li>A name copied onto a decision when it was made, and a signature already placed on a finished PDF, remain part of that document.</li>

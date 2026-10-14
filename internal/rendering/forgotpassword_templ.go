@@ -77,7 +77,7 @@ func ForgotPasswordPage(message string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if message != "" {
-					var templ_7745c5c3_Var4 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var4 = []any{textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -102,7 +102,7 @@ func ForgotPasswordPage(message string) templ.Component {
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/forgotpassword.templ`, Line: 18, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/forgotpassword.templ`, Line: 18, Col: 98}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {

@@ -43,22 +43,22 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 		if done {
 			// A finished step's ✓ is the Design System's mark-good with white, as the review screen draws it (owner decision
 			// M1, 2026-10-12). It was blue, the `info` tone, which means "in progress".
-			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", markGoodFill(), onFillClass(ctx) }>✓</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs", weightClass(ctx, domain.WeightEmphasis), markGoodFill(), onFillClass(ctx) }>✓</span>
 			<span class="flex flex-col">
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ capitalize(decision) } · { s.UpdatedAt.Format("15:04") }</span>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ capitalize(decision) } · { s.UpdatedAt.Format("15:04") }</span>
 			</span>
 		} else if behavior.CanAct(seq, parent, s, siblings) {
-			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", inkFillClass(ctx, domain.InkAccent), onFillClass(ctx) }>{ seqLabel }</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs", weightClass(ctx, domain.WeightEmphasis), inkFillClass(ctx, domain.InkAccent), onFillClass(ctx) }>{ seqLabel }</span>
 			<span class="flex flex-col">
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>Pending decision</span>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>Pending decision</span>
 			</span>
 		} else {
-			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium" + " " + backgroundClass(ctx, domain.BackgroundSunken), inkClass(ctx, domain.InkBody) }>{ seqLabel }</span>
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs " + weightClass(ctx, domain.WeightEmphasis) + " " + backgroundClass(ctx, domain.BackgroundSunken), inkClass(ctx, domain.InkBody) }>{ seqLabel }</span>
 			<span class="flex flex-col">
-				<span class={ "text-sm font-medium", inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>Waiting</span>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ assignee }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>Waiting</span>
 			</span>
 		}
 	</li>

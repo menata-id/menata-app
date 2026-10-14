@@ -29,7 +29,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 				@staticText(domain.StaticSubheading, "Comments and activity")
 				if hasEvents(extras.Activity) {
-					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), "text-xs " + inkClass(ctx, domain.InkSecondary) }>
+					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) }>
 						<input type="checkbox" class={ "size-3.5", controlAccentClass(ctx) }/>
 						Show details
 					</label>
@@ -97,10 +97,10 @@ templ commentRow(a ActivityEntry) {
 		@avatar(personInitials(a.Actor, ""), a.Actor, domain.AvatarInline, domain.AvatarPresent)
 		@stackLayout(domain.GapTight) {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<span class="text-sm font-medium">{ a.Actor }</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
+				<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ a.Actor }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ a.When }</span>
 			}
-			<p class={ "m-0 whitespace-pre-wrap text-sm", inkClass(ctx, domain.InkBody) }>{ a.Summary }</p>
+			<p class={ "m-0 whitespace-pre-wrap", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkBody) }>{ a.Summary }</p>
 		}
 	}
 }

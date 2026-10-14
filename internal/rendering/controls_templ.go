@@ -1446,7 +1446,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions, groups G
 		ctx = templ.ClearChildren(ctx)
 		switch {
 		case f.Compute != nil:
-			var templ_7745c5c3_Var76 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var76 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var76...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1471,7 +1471,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions, groups G
 			var templ_7745c5c3_Var78 string
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(computedDisplay(current))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/controls.templ`, Line: 302, Col: 135}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/controls.templ`, Line: 302, Col: 157}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 			if templ_7745c5c3_Err != nil {
@@ -1992,7 +1992,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions, groups G
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var115 = []any{"w-full font-sans text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var115 = []any{"w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var115...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2028,7 +2028,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions, groups G
 					return templ_7745c5c3_Err
 				}
 			} else {
-				var templ_7745c5c3_Var118 = []any{"w-full font-sans text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var118 = []any{"w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var118...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

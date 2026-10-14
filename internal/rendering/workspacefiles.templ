@@ -81,7 +81,7 @@ templ workspaceFilePicker(files []string) {
 			<ul class={ surfaceClasses(ctx), "m-0 flex list-none flex-col p-0" }>
 				for _, f := range files {
 					<li class={ "border-b px-4 py-3 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
-						<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files") + "?path=" + url.QueryEscape(f)) } class={ "font-mono text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ f }</a>
+						<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files") + "?path=" + url.QueryEscape(f)) } class={ "font-mono", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ f }</a>
 					</li>
 				}
 			</ul>
@@ -96,7 +96,7 @@ templ workspaceFileEditor(view WorkspaceFilesView) {
 		@stackLayout(domain.GapComfortable) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticOverline, wfEditingLabel)
-				<span class={ "font-mono text-sm", inkClass(ctx, domain.InkBody) }>{ view.Path }</span>
+				<span class={ "font-mono", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkBody) }>{ view.Path }</span>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ wfBack }</a>
 			</div>
 			<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
@@ -116,7 +116,7 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 			@statusBadge(view.Review.VerdictLabel, view.Review.Tone, domain.BadgeRegular)
 		</div>
 		if view.Review.Reason != "" {
-			<pre class={ "m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap", inkClass(ctx, domain.InkBody) }>{ view.Review.Reason }</pre>
+			<pre class={ "m-0 overflow-x-auto", textClass(ctx, domain.RoleMeta), "leading-5 whitespace-pre-wrap", inkClass(ctx, domain.InkBody) }>{ view.Review.Reason }</pre>
 		}
 		@fileDiffList(view.Review.Diffs)
 		if view.Review.CanApply {
@@ -135,9 +135,9 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 templ fileDiffList(diffs []FileDiffView) {
 	for _, d := range diffs {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<span class={ "font-mono text-xs", inkClass(ctx, domain.InkBody) }>{ d.Path }</span>
+			<span class={ "font-mono", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody) }>{ d.Path }</span>
 			if d.Changed {
-				<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
+				<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2", textClass(ctx, domain.RoleMeta), "leading-5" }>
 					for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {
 						<div class={ diffLineClass(ctx, line) }>{ line }</div>
 					}

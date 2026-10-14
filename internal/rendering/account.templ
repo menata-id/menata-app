@@ -17,7 +17,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Profile")
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Manage your personal information.</div>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>Manage your personal information.</div>
 		</div>
 		if errorMsg != "" {
 			@callout(errorMsg, domain.ToneBad)
@@ -26,7 +26,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-					<label for="profile-name" class="text-sm font-medium">Full name</label>
+					<label for="profile-name" class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>Full name</label>
 					<input
 						id="profile-name"
 						type="text"
@@ -37,7 +37,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 					/>
 				</div>
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-					<label for="profile-email" class="text-sm font-medium">Email</label>
+					<label for="profile-email" class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>Email</label>
 					<input
 						id="profile-email"
 						type="email"
@@ -49,7 +49,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 				</div>
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -69,19 +69,19 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Notifications")
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
 		</div>
 		<form method="POST" action="/account-notifications" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapTight) {
 				@staticText(domain.StaticPanelHeading, "Document Approval")
-				<p class={ "m-0 mb-2 text-2xs", inkClass(ctx, domain.InkSecondary) }>Emails about approvals you're involved in.</p>
+				<p class={ "m-0 mb-2", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Emails about approvals you're involved in.</p>
 				@notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned)
 				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
 				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -90,7 +90,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 
 templ notificationToggle(name, label string, checked bool) {
 	<label class={ "flex items-center justify-between", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderDivider), "py-3 first:border-t-0 first:pt-0" }>
-		<span class={ "text-sm", inkClass(ctx, domain.InkStrong) }>{ label }</span>
+		<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ label }</span>
 		<span class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
 			<input
 				type="checkbox"
@@ -119,12 +119,12 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Security")
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>Manage your password and where you're signed in.</div>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>Manage your password and where you're signed in.</div>
 		</div>
 		@sectionLayout(domain.GapComfortable) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Password")
-				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>Choose a strong password you don't use elsewhere.</p>
+				<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Choose a strong password you don't use elsewhere.</p>
 			</div>
 			if passwordErr != "" {
 				@callout(passwordErr, domain.ToneBad)
@@ -152,7 +152,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			}
 			<form method="POST" action="/account-security/sign-out-other-devices">
 				@csrfHiddenInput()
-				<button type="submit" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] font-medium " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Sign out of other devices</button>
+				<button type="submit" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Sign out of other devices</button>
 			</form>
 		}
 		@sectionLayout(domain.GapComfortable) {
@@ -160,14 +160,14 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@staticText(domain.StaticPanelHeading, "Delete account")
 				@staticText(domain.StaticCaption, "Remove your login and personal details. Work you created stays, without your name.")
 			</div>
-			<div><a href="/account-delete" class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad), "hover:underline" }>Delete my account</a></div>
+			<div><a href="/account-delete" class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneBad), "hover:underline" }>Delete my account</a></div>
 		}
 		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
-				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>Not enabled <span class={ "text-3xs", inkClass(ctx, domain.InkSecondary) }>(planned)</span></p>
+				<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Not enabled <span class={ "text-3xs", inkClass(ctx, domain.InkSecondary) }>(planned)</span></p>
 			</div>
-			<button type="button" disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 text-xs font-medium " + inkClass(ctx, domain.InkFaint) }>Enable</button>
+			<button type="button" disabled class={ "shrink-0 cursor-not-allowed", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkFaint) }>Enable</button>
 		</section>
 	}
 }

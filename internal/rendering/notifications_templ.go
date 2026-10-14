@@ -106,7 +106,7 @@ func NotificationsPage(rows []NotificationRow, workspaceName string, viewer View
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var7 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -137,7 +137,7 @@ func NotificationsPage(rows []NotificationRow, workspaceName string, viewer View
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var9 = []any{"flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-sm font-medium " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
+				var templ_7745c5c3_Var9 = []any{"flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 " + textClass(ctx, domain.RoleBody) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -193,7 +193,7 @@ func NotificationsPage(rows []NotificationRow, workspaceName string, viewer View
 				}
 			}
 			if len(rows) == 0 {
-				var templ_7745c5c3_Var13 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var13 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var13...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -319,7 +319,7 @@ func notificationRow(n NotificationRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var21 = []any{"block text-sm " + inkClass(ctx, domain.InkStrong), templ.KV("font-medium", n.Unread)}
+		var templ_7745c5c3_Var21 = []any{"block " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), n.Unread)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -344,7 +344,7 @@ func notificationRow(n NotificationRow) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(n.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/notifications.templ`, Line: 56, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/notifications.templ`, Line: 56, Col: 174}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -354,7 +354,7 @@ func notificationRow(n NotificationRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var24 = []any{"block text-xs", inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var24 = []any{"block", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -379,7 +379,7 @@ func notificationRow(n NotificationRow) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(n.CreatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/notifications.templ`, Line: 57, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/notifications.templ`, Line: 57, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {

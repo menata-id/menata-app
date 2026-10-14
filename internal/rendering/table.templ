@@ -31,7 +31,7 @@ func tableAlignClass(a domain.TableAlign) string {
 // table wider than a phone must scroll itself rather than the page.
 templ dataTable(label string, columns []TableColumn) {
 	<div class="overflow-x-auto">
-		<table class="w-full border-collapse text-sm" aria-label={ label }>
+		<table class={ "w-full border-collapse", textClass(ctx, domain.RoleBody) } aria-label={ label }>
 			<thead>
 				<tr>
 					for _, c := range columns {

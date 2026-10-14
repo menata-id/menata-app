@@ -41,7 +41,7 @@ templ authShell(title, heading, subtitle string) {
 					>
 						M
 					</div>
-					<div class="mt-1.5 text-[21px] font-medium">{ heading }</div>
+					<div class={ "mt-1.5 text-[21px]", weightClass(ctx, domain.WeightEmphasis) }>{ heading }</div>
 					<div class={ "text-[15px]", inkClass(ctx, domain.InkSecondary) }>{ subtitle }</div>
 				</div>
 				{ children... }
@@ -65,14 +65,14 @@ templ authCard(widthClass string) {
 // yours).
 templ authError(msg string) {
 	if msg != "" {
-		<p role="alert" class={ "text-2xs", toneInkClass(ctx, domain.ToneBad) }>{ msg }</p>
+		<p role="alert" class={ textClass(ctx, domain.RoleCaption), toneInkClass(ctx, domain.ToneBad) }>{ msg }</p>
 	}
 }
 
 // authFooterNote is the small slate line under the card ("Don't have an account? ..."), which
 // every pre-auth screen ends with in some form.
 templ authFooterNote() {
-	<div class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>
+	<div class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
 		{ children... }
 	</div>
 }
@@ -110,7 +110,7 @@ templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
 // at a call site -- registration and both reset-password callers all need it.
 templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
 	<div class="flex flex-col gap-2">
-		<label for={ id } class="text-sm font-medium">{ label }</label>
+		<label for={ id } class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ label }</label>
 		<div class="relative flex">
 			<input
 				id={ id }
@@ -196,7 +196,7 @@ templ authPasswordToggle(inputID string) {
 templ authSubmit(label string) {
 	<button
 		type="submit"
-		class={ "flex h-11 cursor-pointer items-center justify-center rounded-md", inkFillClass(ctx, domain.InkStrong), "px-4 text-[15px] font-medium", onFillClass(ctx), inkFillHoverClass(ctx) + " " + "sm:h-9 sm:text-sm" }
+		class={ "flex h-11 cursor-pointer items-center justify-center rounded-md", inkFillClass(ctx, domain.InkStrong), "px-4 text-[15px]", weightClass(ctx, domain.WeightEmphasis), onFillClass(ctx), inkFillHoverClass(ctx) + " " + "sm:h-9 sm:text-sm" }
 	>
 		{ label }
 	</button>

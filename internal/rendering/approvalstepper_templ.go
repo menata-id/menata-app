@@ -143,7 +143,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", markGoodFill(), onFillClass(ctx)}
+			var templ_7745c5c3_Var7 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs", weightClass(ctx, domain.WeightEmphasis), markGoodFill(), onFillClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -165,7 +165,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var9 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var9 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -190,7 +190,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 48, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 48, Col: 136}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -200,7 +200,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var12 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var12 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -225,7 +225,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(capitalize(decision))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 49, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 49, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -238,7 +238,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(s.UpdatedAt.Format("15:04"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 49, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 49, Col: 145}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -249,7 +249,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 				return templ_7745c5c3_Err
 			}
 		} else if behavior.CanAct(seq, parent, s, siblings) {
-			var templ_7745c5c3_Var16 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", inkFillClass(ctx, domain.InkAccent), onFillClass(ctx)}
+			var templ_7745c5c3_Var16 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs", weightClass(ctx, domain.WeightEmphasis), inkFillClass(ctx, domain.InkAccent), onFillClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -274,7 +274,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(seqLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 52, Col: 168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 52, Col: 197}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -284,7 +284,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var19 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var19 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -309,7 +309,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 54, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 54, Col: 136}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -319,7 +319,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var22 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var22 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -342,7 +342,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 				return templ_7745c5c3_Err
 			}
 		} else {
-			var templ_7745c5c3_Var24 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium" + " " + backgroundClass(ctx, domain.BackgroundSunken), inkClass(ctx, domain.InkBody)}
+			var templ_7745c5c3_Var24 = []any{"flex size-7 shrink-0 items-center justify-center rounded-full text-xs " + weightClass(ctx, domain.WeightEmphasis) + " " + backgroundClass(ctx, domain.BackgroundSunken), inkClass(ctx, domain.InkBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -367,7 +367,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(seqLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 58, Col: 198}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 58, Col: 229}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -377,7 +377,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var27 = []any{"text-sm font-medium", inkClass(ctx, domain.InkStrong)}
+			var templ_7745c5c3_Var27 = []any{textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -402,7 +402,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 60, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 60, Col: 136}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -412,7 +412,7 @@ func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var30 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var30 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var30...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

@@ -16,7 +16,7 @@ templ progressRow(label, value, max string) {
 	// the bar's `grow` nothing to fill, and the bar drew 0px wide.
 	<div class="w-full">
 	@rowLayout(domain.GapComfortable, domain.RowAlignCenter, domain.RowJustifyStart) {
-		<span class="w-24 shrink-0 truncate text-sm" title={ label }>{ label }</span>
+		<span class={ "w-24 shrink-0 truncate", textClass(ctx, domain.RoleBody) } title={ label }>{ label }</span>
 		<div
 			role="progressbar"
 			aria-label={ label }
@@ -28,7 +28,7 @@ templ progressRow(label, value, max string) {
 		>
 			<div class={ "h-full rounded-full", markGoodFill() } style={ fmt.Sprintf("width:%d%%", pct) }></div>
 		</div>
-		<span class={ "w-16 shrink-0 text-right text-xs whitespace-nowrap", inkClass(ctx, domain.InkSecondary) }>{ value + " of " + max }</span>
+		<span class={ "w-16 shrink-0 text-right", textClass(ctx, domain.RoleMeta), "whitespace-nowrap", inkClass(ctx, domain.InkSecondary) }>{ value + " of " + max }</span>
 	}
 	</div>
 }

@@ -120,7 +120,7 @@ func InstallApplicationPage(templates []InstallableTemplate, workspaceName strin
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var5 = []any{"m-0 text-sm leading-6", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var5 = []any{"m-0", textClass(ctx, domain.RoleBody), "leading-6", inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -145,7 +145,7 @@ func InstallApplicationPage(templates []InstallableTemplate, workspaceName strin
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_install_application"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 57, Col: 125}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 57, Col: 153}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -156,7 +156,7 @@ func InstallApplicationPage(templates []InstallableTemplate, workspaceName strin
 				return templ_7745c5c3_Err
 			}
 			if len(templates) == 0 {
-				var templ_7745c5c3_Var8 = []any{surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-sm " + inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var8 = []any{surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -352,7 +352,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if t.Description != "" {
-				var templ_7745c5c3_Var21 = []any{"text-xs leading-5", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var21 = []any{textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -377,7 +377,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(t.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 85, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 85, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -388,7 +388,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			var templ_7745c5c3_Var24 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var24 = []any{textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -413,7 +413,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(machineSummary(t.MachineNames))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 87, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 87, Col: 123}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -446,7 +446,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var29 = []any{"text-xs font-medium", toneInkClass(ctx, domain.ToneWarn)}
+				var templ_7745c5c3_Var29 = []any{textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneWarn)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var29...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -469,7 +469,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, reason := range t.Refusals {
-					var templ_7745c5c3_Var31 = []any{"text-2xs leading-5", toneInkClass(ctx, domain.ToneWarn)}
+					var templ_7745c5c3_Var31 = []any{textClass(ctx, domain.RoleCaption), "leading-5", toneInkClass(ctx, domain.ToneWarn)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -494,7 +494,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(reason)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 94, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/installapplication.templ`, Line: 94, Col: 113}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
@@ -533,7 +533,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var36 = []any{"text-xs font-medium", inkClass(ctx, domain.InkBody)}
+					var templ_7745c5c3_Var36 = []any{textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var36...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -556,7 +556,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for _, r := range t.Renames {
-						var templ_7745c5c3_Var38 = []any{"text-2xs leading-5", inkClass(ctx, domain.InkSecondary)}
+						var templ_7745c5c3_Var38 = []any{textClass(ctx, domain.RoleCaption), "leading-5", inkClass(ctx, domain.InkSecondary)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var38...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -606,7 +606,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 						}
 					}
 					if len(t.AddShared) > 0 {
-						var templ_7745c5c3_Var42 = []any{"text-2xs leading-5", inkClass(ctx, domain.InkSecondary)}
+						var templ_7745c5c3_Var42 = []any{textClass(ctx, domain.RoleCaption), "leading-5", inkClass(ctx, domain.InkSecondary)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -686,7 +686,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if len(t.Roles) > 0 {
-					var templ_7745c5c3_Var47 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var47 = []any{textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var47...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

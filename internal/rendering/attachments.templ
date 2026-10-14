@@ -70,10 +70,10 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
 	<li class={ "border-t", borderClass(ctx, domain.BorderDivider), "py-2.5 first:border-t-0" }>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), "text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
+			<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), "text-2xs", weightClass(ctx, domain.WeightEmphasis), "tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
 			<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-				<span class="truncate text-sm">{ it.Name }</span>
-				<span class={ "text-xs", inkClass(ctx, domain.InkSecondary) }>{ attachmentMeta(it) }</span>
+				<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ it.Name }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ attachmentMeta(it) }</span>
 			</span>
 			<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class={ "shrink-0 text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Download</a>
 			if canEdit {

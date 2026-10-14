@@ -97,7 +97,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticEyebrow, "Step 2 of 2")
 			@staticText(domain.StaticHeading, "Signature positions")
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 				Place one signature box for each approval step. Positions are saved per step, as you
 				make them.
 			</div>
@@ -145,7 +145,7 @@ templ placementBody(v PlacementView) {
 			@sectionLayout(domain.GapDefault) {
 				@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 					@staticText(domain.StaticPanelHeading, fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages))
-					<span class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "text-xs" }>
+					<span class={ "flex items-center", layoutGap(ctx, domain.GapDefault), textClass(ctx, domain.RoleMeta) }>
 						if v.Page > 1 {
 							@staticLink(placementPageHref(ctx, v.DocumentID, v.Page-1), "← Prev")
 						}
@@ -154,7 +154,7 @@ templ placementBody(v PlacementView) {
 						}
 					</span>
 				}
-				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>
+				<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
 					Drag each box to its signature block, and its corner to resize it. Box size matches the
 					signature image.
 				</p>
@@ -165,7 +165,7 @@ templ placementBody(v PlacementView) {
 				for _, s := range v.Steps {
 					@placementStepCard(s, v.Page)
 				}
-				<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3 text-2xs leading-5 " + inkClass(ctx, domain.InkSecondary) }>
+				<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3 " + textClass(ctx, domain.RoleCaption) + " leading-5 " + inkClass(ctx, domain.InkSecondary) }>
 					Approvers are supplied by Groups. Changing group membership is managed separately.
 				</p>
 			</aside>
@@ -260,11 +260,11 @@ templ placementMarker(s PlacementStep) {
 templ placementBoxLabel(s PlacementStep, editable bool) {
 	<span
 		aria-hidden="true"
-		class={ "flex size-4 shrink-0 items-center justify-center rounded-full text-3xs font-medium text-white",
+		class={ "flex size-4 shrink-0 items-center justify-center rounded-full text-3xs", weightClass(ctx, domain.WeightEmphasis), "text-white",
 			templ.KV("bg-blue-600", editable), templ.KV("bg-slate-400", !editable) }
 	>{ fmt.Sprint(s.Index) }</span>
 	<span class="flex min-w-0 flex-col">
-		<span class={ "truncate text-3xs font-medium", paperInkClass(domain.InkBody) }>
+		<span class={ "truncate text-3xs", weightClass(ctx, domain.WeightEmphasis), paperInkClass(domain.InkBody) }>
 			if s.Approver != "" {
 				{ s.Approver }
 			} else {
@@ -289,8 +289,8 @@ func placementBoxStyle(s PlacementStep) string {
 templ placementStepCard(s PlacementStep, page int) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), "p-3" }>
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<span aria-hidden="true" class={ "flex size-6 shrink-0 items-center justify-center rounded-full " + borderFillClass(ctx, domain.BorderSurface) + " text-3xs font-medium", inkClass(ctx, domain.InkBody) }>{ fmt.Sprint(s.Index) }</span>
-			<span class="truncate text-sm">
+			<span aria-hidden="true" class={ "flex size-6 shrink-0 items-center justify-center rounded-full " + borderFillClass(ctx, domain.BorderSurface) + " text-3xs " + weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }>{ fmt.Sprint(s.Index) }</span>
+			<span class={ "truncate", textClass(ctx, domain.RoleBody) }>
 				if s.Approver != "" {
 					{ s.Approver }
 				} else {
@@ -299,7 +299,7 @@ templ placementStepCard(s PlacementStep, page int) {
 			</span>
 			@approverKindBadge(s.ApproverKind)
 		}
-		<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ placementSubline(s) }</span>
+		<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ placementSubline(s) }</span>
 		if s.Editable {
 			@widthControl(s, page)
 			@placeStepForm(s, page)
@@ -366,9 +366,9 @@ templ widthControl(s PlacementStep, page int) {
 		<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
 		<input type="hidden" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
 		<input type="hidden" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
-		<label class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "text-2xs " + inkClass(ctx, domain.InkSecondary) }>
+		<label class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
 			Width
-			<input type="number" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class={ "w-16 rounded border", borderClass(ctx, domain.BorderControl), "px-1.5 py-0.5 text-2xs" }/>
+			<input type="number" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class={ "w-16 rounded border", borderClass(ctx, domain.BorderControl), "px-1.5 py-0.5", textClass(ctx, domain.RoleCaption) }/>
 			%
 		</label>
 	</form>

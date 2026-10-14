@@ -22,7 +22,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticOverline, "Administration")
 				@staticText(domain.StaticHeading, labelByID(ctx, "nav_workspace_groups"))
-				<div class={ "max-w-prose text-sm", inkClass(ctx, domain.InkSecondary) }>
+				<div class={ "max-w-prose", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 					Assign a role to a Group once, then add or remove members — instead of editing every
 					person's own row. A member's effective role in an Application is their direct
 					assignment plus every role their Groups hold there.
@@ -47,11 +47,11 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx) }>
 					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ g.Name }</span>
-						<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
+						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
 					</div>
 					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						if len(g.Grants) == 0 {
-							<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Grants no role yet</span>
+							<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Grants no role yet</span>
 						}
 						for _, app := range roleApps {
 							if role, ok := g.Grants[app.ID]; ok {
@@ -91,12 +91,12 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_workspace_groups") }</a>
 		<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			@staticText(domain.StaticHeading, group.Name)
-			<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
+			<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
 		</div>
 		@sectionLayout(domain.GapComfortable) {
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Members")
-				<p class={ "m-0 text-2xs", inkClass(ctx, domain.InkSecondary) }>Everyone ticked here holds this Group's roles.</p>
+				<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Everyone ticked here holds this Group's roles.</p>
 			</div>
 			<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/members") } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
 				@csrfHiddenInput()
@@ -107,7 +107,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" + " " + accentEdgeHoverClass(ctx) }>
 						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class={ "size-4", controlAccentClass(ctx) }/>
 						@avatar(personInitials("", m.Email), m.Email, domain.AvatarInline, domain.AvatarPresent)
-						<span class="truncate text-sm">{ m.Email }</span>
+						<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ m.Email }</span>
 					</label>
 				}
 				<div class="flex justify-end">
@@ -127,7 +127,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 				}
 				for _, app := range roleApps {
 					@columnsLayout(domain.GapTight, domain.ColumnsAlignCenter) {
-						<label for={ "grp_role_" + app.ID } class="text-sm">{ app.Name }</label>
+						<label for={ "grp_role_" + app.ID } class={ textClass(ctx, domain.RoleBody) }>{ app.Name }</label>
 						@roleSelect("grp_role_"+app.ID, app, group.Grants[app.ID])
 					}
 				}

@@ -31,7 +31,7 @@ templ LoginPage(errorMsg string) {
 			<form method="POST" action="/login" class="flex flex-col gap-4.5 px-4 py-5 sm:p-6">
 				@csrfHiddenInput()
 				<div class="flex flex-col gap-2">
-					<label for="username" class="text-sm font-medium">Email</label>
+					<label for="username" class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>Email</label>
 					<input
 						id="username"
 						type="text"
@@ -43,7 +43,7 @@ templ LoginPage(errorMsg string) {
 				</div>
 				<div class="flex flex-col gap-2">
 					<div class="flex items-end justify-between">
-						<label for="password" class="text-sm font-medium">Password</label>
+						<label for="password" class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>Password</label>
 						<a href="/forgot-password" class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx), "sm:text-2xs" }>Forgot password?</a>
 					</div>
 					<div class="relative flex">

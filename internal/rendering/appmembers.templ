@@ -73,7 +73,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 				</div>
 			}
 			if len(v.Rows) > 0 {
-				<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
+				<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) + " sm:flex" }>
 					<span class="grow">Member</span>
 					<span>Role in this application</span>
 				</div>
@@ -84,16 +84,16 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 						@avatar(personInitials(row.Name, row.Email), avatarLabel(row.Name, row.Email), domain.AvatarInline, domain.AvatarPresent)
 						<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 							if row.Name != "" && row.Name != row.Email {
-								<span class="truncate text-sm">{ row.Name }</span>
-								<span class={ "truncate text-2xs", inkClass(ctx, domain.InkSecondary) }>{ row.Email }</span>
+								<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ row.Name }</span>
+								<span class={ "truncate", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ row.Email }</span>
 							} else {
-								<span class="truncate text-sm">{ row.Email }</span>
+								<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ row.Email }</span>
 							}
 							if row.Deactivated {
-								<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>Deactivated</span>
+								<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Deactivated</span>
 							}
 							for _, role := range row.GroupRoles {
-								<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>+ { role } through a Group</span>
+								<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>+ { role } through a Group</span>
 							}
 						</span>
 					</div>

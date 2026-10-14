@@ -1771,7 +1771,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				return templ_7745c5c3_Err
 			}
 			for i, it := range items {
-				var templ_7745c5c3_Var31 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0"}
+				var templ_7745c5c3_Var31 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1865,7 +1865,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				return templ_7745c5c3_Err
 			}
 			for _, it := range items {
-				var templ_7745c5c3_Var38 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0"}
+				var templ_7745c5c3_Var38 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var38...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1924,7 +1924,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				return templ_7745c5c3_Err
 			}
 			for i, it := range items {
-				var templ_7745c5c3_Var42 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm"}
+				var templ_7745c5c3_Var42 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), textClass(ctx, domain.RoleBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2018,7 +2018,7 @@ func collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, it
 				return templ_7745c5c3_Err
 			}
 			for _, it := range items {
-				var templ_7745c5c3_Var49 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm"}
+				var templ_7745c5c3_Var49 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), textClass(ctx, domain.RoleBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var49...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

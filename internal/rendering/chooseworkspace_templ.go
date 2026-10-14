@@ -194,7 +194,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var8 = []any{"text-[15px] font-medium", inkClass(ctx, domain.InkStrong)}
+					var templ_7745c5c3_Var8 = []any{"text-[15px]", weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -219,7 +219,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 89, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 89, Col: 120}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -229,7 +229,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var11 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var11 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var11...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -254,7 +254,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(c.Slug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 100}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
@@ -267,7 +267,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(c.MemberCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 111}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 133}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -280,7 +280,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(pluralS(c.MemberCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 144}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 90, Col: 166}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
@@ -307,7 +307,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					}
 				}
 				if canCreateWorkspace {
-					var templ_7745c5c3_Var16 = []any{"flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5 text-sm font-medium", inkClass(ctx, domain.InkAccent), "transition" + " " + accentEdgeHoverClass(ctx), toneHoverFillClass(ctx, domain.ToneInfo)}
+					var templ_7745c5c3_Var16 = []any{"flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed", borderClass(ctx, domain.BorderControl), "px-4 py-3.5", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), "transition" + " " + accentEdgeHoverClass(ctx), toneHoverFillClass(ctx, domain.ToneInfo)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -349,7 +349,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var18 = []any{"flex cursor-pointer list-none items-center gap-1 self-start text-xs", inkClass(ctx, domain.InkSecondary), "[&::-webkit-details-marker]:hidden"}
+				var templ_7745c5c3_Var18 = []any{"flex cursor-pointer list-none items-center gap-1 self-start", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), "[&::-webkit-details-marker]:hidden"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -415,7 +415,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var23 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var23 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var23...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -440,7 +440,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 126, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 126, Col: 101}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -450,7 +450,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var26 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+					var templ_7745c5c3_Var26 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -475,7 +475,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(c.ArchivedAt)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 127, Col: 94}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 127, Col: 116}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
@@ -519,7 +519,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var31 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 text-sm " + inkClass(ctx, domain.InkStrong) + " " + hoverWashClass(ctx)}
+					var templ_7745c5c3_Var31 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong) + " " + hoverWashClass(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -542,7 +542,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, bac
 						return templ_7745c5c3_Err
 					}
 				}
-				var templ_7745c5c3_Var33 = []any{"m-0 px-0.5 text-2xs leading-4", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var33 = []any{"m-0 px-0.5", textClass(ctx, domain.RoleCaption), "leading-4", inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var33...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

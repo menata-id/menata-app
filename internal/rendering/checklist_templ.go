@@ -96,7 +96,7 @@ func checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var4 = []any{"text-xs", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var4 = []any{textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -121,7 +121,7 @@ func checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit 
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(checklistProgress(c))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checklist.templ`, Line: 42, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checklist.templ`, Line: 42, Col: 109}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -490,7 +490,7 @@ func checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) templ.Comp
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 = []any{"text-sm", templ.KV(inkClass(ctx, domain.InkSecondary)+" line-through", it.Complete.Done)}
+			var templ_7745c5c3_Var28 = []any{textClass(ctx, domain.RoleBody), templ.KV(inkClass(ctx, domain.InkSecondary)+" line-through", it.Complete.Done)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -515,7 +515,7 @@ func checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) templ.Comp
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(it.Text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checklist.templ`, Line: 89, Col: 120}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checklist.templ`, Line: 89, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {

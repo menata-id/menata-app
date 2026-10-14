@@ -14,7 +14,7 @@ templ ResendVerificationPage(message string) {
 				@authField("email", "email", "Email", "email", "username", true)
 				@authSubmit("Resend link")
 				if message != "" {
-					<p class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ message }</p>
+					<p class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ message }</p>
 				}
 			</form>
 		}

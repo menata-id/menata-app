@@ -62,10 +62,10 @@ type InferenceRow struct {
 templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switchHref string) {
 	@appShell(titleByID(ctx, "nav_inference"), workspaceName, viewer, switchHref) {
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapLoose) }>
-			<p class={ "m-0 max-w-prose text-sm", inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_inference") }</p>
+			<p class={ "m-0 max-w-prose", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ descriptionByID(ctx, "nav_inference") }</p>
 			@inferenceSummary(v)
 			if len(v.Engines) == 0 {
-				<p class={ "m-0 text-sm", inkClass(ctx, domain.InkSecondary) }>
+				<p class={ "m-0", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
 					No workflow engine is installed in this workspace, so the runtime is inferring nothing for one. That is a complete answer, not a missing page.
 				</p>
 			}
@@ -84,19 +84,19 @@ templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switch
 templ inferenceSummary(v InferenceView) {
 	@panelLayout() {
 		if v.Defects == 0 {
-			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), "text-sm" }>
+			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody) }>
 				@statusBadge("nothing to act on", domain.ToneGood, domain.BadgeRegular)
 				<span class={ inkClass(ctx, domain.InkSecondary) }>Every derivation either resolved, or is correctly not this role's question.</span>
 			</div>
 		} else {
-			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), "text-sm" }>
+			<div class={ "flex items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody) }>
 				@statusBadge("needs attention", domain.ToneBad, domain.BadgeRegular)
 				<span class={ inkClass(ctx, domain.InkBody) }>
 					{ pluralRows(v.Defects) } the runtime relies on and cannot explain.
 				</span>
 			</div>
 		}
-		<p class={ "m-0 mt-3 max-w-prose text-xs", inkClass(ctx, domain.InkSecondary) }>
+		<p class={ "m-0 mt-3 max-w-prose", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>
 			<strong>undeclared</strong> means a machine declares nothing for a question its role owes.
 			<strong>input unavailable</strong> means the declaration exists but the caller had nothing to resolve it against.
 			<strong>not applicable</strong> is correct and the most common: the question belongs to a different role, or the feature is not installed here.
@@ -155,14 +155,14 @@ templ inferenceStepBlock(n InferenceStep) {
 templ inferenceRoleBlock(r InferenceRole) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 		<div class={ "flex flex-wrap items-baseline", layoutGap(ctx, domain.GapTight), "border-b " + borderClass(ctx, domain.BorderDivider) + " pb-1.5" }>
-			<h3 class={ "m-0 text-xs font-semibold tracking-wide", inkClass(ctx, domain.InkSecondary) }>{ r.Role }</h3>
+			<h3 class={ "m-0", textClass(ctx, domain.RoleMeta), "font-semibold tracking-wide", inkClass(ctx, domain.InkSecondary) }>{ r.Role }</h3>
 			if r.MachineID != "" {
-				<code class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>{ r.MachineID }</code>
+				<code class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ r.MachineID }</code>
 			} else {
 				@statusBadge("uncast", domain.ToneMuted, domain.BadgeRegular)
 			}
 			if !r.Required {
-				<span class={ "text-2xs", inkClass(ctx, domain.InkSecondary) }>optional role</span>
+				<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>optional role</span>
 			}
 		</div>
 		@dataTable(r.Role, inferenceColumns("Derivation")) {

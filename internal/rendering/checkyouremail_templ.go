@@ -66,7 +66,7 @@ func CheckYourEmailPage(email string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var4 = []any{"text-[15px] font-medium break-all", inkClass(ctx, domain.InkStrong)}
+				var templ_7745c5c3_Var4 = []any{"text-[15px]", weightClass(ctx, domain.WeightEmphasis), "break-all", inkClass(ctx, domain.InkStrong)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -91,7 +91,7 @@ func CheckYourEmailPage(email string) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(email)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checkyouremail.templ`, Line: 16, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checkyouremail.templ`, Line: 16, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -101,7 +101,7 @@ func CheckYourEmailPage(email string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 = []any{"text-sm", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var7 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

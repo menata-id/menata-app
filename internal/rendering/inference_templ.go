@@ -122,7 +122,7 @@ func InferencePage(v InferenceView, workspaceName string, viewer Viewer, switchH
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var5 = []any{"m-0 max-w-prose text-sm", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var5 = []any{"m-0 max-w-prose", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -147,7 +147,7 @@ func InferencePage(v InferenceView, workspaceName string, viewer Viewer, switchH
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_inference"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 65, Col: 117}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 65, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -162,7 +162,7 @@ func InferencePage(v InferenceView, workspaceName string, viewer Viewer, switchH
 				return templ_7745c5c3_Err
 			}
 			if len(v.Engines) == 0 {
-				var templ_7745c5c3_Var8 = []any{"m-0 text-sm", inkClass(ctx, domain.InkSecondary)}
+				var templ_7745c5c3_Var8 = []any{"m-0", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -247,7 +247,7 @@ func inferenceSummary(v InferenceView) templ.Component {
 			}
 			ctx = templ.InitializeContext(ctx)
 			if v.Defects == 0 {
-				var templ_7745c5c3_Var12 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), "text-sm"}
+				var templ_7745c5c3_Var12 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -296,7 +296,7 @@ func inferenceSummary(v InferenceView) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				var templ_7745c5c3_Var16 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), "text-sm"}
+				var templ_7745c5c3_Var16 = []any{"flex items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -362,7 +362,7 @@ func inferenceSummary(v InferenceView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var21 = []any{"m-0 mt-3 max-w-prose text-xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var21 = []any{"m-0 mt-3 max-w-prose", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -854,7 +854,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var52 = []any{"m-0 text-xs font-semibold tracking-wide", inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var52 = []any{"m-0", textClass(ctx, domain.RoleMeta), "font-semibold tracking-wide", inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var52...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -879,7 +879,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(r.Role)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 158, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 158, Col: 131}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
@@ -890,7 +890,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if r.MachineID != "" {
-			var templ_7745c5c3_Var55 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var55 = []any{textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var55...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -915,7 +915,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(r.MachineID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 160, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/inference.templ`, Line: 160, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -932,7 +932,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			}
 		}
 		if !r.Required {
-			var templ_7745c5c3_Var58 = []any{"text-2xs", inkClass(ctx, domain.InkSecondary)}
+			var templ_7745c5c3_Var58 = []any{textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var58...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

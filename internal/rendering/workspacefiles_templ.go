@@ -303,7 +303,7 @@ func workspaceFilePicker(files []string) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var15 = []any{"font-mono text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
+					var templ_7745c5c3_Var15 = []any{"font-mono", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -341,7 +341,7 @@ func workspaceFilePicker(files []string) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(f)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 84, Col: 192}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 84, Col: 217}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -464,7 +464,7 @@ func workspaceFileEditor(view WorkspaceFilesView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var25 = []any{"font-mono text-sm", inkClass(ctx, domain.InkBody)}
+			var templ_7745c5c3_Var25 = []any{"font-mono", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var25...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -489,7 +489,7 @@ func workspaceFileEditor(view WorkspaceFilesView) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(view.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 99, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 99, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -694,7 +694,7 @@ func workspaceFileReview(view WorkspaceFilesView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if view.Review.Reason != "" {
-				var templ_7745c5c3_Var41 = []any{"m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap", inkClass(ctx, domain.InkBody)}
+				var templ_7745c5c3_Var41 = []any{"m-0 overflow-x-auto", textClass(ctx, domain.RoleMeta), "leading-5 whitespace-pre-wrap", inkClass(ctx, domain.InkBody)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var41...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -719,7 +719,7 @@ func workspaceFileReview(view WorkspaceFilesView) templ.Component {
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(view.Review.Reason)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 119, Col: 129}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 119, Col: 157}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -859,7 +859,7 @@ func fileDiffList(diffs []FileDiffView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var50 = []any{"font-mono text-xs", inkClass(ctx, domain.InkBody)}
+			var templ_7745c5c3_Var50 = []any{"font-mono", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var50...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -884,7 +884,7 @@ func fileDiffList(diffs []FileDiffView) templ.Component {
 			var templ_7745c5c3_Var52 string
 			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(d.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 138, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacefiles.templ`, Line: 138, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 			if templ_7745c5c3_Err != nil {
@@ -895,7 +895,7 @@ func fileDiffList(diffs []FileDiffView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if d.Changed {
-				var templ_7745c5c3_Var53 = []any{tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5"}
+				var templ_7745c5c3_Var53 = []any{tileClasses(ctx), "m-0 overflow-x-auto py-2", textClass(ctx, domain.RoleMeta), "leading-5"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var53...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
