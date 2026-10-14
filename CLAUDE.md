@@ -412,7 +412,11 @@ Rules that follow from it:
   - the pre-auth `auth-*` sizes (unmapped).
   **The one status list for all design-system work** is `menata-app-document`'s
   `audits/2026-10-11-rencana-design-system.md`, section "STATUS MENYELURUH". Update it at the end of every slice, and
-  do not keep a second list here. Treat a difference as a sync item to record, not as permission to pick one side
+  do not keep a second list here.
+  **Active work since 2026-10-14: closing the gaps the design-system audit found.** The plan and its status table are
+  `menata-app-document`'s `audits/2026-10-14-rencana-perbaikan-gap-design-system.md` (P0–P8, owner decisions K-01–K-17;
+  findings in `audits/2026-10-14-audit-gap-design-system/`). A new session resumes from its §0 "Cara melanjutkan" and its
+  status table, updates the row at the end of each slice, and does not build a ⛔ item before its decision is recorded there. Treat a difference as a sync item to record, not as permission to pick one side
   silently.
 
 ## The component inventory: `capabilities.md`
