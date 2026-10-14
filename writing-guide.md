@@ -1369,7 +1369,7 @@ writes a class, an icon, a title or an action. The corner, edge, fill, size and 
 (`radius.surface`, `border.control`, `background.raised`, `text.body`, `ink.secondary`). The Approval Inbox and Groups
 screens use it in Go. **It is `experimental`, and it is not what a `Collection`'s `empty:` draws**: `empty:` says the same thing as a plain
 `static: message`, with no box. A page cannot show an EmptyState *only when a list is empty*: it draws whenever it is
-declared, and `when:` is per record, not per Dataset. So the conditional use belongs to `Collection`'s `empty:`, and
+declared, and `when:` tests a record's own role or the request's `week` parameter, never whether a Dataset lists anything. So the conditional use belongs to `Collection`'s `empty:`, and
 whether that should draw this card is a visible change on every page that declares `empty:` -- the owner's call. Declare
 a `component: EmptyState` yourself only for a message that is always true of the page.
 

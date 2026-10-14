@@ -31,7 +31,7 @@ var emptyStateExempt = map[string]struct {
 // **What it cannot see, stated:** an empty state drawn without a dashed edge (a plain `<p>` or a `staticText`, which is
 // how a declared `Collection` says `empty:`), a box whose class arrives from a Go function, and a dashed centred box
 // that is not an empty state (none exists today). The population this replaces was counted by *reading* each of the 13
-// `border-dashed` class sets: only four were "nothing here"; the rest were stepper chips, a signature canvas and
+// `border-dashed` class sets: only four were "nothing here"; the rest were the review screen's signature boxes, a signature canvas and
 // markers, an "Add workspace" card, a pending avatar and draft tiles.
 func TestNoHandWrittenEmptyState(t *testing.T) {
 	dir := filepath.Join(repoRoot(), "internal", "rendering")

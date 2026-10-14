@@ -1391,8 +1391,8 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 
 - **EmptyState and its gate, rencana 2.3c (2026-10-13), the registered Component after Callout.** The plan's "13 class
   sets" was a count of `border-dashed`, not of one meaning (the same shape of mistake as 2.3a's 29). Reading all 13 found
-  four "nothing here" boxes; the other nine were stepper chips, a signature canvas and markers, an "Add workspace" card,
-  a pending avatar and draft tiles. Of the four, **two screens drew one card byte for byte**: the Approval Inbox's
+  four "nothing here" boxes; the other nine were the review screen's signature boxes, a signature canvas and markers, an "Add workspace"
+  card, a pending avatar and draft tiles. Of the four, **two screens drew one card byte for byte**: the Approval Inbox's
   `inboxEmpty` (five calls) and a hand-written copy on Groups, compared as class expressions at HEAD. That is the
   registration. Workspace Home's two cards (a title and a description in a roomier box) are one screen, so they are
   `emptyStateExempt` floors. `EmptyState` has one required input, `text`, and a blank one is refused. It is
@@ -1406,13 +1406,26 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   Go function. The ratchet `TestHandWrittenThemeTokensOnlyShrink` lowered two entries on its own (the card now reads
   `textClass`).
 
-  **Verification could not be live, and the record says so.** No fixture page draws an empty card (109 pages: 0 differ
-  from the previous dump). Instead: the expected markup is what `inboxEmpty` rendered at HEAD, captured before it was
-  deleted, under the default Theme and a moved one; `TestEmptyState_followsTheTheme` moves five roles at once (R9); and
-  `TestEmptyState_isDrawnWhenAPageDeclaresIt` renders through `uiNode`, which a mutation run showed no other test did (an
-  arm deleted from the walker passed everything else). Mutation-proved 16 ways. Two mutations did not apply the first time
-  (a variable number, and `domain.Component(...)` where `domain.ComponentType(...)` was meant); the harness stopped one and
-  a build failure exposed the other, and both were redone.
+  **Verification: I first wrote that it could not be live, and that was wrong.** I checked only the 109-page HTTP sweep,
+  which draws no empty card (0 differ from the previous dump), and concluded no test reaches them. Two existing
+  rendering tests do (`TestApprovalInboxPage_AssignedTabEmptyState` and the Groups render in
+  `workspacesettings_test.go`). The independent review rendered Groups and the Inbox on all three tabs, with no query
+  and with `a"b<c`, at the previous commit and at this one: byte-identical (96,955 bytes). What stands beside it:
+  the expected markup is what `inboxEmpty` rendered at HEAD, captured before it was deleted, under the default Theme and
+  a moved one; `TestEmptyState_followsTheTheme` moves five roles at once (R9); `TestEmptyState_isDrawnWhenAPageDeclaresIt`
+  renders through `uiNode`, which a mutation run showed no other test did (an arm deleted from the walker passed
+  everything else); and `TestApprovalInboxPage_EveryEmptyCaseDrawsTheEmptyCard` covers all five Inbox call sites, because
+  `@emptyState("")` at the default tab survived the whole suite until then (only one of the five had a test, and it asserted
+  the text but not the card). Mutation-proved 18 ways. Two mutations did not apply the first time (a variable number, and
+  `domain.Component(...)` where `domain.ComponentType(...)` was meant); the harness stopped one and a build failure
+  exposed the other, and both were redone.
+
+  **A declared page has two ways to say "nothing here", both lowered to `static: message`**: a Collection's `empty:` (five
+  pages, ten page-and-Workspace pairs) and a layout's `empty:` (My Tasks, when every child is `hide_empty`: two pairs).
+  The review corrected my count of the first (I had missed that it counted only Collections) and found the case that
+  decides the owner's question: Calendar declares `empty: "—"` on a Collection inside a seven-column grid, a per-day
+  placeholder where a `p-8` dashed card would be wrong. So the recommendation in `design-system-decisions.md` is not a
+  blanket change to `Collection.empty:`.
 - `TestFaintInkSitesHaveAReason` — rencana 1.2b (2026-10-13). The Design System defines `ink-faint` (slate-400, about
   2.6:1) as "hints, placeholders, decoration only" and says it fails WCAG AA for real content. Reading all 98 faint sites
   found most were content, so they moved to `secondary` (slate-500, 4.77:1):

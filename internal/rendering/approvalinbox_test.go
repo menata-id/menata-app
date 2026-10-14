@@ -3,6 +3,7 @@ package rendering
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/a-h/templ"
 	"strings"
 	"testing"
@@ -127,6 +128,37 @@ func TestApprovalInboxPage_AssignedTabEmptyState(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "No document has asked for your approval yet.") {
 		t.Error("empty Assigned to me did not render its own empty-state message")
+	}
+}
+
+// TestApprovalInboxPage_EveryEmptyCaseDrawsTheEmptyCard covers the five places the Inbox says "nothing here" -- two tabs,
+// each with and without a search, and the default tab. The 2.3c review found that passing `@emptyState("")` at the
+// default tab's call survived the whole suite: only one of the five had a test, and it asserted the text but not the card.
+func TestApprovalInboxPage_EveryEmptyCaseDrawsTheEmptyCard(t *testing.T) {
+	filters := []FilterChip{{Key: "all", Label: "All", Count: 0, Active: true}}
+	const hostile = `a"b<c`
+	for _, tc := range []struct{ name, tab, q, message string }{
+		{"default tab", "", "", "Nothing pending your approval."},
+		{"My Documents", TabMine, "", "You haven't submitted any documents yet."},
+		{"My Documents, searched", TabMine, hostile, fmt.Sprintf("No document matches %q.", hostile)},
+		{"Assigned to me", TabAssigned, "", "No document has asked for your approval yet."},
+		{"Assigned to me, searched", TabAssigned, hostile, fmt.Sprintf("No document matches %q.", hostile)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var page, card bytes.Buffer
+			if err := ApprovalInboxPage(filters, nil, nil, nil, filters, nil, filters, Truncation{}, tc.tab, tc.q, "Acme", Viewer{Initials: "AN"}, "").Render(assignedNavFixture(), &page); err != nil {
+				t.Fatalf("Render() error = %v", err)
+			}
+			if err := emptyState(tc.message).Render(assignedNavFixture(), &card); err != nil {
+				t.Fatalf("Render() error = %v", err)
+			}
+			if !strings.Contains(page.String(), card.String()) {
+				t.Errorf("the page does not draw the EmptyState card for %q:\nwant to contain %s", tc.message, card.String())
+			}
+			if strings.Count(page.String(), "border-dashed") != 1 {
+				t.Errorf("want exactly one dashed card on the page, got %d", strings.Count(page.String(), "border-dashed"))
+			}
+		})
 	}
 }
 
