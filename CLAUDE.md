@@ -1429,11 +1429,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   placeholder where a `p-8` dashed card would be wrong. So the recommendation in `design-system-decisions.md` is not a
   blanket change to `Collection.empty:`.
 - `TestNoHandWrittenDisclosure` — T-A, first step (2026-10-14), the **thirteenth registered Component**, `Disclosure`. Groups' "+ New group" and
-  Members' "+ Invite member" drew one panel by hand (a surface, an accent summary, a form under a rule); rendering both at HEAD and after
-  differs by a single inter-tag space after `</details>` in a flex column (Groups: byte-identical). One required input, `summary`; one slot, `body`
+  Members' "+ Invite member" drew one panel by hand (a surface, an accent summary, a form under a rule). The panel and summary are byte-identical;
+  the rule and padding each form carried moved into a wrapper `<div>` (the review found a declared body would otherwise sit flush against the edge). One required input, `summary`; one slot, `body`
   (the form and its rule stay the caller's); and it declares `toggle`, the first Component action that is not a write, because a native
-  `<details>` opens and closes with no script. **That is the honest size of `actions` for a native element.** Popovers (six app-shell triggers),
-  menus and the two modal dialogs need a script to open and close, and still wait on a declaration for that. The tail fold (`foldedRest`, which
+  `<details>` opens and closes with no script. **That is the honest size of `actions` for a native element.** The native Popover API is declarative too
+  (`popovertarget`, six app-shell triggers, no script), so popovers and the menus built on them are the next candidate, as a Component of their own;
+  only the two modal dialogs need script (`showModal()`). An independent review corrected this bullet, which first said popovers needed a script. The tail fold (`foldedRest`, which
   hides its own summary once open), the card menus and the archived fold are other jobs and stay hand-written. `experimental`: no installed
   `page:` declares one. The gate (zero floor) refuses a `<details>` reading `surfaceClasses(` outside `disclosure.templ`. Two ratchets lowered
   on their own (the summary now reads `textClass`/`weightClass`): `groups.templ` size 11→10 and weight 1→0, `workspacemembers.templ` 29→28 and 4→3.

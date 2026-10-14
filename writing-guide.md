@@ -1385,8 +1385,8 @@ required and a blank one is a load error; the `body` slot holds the children, wh
 list). It is a native `<details>`, so it opens and closes with no script and no request, and a page writes no `open`,
 `class`, `id` or `hx-*`. The surface, the summary's size, weight and ink follow the Workspace's `theme:`. **It is
 `experimental`**: Groups and Members draw it in Go ("+ New group", "+ Invite member"), and no installed page declares one.
-It declares `toggle`, the first Component action that is not a write; popovers, menus and dialogs, which need a script to
-open and close, are not covered.
+It declares `toggle`, the first Component action that is not a write; popovers and menus (native `popovertarget`, no script) are the next candidate, and modal dialogs (which need `showModal()`
+script) wait on a declaration for that; none is covered.
 
 ```yaml
 - component: Disclosure

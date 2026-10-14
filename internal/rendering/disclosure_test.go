@@ -24,10 +24,11 @@ func renderDisclosure(t *testing.T, ctx context.Context, summary, body string) s
 }
 
 // Groups' "+ New group" and Members' "+ Invite member" drew this markup by hand. The expected string is what Groups
-// rendered at b7819df, captured before the migration (not written from the new template); the second case moves the
+// rendered at b7819df, captured before the migration (the summary and the panel, not written from the new template; the body wrapper
+// is the one addition, with the rule and padding the forms carried for themselves); the second case moves the
 // surface corner and escapes the summary.
 func TestDisclosure_reproducesThePreMigrationMarkup(t *testing.T) {
-	const wantDefault = `<details class="rounded-lg border border-border-surface bg-bg-raised"><summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-accent [&amp;::-webkit-details-marker]:hidden">+ New group</summary><form></form></details>`
+	const wantDefault = `<details class="rounded-lg border border-border-surface bg-bg-raised"><summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-accent [&amp;::-webkit-details-marker]:hidden">+ New group</summary><div class="border-t border-border-surface px-5 py-4"><form></form></div></details>`
 	if got := renderDisclosure(t, context.Background(), "+ New group", "<form></form>"); got != wantDefault {
 		t.Errorf("default theme:\n got %s\nwant %s", got, wantDefault)
 	}
@@ -50,6 +51,9 @@ func TestDisclosure_followsTheTheme(t *testing.T) {
 	th.Weight[domain.WeightEmphasis] = domain.WeightStepNormal
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "m", Theme: th}, "m", false)
 	got := resolveColourRoles(t, ctx, renderDisclosure(t, ctx, "x", ""))
+	if n := strings.Count(got, "border-slate-300"); n != 2 {
+		t.Errorf("the panel edge and the rule above the body should both follow border.surface, got %d: %s", n, got)
+	}
 	for _, want := range []string{"rounded-full", "border-slate-300", "bg-[#fffdf5]", "text-base", "font-normal"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("a declared theme did not move the disclosure (%q missing): %s", want, got)

@@ -87,7 +87,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			</div>
 		}
 		@disclosure("+ Invite member") {
-				<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+				<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 					@csrfHiddenInput()
 					// Email and roles only. The invitee's own name is theirs to state when they accept
 					// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record

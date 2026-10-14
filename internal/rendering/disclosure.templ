@@ -7,11 +7,15 @@ import "menata.app/internal/domain"
 // recipe, an accent summary and the caller's body beneath it.
 //
 // It replaces the "+ New group" panel on Groups and the "+ Invite member" panel on Members, which drew this markup
-// by hand, byte for byte (`TestDisclosure_reproducesThePreMigrationMarkup`). The body is the slot: the form, and the
-// rule above it, stay the caller's, because what opens is not the Component's to know (007 §12.3).
+// by hand. The panel and its summary are byte-identical to what they drew (`TestDisclosure_reproducesThePreMigrationMarkup`);
+// the rule and padding that each form carried for itself moved into a wrapper `<div>`, so the screens look the same and a
+// page that declares one needs no spacing of its own (the independent review found a declared body would otherwise sit flush
+// against the edge). The body is the slot: what opens (a form, text, a list) is not the Component's to know (007 §12.3).
 templ disclosure(summary string) {
 	<details class={ surfaceClasses(ctx) }>
 		<summary class={ "cursor-pointer list-none px-5 py-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>{ summary }</summary>
-		{ children... }
+		<div class={ "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+			{ children... }
+		</div>
 	</details>
 }

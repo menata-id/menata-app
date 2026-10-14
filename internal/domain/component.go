@@ -136,10 +136,9 @@ const (
 	// closing needs no script and no request, and it is the first Component to declare an action that is not a
 	// write: `toggle`.
 	//
-	// **It already existed unregistered, twice, byte for byte**: Groups and Members drew the same surface, the same
+	// **It already existed unregistered, twice**: Groups and Members drew the same surface, the same
 	// accent summary and a form under a rule. It is the *panel* disclosure only. The tail-folding "Show all N" link
-	// (`foldedRest`, the record detail's fold) hides its own summary once open, the card menus are popovers with
-	// script, and the Archived-workspaces fold is a quiet line on a pre-auth-adjacent screen; each is a different job.
+	// (`foldedRest`, the record detail's fold) hides its own summary once open, the card menus open a floating list, and the Archived-workspaces fold is a quiet line on a pre-auth-adjacent screen; each is a different job.
 	ComponentDisclosure ComponentType = "Disclosure"
 )
 

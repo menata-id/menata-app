@@ -33,7 +33,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 			</a>
 		}
 		@disclosure("+ New group") {
-				<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
+				<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 					@csrfHiddenInput()
 					@authField("group_name", "name", "Group name", "text", "off", false)
 					@authSubmit("Create group")

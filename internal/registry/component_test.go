@@ -547,6 +547,8 @@ func TestValidateDisclosure(t *testing.T) {
 	for name, in := range map[string]map[string]string{
 		"no summary":    {},
 		"a blank":       {"summary": "   "},
+		"a tab":         {"summary": "\t"},
+		"a newline":     {"summary": "\n \n"},
 		"an open state": {"summary": "More", "open": "true"},
 		"a class":       {"summary": "More", "class": "mt-2"},
 		"a hook":        {"summary": "More", "hx-get": "/x"},

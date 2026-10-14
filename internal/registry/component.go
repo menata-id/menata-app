@@ -66,8 +66,9 @@ var Components = map[domain.ComponentType]Component{
 // the Component never knows it holds a form. **It declares `toggle`, the first Component action that is not a
 // write**, and that is the honest size of 007 §12.3's `actions` for a native element: opening and closing are the
 // browser's own, so there is no event for a page to wire and nothing a page may attach (`hx-*`, a script hook).
-// Popovers, menus and modal dialogs need a script to open and close, and stay outside until a declaration for that
-// exists.
+// The native Popover API is declarative too (`popovertarget`, six app-shell triggers, no script), so popovers and the
+// menus built on them are the next candidates, as a Component of their own; only a modal `<dialog>` needs script
+// (`showModal()`). None of those is covered here.
 //
 // What the contract forces that a reviewer would not have asked for: the control is a real `<summary>`, so the
 // keyboard (Enter, Space) and the open state reach assistive technology without an `aria-expanded` anyone must keep
