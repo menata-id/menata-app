@@ -824,6 +824,16 @@ func accentEdgeHoverClass(ctx context.Context) string {
 	return "hover:border-accent/40"
 }
 
+// touchTargetClass grows a small icon control's hit area on a touch screen without changing how it looks: a pseudo-element
+// 6px past each edge of the padding box, only under `pointer: coarse`. Measured in Chromium with touch emulation: the pencil
+// (no border) is 32px to a finger and the completion circle (a 2px border) 28px; with a fine pointer both stay 20px. WCAG 2.5.8 (AA) asks 24px, and the
+// 2026-10-14 audit measured three icon controls under it at 360px (the completion circle on a board card and in a checklist, and
+// the card's edit pencil). The control must be `relative`, which this adds. Gap plan K-05, narrowed by that measurement: the
+// 36px buttons and fields it first named already clear 24px, and the Design System asks 44px of the compact control alone.
+func touchTargetClass() string {
+	return "relative pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5"
+}
+
 // accentRingClass is the halo around the current step (CP3, in place of blue-100).
 func accentRingClass(ctx context.Context) string {
 	return "ring-accent/20"

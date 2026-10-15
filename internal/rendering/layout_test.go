@@ -1603,3 +1603,18 @@ func TestDialogShell_bothDialogsFollowTheTheme(t *testing.T) {
 		}
 	}
 }
+
+// An icon control's touch target is a pseudo-element under a coarse pointer only, on a `relative` element (gap plan K-05).
+func TestTouchTargetClass_growsOnlyUnderACoarsePointer(t *testing.T) {
+	got := touchTargetClass()
+	for _, want := range []string{"relative", "pointer-coarse:after:absolute", "pointer-coarse:after:-inset-1.5"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("touchTargetClass() = %q, missing %q", got, want)
+		}
+	}
+	for _, f := range strings.Fields(got) {
+		if f != "relative" && !strings.HasPrefix(f, "pointer-coarse:") {
+			t.Errorf("%q applies to a fine pointer too; only `relative` may", f)
+		}
+	}
+}

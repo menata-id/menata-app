@@ -282,11 +282,11 @@ func TestDesignTokensFollowAMovedTheme(t *testing.T) {
 		"accent": "#e11d48", "ink-body": dl["ink-strong"], "bg-base": "#f1f5f0", "hover-wash": "#f1f5f0",
 		"border-surface": dl["border-control"], "avatar-fill": dl["border-control"],
 		"tone-bad-bg": dl["tone-warn-bg"], "tone-bad-ink": dl["tone-warn-ink"], "danger-ink": dl["tone-warn-ink"],
-		"danger-wash": dl["tone-warn-bg"], "danger-border": dl["tone-warn-border"],
+		"danger-wash": dl["tone-warn-bg"], "danger-border": dl["tone-warn-border"], "count-badge": dl["tone-warn-ink"],
 	}
 	wantDark := map[string]string{ // a tone remap is a hue choice, so it carries into dark; the rest stay light-only
 		"tone-bad-bg": dd["tone-warn-bg"], "tone-bad-ink": dd["tone-warn-ink"], "danger-ink": dd["tone-warn-ink"],
-		"danger-wash": dd["tone-warn-bg"], "danger-border": dd["tone-warn-border"],
+		"danger-wash": dd["tone-warn-bg"], "danger-border": dd["tone-warn-border"], "count-badge": dd["tone-warn-ink"],
 	}
 	for _, c := range []struct {
 		mode               string

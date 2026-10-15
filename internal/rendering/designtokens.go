@@ -39,9 +39,9 @@ func designTokenClasses(ctx context.Context) designTokenMap {
 		"ink-secondary": inkClass(ctx, domain.InkSecondary), "ink-faint": inkClass(ctx, domain.InkFaint),
 		// DS-D10 (2026-10-12): the accent is a role now. Its hover is a state of the same key; compared as its colour.
 		// DS-D16 (2026-10-12): the tone edge is part of the tone's palette now.
-		"danger-border": toneEdgeClass(ctx, domain.ToneBad),                // the `bad` tone's edge; the other tones' are in the loop below
-		"hover-wash":    strings.TrimPrefix(hoverWashClass(ctx), "hover:"), // DS-D11: an alias of bg-base, read by the hover recipe
-		"accent":        inkClass(ctx, domain.InkAccent), "accent-hover": strings.TrimPrefix(accentHoverClass(ctx), "hover:"),
+		"danger-border": toneEdgeClass(ctx, domain.ToneBad), "count-badge": toneInkFillClass(ctx, domain.ToneBad), // the `bad` tone's edge; the other tones' are in the loop below
+		"hover-wash": strings.TrimPrefix(hoverWashClass(ctx), "hover:"), // DS-D11: an alias of bg-base, read by the hover recipe
+		"accent":     inkClass(ctx, domain.InkAccent), "accent-hover": strings.TrimPrefix(accentHoverClass(ctx), "hover:"),
 		"bg-raised": backgroundClass(ctx, domain.BackgroundRaised), "bg-base": backgroundClass(ctx, domain.BackgroundBase),
 		"bg-sunken":      backgroundClass(ctx, domain.BackgroundSunken),
 		"border-divider": borderClass(ctx, domain.BorderDivider), "border-surface": borderClass(ctx, domain.BorderSurface),

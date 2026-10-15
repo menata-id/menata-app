@@ -1514,6 +1514,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   wrapped before as well. The board lane joins `handWrittenSurfaceFloors` (a sunken fill under the surface edge: the artifact's fourth
   surface variant, which `surfaceClasses` cannot be). Verified by a computed-style comparison over 103 pages at two widths: the only
   differences are the gaps (377 elements), the four lane radii and titles, and widths that follow them.
+- **Gap plan K-05 narrowed and K-10 half (2026-10-15).** The audit's "1,025 targets under 44px at 360px" mostly meant the 36px buttons and
+  fields, which already clear WCAG 2.5.8's 24px (AA) and which the artifact asks 44px of only for the compact control; so K-05 was narrowed to
+  what is under 24px: the completion circle on a board card and in a checklist, and the card's edit pencil (all `size-5`).
+  `touchTargetClass()` grows their hit area with a pseudo-element under `pointer: coarse` only (28px for the bordered circle, 32px for the
+  pencil, measured in Chromium with touch emulation; still 20px with a mouse), and `TestEveryIconControlHasATouchTarget` refuses a
+  `size-1..5` button or summary without it. The link and 16px-line targets stay: inline text links are exempt, and the rest pass WCAG 2.5.8's spacing
+  exception. K-10: `count-badge` is a Design System token (the `bad` tone's ink as a fill, with the on-fill text) compared by GS1 and
+  exported to DTCG, and it follows a Workspace's `bad` remap; the four hand-drawn badges are **not** folded into a Component (an absolutely
+  positioned badge over an icon and an inline one differ in more than colour).
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

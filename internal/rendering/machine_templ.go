@@ -2772,7 +2772,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var136 = []any{"grid size-5 place-items-center rounded-full border-2 " + onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done)}
+			var templ_7745c5c3_Var136 = []any{"grid size-5 place-items-center rounded-full border-2", touchTargetClass(), onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var136...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2854,7 +2854,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var142 = []any{"grid size-5 cursor-pointer list-none place-items-center rounded", inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden"}
+			var templ_7745c5c3_Var142 = []any{"grid size-5 cursor-pointer list-none place-items-center rounded", touchTargetClass(), inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var142...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

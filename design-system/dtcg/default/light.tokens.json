@@ -275,6 +275,22 @@
         "hex": "#e2e8f0"
       }
     },
+    "count-badge": {
+      "$extensions": {
+        "app.menata": {
+          "property": "--color-tone-bad-ink"
+        }
+      },
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.505,
+          0.213,
+          27.518
+        ],
+        "hex": "#c10007"
+      }
+    },
     "danger-border": {
       "$extensions": {
         "app.menata": {
