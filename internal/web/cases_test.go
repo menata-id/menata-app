@@ -1,0 +1,648 @@
+package web
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+
+	"menata.app/internal/authorization"
+	"menata.app/internal/config"
+	"menata.app/internal/data"
+	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
+	"menata.app/internal/storage"
+)
+
+// The case corpus (roadmap KZ1; menata-app-document audits/2026-10-15-kajian-strategi §4.1). Each directory under
+// testdata/cases holds one business case written the way 001-007 say it should read, plus a scenario. The harness
+// loads the case through the real loader, strips every key the loader does not read yet (that list is the case's
+// backlog), and plays the scenario through the real router. A scenario step that cannot pass is the measurement.
+//
+// It orders work; it does not admit it. A key in a case YAML is not permission to build the key (capability-lifecycle.md
+// §2 still applies).
+
+type caseScenario struct {
+	Case   int         `yaml:"case"`
+	Title  string      `yaml:"title"`
+	Actors []caseActor `yaml:"actors"`
+	Steps  []caseStep  `yaml:"steps"`
+}
+
+type caseActor struct {
+	Name string `yaml:"name"`
+	Role string `yaml:"role"`
+}
+
+type caseStep struct {
+	ID       string            `yaml:"id"`
+	As       string            `yaml:"as"`
+	Create   *caseCreate       `yaml:"create"`
+	Update   *caseUpdate       `yaml:"update"`
+	Expect   string            `yaml:"expect"`
+	Record   map[string]string `yaml:"record"`
+	Notified []caseNotified    `yaml:"notified"`
+}
+
+type caseCreate struct {
+	Machine string            `yaml:"machine"`
+	Values  map[string]string `yaml:"values"`
+	Files   map[string]string `yaml:"files"`
+}
+
+type caseUpdate struct {
+	Ref    string            `yaml:"ref"`
+	Values map[string]string `yaml:"values"`
+}
+
+type caseNotified struct {
+	Actor    string `yaml:"actor"`
+	Contains string `yaml:"contains"`
+	// Not turns the line round: the actor must NOT have been notified of it.
+	Not bool `yaml:"not"`
+}
+
+// caseReport is what one case measured.
+type caseReport struct {
+	Loads    bool     // the loader accepted the case once the unread keys were stripped
+	Rejected []string // "file: key", one per key stripped, sorted
+	Steps    int
+	Passed   int
+	Results  []string // one line per step, for -v
+}
+
+// caseRatchet records each case's measurement. Both numbers move on purpose: Passed may only rise and Rejected may
+// only fall, and an improvement fails until the entry is updated, so progress is locked in rather than left as room
+// to regress (the shape of every ratchet in internal/conformance).
+var caseRatchet = map[string]struct {
+	Rejected int
+	Passed   int
+	Steps    int
+}{
+	"case01_design_request": {Rejected: 6, Passed: 9, Steps: 12},
+	"case02_leave_request":  {Rejected: 6, Passed: 7, Steps: 10},
+	"case17_helpdesk":       {Rejected: 8, Passed: 6, Steps: 9},
+}
+
+var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
+
+func TestCaseCorpusOnlyAdvances(t *testing.T) {
+	dirs, err := filepath.Glob(filepath.Join("testdata", "cases", "case*"))
+	if err != nil || len(dirs) == 0 {
+		t.Fatalf("no case under testdata/cases: %v", err)
+	}
+	pool := authTestPool(t)
+	for _, dir := range dirs {
+		name := filepath.Base(dir)
+		rep := playCase(t, pool, dir)
+		t.Logf("%s: loads=%v rejected=%d steps %d/%d passed", name, rep.Loads, len(rep.Rejected), rep.Passed, rep.Steps)
+		for _, k := range rep.Rejected {
+			t.Logf("  unread key  %s", k)
+		}
+		for _, r := range rep.Results {
+			t.Logf("  %s", r)
+		}
+		want, ok := caseRatchet[name]
+		if !ok {
+			t.Errorf("%s has no entry in caseRatchet; add {Rejected: %d, Passed: %d, Steps: %d}", name, len(rep.Rejected), rep.Passed, rep.Steps)
+			continue
+		}
+		if msg := ratchetProblem(name, len(rep.Rejected), rep.Passed, rep.Steps, want); msg != "" {
+			t.Error(msg)
+		}
+	}
+	for name := range caseRatchet {
+		if _, err := os.Stat(filepath.Join("testdata", "cases", name)); err != nil {
+			t.Errorf("caseRatchet names %s, which has no directory", name)
+		}
+	}
+}
+
+// outcomeProblem says why an HTTP answer is not the one a step expects, or "" when it is. A refusal is a 4xx; a 5xx
+// is the server failing and satisfies neither expectation.
+func outcomeProblem(code int, expect string) string {
+	switch {
+	case code >= 500:
+		return fmt.Sprintf("the server answered %d", code)
+	case expect == "refused" && code < 400:
+		return fmt.Sprintf("expected refused, the router answered %d", code)
+	case expect == "ok" && code >= 400:
+		return fmt.Sprintf("expected ok, the router answered %d", code)
+	}
+	return ""
+}
+
+// ratchetProblem compares one case's measurement with its recorded entry and says what moved, or "" when nothing did.
+func ratchetProblem(name string, rejected, passed, steps int, want struct{ Rejected, Passed, Steps int }) string {
+	if rejected == want.Rejected && passed == want.Passed && steps == want.Steps {
+		return ""
+	}
+	dir := "changed"
+	if passed > want.Passed || rejected < want.Rejected {
+		dir = "improved: lock it in"
+	}
+	if passed < want.Passed || rejected > want.Rejected {
+		dir = "REGRESSED"
+	}
+	return fmt.Sprintf("%s %s: rejected %d (recorded %d), passed %d/%d (recorded %d/%d); update caseRatchet only for an improvement",
+		name, dir, rejected, want.Rejected, passed, steps, want.Passed, want.Steps)
+}
+
+// playCase stages one case in a throwaway Workspace and plays its scenario.
+func playCase(t *testing.T, pool any, dir string) caseReport {
+	t.Helper()
+	var rep caseReport
+	sc := readScenario(t, dir)
+	rep.Steps = len(sc.Steps)
+	root, manifest, rejected := stageCase(t, dir)
+	rep.Rejected = rejected
+	app, err := metadata.LoadApplication(manifest)
+	if err != nil {
+		rep.Results = append(rep.Results, "NOT RUN: the case does not load: "+firstLine(err.Error()))
+		return rep
+	}
+	rep.Loads = true
+	_ = root
+	rep.Passed, rep.Results = runScenario(t, app, sc)
+	return rep
+}
+
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// scenarioProblem says what is wrong with a scenario as written, or "".
+func scenarioProblem(sc caseScenario) string {
+	seen := map[string]bool{}
+	actors := map[string]bool{}
+	for _, a := range sc.Actors {
+		actors[a.Name] = true
+	}
+	for _, s := range sc.Steps {
+		switch {
+		case s.ID == "" || seen[s.ID]:
+			return fmt.Sprintf("step id %q is empty or repeated", s.ID)
+		case !actors[s.As]:
+			return fmt.Sprintf("step %s is taken by %q, who is not an actor", s.ID, s.As)
+		case (s.Create == nil) == (s.Update == nil):
+			return fmt.Sprintf("step %s must have exactly one of create and update", s.ID)
+		case s.Expect != "ok" && s.Expect != "refused":
+			return fmt.Sprintf("step %s expects %q; use ok or refused", s.ID, s.Expect)
+		}
+		seen[s.ID] = true
+	}
+	return ""
+}
+
+func readScenario(t *testing.T, dir string) caseScenario {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, "scenario.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sc caseScenario
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	if err := dec.Decode(&sc); err != nil {
+		t.Fatalf("%s: %v", dir, err)
+	}
+	if why := scenarioProblem(sc); why != "" {
+		t.Fatalf("%s: %s", dir, why)
+	}
+	return sc
+}
+
+// stageCase copies the case's files beside the library's three shared Machines, then loads with the real loader,
+// removing every key it reports as unread, until it loads or fails for another reason. It returns the manifest path
+// and the removed keys.
+func stageCase(t *testing.T, dir string) (root, manifest string, rejected []string) {
+	t.Helper()
+	root = t.TempDir()
+	for _, f := range []string{"user.yaml", "activity.yaml", "notification.yaml"} {
+		copyFile(t, filepath.Join("..", "..", "metadata", f), filepath.Join(root, f))
+	}
+	machines, err := filepath.Glob(filepath.Join(dir, "machines", "*.yaml"))
+	if err != nil || len(machines) == 0 {
+		t.Fatalf("%s: no machines/*.yaml", dir)
+	}
+	var manifestText strings.Builder
+	manifestText.WriteString("workspace: casecorpus\nmachines:\n  - ../activity.yaml\n  - ../notification.yaml\n  - ../user.yaml\n")
+	files := []string{}
+	for _, m := range machines {
+		base := filepath.Base(m)
+		copyFile(t, m, filepath.Join(root, base))
+		manifestText.WriteString("  - ../" + base + "\n")
+		files = append(files, filepath.Join(root, base))
+	}
+	copyFile(t, filepath.Join(dir, "application.yaml"), filepath.Join(root, "application.yaml"))
+	files = append(files, filepath.Join(root, "application.yaml"))
+	manifestText.WriteString("applications:\n  - ../application.yaml\n")
+	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest = filepath.Join(root, "workspaces", "casecorpus.yaml")
+	if err := os.WriteFile(manifest, []byte(manifestText.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for round := 0; round < 100; round++ {
+		_, err := metadata.LoadApplication(manifest)
+		if err == nil {
+			break
+		}
+		hits := unreadKey.FindAllStringSubmatch(err.Error(), -1)
+		if len(hits) == 0 {
+			break
+		}
+		file := fileNamedIn(err.Error(), files)
+		if file == "" {
+			break
+		}
+		var drop []keyAt
+		for _, h := range hits {
+			n, _ := strconv.Atoi(h[1])
+			drop = append(drop, keyAt{n, h[2]})
+		}
+		if !stripKeys(t, file, drop) {
+			t.Fatalf("%s: could not locate every unread key in %v", file, drop)
+		}
+		for _, d := range drop {
+			rejected = append(rejected, filepath.Base(file)+": "+d.key)
+		}
+	}
+	sort.Strings(rejected)
+	return root, manifest, rejected
+}
+
+// fileNamedIn finds which staged file a loader error is about. The error names the file by its manifest path.
+func fileNamedIn(msg string, files []string) string {
+	for _, f := range files {
+		if strings.Contains(msg, filepath.Base(f)) {
+			return f
+		}
+	}
+	return ""
+}
+
+func copyFile(t *testing.T, from, to string) {
+	t.Helper()
+	b, err := os.ReadFile(from)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(to, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type keyAt struct {
+	line int
+	key  string
+}
+
+// stripKeys removes every named mapping key (with its value) from one file in a single pass, because removing one
+// and rewriting the file would move the lines the others were reported at.
+func stripKeys(t *testing.T, path string, drop []keyAt) bool {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range drop {
+		if !removeKey(&doc, d.line, d.key) {
+			return false
+		}
+	}
+	out, err := yaml.Marshal(&doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return true
+}
+
+func removeKey(n *yaml.Node, line int, key string) bool {
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			k := n.Content[i]
+			if k.Value == key && k.Line == line {
+				n.Content = append(n.Content[:i], n.Content[i+2:]...)
+				return true
+			}
+		}
+	}
+	for _, c := range n.Content {
+		if removeKey(c, line, key) {
+			return true
+		}
+	}
+	return false
+}
+
+// runScenario plays the steps through the real router and returns how many held and one line per step.
+func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []string) {
+	t.Helper()
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	slug := fmt.Sprintf("case-corpus-%d", sc.Case)
+	ws, err := store.CreateWorkspace(ctx, "Case corpus "+strconv.Itoa(sc.Case), slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var firstEmail string
+	if len(sc.Actors) > 0 {
+		firstEmail = fmt.Sprintf("case%d_%s@example.com", sc.Case, sc.Actors[0].Name)
+	}
+	cleanupAuthTest(t, pool, ws.ID, firstEmail)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	installed := app.Workspace
+	installed.Slug = ws.Slug
+	if len(installed.Applications) == 0 {
+		t.Fatal("the case installs no Application")
+	}
+	appID := installed.Applications[0].ID
+
+	ids := map[string]string{}
+	cookies := map[string]string{}
+	cfg := config.Config{SessionSecret: slug + "-secret", TemplatePath: realLibrary(t)}
+	for _, a := range sc.Actors {
+		email := fmt.Sprintf("case%d_%s@example.com", sc.Case, a.Name)
+		u, err := store.CreateRecord(wsCtx, "mch_user", map[string]any{"fld_email": email})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := store.AddMember(ctx, ws.ID, u.ID, email, "member", ""); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.SetMemberAppRole(ctx, ws.ID, u.ID, appID, a.Role); err != nil {
+			t.Fatal(err)
+		}
+		ids[a.Name] = u.ID
+		cookies[a.Name] = sessionCookieValueForTest(t, cfg, u.ID, 0)
+	}
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := Routes(Deps{UserMachine: userMachineOf(t, app), Store: store, Files: files, Cfg: cfg,
+		Workspaces: map[string]domain.Workspace{slug: installed}, DefaultWorkspaceID: ws.ID})
+
+	subst := func(v string) string {
+		for name, id := range ids {
+			v = strings.ReplaceAll(v, "$"+name, id)
+		}
+		return v
+	}
+	send := func(method, path, actor string, values, fileFields map[string]string) int {
+		tok := csrfTokenFor(t, h, path)
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		for k, v := range values {
+			mw.WriteField(k, subst(v))
+		}
+		for k, name := range fileFields {
+			fw, err := mw.CreateFormFile(k, name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fw.Write([]byte("case corpus attachment"))
+		}
+		mw.Close()
+		req := httptest.NewRequest(method, path, &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookies[actor]})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	machineOf := map[string]string{} // step id -> machine
+	recordOf := map[string]string{}  // step id -> record id
+	var lines []string
+	passed := 0
+	for _, s := range sc.Steps {
+		fail := func(format string, a ...any) {
+			lines = append(lines, "FAIL "+s.ID+": "+fmt.Sprintf(format, a...))
+		}
+		var code int
+		var machine, id string
+		var snapshot map[string]any
+		if s.Create != nil {
+			machine = s.Create.Machine
+			before := recordIDs(t, store, wsCtx, machine)
+			code = send(http.MethodPost, "/machines/"+machine+"/records", s.As, s.Create.Values, s.Create.Files)
+			for rid := range recordIDs(t, store, wsCtx, machine) {
+				if !before[rid] {
+					id = rid
+				}
+			}
+		} else {
+			machine, id = machineOf[s.Update.Ref], recordOf[s.Update.Ref]
+			if id == "" {
+				fail("step %s created no record to update", s.Update.Ref)
+				continue
+			}
+			if rec, err := store.GetRecord(wsCtx, machine, id); err == nil {
+				snapshot = map[string]any{}
+				for k, v := range rec.Values {
+					snapshot[k] = v
+				}
+			}
+			code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, nil)
+		}
+		machineOf[s.ID], recordOf[s.ID] = machine, id
+		refused := code >= 400 && code < 500
+		if s.Expect == "refused" && !refused && snapshot != nil {
+			// The runtime took a write the case says it must refuse. Undo it, so the steps after this one measure
+			// themselves and not the damage this one did.
+			if _, err := store.UpdateRecord(wsCtx, machine, id, snapshot); err != nil {
+				t.Fatalf("restoring %s after %s: %v", id, s.ID, err)
+			}
+		}
+		if why := outcomeProblem(code, s.Expect); why != "" {
+			fail("%s", why)
+			continue
+		}
+		ok := true
+		if s.Expect == "ok" && len(s.Record) > 0 {
+			rec, err := store.GetRecord(wsCtx, machine, id)
+			if err != nil {
+				fail("record %s unreadable: %v", id, err)
+				continue
+			}
+			for f, want := range s.Record {
+				got := fmt.Sprint(rec.Values[f])
+				if want == "*" && got != "" && got != "<nil>" {
+					continue
+				}
+				if got != subst(want) {
+					fail("%s is %q, want %q", f, got, subst(want))
+					ok = false
+				}
+			}
+		}
+		for _, n := range s.Notified {
+			got := hasNotification(t, store, wsCtx, ids[n.Actor], n.Contains)
+			if got && n.Not {
+				fail("%s was notified of %q", n.Actor, n.Contains)
+				ok = false
+			} else if !got && !n.Not {
+				fail("%s was not notified of %q", n.Actor, n.Contains)
+				ok = false
+			}
+		}
+		if ok {
+			passed++
+			lines = append(lines, "ok   "+s.ID)
+		}
+	}
+	return passed, lines
+}
+
+func recordIDs(t *testing.T, store *data.Store, ctx context.Context, machine string) map[string]bool {
+	t.Helper()
+	recs, err := store.ListRecords(ctx, machine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]bool{}
+	for _, r := range recs {
+		out[r.ID] = true
+	}
+	return out
+}
+
+func hasNotification(t *testing.T, store *data.Store, ctx context.Context, recipient, contains string) bool {
+	t.Helper()
+	recs, err := store.ListRecords(ctx, "mch_notification")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if fmt.Sprint(r.Values["fld_recipient"]) == recipient && strings.Contains(fmt.Sprint(r.Values["fld_message"]), contains) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestCaseHarnessReportsEachKindOfMismatch shows the harness can fail. Every step below is wrong in exactly one way,
+// except the first, which is right; a harness that accepted everything would still pass the corpus ratchet only by
+// leaving its numbers where they are, so each check is proved here by being handed a wrong expectation.
+func TestCaseHarnessReportsEachKindOfMismatch(t *testing.T) {
+	authTestPool(t)
+	_, manifest, _ := stageCase(t, filepath.Join("testdata", "cases", "case01_design_request"))
+	app, err := metadata.LoadApplication(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok := func(id, as string, vals map[string]string) caseStep {
+		return caseStep{ID: id, As: as, Expect: "ok", Create: &caseCreate{Machine: "mch_design_request", Values: vals}}
+	}
+	good := map[string]string{"fld_title": "Poster", "fld_coordinator": "$kiki"}
+	steps := []caseStep{
+		ok("right", "rina", good),
+		{ID: "expected-refused-got-ok", As: "rina", Expect: "refused", Create: &caseCreate{Machine: "mch_design_request", Values: good}},
+		{ID: "expected-ok-got-refused", As: "rina", Expect: "ok", Create: &caseCreate{Machine: "mch_design_request", Values: map[string]string{"fld_format": "poster"}}},
+		{ID: "wrong-record-value", As: "rina", Expect: "ok", Record: map[string]string{"fld_status": "selesai"}, Create: &caseCreate{Machine: "mch_design_request", Values: good}},
+		{ID: "missing-notification", As: "rina", Expect: "ok", Notified: []caseNotified{{Actor: "dedi", Contains: "Poster"}}, Create: &caseCreate{Machine: "mch_design_request", Values: good}},
+		{ID: "assigned", As: "kiki", Expect: "ok", Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_designer": "$dedi", "fld_status": "ditugaskan"}}},
+		{ID: "unwanted-notification", As: "kiki", Expect: "ok", Notified: []caseNotified{{Actor: "dedi", Contains: "Poster", Not: true}}, Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_description": "x"}}},
+		{ID: "wrong-recipient", As: "kiki", Expect: "ok", Notified: []caseNotified{{Actor: "rina", Contains: "Kamu ditugaskan"}}, Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_description": "y"}}},
+		{ID: "unknown-ref", As: "kiki", Expect: "ok", Update: &caseUpdate{Ref: "nowhere", Values: map[string]string{"fld_description": "x"}}},
+	}
+	sc := caseScenario{Case: 9001, Title: "harness self-test", Steps: steps, Actors: []caseActor{
+		{Name: "rina", Role: "requester"}, {Name: "kiki", Role: "koordinator desain"}, {Name: "dedi", Role: "desainer"}}}
+	passed, lines := runScenario(t, app, sc)
+	out := strings.Join(lines, "\n")
+	for _, want := range []string{
+		"ok   right",
+		"FAIL expected-refused-got-ok: expected refused",
+		"FAIL expected-ok-got-refused: expected ok",
+		"FAIL wrong-record-value: fld_status is",
+		"FAIL missing-notification: dedi was not notified",
+		"ok   assigned",
+		"FAIL unwanted-notification: dedi was notified",
+		"FAIL wrong-recipient: rina was not notified",
+		"FAIL unknown-ref: step nowhere created no record",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the report lacks %q:\n%s", want, out)
+		}
+	}
+	if passed != 2 {
+		t.Errorf("%d steps passed, want 2 (right, assigned):\n%s", passed, out)
+	}
+}
+
+func TestCaseOutcomeAndRatchetJudgements(t *testing.T) {
+	for _, c := range []struct {
+		code   int
+		expect string
+		bad    bool
+	}{
+		{200, "ok", false}, {303, "ok", false}, {403, "refused", false}, {422, "refused", false},
+		{200, "refused", true}, {403, "ok", true}, {422, "ok", true},
+		{500, "ok", true}, {500, "refused", true}, {503, "refused", true},
+	} {
+		if got := outcomeProblem(c.code, c.expect) != ""; got != c.bad {
+			t.Errorf("outcomeProblem(%d, %s) problem=%v, want %v", c.code, c.expect, got, c.bad)
+		}
+	}
+	good := caseStep{ID: "a", As: "x", Expect: "ok", Create: &caseCreate{}}
+	for name, sc := range map[string]caseScenario{
+		"repeated id":   {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good, good}},
+		"empty id":      {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{As: "x", Expect: "ok", Create: &caseCreate{}}}},
+		"stranger":      {Steps: []caseStep{good}},
+		"neither":       {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok"}}},
+		"both":          {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Create: &caseCreate{}, Update: &caseUpdate{}}}},
+		"unknown wants": {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "maybe", Create: &caseCreate{}}}},
+	} {
+		if scenarioProblem(sc) == "" {
+			t.Errorf("a scenario with %s was accepted", name)
+		}
+	}
+	if why := scenarioProblem(caseScenario{Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good}}); why != "" {
+		t.Errorf("a sound scenario was refused: %s", why)
+	}
+	rec := struct{ Rejected, Passed, Steps int }{6, 9, 12}
+	for _, c := range []struct {
+		rejected, passed, steps int
+		want                    string
+	}{
+		{6, 9, 12, ""},
+		{6, 10, 12, "improved"},
+		{5, 9, 12, "improved"},
+		{6, 8, 12, "REGRESSED"},
+		{7, 9, 12, "REGRESSED"},
+		{6, 9, 13, "changed"},
+	} {
+		got := ratchetProblem("c", c.rejected, c.passed, c.steps, rec)
+		if (c.want == "") != (got == "") || (c.want != "" && !strings.Contains(got, c.want)) {
+			t.Errorf("ratchetProblem(%d,%d,%d) = %q, want %q", c.rejected, c.passed, c.steps, got, c.want)
+		}
+	}
+}

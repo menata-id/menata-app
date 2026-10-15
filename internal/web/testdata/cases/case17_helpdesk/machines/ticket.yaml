@@ -1,0 +1,85 @@
+# Case 17, Helpdesk (case-portfolio.md): internal IT support tickets that are handled in no fixed order, carry a
+# priority-driven SLA, escalate on breach and can be reopened. Same shape as Case 7. "WISHED:" marks a key the runtime
+# does not read yet; the harness strips those and plays the scenario against what is left.
+id: mch_ticket
+name: Tiket
+fields:
+  - id: fld_title
+    name: Judul
+    type: text
+    required: true
+  - id: fld_priority
+    name: Prioritas
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [baru, ditangani, menunggu_pelapor, selesai, dibuka_kembali]
+    default: baru
+  - id: fld_reporter
+    name: Pelapor
+    type: person
+    stamp: current_user
+  - id: fld_agent
+    name: Petugas
+    type: person
+  # WISHED: a due date computed from another Field when the record is created (tinggi 1 day, normal 3, rendah 7).
+  - id: fld_due
+    name: Batas SLA
+    type: date
+    default_from:
+      field: fld_priority
+      days: { tinggi: 1, normal: 3, rendah: 7 }
+
+permissions:
+  - id: prm_create_ticket
+    action: create
+    roles: [pelapor, petugas]
+  - id: prm_edit_ticket
+    action: edit
+    roles: [pelapor, petugas]
+
+# Discretionary: a ticket may move between these in any order, so every edge a petugas may take is declared.
+# WISHED: `roles:` per edge; only the reporter reopens.
+transitions:
+  - { id: trn_take, name: Tangani, field: fld_status, from: baru, to: ditangani, action: edit, roles: [petugas] }
+  - { id: trn_wait, name: Tunggu pelapor, field: fld_status, from: ditangani, to: menunggu_pelapor, action: edit, roles: [petugas] }
+  - { id: trn_resume, name: Lanjutkan, field: fld_status, from: menunggu_pelapor, to: ditangani, action: edit, roles: [petugas] }
+  - { id: trn_resolve, name: Selesaikan, field: fld_status, from: ditangani, to: selesai, action: edit, roles: [petugas] }
+  - { id: trn_reopen, name: Buka kembali, field: fld_status, from: selesai, to: dibuka_kembali, action: edit, roles: [pelapor] }
+  - { id: trn_retake, name: Tangani lagi, field: fld_status, from: dibuka_kembali, to: ditangani, action: edit, roles: [petugas] }
+
+completion: { field: fld_status, done: selesai }
+
+# WISHED: when fld_due passes and the ticket is not done, a Service writes a status (escalation). No scenario step can
+# play this yet: the harness has no clock and the runtime has no Service that writes a Field.
+escalation:
+  after: fld_due
+  unless_status: selesai
+  set: { field: fld_priority, value: tinggi }
+
+events:
+  - id: evt_ticket_taken_notify
+    on: fld_status
+    when_equals: ditangani
+    then:
+      service: send_notification
+      recipient_field: fld_reporter
+      preference_key: assigned
+      summary: "Tiketmu sedang ditangani: {fld_title}"
+  - id: evt_ticket_resolved_notify
+    on: fld_status
+    when_equals: selesai
+    then:
+      service: send_notification
+      recipient_field: fld_reporter
+      preference_key: decided
+      summary: "Tiketmu selesai: {fld_title}"
+
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_due, role: date }
+  - { field: fld_agent, role: person }

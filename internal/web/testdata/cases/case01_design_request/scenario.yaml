@@ -1,0 +1,74 @@
+case: 1
+title: Design Request
+# The people in the scenario; each holds one role of the Application.
+actors:
+  - { name: rina, role: requester }
+  - { name: kiki, role: koordinator desain }
+  - { name: dedi, role: desainer }
+# `$name` in a value is that actor's user id. `expect` is ok or refused (any 4xx).
+steps:
+  - id: submit
+    as: rina
+    create: { machine: mch_design_request, values: { fld_title: Poster Hari Guru, fld_format: poster, fld_coordinator: $kiki } }
+    expect: ok
+
+  - id: banner-without-file
+    as: rina
+    create: { machine: mch_design_request, values: { fld_title: Banner Promo, fld_format: banner_2_1 } }
+    expect: refused
+
+  - id: banner-with-file
+    as: rina
+    create:
+      machine: mch_design_request
+      values: { fld_title: Banner Promo, fld_format: banner_2_1, fld_coordinator: $kiki }
+      files: { fld_reference_file: contoh.png }
+    expect: ok
+
+  - id: assign
+    as: kiki
+    update: { ref: submit, values: { fld_designer: $dedi, fld_status: ditugaskan } }
+    expect: ok
+    notified: [{ actor: dedi, contains: Poster Hari Guru }]
+
+  - id: requester-cannot-start
+    as: rina
+    update: { ref: submit, values: { fld_status: sedang_dikerjakan } }
+    expect: refused
+
+  - id: designer-starts
+    as: dedi
+    update: { ref: submit, values: { fld_status: sedang_dikerjakan } }
+    expect: ok
+
+  - id: designer-hands-over
+    as: dedi
+    update: { ref: submit, values: { fld_status: diserahkan } }
+    expect: ok
+    notified: [{ actor: rina, contains: Poster Hari Guru }]
+
+  - id: designer-cannot-approve-own-work
+    as: dedi
+    update: { ref: submit, values: { fld_status: selesai } }
+    expect: refused
+
+  - id: requester-approves
+    as: rina
+    update: { ref: submit, values: { fld_status: selesai } }
+    expect: ok
+    record: { fld_status: selesai }
+
+  - id: no-skipping-the-queue
+    as: kiki
+    update: { ref: banner-with-file, values: { fld_status: selesai } }
+    expect: refused
+
+  - id: designer-rejects
+    as: kiki
+    update: { ref: banner-with-file, values: { fld_designer: $dedi, fld_status: ditugaskan } }
+    expect: ok
+  - id: designer-rejects-2
+    as: dedi
+    update: { ref: banner-with-file, values: { fld_status: ditolak } }
+    expect: ok
+    record: { fld_status: ditolak }

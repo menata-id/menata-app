@@ -1,0 +1,54 @@
+case: 17
+title: Helpdesk
+actors:
+  - { name: nia, role: pelapor }
+  - { name: oki, role: petugas }
+steps:
+  - id: report
+    as: nia
+    create: { machine: mch_ticket, values: { fld_title: Printer lantai 2 mati, fld_priority: tinggi } }
+    expect: ok
+    record: { fld_status: baru, fld_due: "*" }
+
+  - id: reporter-cannot-take-her-own-ticket
+    as: nia
+    update: { ref: report, values: { fld_agent: $oki, fld_status: ditangani } }
+    expect: refused
+
+  - id: agent-takes
+    as: oki
+    update: { ref: report, values: { fld_agent: $oki, fld_status: ditangani } }
+    expect: ok
+    notified: [{ actor: nia, contains: Printer lantai 2 mati }]
+
+  - id: agent-waits-for-reporter
+    as: oki
+    update: { ref: report, values: { fld_status: menunggu_pelapor } }
+    expect: ok
+
+  - id: agent-resumes
+    as: oki
+    update: { ref: report, values: { fld_status: ditangani } }
+    expect: ok
+
+  - id: agent-resolves
+    as: oki
+    update: { ref: report, values: { fld_status: selesai } }
+    expect: ok
+    notified: [{ actor: nia, contains: Tiketmu selesai }]
+
+  - id: agent-cannot-reopen
+    as: oki
+    update: { ref: report, values: { fld_status: dibuka_kembali } }
+    expect: refused
+
+  - id: reporter-reopens
+    as: nia
+    update: { ref: report, values: { fld_status: dibuka_kembali } }
+    expect: ok
+    record: { fld_status: dibuka_kembali }
+
+  - id: no-jumping-to-done
+    as: oki
+    update: { ref: report, values: { fld_status: selesai } }
+    expect: refused

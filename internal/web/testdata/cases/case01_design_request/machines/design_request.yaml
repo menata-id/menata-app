@@ -1,0 +1,89 @@
+# Case 1, Design Request, written the way 001-007 say it should read (menata-app-document audits/2026-10-15-kajian-strategi
+# §4.1). Copied from menata-indonesia's mch_design_request, which is the owner's file and stays where it is.
+#
+# Every key the runtime does not read yet is marked "WISHED:" so a reader can tell the wish from the working part. The
+# harness strips those keys at load, records them as the case's backlog, and runs the scenario against what is left.
+id: mch_design_request
+name: Request Desain
+fields:
+  - id: fld_title
+    name: Judul
+    type: text
+    required: true
+  - id: fld_description
+    name: Deskripsi
+    type: long_text
+  # Free text for now; the case only needs one value of it to mean "banner 2:1".
+  - id: fld_format
+    name: Format
+    type: text
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - diajukan
+      - ditugaskan
+      - sedang_dikerjakan
+      - ditolak
+      - diserahkan
+      - selesai
+    default: diajukan
+  - id: fld_requester
+    name: Requester
+    type: person
+    stamp: current_user
+  - id: fld_coordinator
+    name: Koordinator
+    type: person
+  - id: fld_designer
+    name: Desainer
+    type: person
+  # "Banner 2:1 requests require an attachment" (case-portfolio.md, Case 1).
+  - id: fld_reference_file
+    name: File Referensi
+    type: file
+    # WISHED: a Field that is required only while another Field holds a value.
+    required_when: { field: fld_format, equals: banner_2_1 }
+
+permissions:
+  - id: prm_create_request
+    action: create
+    roles: [requester, koordinator desain]
+  - id: prm_edit_request
+    action: edit
+    roles: [requester, koordinator desain, desainer]
+
+# WISHED on every transition: `roles:`, who may take this edge. Today a Permission governs the whole edit Action, so
+# anyone who may edit may take any edge (the comment in menata-indonesia's own file says the same).
+transitions:
+  - { id: trn_assign, name: Tugaskan, field: fld_status, from: diajukan, to: ditugaskan, action: edit, roles: [koordinator desain] }
+  - { id: trn_start, name: Mulai Kerjakan, field: fld_status, from: ditugaskan, to: sedang_dikerjakan, action: edit, roles: [desainer] }
+  - { id: trn_reject, name: Tolak, field: fld_status, from: ditugaskan, to: ditolak, action: edit, roles: [desainer] }
+  - { id: trn_submit, name: Serahkan Desain, field: fld_status, from: sedang_dikerjakan, to: diserahkan, action: edit, roles: [desainer] }
+  - { id: trn_finish, name: Setujui, field: fld_status, from: diserahkan, to: selesai, action: edit, roles: [requester] }
+
+completion: { field: fld_status, done: selesai }
+
+events:
+  - id: evt_request_assigned_notify
+    on: fld_status
+    when_equals: ditugaskan
+    then:
+      service: send_notification
+      recipient_field: fld_designer
+      preference_key: assigned
+      summary: "Kamu ditugaskan mengerjakan: {fld_title}"
+  - id: evt_request_submitted_notify_requester
+    on: fld_status
+    when_equals: diserahkan
+    then:
+      service: send_notification
+      recipient_field: fld_requester
+      preference_key: decided
+      summary: "Desainmu sudah jadi, mohon ditinjau: {fld_title}"
+
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_designer, role: person }

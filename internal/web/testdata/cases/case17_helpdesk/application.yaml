@@ -1,0 +1,19 @@
+id: app_helpdesk
+name: Helpdesk
+machines:
+  - mch_ticket
+roles:
+  - pelapor
+  - petugas
+description: Tiket dukungan IT internal.
+icon: board
+color: blue
+summary_machine: mch_ticket
+navigation:
+  - id: nav_ticket
+    label: Tiket
+    title: Tiket dukungan
+    description: Laporkan masalah, atau tangani tiket yang masuk.
+    route: /machines/mch_ticket
+    priority: 1
+    icon: board

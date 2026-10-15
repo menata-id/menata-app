@@ -1,0 +1,19 @@
+id: app_leave_request
+name: Cuti
+machines:
+  - mch_leave_request
+roles:
+  - karyawan
+  - manajer
+description: Pengajuan dan persetujuan cuti karyawan.
+icon: board
+color: blue
+summary_machine: mch_leave_request
+navigation:
+  - id: nav_leave_request
+    label: Cuti
+    title: Permintaan cuti
+    description: Ajukan cuti, atau putuskan permintaan yang masuk.
+    route: /machines/mch_leave_request
+    priority: 1
+    icon: board

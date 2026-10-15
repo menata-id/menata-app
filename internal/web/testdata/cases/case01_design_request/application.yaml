@@ -1,0 +1,20 @@
+id: app_design_request
+name: Desain Request
+machines:
+  - mch_design_request
+roles:
+  - requester
+  - koordinator desain
+  - desainer
+description: Aplikasi untuk mengelola dan melacak permintaan desain.
+icon: board
+color: blue
+summary_machine: mch_design_request
+navigation:
+  - id: nav_design_request
+    label: Board
+    title: Board request desain
+    description: Semua request per status. Tambah request baru dari sini.
+    route: /machines/mch_design_request
+    priority: 1
+    icon: board

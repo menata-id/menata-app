@@ -1,0 +1,62 @@
+case: 2
+title: Leave Request
+actors:
+  - { name: sari, role: karyawan }
+  - { name: budi, role: manajer }
+  - { name: dewi, role: manajer }
+steps:
+  - id: submit
+    as: sari
+    create: { machine: mch_leave_request, values: { fld_reason: Acara keluarga, fld_start: "2026-11-02", fld_end: "2026-11-04", fld_manager: $budi } }
+    expect: ok
+    notified: [{ actor: budi, contains: Acara keluarga }]
+
+  - id: another-manager-cannot-decide
+    as: dewi
+    update: { ref: submit, values: { fld_status: disetujui } }
+    expect: refused
+
+  - id: employee-cannot-approve-own-leave
+    as: sari
+    update: { ref: submit, values: { fld_status: disetujui } }
+    expect: refused
+
+  - id: manager-approves
+    as: budi
+    update: { ref: submit, values: { fld_status: disetujui } }
+    expect: ok
+    record: { fld_status: disetujui }
+    notified: [{ actor: sari, contains: Cuti disetujui }]
+
+  - id: no-cancelling-after-approval
+    as: sari
+    update: { ref: submit, values: { fld_status: dibatalkan } }
+    expect: refused
+
+  - id: second
+    as: sari
+    create: { machine: mch_leave_request, values: { fld_reason: Urus dokumen, fld_start: "2026-12-01", fld_end: "2026-12-01", fld_manager: $budi } }
+    expect: ok
+
+  - id: employee-cancels-before-approval
+    as: sari
+    update: { ref: second, values: { fld_status: dibatalkan } }
+    expect: ok
+    record: { fld_status: dibatalkan }
+
+  - id: third
+    as: sari
+    create: { machine: mch_leave_request, values: { fld_reason: Liburan, fld_start: "2026-12-20", fld_end: "2026-12-27", fld_manager: $budi } }
+    expect: ok
+
+  - id: manager-cannot-cancel-for-the-employee
+    as: budi
+    update: { ref: third, values: { fld_status: dibatalkan } }
+    expect: refused
+
+  - id: manager-rejects
+    as: budi
+    update: { ref: third, values: { fld_status: ditolak } }
+    expect: ok
+    record: { fld_status: ditolak }
+    notified: [{ actor: sari, contains: Cuti ditolak }]

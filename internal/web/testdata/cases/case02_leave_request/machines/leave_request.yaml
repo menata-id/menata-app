@@ -1,0 +1,81 @@
+# Case 2, Leave Request (case-portfolio.md): an employee submits leave, a Manager approves or rejects, and the employee
+# may cancel before approval. Written fresh for the corpus; nobody runs it yet. "WISHED:" marks a key the runtime does
+# not read yet; the harness strips those and plays the scenario against what is left.
+id: mch_leave_request
+name: Permintaan Cuti
+fields:
+  - id: fld_reason
+    name: Alasan
+    type: text
+    required: true
+  - id: fld_start
+    name: Mulai
+    type: date
+    required: true
+  - id: fld_end
+    name: Sampai
+    type: date
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [diajukan, disetujui, ditolak, dibatalkan]
+    default: diajukan
+  - id: fld_employee
+    name: Karyawan
+    type: person
+    stamp: current_user
+  # The manager who decides this request. Named per request until the runtime can say "the employee's manager".
+  - id: fld_manager
+    name: Manajer
+    type: person
+
+permissions:
+  - id: prm_create_leave
+    action: create
+    roles: [karyawan]
+  - id: prm_edit_leave
+    action: edit
+    roles: [karyawan, manajer]
+
+# WISHED on every transition: `roles:` (who may take the edge) and, on the manager's two edges, `actor_field:` (the
+# acting person must be the one the request names) and on cancel the employee's own. Today one Permission governs the
+# whole edit Action, so the roles above let a manager cancel and an employee approve.
+transitions:
+  - { id: trn_approve, name: Setujui, field: fld_status, from: diajukan, to: disetujui, action: edit, roles: [manajer], actor_field: fld_manager }
+  - { id: trn_reject, name: Tolak, field: fld_status, from: diajukan, to: ditolak, action: edit, roles: [manajer], actor_field: fld_manager }
+  - { id: trn_cancel, name: Batalkan, field: fld_status, from: diajukan, to: dibatalkan, action: edit, roles: [karyawan], actor_field: fld_employee }
+
+completion: { field: fld_status, done: disetujui }
+
+events:
+  - id: evt_leave_submitted_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_field: fld_manager
+      preference_key: assigned
+      summary: "Permintaan cuti baru: {fld_reason}"
+  - id: evt_leave_approved_notify
+    on: fld_status
+    when_equals: disetujui
+    then:
+      service: send_notification
+      recipient_field: fld_employee
+      preference_key: decided
+      summary: "Cuti disetujui: {fld_reason}"
+  - id: evt_leave_rejected_notify
+    on: fld_status
+    when_equals: ditolak
+    then:
+      service: send_notification
+      recipient_field: fld_employee
+      preference_key: decided
+      summary: "Cuti ditolak: {fld_reason}"
+
+card_fields:
+  - { field: fld_reason, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_start, role: date }
+  - { field: fld_manager, role: person }
