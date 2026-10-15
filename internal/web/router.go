@@ -242,7 +242,11 @@ func Routes(d Deps) http.Handler {
 		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Store, d.Cfg))
 
-		pr.Get("/", showMachineList(d.Store, d.Cfg))
+		// The root is the Workspace's home. It was the Machine list from the first commit until 2026-10-15, so
+		// opening the bare address showed a developer's index of every Machine instead of the Workspace Home
+		// every sign-in already lands on (/home). The list is still there, at /machines.
+		pr.Get("/", func(w http.ResponseWriter, req *http.Request) { http.Redirect(w, req, "/home", http.StatusSeeOther) })
+		pr.Get("/machines", showMachineList(d.Store, d.Cfg))
 		pr.Get("/home", showWorkspaceHome(d.Store, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
