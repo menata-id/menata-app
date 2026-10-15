@@ -233,7 +233,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 // instruction, 2026-09-27: a Workspace whose business the mockup's own three examples don't fit
 // declares its own.
 templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
-	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
+	<section aria-labelledby="new-application-h" class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 id="new-application-h" class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>Add an application</h2>
 			<span class={ "max-w-xl", textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
@@ -241,7 +241,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 				then generates it as a draft — nobody else sees it until you publish.
 			</span>
 		</div>
-		<form method="GET" action="/new-application" class="flex gap-2.5">
+		<form method="GET" action="/new-application" class={ "flex", layoutGap(ctx, domain.GapTight) }>
 			<label for="idea" class="sr-only">Describe the application you need</label>
 			<input id="idea" type="text" name="idea" placeholder="e.g. Leave requests approved by a supervisor, then HR" class={ fieldClasses(ctx) + " grow" }/>
 			@button("Start →", domain.ButtonPrimary, "", "")

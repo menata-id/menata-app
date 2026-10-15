@@ -843,6 +843,7 @@ func TestHandWrittenDividersOnlyShrink(t *testing.T) {
 var handWrittenSurfaceFloors = map[string]int{
 	"approvalinbox.templ": 1, // border colour is conditional (red when overdue); a reader would have to take the state
 	"notifications.templ": 1, // an unread row swaps the border and fill; same shape
+	"machine.templ":       1, // the board lane: the artifact's fourth surface variant, a sunken fill under the surface edge (surfaceClasses is raised)
 }
 
 var (

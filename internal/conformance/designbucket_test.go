@@ -91,8 +91,6 @@ var unnamedDesignValues = map[string]struct {
 	"border-white":     {1, "a badge's knock-out ring over a mark"},
 	"ring-blue-100":    {1, "your signature box on the PDF paper layer (CP5); the current step's ring reads accentRingClass since CP3"},
 	// gap
-	"gap-2.5": {10, "10px, between the ladder's rungs; xtight (6px) is the only half-step token, and folding is a decision (R1)"},
-	"gap-3.5": {6, "14px, between the ladder's rungs; see gap-2.5"},
 	"gap-4.5": {7, "pre-auth forms' 18px; no Theme reaches them"},
 	"gap-x-2": {1, "a two-axis gap: the ladder gives one value for both axes (open finding e)"},
 	"gap-x-3": {1, "a two-axis gap; see gap-x-2"},

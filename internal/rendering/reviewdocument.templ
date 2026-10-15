@@ -441,7 +441,7 @@ templ reviewSignatureKindIcon(kind string) {
 }
 
 templ reviewSignatureLegend() {
-	<div class={ "flex flex-wrap gap-3.5 text-3xs", inkClass(ctx, domain.InkSecondary) }>
+	<div class={ "flex flex-wrap", layoutGap(ctx, domain.GapDefault), "text-3xs", inkClass(ctx, domain.InkSecondary) }>
 		for _, kind := range []string{"signed", "yours", "waiting"} {
 			<span class={ "flex items-center", layoutGap(ctx, domain.GapXtight) }>
 				<span

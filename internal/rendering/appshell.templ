@@ -160,7 +160,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// menus themselves no longer depend on this: they are `popover` elements, which the
 			// browser paints in the top layer, above every z-index on the page.
 			<header class={ "sticky top-0 z-40 flex flex-col border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised) }>
-				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
+				<div class={ "flex h-15 shrink-0 items-center", layoutGap(ctx, domain.GapTight), "px-4 sm:pr-7 sm:pl-9" }>
 					@appLauncher(workspaceName, switchWorkspaceHref, viewer, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
 					// (board 07 / M07) the Workspace name stands alone up here and the Application
@@ -523,7 +523,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				<span class={ textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>More</span>
 				<span class={ "truncate", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ app.Name }</span>
 			</div>
-			<a href="/home" class={ "flex items-center gap-3.5", radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
+			<a href="/home" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
 				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), inkClass(ctx, domain.InkSecondary) }>
 					@icon("home", "size-5")
 				</span>
@@ -536,7 +536,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				</span>
 			</a>
 			if hub, ok := settingsHubItem(app); ok {
-				<a href={ templ.SafeURL(hub.Route) } class={ "flex items-center gap-3.5", radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
+				<a href={ templ.SafeURL(hub.Route) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }>
 					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), inkClass(ctx, domain.InkSecondary) }>
 						@icon(hub.Icon, "size-5")
 					</span>
@@ -552,7 +552,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			for _, other := range viewer.Applications {
 				<a
 					href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
-					class={ "flex items-center gap-3.5", radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }
+					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left", hoverWashClass(ctx) }
 					if other.ID == app.ID {
 						aria-current="page"
 					}
@@ -865,7 +865,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID string) {
 	<div class={ "px-3 pt-1 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>Workspaces</div>
 	for _, c := range choices {
-		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>
+		<a href="/switch-workspace" class={ "flex items-center", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusControl), "px-3 py-2 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>
 			if c.ID == currentWorkspaceID {
 				@icon("check", "size-3.5 shrink-0 " + inkClass(ctx, domain.InkAccent))
 			} else {

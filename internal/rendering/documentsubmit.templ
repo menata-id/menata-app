@@ -103,7 +103,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 						Each step is one person or a whole group. The order below is used only when
 						{ mode.Name } is { firstOption(mode) } — use ▲/▼ to reorder.
 					</p>
-					<div id="approver-rows" class="flex flex-col gap-2.5 [counter-reset:approver-step]">
+					<div id="approver-rows" class={ "flex flex-col", layoutGap(ctx, domain.GapTight), "[counter-reset:approver-step]" }>
 						@ApproverRow(approvers, groups, fields, StepPrefill{})
 					</div>
 				}
@@ -193,7 +193,7 @@ templ modeFieldsetContent(mode domain.Field, selected string) {
 		decide independently.
 	</p>
 	for i, opt := range mode.Options {
-		<label class={ "flex cursor-pointer items-center gap-2.5", tileClasses(ctx), "p-3 " + textClass(ctx, domain.RoleBody) + " " + accentEdgeHoverClass(ctx) }>
+		<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), tileClasses(ctx), "p-3 " + textClass(ctx, domain.RoleBody) + " " + accentEdgeHoverClass(ctx) }>
 			<input type="radio" name={ mode.ID } value={ opt } checked?={ modeChecked(selected, opt, i) } class={ "size-4", controlAccentClass(ctx) }/>
 			{ opt }
 		</label>

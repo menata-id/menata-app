@@ -48,7 +48,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 					@staticText(domain.StaticCaption, "Your sign-in email -- contact a workspace admin to change this.")
 				</div>
 			}
-			<div class="flex justify-end gap-2.5">
+			<div class={ "flex justify-end", layoutGap(ctx, domain.GapTight) }>
 				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
@@ -80,7 +80,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
 				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
 			}
-			<div class="flex justify-end gap-2.5">
+			<div class={ "flex justify-end", layoutGap(ctx, domain.GapTight) }>
 				<a href="/home" class={ "flex h-11 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-4 text-[15px] " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkStrong) + " sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>

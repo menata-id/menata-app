@@ -1506,6 +1506,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   diff), a screenshot pair of both panels open, and the expected strings captured from the baseline server's real markup, not written by hand.
   Mutation-proved eleven ways, including the generated files. The `buttonClasses(` floor for a `<summary>` moved from `detail.templ` to
   `popover.templ`.
+- **Gap plan K-07 and K-01 (2026-10-15), the board lane and the half-steps.** `gap-2.5` (10px) and `gap-3.5` (14px) were off the ladder at
+  16 sites (the app header, every card form's button row, the install and new-application forms, the board). They fold to `GapTight` (8px)
+  and `GapDefault` (12px), so the header's items move 2px on every page and `unnamedDesignValues` lost both entries. The lane now matches
+  the artifact: 190px wide (`w-47.5`), `radius.surface` (8px, was `rounded-xl` 12px), a 14px title (was 12px), and the 8px gap. **Measured on
+  the densest case before it was taken**: lane titles stay one line (a 20px line, was 16px) at 190px, and a title long enough to wrap
+  wrapped before as well. The board lane joins `handWrittenSurfaceFloors` (a sunken fill under the surface edge: the artifact's fourth
+  surface variant, which `surfaceClasses` cannot be). Verified by a computed-style comparison over 103 pages at two widths: the only
+  differences are the gaps (377 elements), the four lane radii and titles, and widths that follow them.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

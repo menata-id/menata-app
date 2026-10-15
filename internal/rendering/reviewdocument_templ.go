@@ -1796,7 +1796,7 @@ func reviewSignatureLegend() templ.Component {
 			templ_7745c5c3_Var99 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var100 = []any{"flex flex-wrap gap-3.5 text-3xs", inkClass(ctx, domain.InkSecondary)}
+		var templ_7745c5c3_Var100 = []any{"flex flex-wrap", layoutGap(ctx, domain.GapDefault), "text-3xs", inkClass(ctx, domain.InkSecondary)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var100...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

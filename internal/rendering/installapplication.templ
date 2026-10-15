@@ -71,7 +71,7 @@ templ InstallApplicationPage(templates []InstallableTemplate, workspaceName stri
 
 templ installableCard(t InstallableTemplate) {
 	@sectionLayout(domain.GapComfortable) {
-		<div class="flex items-start gap-3.5">
+		<div class={ "flex items-start", layoutGap(ctx, domain.GapDefault) }>
 			// appIconClasses, the same tile the Home card uses -- a template and an installed
 			// Application are the same thing at two moments, so they should look it.
 			<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg", appIconClasses(t.Color) }>
@@ -110,7 +110,7 @@ templ installableCard(t InstallableTemplate) {
 					}
 				</div>
 			}
-			<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class="flex flex-wrap items-center gap-2.5">
+			<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight) }>
 				@csrfHiddenInput()
 				<input type="hidden" name="template" value={ t.ApplicationID }/>
 				if len(t.Roles) > 0 {
