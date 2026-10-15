@@ -1523,6 +1523,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   exception. K-10: `count-badge` is a Design System token (the `bad` tone's ink as a fill, with the on-fill text) compared by GS1 and
   exported to DTCG, and it follows a Workspace's `bad` remap; the four hand-drawn badges are **not** folded into a Component (an absolutely
   positioned badge over an icon and an inline one differ in more than colour).
+- **Gap plan P7 (2026-10-15): the blind spots the audit measured are frozen, each as a ratchet.** `TestHandWrittenVariantTokensOnlyShrink` (43 breakpoint-prefixed
+  size, gap, corner or padding tokens in 17 files: a `sm:` override is not a Theme role), `TestHandWrittenLeadingOnlyShrink` (31),
+  `TestHandWrittenTrackingOnlyShrink` (16, all `tracking-wide`), `TestHandWrittenControlHeightsOnlyShrink` (24 literal `h-9`/`h-10.5`/`h-11`),
+  `TestShadowsAreOnlyTheArtifactsFour` (a closed set per file: the artifact's popover, hover, card-auth and sheet shadows, plus one
+  documented outlier, `open:shadow-md`) and `TestSVGColoursAreNotHexLiterals` (three white check strokes on the paper layer remain). They
+  say nothing is wrong with what exists; each says nothing new arrives unnoticed. Mutation-proved by splicing one token into
+  a templ file. **Read the numbers out of the maps.** Padding (371 tokens) stays out on purpose (D4: its roles are by job), and opacity on role colours
+  is read through the accent and ink readers already.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,
