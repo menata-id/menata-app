@@ -1499,7 +1499,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   measured:** the earlier recommendation (derive from `completion:`) failed because Document, the only Machine with a `transitions:` graph, has no
   `completion:`, `draft` is in no edge, and `approved`/`rejected` both have edges out. Where `completion:` is declared on the same Field its `done`
   option must be the one marked `done` (one statement of "finished", 001 #8), and every state a transition touches must be categorised. Declared on
-  `mch_document` and `mch_approval_step` in the library and in every Workspace copy except `hanomerch` (in real use; the owner opts in). No
+  `mch_document` and `mch_approval_step` in the library and in every Workspace copy (`hanomerch` too, at the owner's request, 2026-10-15). No
   renderer reads it yet: the Component kit (ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessSimulator, ProcessMap) is the next
   slices. `aiUnwritableKeys` lists the key with its reason.
 - `TestNoHandWrittenPopover` — gap plan K-04 and K-17 (2026-10-15), the **fifteenth registered Component**, `Popover`. T-A had closed on

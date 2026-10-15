@@ -351,3 +351,8 @@ views:
   - id: vw_step_progress
     name: Approval Progress
     type: stepper
+
+# status_categories (K-15, 2026-10-15) -- see mch_document's block and domain.StatusCategories.
+status_categories:
+  field: fld_decision
+  values: { pending: active, approved: done, rejected: stopped }

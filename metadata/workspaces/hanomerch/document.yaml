@@ -321,3 +321,10 @@ views:
   - id: vw_document_cards
     name: Cards
     type: cards
+
+# status_categories (K-15, 2026-10-15): which of the five closed categories each status means, so a process map
+# can colour a state without guessing. Declared because nothing derives it here: approved and rejected both have
+# edges out, and draft is in no edge. See domain.StatusCategories.
+status_categories:
+  field: fld_status
+  values: { draft: start, in_review: active, approved: done, rejected: stopped }
