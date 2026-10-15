@@ -163,6 +163,9 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 				appendScalar(ensureSeq(node, "options"), o)
 			}
 		}
+		if f.Default != of.Default {
+			setOrDelete(node, "default", f.Default, of.Default)
+		}
 		if !sameCompute(of.Compute, f.Compute) {
 			deleteKey(node, "compute")
 			if f.Compute != nil {
@@ -186,6 +189,12 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		}
 	}
 
+	if m.Completion != nil && old.Completion == nil {
+		if err := setEncoded(doc, "completion", completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}); err != nil {
+			return err
+		}
+	}
+
 	oldPerms := map[string]GeneratedPermission{}
 	for _, x := range old.Permissions {
 		oldPerms[x.ID] = x
@@ -194,7 +203,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		ox, exists := oldPerms[x.ID]
 		switch {
 		case !exists:
-			if err := appendEncoded(ensureSeq(doc, "permissions"), permissionDoc{ID: x.ID, Action: x.Action, Roles: x.Roles}); err != nil {
+			if err := appendEncoded(ensureSeq(doc, "permissions"), machineDocFor(GeneratedMachine{Permissions: []GeneratedPermission{x}}).Permissions[0]); err != nil {
 				return err
 			}
 		case !sameSet(x.Roles, ox.Roles):

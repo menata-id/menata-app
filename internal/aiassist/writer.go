@@ -128,6 +128,7 @@ type machineDoc struct {
 	ID          string          `yaml:"id"`
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
+	Completion  *completionDoc  `yaml:"completion,omitempty"`
 	Permissions []permissionDoc `yaml:"permissions,omitempty"`
 	Transitions []transitionDoc `yaml:"transitions,omitempty"`
 	Events      []eventDoc      `yaml:"events,omitempty"`
@@ -141,6 +142,18 @@ type fieldDoc struct {
 	Options  []string    `yaml:"options,omitempty"`
 	Machine  string      `yaml:"machine,omitempty"`
 	Compute  *computeDoc `yaml:"compute,omitempty"`
+	Default  string      `yaml:"default,omitempty"`
+	Stamp    string      `yaml:"stamp,omitempty"`
+}
+
+type completionDoc struct {
+	Field string `yaml:"field"`
+	Done  string `yaml:"done"`
+}
+
+type parentActorDoc struct {
+	Via   string `yaml:"via"`
+	Field string `yaml:"field"`
 }
 
 type computeDoc struct {
@@ -149,9 +162,11 @@ type computeDoc struct {
 }
 
 type permissionDoc struct {
-	ID     string   `yaml:"id"`
-	Action string   `yaml:"action"`
-	Roles  []string `yaml:"roles,omitempty"`
+	ID          string          `yaml:"id"`
+	Action      string          `yaml:"action"`
+	Roles       []string        `yaml:"roles,omitempty"`
+	ActorField  string          `yaml:"actor_field,omitempty"`
+	ParentActor *parentActorDoc `yaml:"parent_actor,omitempty"`
 }
 
 type transitionDoc struct {
@@ -334,15 +349,22 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	for _, f := range m.Fields {
 		fd := fieldDoc{
 			ID: f.ID, Name: f.Name, Type: f.Type, Required: f.Required,
-			Options: f.Options, Machine: f.RelatedMachine,
+			Options: f.Options, Machine: f.RelatedMachine, Default: f.Default, Stamp: f.Stamp,
 		}
 		if f.Compute != nil {
 			fd.Compute = &computeDoc{Op: f.Compute.Op, Fields: f.Compute.Fields}
 		}
 		doc.Fields = append(doc.Fields, fd)
 	}
+	if m.Completion != nil {
+		doc.Completion = &completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}
+	}
 	for _, p := range m.Permissions {
-		doc.Permissions = append(doc.Permissions, permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles})
+		pd := permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles, ActorField: p.ActorField}
+		if p.ParentActor != nil {
+			pd.ParentActor = &parentActorDoc{Via: p.ParentActor.Via, Field: p.ParentActor.Field}
+		}
+		doc.Permissions = append(doc.Permissions, pd)
 	}
 	for _, t := range m.Transitions {
 		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit"})

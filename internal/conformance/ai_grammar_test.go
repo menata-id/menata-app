@@ -40,17 +40,13 @@ var aiUnwritableKeys = map[string]map[string]string{
 		"flow_template_step":    "approval-engine role; not generatable",
 		"blocks_member_removal": "no generated Machine is a member-removal blocker yet",
 		"sla_field":             "SLA badge; no forcing case in a generated Application",
-		"completion":            "done/reopen over a status; no forcing case in a generated Application",
 		"status_categories":     "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet",
 		"card_tags":             "board card tags; no generated board",
 		"card_fields":           "board card projection; no generated board",
 		"views":                 "every generated Machine gets the implicit table view",
 		"append_only":           "no generated Machine is a log",
 	},
-	"fieldDoc": {
-		"default": "a generated Field has no default value slot",
-		"stamp":   "stamped Fields (created/updated by) are runtime-set; not generatable",
-	},
+	"fieldDoc": {},
 }
 
 func TestAIGrammarGapIsMeasured(t *testing.T) {

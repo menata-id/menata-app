@@ -67,7 +67,7 @@ func fieldTypeEnum() []string {
 }
 
 var generatedFieldSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute"},
+	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "type", "required"},
 	Properties: map[string]geminiSchema{
@@ -83,6 +83,8 @@ var generatedFieldSchema = geminiSchema{
 			Type:        "STRING",
 			Description: "Required when type is \"relation\": the id of a machine in this same change, or of any machine already installed in this workspace -- including one another application owns.",
 		},
+		"default": {Type: "STRING", Description: "The value a new record starts with, as text (\"5\", \"true\"); for a status field, one of its own options (e.g. the first). Never on a computed, stamped or file field."},
+		"stamp":   {Type: "STRING", Enum: fieldStampEnum(), Description: "Only on a person field the runtime should fill with who created the record (e.g. \"Requester\"); it is never an input. Do not also give it a default."},
 		"compute": {
 			Type:             "OBJECT",
 			Description:      "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",
@@ -107,6 +109,15 @@ func applicationColorEnum() []string {
 	return names
 }
 
+func fieldStampEnum() []string {
+	out := make([]string, 0, len(domain.KnownFieldStamps))
+	for s := range domain.KnownFieldStamps {
+		out = append(out, string(s))
+	}
+	sort.Strings(out)
+	return out
+}
+
 func computeOpEnum() []string {
 	ops := make([]string, 0, len(domain.KnownComputeOps))
 	for op := range domain.KnownComputeOps {
@@ -117,10 +128,21 @@ func computeOpEnum() []string {
 }
 
 var generatedPermissionSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "action", "roles"},
+	PropertyOrdering: []string{"id", "action", "roles", "actor_field", "parent_actor"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "action", "roles"},
 	Properties: map[string]geminiSchema{
+		"actor_field": {Type: "STRING", Description: "Optional: a person field of this same machine. Only the person named in it on a record may use this permission on that record (\"only the requester edits\"). Roles may then be empty."},
+		"parent_actor": {
+			Type:             "OBJECT",
+			Description:      "Optional: only the person named in a person field of the RELATED record may use this permission (\"the owner of the room approves\").",
+			Required:         []string{"via", "field"},
+			PropertyOrdering: []string{"via", "field"},
+			Properties: map[string]geminiSchema{
+				"via":   {Type: "STRING", Description: "A relation field of this machine."},
+				"field": {Type: "STRING", Description: "A person field of the machine that relation points at."},
+			},
+		},
 		"id":     stringSchema,
 		"action": {Type: "STRING", Enum: []string{"create", "edit", "delete"}, Description: "Never \"decide\" or \"revise\" -- those are hardcoded workflow actions this machine cannot reach."},
 		"roles":  {Type: "ARRAY", Items: &stringSchema},
@@ -154,13 +176,23 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "fields", "permissions", "transitions", "events"},
+	PropertyOrdering: []string{"id", "name", "fields", "completion", "permissions", "transitions", "events"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
-		"id":          {Type: "STRING", Description: "Must match ^mch_[a-z][a-z0-9_]*$."},
-		"name":        stringSchema,
-		"fields":      {Type: "ARRAY", Items: &generatedFieldSchema},
+		"id":     {Type: "STRING", Description: "Must match ^mch_[a-z][a-z0-9_]*$."},
+		"name":   stringSchema,
+		"fields": {Type: "ARRAY", Items: &generatedFieldSchema},
+		"completion": {
+			Type:             "OBJECT",
+			Description:      "Optional: which status field and which of its options mean a record is finished; gives each record a mark-done and reopen action.",
+			Required:         []string{"field", "done"},
+			PropertyOrdering: []string{"field", "done"},
+			Properties: map[string]geminiSchema{
+				"field": {Type: "STRING", Description: "A status field of this machine."},
+				"done":  {Type: "STRING", Description: "One of that field's options."},
+			},
+		},
 		"permissions": {Type: "ARRAY", Items: &generatedPermissionSchema},
 		"transitions": {Type: "ARRAY", Items: &generatedTransitionSchema},
 		"events":      {Type: "ARRAY", Items: &generatedEventSchema},

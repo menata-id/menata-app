@@ -53,11 +53,22 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		if f.Compute != nil {
 			gf.Compute = &GeneratedCompute{Op: string(f.Compute.Op), Fields: slices.Clone(f.Compute.Fields)}
 		}
+		if f.Default != nil {
+			gf.Default = fmt.Sprint(f.Default)
+		}
+		gf.Stamp = string(f.Stamp)
 		g.Fields = append(g.Fields, gf)
+	}
+	if m.Completion != nil {
+		g.Completion = &GeneratedCompletion{Field: m.Completion.Field, Done: m.Completion.Done}
 	}
 	for _, p := range m.Permissions {
 		if expressiblePermission(p) {
-			g.Permissions = append(g.Permissions, GeneratedPermission{ID: p.ID, Action: p.Action, Roles: slices.Clone(p.Roles)})
+			gp := GeneratedPermission{ID: p.ID, Action: p.Action, Roles: slices.Clone(p.Roles), ActorField: p.ActorField}
+			if p.ParentActor != nil {
+				gp.ParentActor = &GeneratedParentActor{Via: p.ParentActor.ViaField, Field: p.ParentActor.ActorField}
+			}
+			g.Permissions = append(g.Permissions, gp)
 		}
 	}
 	for _, t := range m.Transitions {
@@ -76,7 +87,7 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 func expressiblePermission(p domain.Permission) bool {
 	switch p.Action {
 	case domain.ActionCreate, domain.ActionEdit, domain.ActionDelete:
-		return p.ActorField == "" && p.DynamicActor == nil && p.ParentActor == nil
+		return p.DynamicActor == nil
 	}
 	return false
 }
@@ -225,6 +236,13 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		}
 	}
 
+	switch {
+	case m.Completion != nil && old.Completion == nil:
+		p.add("completion on %q: %q in %s means done", m.Name, m.Completion.Done, m.Completion.Field)
+	case !sameCompletion(old.Completion, m.Completion):
+		p.refuse("completion on %s cannot be changed or removed: records already finished by it would change meaning", m.ID)
+	}
+
 	oldPerms := map[string]GeneratedPermission{}
 	for _, x := range old.Permissions {
 		oldPerms[x.ID] = x
@@ -238,6 +256,8 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 			p.add("permission: %s on %q for %v", x.Action, m.Name, x.Roles)
 		case x.Action != ox.Action:
 			p.refuse("permission %s cannot change its action from %s to %s -- add a new permission instead", x.ID, ox.Action, x.Action)
+		case x.ActorField != ox.ActorField || !sameParentActor(x.ParentActor, ox.ParentActor):
+			p.refuse("permission %s cannot change who it is limited to (the record's own person, or a related record's) -- add a new permission instead", x.ID)
 		case !sameSet(x.Roles, ox.Roles):
 			p.change("permission: %s on %q now for %v (was %v)", x.Action, m.Name, x.Roles, ox.Roles)
 		}
@@ -315,6 +335,12 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 			p.refuse("option %q on %s cannot be removed: records may hold it", o, f.ID)
 		}
 	}
+	if f.Stamp != of.Stamp {
+		p.refuse("field %s on %s cannot gain, lose or change its stamp: records already stored would not match it", f.ID, m.ID)
+	}
+	if f.Default != of.Default {
+		p.change("field %q on %q now starts at %q (was %q); records already stored keep their value", f.Name, m.Name, f.Default, of.Default)
+	}
 	if !sameCompute(of.Compute, f.Compute) {
 		if f.Compute == nil {
 			p.change("field %q on %q is no longer computed", f.Name, m.Name)
@@ -361,6 +387,20 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	if !slices.Equal(currentOrder, keptOrder) {
 		p.change("menu order")
 	}
+}
+
+func sameCompletion(a, b *GeneratedCompletion) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func sameParentActor(a, b *GeneratedParentActor) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 func sameSet(a, b []string) bool {

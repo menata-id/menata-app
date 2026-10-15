@@ -235,6 +235,16 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		if gf.Compute != nil {
 			f.Compute = &domain.FieldCompute{Op: domain.ComputeOp(gf.Compute.Op), Fields: gf.Compute.Fields}
 		}
+		if gf.Default != "" {
+			// Judged exactly as the loader will judge the same text.
+			def, err := metadata.CoerceDefault(f.Type, gf.Default)
+			if err != nil {
+				issues = append(issues, fmt.Sprintf("machine %q field %q: default %q: %v", gm.ID, gf.ID, gf.Default, err))
+			} else {
+				f.Default = def
+			}
+		}
+		f.Stamp = domain.FieldStamp(gf.Stamp)
 		m.Fields = append(m.Fields, f)
 	}
 	for _, gp := range gm.Permissions {
@@ -242,7 +252,14 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			issues = append(issues, fmt.Sprintf("machine %q permission %q: action %q is a hardcoded workflow action, not available to a generated machine", gm.ID, gp.ID, gp.Action))
 			continue
 		}
-		m.Permissions = append(m.Permissions, domain.Permission{ID: gp.ID, Action: gp.Action, Roles: gp.Roles})
+		perm := domain.Permission{ID: gp.ID, Action: gp.Action, Roles: gp.Roles, ActorField: gp.ActorField}
+		if gp.ParentActor != nil {
+			perm.ParentActor = &domain.ParentActorGate{ViaField: gp.ParentActor.Via, ActorField: gp.ParentActor.Field}
+		}
+		m.Permissions = append(m.Permissions, perm)
+	}
+	if gm.Completion != nil {
+		m.Completion = &domain.Completion{Field: gm.Completion.Field, Done: gm.Completion.Done}
 	}
 	for _, gt := range gm.Transitions {
 		m.Transitions = append(m.Transitions, domain.Transition{

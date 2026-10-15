@@ -101,9 +101,12 @@ type GeneratedMenuItem struct {
 // shape with no forcing case yet. A second real request that needs one of those is this package's
 // own trigger to grow it, the same discipline the rest of this codebase holds everywhere else.
 type GeneratedMachine struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	Fields      []GeneratedField      `json:"fields"`
+	ID     string           `json:"id"`
+	Name   string           `json:"name"`
+	Fields []GeneratedField `json:"fields"`
+	// Completion names the status Field and the option that means a record is done (domain.Completion),
+	// which gives the record a mark-done / reopen action. Roadmap stage 1, W2.
+	Completion  *GeneratedCompletion  `json:"completion,omitempty"`
 	Permissions []GeneratedPermission `json:"permissions"`
 	Transitions []GeneratedTransition `json:"transitions"`
 	Events      []GeneratedEvent      `json:"events"`
@@ -121,6 +124,24 @@ type GeneratedField struct {
 	RelatedMachine string   `json:"related_machine,omitempty"`
 	// Compute makes a number Field computed (domain.FieldCompute): never entered, derived on save.
 	Compute *GeneratedCompute `json:"compute,omitempty"`
+	// Default is the value a new record starts with, always written as text ("5", "true"), as the
+	// loader reads it (W2). A status Field's default must be one of its options.
+	Default string `json:"default,omitempty"`
+	// Stamp makes a person Field filled by the runtime with who created the record: "current_user" (W2).
+	Stamp string `json:"stamp,omitempty"`
+}
+
+// GeneratedCompletion mirrors domain.Completion.
+type GeneratedCompletion struct {
+	Field string `json:"field"`
+	Done  string `json:"done"`
+}
+
+// GeneratedParentActor mirrors domain.ParentActorGate: the permission is held by the person named in
+// Field on the record that this Machine's relation Field Via points at (W2).
+type GeneratedParentActor struct {
+	Via   string `json:"via"`
+	Field string `json:"field"`
 }
 
 // GeneratedCompute mirrors domain.FieldCompute.
@@ -137,6 +158,11 @@ type GeneratedPermission struct {
 	ID     string   `json:"id"`
 	Action string   `json:"action"`
 	Roles  []string `json:"roles"`
+	// ActorField limits the permission to the person named in this person Field of the record itself
+	// ("only the requester edits"); Roles may then be empty (W2).
+	ActorField string `json:"actor_field,omitempty"`
+	// ParentActor limits it to the person named on a related record ("the owner of the room approves") (W2).
+	ParentActor *GeneratedParentActor `json:"parent_actor,omitempty"`
 }
 
 // GeneratedTransition mirrors domain.Transition, with Action fixed to "edit" -- a generated

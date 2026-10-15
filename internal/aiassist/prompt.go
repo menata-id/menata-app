@@ -45,7 +45,17 @@ func composableSurface() string {
 - A computed number field ("compute": {"op": ..., "fields": [...]}): its value is calculated from other
   number fields of the same machine every time a record is saved, and it is never an input. Operations:
   ` + strings.Join(computeOpEnum(), ", ") + `. Use it for totals rather than asking people to type one.
-- Role-based Permissions on the create/edit/delete actions of a machine.
+- A starting value for a field ("default", as text; a status field's must be one of its options, e.g. the
+  first, so new records begin at "new"). A person field the runtime fills with whoever created the record
+  ("stamp": "current_user" -- use it for "Requester"; it is never typed in, and it takes no default).
+- "completion" on a machine: which status field and which of its options mean a record is finished; each
+  record then has a mark-done and reopen action.
+- Role-based Permissions on the create/edit/delete actions of a machine. A permission may also be limited
+  to one person: "actor_field" names a person field of the record itself, and only the person named in it
+  may use the permission on that record ("only the requester edits"; roles may then be empty); or
+  "parent_actor" {via, field}, where via is a relation field of this machine and field a person field of
+  the machine it points at, so only the person named on the related record may use it ("the owner of the
+  room approves"). Ask who is allowed, then use these instead of a role when the answer is "that person".
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
 - Events: log an activity-feed entry when a record is created, or when a field reaches one value.
@@ -129,11 +139,6 @@ var UnwritableByTheAssistant = []struct {
 	{"machineDoc", "card_tags", "tags on a board card"},
 	{"machineDoc", "datasets", "a narrower list of a machine's records, for example only mine, or only one status"},
 	{"", "page", "a menu item that draws its own screen from such a list, including a screen per person (\"my requests\") and status filter tiles"},
-	{"fieldDoc", "default", "a field's starting value, for example a status that begins at \"new\""},
-	{"fieldDoc", "stamp", "a field the runtime fills with who created or last changed the record"},
-	{"", "actor_field", "a permission that only the person named in a record's own field may use (\"only the requester edits\")"},
-	{"", "parent_actor", "a permission held by the owner of a related record (\"the owner of the room approves\")"},
-	{"machineDoc", "completion", "which status means a record is done, and a mark-done / reopen action"},
 	{"machineDoc", "sla_field", "an SLA deadline badge"},
 	{"machineDoc", "constraints", "a rule that blocks a change because of other records"},
 }

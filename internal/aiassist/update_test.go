@@ -141,7 +141,7 @@ func TestUpdate_theWaterUsageRequest(t *testing.T) {
 
 // TestUpdate_preservesWhatTheModelNeverSaw: the model is shown only what the generated shape
 // expresses. A hand-written comment, a key it has no slot for, and a Permission gated on an actor
-// Field must all survive an update that never mentions them.
+// Field (shown since W2, preserved all the same) must all survive an update that never mentions them.
 func TestUpdate_preservesWhatTheModelNeverSaw(t *testing.T) {
 	manifestPath := installedWasteApp(t)
 	machinePath := filepath.Join(filepath.Dir(manifestPath), "nana-2", "pencatatan_sampah.yaml")
@@ -171,9 +171,11 @@ datasets:
 	}
 	state, _ := stateOf(t, manifestPath)
 	shown := DescribeApplication("app_pengelolaan_sampah", state.Applications["app_pengelolaan_sampah"])
+	// Since W2 (2026-10-15) the model is shown a permission gated on the record's own person field, so it
+	// can repeat it; it is still preserved if the model never touches it, which the assertions below hold.
 	for _, m := range shown.Machines {
-		if m.ID == "mch_pencatatan_sampah" && len(m.Permissions) != 0 {
-			t.Errorf("an actor-gated permission was shown to the model: %+v", m.Permissions)
+		if m.ID == "mch_pencatatan_sampah" && (len(m.Permissions) != 1 || m.Permissions[0].ActorField != "fld_pelapor") {
+			t.Errorf("the actor-gated permission was not shown with its gate: %+v", m.Permissions)
 		}
 	}
 

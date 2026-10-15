@@ -618,6 +618,13 @@ func Parse(data []byte) (*domain.Machine, error) {
 	return Normalize(m), nil
 }
 
+// CoerceDefault is coerceDefault for a caller outside this package that holds the same raw string a
+// `default:` key carries (the AI assistant's validator, which must judge a generated default exactly
+// as the loader will).
+func CoerceDefault(fieldType domain.FieldType, raw string) (any, error) {
+	return coerceDefault(fieldType, raw)
+}
+
 // coerceDefault converts a Field's raw YAML default string into the same in-memory type
 // data.ValuesFromForm produces for that FieldType, so internal/data.ApplyDefaults never needs to
 // re-parse it. Errors here fail metadata loading at startup (005-runtime-lifecycle.md Phase 3-4:
