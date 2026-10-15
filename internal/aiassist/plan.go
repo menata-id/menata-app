@@ -382,14 +382,16 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	for _, n := range desired {
 		old, exists := byID[n.ID]
 		if n.ID == "" || !exists {
-			if n.List != nil {
+			if n.ByStatus != nil {
+				p.add("menu item %q, a tile per status of %s, and %q for the records in one", n.Label, n.MachineID, n.ByStatus.DetailLabel)
+			} else if n.List != nil {
 				p.add("menu item %q, a list of %s records (%s)", n.Label, n.MachineID, n.List.Scope)
 			} else {
 				p.add("menu item %q, opening %s", n.Label, n.MachineID)
 			}
 			continue
 		}
-		if n.List != nil {
+		if n.List != nil || n.ByStatus != nil {
 			p.refuse("menu item %s cannot be given a list -- add a new menu item with the list instead", n.ID)
 		}
 		kept[n.ID] = true

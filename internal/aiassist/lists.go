@@ -22,11 +22,42 @@ const listEmptyWords = "Nothing to show."
 
 type datasetDoc struct {
 	ID           string         `yaml:"id"`
-	Select       string         `yaml:"select"`
+	Dimension    string         `yaml:"dimension,omitempty"`
+	Measures     []measureDoc   `yaml:"measures,omitempty"`
+	Select       string         `yaml:"select,omitempty"`
 	ViewerScoped bool           `yaml:"viewer_scoped,omitempty"`
 	Where        *wherePredDoc  `yaml:"where,omitempty"`
 	Sort         []sortFieldDoc `yaml:"sort,omitempty"`
-	Limit        int            `yaml:"limit"`
+	Limit        int            `yaml:"limit,omitempty"`
+}
+
+type measureDoc struct {
+	ID        string `yaml:"id"`
+	Aggregate string `yaml:"aggregate"`
+}
+
+// The measure and the query parameter a status filter is written with.
+const (
+	statusMeasureID    = "msr_total"
+	statusParameter    = "status"
+	statusDetailSuffix = "_in_status"
+)
+
+// expandMenu replaces a ByStatus entry with the two entries it is written as: the tiles page and, right
+// after it, the page a tile opens. Everything downstream (ids, files, menu nodes) then sees ordinary entries.
+func expandMenu(items []GeneratedMenuItem) []GeneratedMenuItem {
+	var out []GeneratedMenuItem
+	for _, it := range items {
+		out = append(out, it)
+		if it.ByStatus != nil {
+			out = append(out, GeneratedMenuItem{Label: it.ByStatus.DetailLabel, MachineID: it.MachineID, detail: it.ByStatus})
+		}
+	}
+	return out
+}
+
+func (n GeneratedMenuItem) hasPage() bool {
+	return n.List != nil || n.ByStatus != nil || n.detail != nil
 }
 
 type wherePredDoc struct {
@@ -43,6 +74,10 @@ type sortFieldDoc struct {
 // pageNodeDoc is the one shape the writer needs of a page node; metadata's own pageNodeDoc has a custom
 // decoder and unexported fields, so (like the other docs in writer.go) this is a write-side mirror.
 type pageNodeDoc struct {
+	Columns   int               `yaml:"columns,omitempty"`
+	Mobile    int               `yaml:"mobile,omitempty"`
+	To        string            `yaml:"to,omitempty"`
+	Param     string            `yaml:"param,omitempty"`
 	Layout    string            `yaml:"layout,omitempty"`
 	Static    string            `yaml:"static,omitempty"`
 	Component string            `yaml:"component,omitempty"`
@@ -56,6 +91,7 @@ type pageNodeDoc struct {
 
 type pageBindingDoc struct {
 	Dataset string `yaml:"dataset"`
+	Measure string `yaml:"measure,omitempty"`
 	Rows    string `yaml:"rows"`
 }
 
@@ -63,6 +99,8 @@ type pageBindingDoc struct {
 type listed struct {
 	NavID, DatasetID string
 	Item             GeneratedMenuItem
+	// DetailNavID is, for a tiles page, the page its tiles open.
+	DetailNavID string
 }
 
 // assignNavIDs gives every new menu entry its id before any file is written, so the Dataset a list needs
@@ -78,8 +116,13 @@ func assignNavIDs(appID string, desired []GeneratedMenuItem, current map[string]
 			continue
 		}
 		base := "nav_" + appName + "_" + strings.TrimPrefix(n.MachineID, "mch_")
-		if n.List != nil {
+		switch {
+		case n.List != nil:
 			base += "_" + n.List.Scope
+		case n.ByStatus != nil:
+			base += "_by_status"
+		case n.detail != nil:
+			base += statusDetailSuffix
 		}
 		if i == 0 && bareFirst {
 			base = "nav_" + appName
@@ -98,10 +141,14 @@ func assignNavIDs(appID string, desired []GeneratedMenuItem, current map[string]
 func listedItems(desired []GeneratedMenuItem, ids []string, current map[string]bool) []listed {
 	var out []listed
 	for i, n := range desired {
-		if n.List == nil || current[ids[i]] {
+		if !n.hasPage() || current[ids[i]] {
 			continue
 		}
-		out = append(out, listed{NavID: ids[i], DatasetID: listDatasetID(ids[i]), Item: n})
+		l := listed{NavID: ids[i], DatasetID: listDatasetID(ids[i]), Item: n}
+		if n.ByStatus != nil && i+1 < len(ids) {
+			l.DetailNavID = ids[i+1]
+		}
+		out = append(out, l)
 	}
 	return out
 }
@@ -111,6 +158,14 @@ func listDatasetID(navID string) string { return "ds_" + strings.TrimPrefix(navI
 
 // datasetFor is the Dataset a list is written as.
 func datasetFor(l listed) datasetDoc {
+	if st := l.Item.ByStatus; st != nil {
+		return datasetDoc{ID: l.DatasetID, Dimension: st.StatusField, Measures: []measureDoc{{ID: statusMeasureID, Aggregate: "count"}}}
+	}
+	if st := l.Item.detail; st != nil {
+		return datasetDoc{ID: l.DatasetID, Select: domain.SelectRecords, Limit: st.Limit,
+			Where: &wherePredDoc{Field: st.StatusField, Op: "equals", Value: "$parameters." + statusParameter},
+			Sort:  []sortFieldDoc{{Field: "created_at", Direction: "desc"}}}
+	}
 	spec := l.Item.List
 	field, dir := spec.SortField, spec.Direction
 	if field == "" {
@@ -131,6 +186,15 @@ func datasetFor(l listed) datasetDoc {
 // shows what the Machine's card_fields project: always the title as a link to the record, and the status
 // and person when the Machine projects them. It names no Field.
 func pageFor(l listed, m GeneratedMachine) pageNodeDoc {
+	if l.Item.ByStatus != nil {
+		return pageNodeDoc{Layout: "stack", Gap: "default", Children: []pageNodeDoc{{
+			Layout: "grid", Gap: "default", Mobile: 2, Columns: 4,
+			Children: []pageNodeDoc{{
+				Component: "Metric", To: l.DetailNavID, Param: statusParameter,
+				Binding: &pageBindingDoc{Dataset: l.DatasetID, Measure: statusMeasureID, Rows: "dimension"},
+			}},
+		}}}
+	}
 	roles := map[string]bool{}
 	for _, cf := range m.CardFields {
 		roles[cf.Role] = true
@@ -161,6 +225,7 @@ func validateLists(app *GeneratedApplication) []string {
 	}
 	var issues []string
 	for _, item := range app.Navigation {
+		issues = append(issues, validateByStatus(item, machines)...)
 		l := item.List
 		if l == nil {
 			continue
@@ -201,6 +266,43 @@ func validateLists(app *GeneratedApplication) []string {
 		if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
 			issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- a list draws each record by its title", where, m.ID))
 		}
+	}
+	return issues
+}
+
+// validateByStatus holds a status filter to what it needs: a status field to count by, a label for the page
+// a tile opens, a bounded limit, a title to draw each record by, and no list on the same entry.
+func validateByStatus(item GeneratedMenuItem, machines map[string]GeneratedMachine) []string {
+	st := item.ByStatus
+	if st == nil {
+		return nil
+	}
+	where := fmt.Sprintf("by_status on menu entry %q", item.Label)
+	if item.List != nil {
+		return []string{where + ": an entry is a list or a status filter, not both"}
+	}
+	m, ok := machines[item.MachineID]
+	if !ok {
+		return nil // validateMenu already says so
+	}
+	var issues []string
+	isStatus := false
+	for _, f := range m.Fields {
+		if f.ID == st.StatusField && domain.FieldType(f.Type) == domain.FieldTypeStatus {
+			isStatus = true
+		}
+	}
+	if !isStatus {
+		issues = append(issues, fmt.Sprintf("%s: status_field must be a status field of %s", where, m.ID))
+	}
+	if strings.TrimSpace(st.DetailLabel) == "" || strings.ContainsAny(st.DetailLabel, "\r\n") {
+		issues = append(issues, where+": detail_label is the one-line menu label of the page a tile opens")
+	}
+	if st.Limit < 1 || st.Limit > maxListLimit {
+		issues = append(issues, fmt.Sprintf("%s: limit must be between 1 and %d", where, maxListLimit))
+	}
+	if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
+		issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- the page a tile opens draws each record by its title", where, m.ID))
 	}
 	return issues
 }

@@ -272,8 +272,19 @@ var generatedListSchema = geminiSchema{
 	},
 }
 
+var generatedByStatusSchema = geminiSchema{
+	PropertyOrdering: []string{"status_field", "detail_label", "limit"},
+	Type:             "OBJECT",
+	Required:         []string{"status_field", "detail_label", "limit"},
+	Properties: map[string]geminiSchema{
+		"status_field": {Type: "STRING", Description: "A status field of that machine; one tile per option."},
+		"detail_label": {Type: "STRING", Description: "What the menu entry for the page a tile opens says, in the person's own language (for example \"Records in a status\")."},
+		"limit":        {Type: "INTEGER", Description: "How many records that page shows at most, 1 to 200."},
+	},
+}
+
 var generatedMenuItemSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "label", "machine_id", "list"},
+	PropertyOrdering: []string{"id", "label", "machine_id", "list", "by_status"},
 	Type:             "OBJECT",
 	Required:         []string{"label"},
 	Properties: map[string]geminiSchema{
@@ -281,6 +292,7 @@ var generatedMenuItemSchema = geminiSchema{
 		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
 		"machine_id": {Type: "STRING", Description: "Required for a new item: one of this application's own machine ids; the entry opens that machine's list."},
 		"list":       withDescription(generatedListSchema, "Only for a NEW item: makes the entry a list page of that machine's records (all of them, or only the viewer's own). Needs the machine to have a card_fields entry with role title. Never on an existing item."),
+		"by_status":  withDescription(generatedByStatusSchema, "Only for a NEW item, instead of list: the entry is a page of one tile per status counting that machine's records, each tile opening a page of the records in that status. Needs a card_fields entry with role title. Never on an existing item."),
 	},
 }
 

@@ -139,3 +139,101 @@ func TestW5a_thePromptAsksWhoSeesWhatAndRefusesPerRoleVisibility(t *testing.T) {
 		}
 	}
 }
+
+func statusApp() *GeneratedApplication {
+	app := listApp()
+	app.Navigation = []GeneratedMenuItem{
+		{Label: "Tugas", MachineID: "mch_w5_tugas"},
+		{Label: "Per status", MachineID: "mch_w5_tugas", ByStatus: &GeneratedByStatus{StatusField: "fld_status", DetailLabel: "Tugas dalam status", Limit: 100}},
+	}
+	return app
+}
+
+// TestW6_aStatusFilterIsTwoPagesAndTwoDatasetsTheLoaderAccepts: roadmap stage 1, W6.
+func TestW6_aStatusFilterIsTwoPagesAndTwoDatasetsTheLoaderAccepts(t *testing.T) {
+	manifest := w2Workspace(t)
+	change := GeneratedChange{Kind: KindNewApplication, Application: statusApp()}
+	state, _ := stateOf(t, manifest)
+	if err := Validate(change, state); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if _, err := Write(manifest, change, nil); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	_, loaded := stateOf(t, manifest)
+	var counts, records bool
+	for _, m := range loaded.Machines {
+		for _, ds := range m.Datasets {
+			counts = counts || (ds.Dimension == "fld_status" && len(ds.Measures) == 1)
+			records = records || (ds.Select == "records" && ds.Where != nil && ds.Where.All[0].Value == "$parameters.status" && ds.Limit == 100)
+		}
+	}
+	if !counts || !records {
+		t.Errorf("datasets read back: counts=%v records=%v", counts, records)
+	}
+	nav := loaded.Workspace.Applications[0].AllNavigation
+	if len(nav) != 3 || nav[2].Label != "Tugas dalam status" {
+		t.Errorf("menu = %+v", nav)
+	}
+}
+
+func TestW6_eachMisuseIsRefusedForItsOwnReason(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(a *GeneratedApplication)
+		want string
+	}{
+		{"a text field", func(a *GeneratedApplication) { a.Navigation[1].ByStatus.StatusField = "fld_title" }, "status_field must be a status field"},
+		{"no detail label", func(a *GeneratedApplication) { a.Navigation[1].ByStatus.DetailLabel = " " }, "detail_label"},
+		{"no limit", func(a *GeneratedApplication) { a.Navigation[1].ByStatus.Limit = 0 }, "limit must be between"},
+		{"no title", func(a *GeneratedApplication) { a.Machines[0].CardFields = a.Machines[0].CardFields[1:] }, "role \"title\""},
+		{"a list as well", func(a *GeneratedApplication) {
+			a.Navigation[1].List = &GeneratedList{Scope: ListScopeAll, Limit: 5}
+		}, "not both"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := statusApp()
+			tc.edit(app)
+			state, _ := stateOf(t, w2Workspace(t))
+			err := Validate(GeneratedChange{Kind: KindNewApplication, Application: app}, state)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("want a refusal saying %q, got %v", tc.want, err)
+			}
+		})
+	}
+}
+
+func TestW6_anUpdateAddsAStatusFilterOverAnInstalledMachine(t *testing.T) {
+	manifest := w2Workspace(t)
+	app := statusApp()
+	app.Navigation = app.Navigation[:1]
+	if _, err := Write(manifest, GeneratedChange{Kind: KindNewApplication, Application: app}, nil); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	state, _ := stateOf(t, manifest)
+	d := DescribeApplication("app_w5", state.Applications["app_w5"])
+	d.Navigation = append(d.Navigation, statusApp().Navigation[1])
+	publish(t, manifest, GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_w5", Application: &d})
+	_, loaded := stateOf(t, manifest)
+	if n := len(loaded.Workspace.Applications[0].AllNavigation); n != 3 {
+		t.Errorf("menu has %d entries, want 3", n)
+	}
+	d = DescribeApplication("app_w5", state.Applications["app_w5"])
+	d.Navigation[0].ByStatus = statusApp().Navigation[1].ByStatus
+	state, _ = stateOf(t, manifest)
+	d = DescribeApplication("app_w5", state.Applications["app_w5"])
+	d.Navigation[0].ByStatus = statusApp().Navigation[1].ByStatus
+	if err := Validate(GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_w5", Application: &d}, state); err == nil || !strings.Contains(err.Error(), "cannot be given a list") {
+		t.Errorf("giving an existing entry a status filter: got %v", err)
+	}
+}
+
+func TestW6_thePromptTeachesTheStatusFilter(t *testing.T) {
+	full := SystemPromptFor(nil, nil)
+	for _, want := range []string{`"by_status"`, "detail_label", "one tile per"} {
+		if !strings.Contains(full, want) {
+			t.Errorf("the prompt lacks %q", want)
+		}
+	}
+}

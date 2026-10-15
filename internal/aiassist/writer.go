@@ -238,8 +238,9 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 		return "", err
 	}
 
-	navIDs := assignNavIDs(app.ID, app.Navigation, nil, map[string]bool{}, true)
-	lists := listedItems(app.Navigation, navIDs, nil)
+	menu := expandMenu(app.Navigation)
+	navIDs := assignNavIDs(app.ID, menu, nil, map[string]bool{}, true)
+	lists := listedItems(menu, navIDs, nil)
 
 	var machineRelPaths []string
 	for _, m := range app.Machines {
@@ -284,10 +285,9 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 	for _, m := range app.Machines {
 		machinesByID[m.ID] = m
 	}
-	for i, item := range app.Navigation {
+	for i, item := range menu {
 		nav := navItemDoc{ID: navIDs[i], Label: item.Label, Route: "/machines/" + item.MachineID, HomeCard: i == 0}
-		if item.List != nil {
-			l := listed{NavID: navIDs[i], DatasetID: listDatasetID(navIDs[i]), Item: item}
+		if l, ok := listFor(lists, navIDs[i]); ok {
 			page := pageFor(l, machinesByID[item.MachineID])
 			nav.Route, nav.Page = "/pages/"+navIDs[i], &page
 		}

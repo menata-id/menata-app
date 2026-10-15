@@ -77,6 +77,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 	for _, n := range current.Navigation {
 		currentNav[n.ID] = true
 	}
+	desired.Navigation = expandMenu(desired.Navigation)
 	navIDs := assignNavIDs(desired.ID, desired.Navigation, currentNav, existing.NavIDs, false)
 	lists := listedItems(desired.Navigation, navIDs, currentNav)
 	for _, m := range desired.Machines {

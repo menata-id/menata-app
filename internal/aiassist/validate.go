@@ -429,7 +429,7 @@ func validateMenu(app *GeneratedApplication) []string {
 			issues = append(issues, fmt.Sprintf("navigation entry %q opens machine %q, which this application does not declare", item.Label, item.MachineID))
 		}
 		// A list is a page of its own, so a Machine may have several; only its plain entry is unique.
-		if item.List == nil {
+		if item.List == nil && item.ByStatus == nil {
 			if seen[item.MachineID] {
 				issues = append(issues, fmt.Sprintf("machine %q has more than one navigation entry", item.MachineID))
 			}

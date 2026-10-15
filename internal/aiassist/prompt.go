@@ -76,6 +76,11 @@ func composableSurface() string {
   who is looking beyond "the records that name me", say the runtime cannot do that yet and record a
   capability gap of kind "runtime" named "izin baca per peran"; offer a "mine" list and an "all" list
   as separate menu entries if that helps.
+- A menu entry may instead be a status filter ("by_status" on a NEW menu item): a page of one tile per
+  option of a STATUS field ("status_field"), each tile showing how many records are in that status and
+  opening a second page of the records in it (at most "limit", 1 to 200). Give "detail_label", the menu
+  label of that second page; it is added to the menu for you. Same title requirement and the same note as
+  a list: it filters what the pages show, nothing more.
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
 - Events, when a record is created or when a field reaches one value: an activity-feed entry
@@ -160,8 +165,8 @@ var UnwritableByTheAssistant = []struct {
 	Doc, Key, Plain string
 }{
 	{"machineDoc", "card_tags", "tags on a board card"},
-	{"machineDoc", "datasets", "a list narrowed by anything except \"the records that name the viewer\" -- for example only one status -- or counts per status"},
-	{"", "page", "a screen with status filter tiles, counts per status, or anything else beyond a plain list of records"},
+	{"machineDoc", "datasets", "a Dataset of your own design -- a list narrowed by anything except \"the records that name the viewer\", counts by a field other than status, a total or an average"},
+	{"", "page", "a screen that counts or groups by anything except the status filter above, or a list narrowed by anything but the viewer or one status"},
 	{"machineDoc", "sla_field", "an SLA deadline badge"},
 	{"machineDoc", "constraints", "a rule that blocks a change because of other records"},
 }

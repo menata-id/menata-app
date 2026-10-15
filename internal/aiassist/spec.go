@@ -95,6 +95,20 @@ type GeneratedMenuItem struct {
 	// List makes the entry a declared page listing this Machine's records instead of the Machine's own
 	// generic page (W5-a). Only for a new item: an existing one is never given a list by an update.
 	List *GeneratedList `json:"list,omitempty"`
+	// ByStatus makes the entry a page of one tile per status, each opening a second page that lists the
+	// records in that status (W6). Only for a new item; the writer adds the second page to the menu.
+	ByStatus *GeneratedByStatus `json:"by_status,omitempty"`
+	// detail marks the second page a ByStatus entry expands into; set by the writer, never by the model.
+	detail *GeneratedByStatus
+}
+
+// GeneratedByStatus is the status filter: tiles counting the Machine's records per option of StatusField,
+// and the page a tile opens (its menu label is DetailLabel). Like a list it only filters what a page shows.
+type GeneratedByStatus struct {
+	StatusField string `json:"status_field"`
+	DetailLabel string `json:"detail_label"`
+	// Limit is how many records the detail page shows at most, 1..200.
+	Limit int `json:"limit"`
 }
 
 // GeneratedList is the list a menu entry shows: which of the Machine's records, how many and in what
