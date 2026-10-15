@@ -1162,7 +1162,11 @@ Machine already said about its shape. Rules, all checked at load:
 
 - the Dataset must be `select: records` (so it already carries the `limit:` 007 §7.9 requires -- **the limit is
   the list's meaning, "the latest five", and no truncation notice is drawn unless the page writes `complete: true`**), and may filter on `$current_user`
-  and on `$parameters.<name>`. A page's request parameters are its **query string**, and a page declares none of
+  and on `$parameters.<name>`. **A list of the viewer's own records declares it: `viewer_scoped: true` on the Dataset**
+  (2026-10-15), and the loader then refuses the Dataset unless `where:` carries a top-level `equals $current_user` on a
+  person field -- so deleting the predicate stops being silent. It says what the list shows; it does not hide the
+  records elsewhere (the Machine's own page lists them all, and a read permission per role does not exist yet).
+  A page's request parameters are its **query string**, and a page declares none of
   them: the names are whatever its bound Datasets' `where:` reads (`value: $parameters.status` is
   `/pages/<id>?status=...`). A request that sends no such value lists **nothing and reads nothing** (007 §9.2,
   fail closed -- an absent value is an ordinary request, not "everyone"), so write `empty:` words that serve both

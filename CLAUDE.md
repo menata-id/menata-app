@@ -706,8 +706,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   purpose is showing one identity its own records must declare a `$current_user` predicate. That
   scoping used to be a line in Go where deleting it failed a unit test; deleting it from metadata
   leaves the Dataset loading, the screen rendering, and every viewer seeing everyone's records —
-  measured, the whole suite stayed green. A named list (`perViewerDatasets`), because "is this
-  per-viewer" is a judgement no scan can make.
+  measured, the whole suite stayed green. **Since 2026-10-15 (W5-0) the intent is declared:** a Dataset says
+  `viewer_scoped: true` and the loader refuses one without a top-level `equals $current_user` on a person field
+  (`metadata.viewerScopedIssues`; a sentinel inside `any:` widens it and `not_equals` inverts it, so neither counts).
+  The gate now holds the other two halves: a Dataset named in `perViewerDatasets` must carry the flag, and one that
+  scopes by `$current_user` must say so or sit in the shrink-only `unflaggedViewerPredicates` (Desain Request's two,
+  the owner's file). It reads the template library as well as the installed Workspaces, because installing copies.
+  **The flag is a statement about what a list shows, not authorization**: the same records stay reachable through
+  the Machine's own page, and who may read which record is D5, not built.
   **When declaring `select: records`**: `limit:` is required (007 §7.9), a `where:` value is a literal
   or a context value the runtime resolves -- `$current_user`, `$today[±n]`, `$parameters.<name>`, and `$done` over
   a Machine's `completion:` (§9.2: an unknown `$…` is a load error, on purpose; this line said "only

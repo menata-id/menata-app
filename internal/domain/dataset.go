@@ -89,6 +89,14 @@ type Dataset struct {
 	// different questions -- "how many, grouped how" versus "which rows, in what order" -- and a
 	// Dataset trying to be both would leave every consumer asking which half it got.
 	Select string
+	// ViewerScoped declares that this Dataset lists the viewer's own records: a screen named "My requests" is
+	// only true while the filter holds, and the filter is metadata, so deleting it is silent (the Dataset still
+	// loads and the screen still renders, listing everyone's). Declaring the intent lets the loader refuse a
+	// Dataset that says it is per-viewer without a top-level `equals $current_user` comparison on a person
+	// Field (metadata.validateDataset). **It is a statement about what a list shows, not authorization:** the
+	// same records stay reachable through the Machine's own page, and who may READ which record is a separate
+	// rule this runtime does not have yet (D5). Only meaningful with SelectRecords.
+	ViewerScoped bool
 	// Where is the record-selection filter, applied by the database rather than after retrieval
 	// (007 §7.7 Filter, §21.2 "Filters should execute in PostgreSQL whenever safe and beneficial").
 	// Nil selects everything. Only meaningful with SelectRecords -- an aggregating Dataset filters

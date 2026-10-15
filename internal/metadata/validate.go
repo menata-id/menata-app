@@ -666,6 +666,35 @@ func validateDynamicActor(m *domain.Machine, p domain.Permission, fieldsByID map
 // counted when it does not. Both would be silent nonsense at render time -- an empty number on a
 // page -- rather than an error, which is exactly the class of metadata typo Validate exists to
 // turn into a startup failure (005 Phase 3-4).
+// viewerScopedIssues holds a Dataset that declares `viewer_scoped: true` to what it says: it selects records, and
+// it carries a top-level `equals $current_user` comparison on a person Field. Only a top-level `all:` equality
+// scopes -- a sentinel inside `any:` widens the result to everyone's records and `not_equals` inverts it, both
+// of which satisfied the earlier named-list gate. Nothing here says the opposite (a Dataset with the predicate
+// and no flag is allowed): the flag is the author's claim, and the loader's job is to make the claim true.
+func viewerScopedIssues(m *domain.Machine, ds domain.Dataset, fieldsByID map[string]domain.Field) []string {
+	if !ds.ViewerScoped {
+		return nil
+	}
+	if ds.Select != domain.SelectRecords {
+		return []string{fmt.Sprintf("dataset %q: `viewer_scoped: true` says which records a list shows; an aggregating Dataset shows none -- declare `select: records` or drop it", ds.ID)}
+	}
+	if ds.Where != nil {
+		for _, c := range ds.Where.All {
+			if c.Value != expression.SentinelCurrentUser || c.Op != expression.OpEquals {
+				continue
+			}
+			f, ok := fieldsByID[c.Field]
+			if ok && f.Type == domain.FieldTypePerson {
+				return nil
+			}
+			if ok {
+				return []string{fmt.Sprintf("dataset %q: `viewer_scoped: true` compares %s with %s, but %q is %q -- the viewer is a person, so the field must be a person field", ds.ID, expression.SentinelCurrentUser, c.Field, c.Field, f.Type)}
+			}
+		}
+	}
+	return []string{fmt.Sprintf("dataset %q: `viewer_scoped: true` but no top-level `%s` comparison in `where:` -- without it the list shows everyone's records (a sentinel inside `any:` widens it and `not_equals` inverts it, so neither counts)", ds.ID, expression.SentinelCurrentUser)}
+}
+
 func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
 	var issues []string
 
@@ -763,6 +792,8 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			issues = append(issues, fmt.Sprintf("dataset %q: `limit:` bounds selected records and has no meaning for aggregates -- declare `select: records` or drop it", ds.ID))
 		}
 	}
+
+	issues = append(issues, viewerScopedIssues(m, ds, fieldsByID)...)
 
 	for _, k := range ds.Sort {
 		_, isColumn := domain.SortableColumns[k.Field]

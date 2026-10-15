@@ -14,6 +14,7 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
+	"menata.app/internal/installer"
 	"menata.app/internal/metadata"
 	"menata.app/internal/registry"
 )
@@ -334,46 +335,87 @@ var perViewerDatasets = map[string]string{
 	"ds_my_tasks_completed": "a bucket of My Tasks; without the assignee predicate it lists everyone's finished work",
 }
 
+// unflaggedViewerPredicates are Datasets that already scope by `$current_user` but do not yet say so with
+// `viewer_scoped: true` (W5-0, 2026-10-15). Shrink-only: a flagged Dataset leaves the list, and a new Dataset
+// may not join it. Both are Desain Request's, a file the owner wrote and has not been asked to touch.
+var unflaggedViewerPredicates = map[string]string{
+	"ds_my_requests":    "menata-indonesia's Desain Request; the owner's file, flag pending",
+	"ds_my_design_work": "menata-indonesia's Desain Request; the owner's file, flag pending",
+}
+
+// TestPerViewerDatasetsScopeByIdentity holds the three halves of "this list shows the viewer's own records".
+// The loader makes a flagged Dataset true (`viewer_scoped: true` without a top-level `equals $current_user`
+// on a person field does not load). This gate holds the other two: a Dataset named as per-viewer must carry
+// the flag (deleting the flag and the predicate together would otherwise make it silently everyone's), and a
+// Dataset that scopes by `$current_user` must say so, or sit in unflaggedViewerPredicates.
 func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
 
-	found := map[string]bool{}
+	// The template library is read too: installing copies it, so a flag missing there is a flag missing from
+	// every future install, and no installed Workspace shows it.
+	templates, err := installer.Templates(filepath.Join(repoRoot(), "metadata"))
+	if err != nil {
+		t.Fatalf("read the template library: %v", err)
+	}
+	sources := map[string][]*domain.Machine{}
 	for slug, app := range wss {
-		for _, m := range app.Machines {
-			for _, ds := range m.Datasets {
-				reason, watched := perViewerDatasets[ds.ID]
-				if !watched {
-					continue
-				}
-				found[ds.ID] = true
+		sources[slug] = app.Machines
+	}
+	for _, tpl := range templates {
+		for _, tm := range tpl.Machines {
+			sources["library/"+tpl.Application.ID] = append(sources["library/"+tpl.Application.ID], tm.Machine)
+		}
+	}
 
-				scoped := false
+	foundNamed, foundUnflagged, flaggedSeen := map[string]bool{}, map[string]bool{}, 0
+	for slug, machines := range sources {
+		for _, m := range machines {
+			for _, ds := range m.Datasets {
+				hasPredicate := false
 				// Only a top-level `all:` equality scopes. A sentinel inside `any:` widens the result to
 				// everyone's records, and `not_equals` inverts it -- both used to satisfy this check.
 				if ds.Where != nil {
 					for _, c := range ds.Where.All {
 						if c.Value == expression.SentinelCurrentUser && c.Op == expression.OpEquals {
-							scoped = true
+							hasPredicate = true
 						}
 					}
 				}
-				if !scoped {
-					t.Errorf("workspace %q: dataset %s declares no %s predicate.\n  %s.\n"+
-						"  Its scoping is metadata now, so deleting the predicate is silent: the Dataset "+
-						"still loads and the screen still renders.",
-						slug, ds.ID, expression.SentinelCurrentUser, reason)
+				if ds.ViewerScoped {
+					flaggedSeen++
+				}
+				if reason, named := perViewerDatasets[ds.ID]; named {
+					foundNamed[ds.ID] = true
+					if !ds.ViewerScoped {
+						t.Errorf("workspace %q: dataset %s is named per-viewer (%s) but does not declare `viewer_scoped: true`", slug, ds.ID, reason)
+					}
+				}
+				if hasPredicate && !ds.ViewerScoped {
+					if _, grandfathered := unflaggedViewerPredicates[ds.ID]; grandfathered {
+						foundUnflagged[ds.ID] = true
+					} else {
+						t.Errorf("workspace %q: dataset %s scopes by %s but does not say so -- add `viewer_scoped: true`, so the loader keeps the predicate honest",
+							slug, ds.ID, expression.SentinelCurrentUser)
+					}
 				}
 			}
 		}
 	}
 
+	if flaggedSeen == 0 {
+		t.Error("no installed Dataset declares viewer_scoped -- this gate would be measuring nothing")
+	}
 	for id := range perViewerDatasets {
-		if !found[id] {
-			t.Errorf("perViewerDatasets names %s, which no installed Workspace declares -- the entry "+
-				"protects nothing", id)
+		if !foundNamed[id] {
+			t.Errorf("perViewerDatasets names %s, which no installed Workspace declares -- the entry protects nothing", id)
+		}
+	}
+	for id := range unflaggedViewerPredicates {
+		if !foundUnflagged[id] {
+			t.Errorf("unflaggedViewerPredicates names %s, which is flagged now or no longer exists -- remove the entry", id)
 		}
 	}
 }

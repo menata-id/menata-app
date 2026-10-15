@@ -77,6 +77,7 @@ datasets:
   # claims `complete: true` and says so when the cap bites. Later and Completed declare no `sort:`, which keeps the Store's own ordering.
   - id: ds_my_tasks_overdue
     select: records
+    viewer_scoped: true
     where:
       all:
         - { field: fld_assignee, op: equals, value: $current_user }
@@ -90,6 +91,7 @@ datasets:
     limit: 200
   - id: ds_my_tasks_next7
     select: records
+    viewer_scoped: true
     where:
       all:
         - { field: fld_assignee, op: equals, value: $current_user }
@@ -116,6 +118,7 @@ datasets:
     limit: 200
   - id: ds_my_tasks_later
     select: records
+    viewer_scoped: true
     where:
       all:
         - { field: fld_assignee, op: equals, value: $current_user }
@@ -126,6 +129,7 @@ datasets:
     limit: 200
   - id: ds_my_tasks_completed
     select: records
+    viewer_scoped: true
     where:
       all:
         - { field: fld_assignee, op: equals, value: $current_user }

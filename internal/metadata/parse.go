@@ -144,11 +144,13 @@ type datasetDoc struct {
 	Measures  []measureDoc `yaml:"measures"`
 	// Select/Sort/Limit are the record-selection half (007 §7.7-§7.9), added 2026-09-29. A Dataset
 	// declares either these or dimension/measures, never both -- validateDataset refuses the mix.
-	Select    string        `yaml:"select"`
-	Relations []relationDoc `yaml:"relations"`
-	Where     *predicateDoc `yaml:"where"`
-	Sort      []sortDoc     `yaml:"sort"`
-	Limit     int           `yaml:"limit"`
+	Select string `yaml:"select"`
+	// ViewerScoped is domain.Dataset.ViewerScoped: this Dataset lists the viewer's own records.
+	ViewerScoped bool          `yaml:"viewer_scoped"`
+	Relations    []relationDoc `yaml:"relations"`
+	Where        *predicateDoc `yaml:"where"`
+	Sort         []sortDoc     `yaml:"sort"`
+	Limit        int           `yaml:"limit"`
 }
 
 // relationDoc is the YAML serialization of a domain.Relation (007 §7.5).
@@ -515,7 +517,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 	for _, dd := range doc.Datasets {
 		ds := domain.Dataset{
 			ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension,
-			Select: dd.Select, Limit: dd.Limit, Where: dd.Where.predicate(),
+			Select: dd.Select, ViewerScoped: dd.ViewerScoped, Limit: dd.Limit, Where: dd.Where.predicate(),
 		}
 		for _, rd := range dd.Relations {
 			ds.Relations = append(ds.Relations, domain.Relation{ID: rd.ID, Machine: rd.Machine, Via: rd.Via, Where: rd.Where.predicate()})
