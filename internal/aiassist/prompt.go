@@ -52,6 +52,12 @@ func composableSurface() string {
 - A starting value for a field ("default", as text; a status field's must be one of its options, e.g. the
   first, so new records begin at "new"). A person field the runtime fills with whoever created the record
   ("stamp": "current_user" -- use it for "Requester"; it is never typed in, and it takes no default).
+- How a machine's records are arranged ("views"): "board" (one column per option of a STATUS field named in
+  "group_by"; this is what people usually mean by kanban or papan), "table", or "cards". The first view is
+  what opens by default, so put the board first when the person wants one. A board or cards view needs
+  "card_fields", what each card shows, as {field, role} pairs: role "title" (a text field, always include
+  one), "status" (a status field), "date" (a date field), "person" (a person field), "money" (a number or
+  money field). Ask what a card should show; do not guess.
 - "completion" on a machine: which status field and which of its options mean a record is finished; each
   record then has a mark-done and reopen action.
 - Role-based Permissions on the create/edit/delete actions of a machine. A permission may also be limited
@@ -143,8 +149,6 @@ var ReadyMadeTemplates = []string{"Document Approval", "Project Management"}
 var UnwritableByTheAssistant = []struct {
 	Doc, Key, Plain string
 }{
-	{"machineDoc", "views", "a board (cards grouped by a status) or other view of a machine's records"},
-	{"machineDoc", "card_fields", "what a board card shows"},
 	{"machineDoc", "card_tags", "tags on a board card"},
 	{"machineDoc", "datasets", "a narrower list of a machine's records, for example only mine, or only one status"},
 	{"", "page", "a menu item that draws its own screen from such a list, including a screen per person (\"my requests\") and status filter tiles"},

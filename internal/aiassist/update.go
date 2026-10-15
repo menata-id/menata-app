@@ -189,6 +189,32 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		}
 	}
 
+	for _, cf := range m.CardFields {
+		if !slices.ContainsFunc(old.CardFields, func(o GeneratedCardField) bool { return o == cf }) {
+			if err := appendEncoded(ensureSeq(doc, "card_fields"), cardFieldDoc{Field: cf.Field, Role: cf.Role}); err != nil {
+				return err
+			}
+		}
+	}
+	oldViews := map[string]GeneratedView{}
+	for _, v := range old.Views {
+		oldViews[v.ID] = v
+	}
+	for _, v := range m.Views {
+		ov, exists := oldViews[v.ID]
+		switch {
+		case !exists:
+			if err := appendEncoded(ensureSeq(doc, "views"), viewDoc{ID: v.ID, Name: v.Name, Type: v.Type, GroupBy: v.GroupBy}); err != nil {
+				return err
+			}
+		case v.Name != ov.Name:
+			node := navItemByID(ensureSeq(doc, "views"), v.ID)
+			if node == nil {
+				return fmt.Errorf("view %s is not declared in %s", v.ID, rel)
+			}
+			setScalar(node, "name", v.Name)
+		}
+	}
 	if m.Completion != nil && old.Completion == nil {
 		if err := setEncoded(doc, "completion", completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}); err != nil {
 			return err

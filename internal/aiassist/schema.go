@@ -136,6 +136,28 @@ func computeOpEnum() []string {
 	return ops
 }
 
+var generatedCardFieldSchema = geminiSchema{
+	PropertyOrdering: []string{"field", "role"},
+	Type:             "OBJECT",
+	Required:         []string{"field", "role"},
+	Properties: map[string]geminiSchema{
+		"field": {Type: "STRING", Description: "A field of this same machine."},
+		"role":  {Type: "STRING", Enum: GeneratableCardRoles, Description: "title: the card's heading (a text field). status: a status field. date: a date field. person: a person field. money: a number or money field."},
+	},
+}
+
+var generatedViewSchema = geminiSchema{
+	PropertyOrdering: []string{"id", "name", "type", "group_by"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "name", "type"},
+	Properties: map[string]geminiSchema{
+		"id":       {Type: "STRING", Description: "Must match ^vw_[a-z][a-z0-9_]*$."},
+		"name":     {Type: "STRING", Description: "What the person reads when choosing an arrangement, in their own language, e.g. \"Papan\" or \"Tabel\". One line."},
+		"type":     {Type: "STRING", Enum: GeneratableViewTypes},
+		"group_by": {Type: "STRING", Description: "Required for a board, and only for a board: a STATUS field of this machine; its options become the columns."},
+	},
+}
+
 var generatedPermissionSchema = geminiSchema{
 	PropertyOrdering: []string{"id", "action", "roles", "actor_field", "parent_actor"},
 	Type:             "OBJECT",
@@ -188,7 +210,7 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "fields", "completion", "permissions", "transitions", "events"},
+	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
@@ -205,6 +227,8 @@ var generatedMachineSchema = geminiSchema{
 				"done":  {Type: "STRING", Description: "One of that field's options."},
 			},
 		},
+		"card_fields": {Type: "ARRAY", Items: &generatedCardFieldSchema, Description: "What a card shows on a board or cards view. Required (with a title entry) before any board or cards view."},
+		"views":       {Type: "ARRAY", Items: &generatedViewSchema, Description: "How this machine's records are arranged; the first is what opens by default. A board is columns per status."},
 		"permissions": {Type: "ARRAY", Items: &generatedPermissionSchema},
 		"transitions": {Type: "ARRAY", Items: &generatedTransitionSchema},
 		"events":      {Type: "ARRAY", Items: &generatedEventSchema},

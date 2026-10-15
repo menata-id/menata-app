@@ -106,7 +106,11 @@ type GeneratedMachine struct {
 	Fields []GeneratedField `json:"fields"`
 	// Completion names the status Field and the option that means a record is done (domain.Completion),
 	// which gives the record a mark-done / reopen action. Roadmap stage 1, W2.
-	Completion  *GeneratedCompletion  `json:"completion,omitempty"`
+	Completion *GeneratedCompletion `json:"completion,omitempty"`
+	// CardFields is what a card shows (domain.CardField): which Field plays which role on a board or cards
+	// view. Views is how the Machine's records are arranged; the first is the default (W4).
+	CardFields  []GeneratedCardField  `json:"card_fields,omitempty"`
+	Views       []GeneratedView       `json:"views,omitempty"`
 	Permissions []GeneratedPermission `json:"permissions"`
 	Transitions []GeneratedTransition `json:"transitions"`
 	Events      []GeneratedEvent      `json:"events"`
@@ -130,6 +134,29 @@ type GeneratedField struct {
 	// Stamp makes a person Field filled by the runtime with who created the record: "current_user" (W2).
 	Stamp string `json:"stamp,omitempty"`
 }
+
+// GeneratedView mirrors domain.View for the three arrangements a generated Machine may declare.
+type GeneratedView struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Type is "board" (one column per option of GroupBy), "table", or "cards" (each record through CardFields).
+	Type string `json:"type"`
+	// GroupBy is a status Field of this Machine; only for a board.
+	GroupBy string `json:"group_by,omitempty"`
+}
+
+// GeneratedCardField mirrors domain.CardField for the five roles that describe a record on a card.
+type GeneratedCardField struct {
+	Field string `json:"field"`
+	Role  string `json:"role"`
+}
+
+// The view types and card roles a generated Machine may use. stepper needs a sequencing engine; color, file,
+// comment and container serve child Machines (tags, attachments, comments, a parent), which are not generated.
+var (
+	GeneratableViewTypes = []string{"board", "cards", "table"}
+	GeneratableCardRoles = []string{"title", "status", "date", "person", "money"}
+)
 
 // GeneratedCompletion mirrors domain.Completion.
 type GeneratedCompletion struct {

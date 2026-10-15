@@ -62,6 +62,16 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 	if m.Completion != nil {
 		g.Completion = &GeneratedCompletion{Field: m.Completion.Field, Done: m.Completion.Done}
 	}
+	for _, cf := range m.CardFields {
+		if slices.Contains(GeneratableCardRoles, string(cf.Role)) {
+			g.CardFields = append(g.CardFields, GeneratedCardField{Field: cf.Field, Role: string(cf.Role)})
+		}
+	}
+	for _, v := range m.Views {
+		if slices.Contains(GeneratableViewTypes, string(v.EffectiveType())) {
+			g.Views = append(g.Views, GeneratedView{ID: v.ID, Name: v.Name, Type: string(v.EffectiveType()), GroupBy: v.GroupBy})
+		}
+	}
 	for _, p := range m.Permissions {
 		if expressiblePermission(p) {
 			gp := GeneratedPermission{ID: p.ID, Action: p.Action, Roles: slices.Clone(p.Roles), ActorField: p.ActorField}
@@ -252,6 +262,9 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		p.refuse("completion on %s cannot be changed or removed: records already finished by it would change meaning", m.ID)
 	}
 
+	planCards(p, old, m)
+	planViews(p, old, m)
+
 	oldPerms := map[string]GeneratedPermission{}
 	for _, x := range old.Permissions {
 		oldPerms[x.ID] = x
@@ -395,6 +408,74 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	}
 	if !slices.Equal(currentOrder, keptOrder) {
 		p.change("menu order")
+	}
+}
+
+// planCards: a card role may be added; changing which field plays a role, or dropping an entry, is refused
+// (a card the person has learned to read would change under them, and nothing here asks them first).
+func planCards(p *Plan, old, m GeneratedMachine) {
+	oldBy := map[string]GeneratedCardField{}
+	for _, x := range old.CardFields {
+		oldBy[x.Field+"/"+x.Role] = x
+	}
+	seen := map[string]bool{}
+	for _, x := range m.CardFields {
+		key := x.Field + "/" + x.Role
+		seen[key] = true
+		if _, ok := oldBy[key]; !ok {
+			p.add("card shows %q as %s on %q", x.Field, x.Role, m.Name)
+		}
+	}
+	for key := range oldBy {
+		if !seen[key] {
+			p.refuse("card entry %s on %s cannot be removed or re-roled, only added", key, m.ID)
+		}
+	}
+}
+
+// planViews: a view may be added and renamed; retyping, regrouping or removing one is refused, and so is
+// putting a new view ahead of the existing ones (the first view is what opens by default).
+func planViews(p *Plan, old, m GeneratedMachine) {
+	oldBy := map[string]GeneratedView{}
+	for _, v := range old.Views {
+		oldBy[v.ID] = v
+	}
+	seen := map[string]bool{}
+	for i, v := range m.Views {
+		seen[v.ID] = true
+		ov, exists := oldBy[v.ID]
+		switch {
+		case !exists:
+			if i < len(old.Views) {
+				p.refuse("new view %s on %s must come after the existing views: the first view is what opens by default", v.ID, m.ID)
+				continue
+			}
+			p.add("%s view %q on %q", v.Type, v.Name, m.Name)
+		case v.Type != ov.Type || v.GroupBy != ov.GroupBy:
+			p.refuse("view %s on %s cannot change its type or grouping -- add a new view instead", v.ID, m.ID)
+		case v.Name != ov.Name:
+			p.change("view %q on %q is now called %q", ov.Name, m.Name, v.Name)
+		}
+	}
+	for _, ov := range old.Views {
+		if !seen[ov.ID] {
+			p.refuse("view %s on %s cannot be removed", ov.ID, m.ID)
+		}
+	}
+	// the existing views must keep their relative order
+	var oldOrder, newOrder []string
+	for _, ov := range old.Views {
+		if seen[ov.ID] {
+			oldOrder = append(oldOrder, ov.ID)
+		}
+	}
+	for _, v := range m.Views {
+		if _, ok := oldBy[v.ID]; ok {
+			newOrder = append(newOrder, v.ID)
+		}
+	}
+	if !slices.Equal(oldOrder, newOrder) {
+		p.refuse("the order of existing views on %s cannot change: the first is what opens by default", m.ID)
 	}
 }
 

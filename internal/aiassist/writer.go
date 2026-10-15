@@ -129,6 +129,8 @@ type machineDoc struct {
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
 	Completion  *completionDoc  `yaml:"completion,omitempty"`
+	CardFields  []cardFieldDoc  `yaml:"card_fields,omitempty"`
+	Views       []viewDoc       `yaml:"views,omitempty"`
 	Permissions []permissionDoc `yaml:"permissions,omitempty"`
 	Transitions []transitionDoc `yaml:"transitions,omitempty"`
 	Events      []eventDoc      `yaml:"events,omitempty"`
@@ -144,6 +146,18 @@ type fieldDoc struct {
 	Compute  *computeDoc `yaml:"compute,omitempty"`
 	Default  string      `yaml:"default,omitempty"`
 	Stamp    string      `yaml:"stamp,omitempty"`
+}
+
+type cardFieldDoc struct {
+	Field string `yaml:"field"`
+	Role  string `yaml:"role"`
+}
+
+type viewDoc struct {
+	ID      string `yaml:"id"`
+	Name    string `yaml:"name"`
+	Type    string `yaml:"type"`
+	GroupBy string `yaml:"group_by,omitempty"`
 }
 
 type completionDoc struct {
@@ -360,6 +374,12 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	}
 	if m.Completion != nil {
 		doc.Completion = &completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}
+	}
+	for _, cf := range m.CardFields {
+		doc.CardFields = append(doc.CardFields, cardFieldDoc{Field: cf.Field, Role: cf.Role})
+	}
+	for _, v := range m.Views {
+		doc.Views = append(doc.Views, viewDoc{ID: v.ID, Name: v.Name, Type: v.Type, GroupBy: v.GroupBy})
 	}
 	for _, p := range m.Permissions {
 		pd := permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles, ActorField: p.ActorField}

@@ -3,6 +3,7 @@ package aiassist
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -259,6 +260,13 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		}
 		m.Permissions = append(m.Permissions, perm)
 	}
+	for _, cf := range gm.CardFields {
+		m.CardFields = append(m.CardFields, domain.CardField{Field: cf.Field, Role: domain.CardFieldRole(cf.Role)})
+	}
+	for _, gv := range gm.Views {
+		m.Views = append(m.Views, domain.View{ID: gv.ID, Name: gv.Name, Type: domain.ViewKind(gv.Type), GroupBy: gv.GroupBy})
+	}
+	issues = append(issues, viewIssues(gm)...)
 	if gm.Completion != nil {
 		m.Completion = &domain.Completion{Field: gm.Completion.Field, Done: gm.Completion.Done}
 	}
@@ -290,6 +298,67 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		})
 	}
 	return m, issues
+}
+
+// cardRoleFieldTypes is the field type(s) each card role is generated over. The loader checks only the file,
+// container and comment roles; a status shown as a date, or a person that is a number, would render and say
+// nothing, so the assistant asks for more than the loader does.
+var cardRoleFieldTypes = map[string][]domain.FieldType{
+	"title":  {domain.FieldTypeText},
+	"status": {domain.FieldTypeStatus},
+	"date":   {domain.FieldTypeDate},
+	"person": {domain.FieldTypePerson},
+	"money":  {domain.FieldTypeMoney, domain.FieldTypeNumber},
+}
+
+// viewIssues holds a generated Machine's views and card_fields to what makes them show something: card roles
+// over fitting fields, a board grouped by a status field, and a card projection (with a title) before any
+// board or cards view, since a card over no projection renders empty cards.
+func viewIssues(gm GeneratedMachine) []string {
+	var issues []string
+	types := map[string]domain.FieldType{}
+	for _, f := range gm.Fields {
+		types[f.ID] = domain.FieldType(f.Type)
+	}
+	hasTitle := false
+	for _, cf := range gm.CardFields {
+		ft, ok := types[cf.Field]
+		want, known := cardRoleFieldTypes[cf.Role]
+		if !ok || !known {
+			continue // the loader names a missing field or an unknown role
+		}
+		if cf.Role == "title" {
+			hasTitle = true
+		}
+		if !slices.Contains(want, ft) {
+			issues = append(issues, fmt.Sprintf("machine %q card_fields: role %q needs a field of type %v, but %q is %q", gm.ID, cf.Role, want, cf.Field, ft))
+		}
+	}
+	needsCards := false
+	for _, v := range gm.Views {
+		switch v.Type {
+		case "board":
+			needsCards = true
+			if gt, ok := types[v.GroupBy]; ok && gt != domain.FieldTypeStatus {
+				issues = append(issues, fmt.Sprintf("machine %q view %q: a board is grouped by a status field, but %q is %q", gm.ID, v.ID, v.GroupBy, gt))
+			}
+		case "cards":
+			needsCards = true
+			if v.GroupBy != "" {
+				issues = append(issues, fmt.Sprintf("machine %q view %q: group_by belongs to a board, not a %s view", gm.ID, v.ID, v.Type))
+			}
+		case "table":
+			if v.GroupBy != "" {
+				issues = append(issues, fmt.Sprintf("machine %q view %q: group_by belongs to a board, not a table", gm.ID, v.ID))
+			}
+		default:
+			issues = append(issues, fmt.Sprintf("machine %q view %q: type %q is not one a generated machine may use (board, cards or table)", gm.ID, v.ID, v.Type))
+		}
+	}
+	if needsCards && !hasTitle {
+		issues = append(issues, fmt.Sprintf("machine %q has a board or cards view, so it needs card_fields including a title -- cards over no projection render empty", gm.ID))
+	}
+	return issues
 }
 
 // notificationMachineID is the runtime-level Machine a send_notification writes to. A Workspace created
