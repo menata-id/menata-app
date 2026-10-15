@@ -92,7 +92,32 @@ type GeneratedMenuItem struct {
 	ID        string `json:"id,omitempty"`
 	Label     string `json:"label"`
 	MachineID string `json:"machine_id,omitempty"`
+	// List makes the entry a declared page listing this Machine's records instead of the Machine's own
+	// generic page (W5-a). Only for a new item: an existing one is never given a list by an update.
+	List *GeneratedList `json:"list,omitempty"`
 }
+
+// GeneratedList is the list a menu entry shows: which of the Machine's records, how many and in what
+// order. "mine" lists the records whose person Field is the viewer; "all" lists every record. Either is a
+// filter on what the list shows and not an authorization: the Machine's own page still lists every record
+// (who may read which record is not built, so a request for that is a runtime gap, not a scope).
+type GeneratedList struct {
+	Scope string `json:"scope"`
+	// PersonField is a person Field of the Machine; required for "mine", empty for "all".
+	PersonField string `json:"person_field,omitempty"`
+	// SortField is a Field of the Machine, or created_at / updated_at; empty means created_at.
+	SortField string `json:"sort_field,omitempty"`
+	// Direction is "asc" or "desc"; empty means desc (newest first).
+	Direction string `json:"direction,omitempty"`
+	// Limit is how many records the list shows at most, 1..200.
+	Limit int `json:"limit"`
+}
+
+// The scopes of a generated list.
+const (
+	ListScopeMine = "mine"
+	ListScopeAll  = "all"
+)
 
 // GeneratedMachine is one Machine the Application exposes. Deliberately narrower than
 // domain.Machine: no Datasets, Views, Constraints, CardFields or Sequencing in this first

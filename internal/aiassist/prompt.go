@@ -66,6 +66,16 @@ func composableSurface() string {
   "parent_actor" {via, field}, where via is a relation field of this machine and field a person field of
   the machine it points at, so only the person named on the related record may use it ("the owner of the
   room approves"). Ask who is allowed, then use these instead of a role when the answer is "that person".
+- A menu entry may be a list of a machine's records ("list" on a NEW menu item): "scope": "mine" (only the
+  records whose PERSON field, named in "person_field", is the person looking -- "my requests", "my tasks")
+  or "all" (every record), at most "limit" of them (1 to 200), newest first unless "sort_field" and
+  "direction" say otherwise. The machine needs a card_fields entry with role "title". Ask, for each list,
+  who should see which records; never choose the scope for them. A list only decides what that page shows:
+  it does not hide the other records from anyone, because the runtime has no read permission per role yet.
+  So when asked for "managers see their team's, staff see their own", or any visibility that depends on
+  who is looking beyond "the records that name me", say the runtime cannot do that yet and record a
+  capability gap of kind "runtime" named "izin baca per peran"; offer a "mine" list and an "all" list
+  as separate menu entries if that helps.
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
 - Events, when a record is created or when a field reaches one value: an activity-feed entry
@@ -150,8 +160,8 @@ var UnwritableByTheAssistant = []struct {
 	Doc, Key, Plain string
 }{
 	{"machineDoc", "card_tags", "tags on a board card"},
-	{"machineDoc", "datasets", "a narrower list of a machine's records, for example only mine, or only one status"},
-	{"", "page", "a menu item that draws its own screen from such a list, including a screen per person (\"my requests\") and status filter tiles"},
+	{"machineDoc", "datasets", "a list narrowed by anything except \"the records that name the viewer\" -- for example only one status -- or counts per status"},
+	{"", "page", "a screen with status filter tiles, counts per status, or anything else beyond a plain list of records"},
 	{"machineDoc", "sla_field", "an SLA deadline badge"},
 	{"machineDoc", "constraints", "a rule that blocks a change because of other records"},
 }

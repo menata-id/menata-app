@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -134,6 +133,7 @@ type machineDoc struct {
 	Permissions []permissionDoc `yaml:"permissions,omitempty"`
 	Transitions []transitionDoc `yaml:"transitions,omitempty"`
 	Events      []eventDoc      `yaml:"events,omitempty"`
+	Datasets    []datasetDoc    `yaml:"datasets,omitempty"`
 }
 
 type fieldDoc struct {
@@ -224,6 +224,8 @@ type navItemDoc struct {
 	Label    string `yaml:"label"`
 	Route    string `yaml:"route"`
 	HomeCard bool   `yaml:"home_card"`
+	// Page is a menu entry's declared screen (a list, W5-a); its route is then /pages/<id>.
+	Page *pageNodeDoc `yaml:"page,omitempty"`
 }
 
 func writeNewApplication(written *installer.WriteSet, workspaceManifestPath string, change GeneratedChange) (string, error) {
@@ -236,9 +238,17 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 		return "", err
 	}
 
+	navIDs := assignNavIDs(app.ID, app.Navigation, nil, map[string]bool{}, true)
+	lists := listedItems(app.Navigation, navIDs, nil)
+
 	var machineRelPaths []string
 	for _, m := range app.Machines {
 		doc := machineDocFor(m)
+		for _, l := range lists {
+			if l.Item.MachineID == m.ID {
+				doc.Datasets = append(doc.Datasets, datasetFor(l))
+			}
+		}
 
 		filename := m.ID[len("mch_"):] + ".yaml"
 		absPath := filepath.Join(ownDir, filename)
@@ -270,11 +280,16 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 	// from; without one the Workspace Home card linked back to /home (2026-09-27). Ids are not the
 	// person's concern: the first keeps the id a generated Application has always had, the rest are
 	// qualified by the Application's own id, which is unique in the Workspace.
-	appName := app.ID[len("app_"):]
+	machinesByID := map[string]GeneratedMachine{}
+	for _, m := range app.Machines {
+		machinesByID[m.ID] = m
+	}
 	for i, item := range app.Navigation {
-		nav := navItemDoc{ID: "nav_" + appName, Label: item.Label, Route: "/machines/" + item.MachineID, HomeCard: i == 0}
-		if i > 0 {
-			nav.ID = "nav_" + appName + "_" + strings.TrimPrefix(item.MachineID, "mch_")
+		nav := navItemDoc{ID: navIDs[i], Label: item.Label, Route: "/machines/" + item.MachineID, HomeCard: i == 0}
+		if item.List != nil {
+			l := listed{NavID: navIDs[i], DatasetID: listDatasetID(navIDs[i]), Item: item}
+			page := pageFor(l, machinesByID[item.MachineID])
+			nav.Route, nav.Page = "/pages/"+navIDs[i], &page
 		}
 		appDoc.Navigation = append(appDoc.Navigation, nav)
 	}

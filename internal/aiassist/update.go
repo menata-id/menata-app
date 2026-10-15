@@ -73,6 +73,12 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 		return fmt.Errorf("read workspace manifest: %w", err)
 	}
 	manifestChanged := false
+	currentNav := map[string]bool{}
+	for _, n := range current.Navigation {
+		currentNav[n.ID] = true
+	}
+	navIDs := assignNavIDs(desired.ID, desired.Navigation, currentNav, existing.NavIDs, false)
+	lists := listedItems(desired.Navigation, navIDs, currentNav)
 	for _, m := range desired.Machines {
 		old, exists := currentMachines[m.ID]
 		if !exists {
@@ -83,7 +89,13 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 			if err := written.Note(path); err != nil {
 				return err
 			}
-			if err := installer.WriteYAMLStrict(path, machineDocFor(m)); err != nil {
+			doc := machineDocFor(m)
+			for _, l := range lists {
+				if l.Item.MachineID == m.ID {
+					doc.Datasets = append(doc.Datasets, datasetFor(l))
+				}
+			}
+			if err := installer.WriteYAMLStrict(path, doc); err != nil {
 				return fmt.Errorf("write machine %s: %w", m.ID, err)
 			}
 			rel, err := filepath.Rel(workspaceDir, path)
@@ -97,15 +109,15 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 			appendScalar(ensureSeq(app, "machines"), m.ID)
 			continue
 		}
-		if reflect.DeepEqual(old, m) {
+		if reflect.DeepEqual(old, m) && !hasList(lists, m.ID) {
 			continue
 		}
-		if err := updateMachineFile(written, workspaceDir, resolve, old, m); err != nil {
+		if err := updateMachineFile(written, workspaceDir, resolve, old, m, listsOn(lists, m.ID)); err != nil {
 			return err
 		}
 	}
 
-	if err := rebuildMenu(ensureSeq(app, "navigation"), desired, existing.NavIDs); err != nil {
+	if err := rebuildMenu(ensureSeq(app, "navigation"), desired, navIDs, lists); err != nil {
 		return installer.Rejected(err)
 	}
 
@@ -125,7 +137,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 
 // updateMachineFile edits one installed Machine's file toward its desired state. PlanUpdate has
 // already refused every removal and retyping, so only additions and the permitted changes remain.
-func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve MachineFileResolver, old, m GeneratedMachine) error {
+func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve MachineFileResolver, old, m GeneratedMachine, newLists []listed) error {
 	rel, err := resolve.MachineFile(m.ID)
 	if err != nil {
 		return fmt.Errorf("resolve file for machine %s: %w", m.ID, err)
@@ -266,6 +278,11 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			}
 		}
 	}
+	for _, l := range newLists {
+		if err := appendEncoded(ensureSeq(doc, "datasets"), datasetFor(l)); err != nil {
+			return err
+		}
+	}
 	return writeYAMLDoc[installer.FullMachineCheckDoc](written, path, doc)
 }
 
@@ -274,7 +291,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 // its new position; a new item is a new node opening its Machine; an item left out is dropped. In a
 // menu ordered by priority (domain.NavigationItem.Priority orders ahead of position) every item is
 // renumbered, or the new order would not show.
-func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, takenIDs map[string]bool) error {
+func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lists []listed) error {
 	byID := map[string]*yaml.Node{}
 	usesPriority := false
 	for _, item := range seq.Content {
@@ -285,24 +302,28 @@ func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, takenIDs map[stri
 			usesPriority = true
 		}
 	}
-	appName := strings.TrimPrefix(desired.ID, "app_")
+	machines := map[string]GeneratedMachine{}
+	for _, m := range desired.Machines {
+		machines[m.ID] = m
+	}
 	var rebuilt []*yaml.Node
-	for _, n := range desired.Navigation {
-		if node, ok := byID[n.ID]; ok && n.ID != "" {
+	for i, n := range desired.Navigation {
+		if node, ok := byID[ids[i]]; ok {
 			setScalar(node, "label", n.Label)
 			rebuilt = append(rebuilt, node)
-			delete(byID, n.ID)
+			delete(byID, ids[i])
 			continue
 		}
-		id := n.ID
-		if id == "" || takenIDs[id] {
-			id = uniqueNavID("nav_"+appName+"_"+strings.TrimPrefix(n.MachineID, "mch_"), takenIDs)
-		}
-		takenIDs[id] = true
 		node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		setScalar(node, "id", id)
+		setScalar(node, "id", ids[i])
 		setScalar(node, "label", n.Label)
 		setScalar(node, "route", "/machines/"+n.MachineID)
+		if l, ok := listFor(lists, ids[i]); ok {
+			setScalar(node, "route", "/pages/"+ids[i])
+			if err := setEncoded(node, "page", pageFor(l, machines[n.MachineID])); err != nil {
+				return err
+			}
+		}
 		rebuilt = append(rebuilt, node)
 	}
 	if len(rebuilt) > 0 && !anyHomeCard(rebuilt) {
@@ -317,6 +338,27 @@ func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, takenIDs map[stri
 	seq.Content = rebuilt
 	seq.Style = 0
 	return nil
+}
+
+func hasList(lists []listed, machineID string) bool { return len(listsOn(lists, machineID)) > 0 }
+
+func listsOn(lists []listed, machineID string) []listed {
+	var out []listed
+	for _, l := range lists {
+		if l.Item.MachineID == machineID {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+func listFor(lists []listed, navID string) (listed, bool) {
+	for _, l := range lists {
+		if l.NavID == navID {
+			return l, true
+		}
+	}
+	return listed{}, false
 }
 
 // anyHomeCard: the item the Home card opens may have been removed from the menu; the first item then

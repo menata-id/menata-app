@@ -259,14 +259,28 @@ var generatedApplicationSchema = geminiSchema{
 	},
 }
 
+var generatedListSchema = geminiSchema{
+	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit"},
+	Type:             "OBJECT",
+	Required:         []string{"scope", "limit"},
+	Properties: map[string]geminiSchema{
+		"scope":        {Type: "STRING", Enum: []string{ListScopeMine, ListScopeAll}, Description: "\"mine\": only the records whose person field is the person looking. \"all\": every record. Ask the person which each list is; never pick for them. This only chooses what the list shows -- it does not stop anyone opening the other records elsewhere."},
+		"person_field": {Type: "STRING", Description: "Required for \"mine\": a person field of that machine saying whose record it is. Leave empty for \"all\"."},
+		"sort_field":   {Type: "STRING", Description: "A field of that machine, or created_at / updated_at. Leave empty for newest first by created_at."},
+		"direction":    {Type: "STRING", Enum: []string{"asc", "desc"}},
+		"limit":        {Type: "INTEGER", Description: "How many records the list shows at most, 1 to 200."},
+	},
+}
+
 var generatedMenuItemSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "label", "machine_id"},
+	PropertyOrdering: []string{"id", "label", "machine_id", "list"},
 	Type:             "OBJECT",
 	Required:         []string{"label"},
 	Properties: map[string]geminiSchema{
 		"id":         {Type: "STRING", Description: "Only for a menu item that already exists: keep its id exactly, so it keeps where it leads. Leave empty for a new item."},
 		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
 		"machine_id": {Type: "STRING", Description: "Required for a new item: one of this application's own machine ids; the entry opens that machine's list."},
+		"list":       withDescription(generatedListSchema, "Only for a NEW item: makes the entry a list page of that machine's records (all of them, or only the viewer's own). Needs the machine to have a card_fields entry with role title. Never on an existing item."),
 	},
 }
 

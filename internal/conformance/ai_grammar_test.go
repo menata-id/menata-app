@@ -32,7 +32,7 @@ var aiUnwritableKeys = map[string]map[string]string{
 	"machineDoc": {
 		"constraints":           "block-if rules relate two Machines; the assistant has no related-record vocabulary yet",
 		"actions":               "declares what an Action writes; only the approval engine's Machines use it",
-		"datasets":              "selection is composed by Pages; a generated Machine takes the implicit table view",
+		"datasets":              "free-form selection (a status filter, counts); a generated Machine gets a Dataset only as the list behind a menu entry (GeneratedMenuItem.List, W5-a)",
 		"sequencing":            "approval-engine ordering; generated Machines have no step Machine",
 		"signature_placement":   "approval-engine role (step); not generatable",
 		"signature_store":       "approval-engine role (signature); not generatable",

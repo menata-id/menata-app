@@ -428,12 +428,15 @@ func validateMenu(app *GeneratedApplication) []string {
 		if !own[item.MachineID] {
 			issues = append(issues, fmt.Sprintf("navigation entry %q opens machine %q, which this application does not declare", item.Label, item.MachineID))
 		}
-		if seen[item.MachineID] {
-			issues = append(issues, fmt.Sprintf("machine %q has more than one navigation entry", item.MachineID))
+		// A list is a page of its own, so a Machine may have several; only its plain entry is unique.
+		if item.List == nil {
+			if seen[item.MachineID] {
+				issues = append(issues, fmt.Sprintf("machine %q has more than one navigation entry", item.MachineID))
+			}
+			seen[item.MachineID] = true
 		}
-		seen[item.MachineID] = true
 	}
-	return issues
+	return append(issues, validateLists(app)...)
 }
 
 // relationTargets is every Machine a generated relation may point at before counting the change's
