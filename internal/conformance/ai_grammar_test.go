@@ -25,6 +25,8 @@ import (
 // aiRenamedKeys: a key the assistant spells differently from the loader.
 var aiRenamedKeys = map[string]map[string]string{
 	"fieldDoc": {"machine": "related_machine"},
+	// `then` is a block in the loader; the assistant flattens it into service/summary/recipient_field/preference_key.
+	"eventDoc": {"then": "service"},
 }
 
 // The reasons the assistant has no slot for a key live in the capability catalogue
@@ -40,6 +42,13 @@ func TestAIGrammarGapIsMeasured(t *testing.T) {
 		{"machineDoc", reflect.TypeOf(aiassist.GeneratedMachine{})},
 		{"fieldDoc", reflect.TypeOf(aiassist.GeneratedField{})},
 		{"transitionDoc", reflect.TypeOf(aiassist.GeneratedTransition{})},
+		{"permissionDoc", reflect.TypeOf(aiassist.GeneratedPermission{})},
+		{"parentActorDoc", reflect.TypeOf(aiassist.GeneratedParentActor{})},
+		{"eventDoc", reflect.TypeOf(aiassist.GeneratedEvent{})},
+		{"viewDoc", reflect.TypeOf(aiassist.GeneratedView{})},
+		{"cardFieldDoc", reflect.TypeOf(aiassist.GeneratedCardField{})},
+		{"completionDoc", reflect.TypeOf(aiassist.GeneratedCompletion{})},
+		{"computeDoc", reflect.TypeOf(aiassist.GeneratedCompute{})},
 	}
 	loader := loaderYAMLKeys(t)
 	for _, p := range pairs {

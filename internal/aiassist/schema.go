@@ -109,6 +109,16 @@ func applicationColorEnum() []string {
 	return names
 }
 
+// sortDirectionEnum is domain.KnownSortDirections, sorted: a list's direction is the loader's own closed set.
+func sortDirectionEnum() []string {
+	out := make([]string, 0, len(domain.KnownSortDirections))
+	for d := range domain.KnownSortDirections {
+		out = append(out, d)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func notificationPreferenceEnum() []string {
 	out := make([]string, 0, len(domain.KnownNotificationPreferenceKeys))
 	for k := range domain.KnownNotificationPreferenceKeys {
@@ -269,7 +279,7 @@ var generatedListSchema = geminiSchema{
 		"scope":        {Type: "STRING", Enum: []string{ListScopeMine, ListScopeAll}, Description: "\"mine\": only the records whose person field is the person looking. \"all\": every record. Ask the person which each list is; never pick for them. This only chooses what the list shows -- it does not stop anyone opening the other records elsewhere."},
 		"person_field": {Type: "STRING", Description: "Required for \"mine\": a person field of that machine saying whose record it is. Leave empty for \"all\"."},
 		"sort_field":   {Type: "STRING", Description: "A field of that machine, or created_at / updated_at. Leave empty for newest first by created_at."},
-		"direction":    {Type: "STRING", Enum: []string{"asc", "desc"}},
+		"direction":    {Type: "STRING", Enum: sortDirectionEnum()},
 		"limit":        {Type: "INTEGER", Description: "How many records the list shows at most, 1 to 200."},
 	},
 }
