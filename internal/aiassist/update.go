@@ -263,7 +263,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 	}
 	for _, x := range m.Transitions {
 		if !oldTrans[x.ID] {
-			if err := appendEncoded(ensureSeq(doc, "transitions"), transitionDoc{ID: x.ID, Name: x.Name, Field: x.Field, From: x.From, To: x.To, Action: "edit"}); err != nil {
+			if err := appendEncoded(ensureSeq(doc, "transitions"), transitionDoc{ID: x.ID, Name: x.Name, Field: x.Field, From: x.From, To: x.To, Action: "edit", Roles: x.Roles, ActorField: x.ActorField}); err != nil {
 				return err
 			}
 		}

@@ -78,6 +78,30 @@ func CheckTransitions(m *domain.Machine, action string, current, next map[string
 	return nil
 }
 
+// MovedTransitions lists the declared edges a write takes: for each governed status Field that next changes, the
+// edge from the current value to the proposed one. An undeclared move is CheckTransitions' to refuse, so it is
+// skipped here.
+func MovedTransitions(m *domain.Machine, current, next map[string]any) []domain.Transition {
+	var out []domain.Transition
+	for _, f := range m.Fields {
+		if f.Type != domain.FieldTypeStatus || !m.GovernsTransitions(f.ID) {
+			continue
+		}
+		proposed, present := next[f.ID]
+		if !present {
+			continue
+		}
+		from, to := displayValue(current[f.ID]), displayValue(proposed)
+		if from == to {
+			continue
+		}
+		if t, ok := m.TransitionFor(f.ID, from, to); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // displayValue renders a stored value the same way a declared option is written in metadata, so
 // "pending" read back out of JSONB compares equal to `from: pending`. Matches the fmt.Sprint
 // comparison CheckConstraints and CanAct already use on the same values, deliberately -- three

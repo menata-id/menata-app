@@ -184,12 +184,14 @@ type permissionDoc struct {
 }
 
 type transitionDoc struct {
-	ID     string `yaml:"id"`
-	Name   string `yaml:"name"`
-	Field  string `yaml:"field"`
-	From   string `yaml:"from"`
-	To     string `yaml:"to"`
-	Action string `yaml:"action"`
+	ID         string   `yaml:"id"`
+	Name       string   `yaml:"name"`
+	Field      string   `yaml:"field"`
+	From       string   `yaml:"from"`
+	To         string   `yaml:"to"`
+	Action     string   `yaml:"action"`
+	Roles      []string `yaml:"roles,omitempty"`
+	ActorField string   `yaml:"actor_field,omitempty"`
 }
 
 type eventDoc struct {
@@ -404,7 +406,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.Permissions = append(doc.Permissions, pd)
 	}
 	for _, t := range m.Transitions {
-		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit"})
+		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField})
 	}
 	for _, e := range m.Events {
 		var ed eventDoc

@@ -80,6 +80,9 @@ type transitionDoc struct {
 	From   string `yaml:"from"`
 	To     string `yaml:"to"`
 	Action string `yaml:"action"`
+	// Roles and ActorField gate who may take the edge (domain.Transition.Roles/ActorField).
+	Roles      []string `yaml:"roles"`
+	ActorField string   `yaml:"actor_field"`
 }
 
 // actionEffectDoc/fieldWriteDoc are the YAML serialization of a domain.ActionEffect (Stage B,
@@ -505,6 +508,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 			From:   td.From,
 			To:     td.To,
 			Action: td.Action,
+
+			Roles:      td.Roles,
+			ActorField: td.ActorField,
 		})
 	}
 	for _, ad := range doc.Actions {

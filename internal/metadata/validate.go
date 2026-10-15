@@ -539,6 +539,32 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 	return issues
 }
 
+// validateTransitionActor checks the two keys that say who may take an edge. They are enforced by the generic
+// update route, which is the `edit` Action's, so an edge any other Action (or no Action) performs may not declare
+// them: a key nothing reads would look like a guard and protect nothing. Role words are checked against the
+// Application's vocabulary later, with the Permissions' (validatePermissionRoles).
+func validateTransitionActor(m *domain.Machine, t domain.Transition, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	if (len(t.Roles) > 0 || t.ActorField != "") && t.Action != domain.ActionEdit {
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: roles and actor_field gate the generic update route, so only an edge with action %q may declare them, not %q", m.ID, t.ID, domain.ActionEdit, t.Action))
+	}
+	for i, role := range t.Roles {
+		if strings.TrimSpace(role) == "" {
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: roles entry %d is empty -- omit it rather than declaring a blank role, which no vocabulary contains", m.ID, t.ID, i))
+		}
+	}
+	if t.ActorField != "" {
+		f, ok := fieldsByID[t.ActorField]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: actor_field %q is not a field of this machine", m.ID, t.ID, t.ActorField))
+		case !f.IsReference():
+			issues = append(issues, unboundActorField(t.ID, "actor_field", t.ActorField, f))
+		}
+	}
+	return issues
+}
+
 // validateTransition checks one declared edge of a Machine's state model (Case 03 Fase 7).
 //
 // Every check here exists because its absence fails silently rather than loudly. A transition
@@ -589,6 +615,8 @@ func validateTransition(m *domain.Machine, t domain.Transition, fieldsByID map[s
 	if t.Action != "" && !domain.KnownActions[t.Action] {
 		issues = append(issues, fmt.Sprintf("machine %q: transition %q: action %q is not an action this runtime realizes", m.ID, t.ID, t.Action))
 	}
+
+	issues = append(issues, validateTransitionActor(m, t, fieldsByID)...)
 
 	edge := t.Field + "\x00" + t.From + "\x00" + t.To
 	if prev, dup := seenEdges[edge]; dup {
@@ -1407,6 +1435,18 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 					issues = append(issues, fmt.Sprintf(
 						"machine %q: permission %q names role %q, which application %q does not declare in its roles: vocabulary -- nobody can hold it, so this permission would deny everyone while reading as a grant",
 						m.ID, p.ID, role, m.ApplicationID))
+				}
+			}
+		}
+	}
+	for _, m := range machines {
+		for _, t := range m.Transitions {
+			for _, role := range t.Roles {
+				switch {
+				case m.ApplicationID == "":
+					issues = append(issues, fmt.Sprintf("machine %q: transition %q names roles %v, but no application claims this machine -- a role word only means something inside one application's own vocabulary", m.ID, t.ID, t.Roles))
+				case !vocabulary[m.ApplicationID][role]:
+					issues = append(issues, fmt.Sprintf("machine %q: transition %q names role %q, which application %q does not declare in its roles: vocabulary -- nobody can hold it, so this edge would be taken by no one", m.ID, t.ID, role, m.ApplicationID))
 				}
 			}
 		}

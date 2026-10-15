@@ -543,6 +543,35 @@ func TestRecordTransitionIsPerRecordAndFollowsTheStateModel(t *testing.T) {
 	}
 }
 
+// A step limited to a role or to the person the record names is offered only to a viewer who passes it, so a button
+// is not drawn for a move the patch route would answer 403.
+func TestRecordTransitionOffersOnlyTheStepsTheViewerMayTake(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_leave", ApplicationID: "app_leave",
+		Fields: []domain.Field{
+			{ID: "fld_manager", Type: domain.FieldTypePerson},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"open", "approved"}, Default: "open"},
+		},
+		CardFields: []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}},
+		Transitions: []domain.Transition{
+			{ID: "t1", Field: "fld_status", From: "open", To: "approved", Action: domain.ActionEdit, Roles: []string{"manajer"}, ActorField: "fld_manager"},
+		},
+	}
+	rec := &data.Record{ID: "rec_a", Values: map[string]any{"fld_manager": "usr_sari", "fld_status": "open"}}
+	for name, tc := range map[string]struct {
+		viewer domain.Actor
+		want   bool
+	}{
+		"the named manager":         {domain.Actor{ID: "usr_sari", Roles: map[string][]string{"app_leave": {"manajer"}}}, true},
+		"another manager":           {domain.Actor{ID: "usr_budi", Roles: map[string][]string{"app_leave": {"manajer"}}}, false},
+		"the named person, no role": {domain.Actor{ID: "usr_sari", Roles: map[string][]string{"app_leave": {"karyawan"}}}, false},
+	} {
+		if got, _ := recordTransition(m, rec, tc.viewer).Allows("approved"); got != tc.want {
+			t.Errorf("%s: Allows = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
 // referenceDimensionLoader seeds two Projects and Tasks pointing at them, one pointing at a Project that no longer
 // exists and one pointing at none, so a Dimension over the relation Field has every case to name.
 func referenceDimensionLoader(t *testing.T) (*Loader, context.Context, map[string]string) {

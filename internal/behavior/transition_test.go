@@ -118,3 +118,20 @@ func TestCheckTransitions_actionlessEdgeIsRefusedThroughEveryAction(t *testing.T
 	// rollUpParentStatus writes through the store directly), which is what keeps the rollup
 	// working while the route is closed.
 }
+
+func TestMovedTransitions(t *testing.T) {
+	m := stepMachine()
+	if got := MovedTransitions(m, map[string]any{"fld_decision": "pending"}, map[string]any{"fld_decision": "approved"}); len(got) != 1 || got[0].ID != "trn_step_approve" {
+		t.Errorf("a declared move = %+v, want trn_step_approve", got)
+	}
+	for name, next := range map[string]map[string]any{
+		"a value that does not change": {"fld_decision": "pending"},
+		"a Field the write omits":      {},
+		"an undeclared move":           {"fld_decision": "pending-again"},
+		"an ungoverned Field":          {"fld_approver_type": "Group"},
+	} {
+		if got := MovedTransitions(m, map[string]any{"fld_decision": "pending", "fld_approver_type": "User"}, next); len(got) != 0 {
+			t.Errorf("%s: MovedTransitions = %+v, want none", name, got)
+		}
+	}
+}

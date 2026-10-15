@@ -43,6 +43,15 @@ type Transition struct {
 	// one declaration replaced internal/web's own allowsDecisionChange -- a hand-written rule
 	// naming one Machine and one Field that said exactly this for fld_decision alone.
 	Action string
+	// Roles are Application roles, any one of which the actor must hold to take this edge (the Permission
+	// `roles:` arm, read per edge). Empty says nothing about roles. Only an edge performed by the `edit` Action
+	// may declare it: that is the route the gate is enforced on, and a key enforced nowhere would read as a
+	// guard and protect nothing.
+	Roles []string
+	// ActorField, when set, is a person Field of this Machine: the actor must be the person the record holds in
+	// it (the Permission `actor_field` arm, read per edge). ANDs with Roles, like every arm. A record whose
+	// field is empty satisfies nothing: an unassigned record is takeable by no one on this edge.
+	ActorField string
 }
 
 // TransitionFor returns the declared Transition moving field from -> to, if m declares one.

@@ -42,7 +42,7 @@ permissions:
     roles: [pelapor, petugas]
 
 # Discretionary: a ticket may move between these in any order, so every edge a petugas may take is declared.
-# WISHED: `roles:` per edge; only the reporter reopens.
+# `roles:` per edge; only the reporter reopens (WISHED until the runtime learned it).
 transitions:
   - { id: trn_take, name: Tangani, field: fld_status, from: baru, to: ditangani, action: edit, roles: [petugas] }
   - { id: trn_wait, name: Tunggu pelapor, field: fld_status, from: ditangani, to: menunggu_pelapor, action: edit, roles: [petugas] }

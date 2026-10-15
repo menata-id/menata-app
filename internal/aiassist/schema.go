@@ -181,15 +181,17 @@ var generatedPermissionSchema = geminiSchema{
 }
 
 var generatedTransitionSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "field", "from", "to"},
+	PropertyOrdering: []string{"id", "name", "field", "from", "to", "roles", "actor_field"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "field", "from", "to"},
 	Properties: map[string]geminiSchema{
-		"id":    stringSchema,
-		"name":  stringSchema,
-		"field": {Type: "STRING", Description: "Must be a status field on this same machine."},
-		"from":  stringSchema,
-		"to":    stringSchema,
+		"id":          stringSchema,
+		"name":        stringSchema,
+		"field":       {Type: "STRING", Description: "Must be a status field on this same machine."},
+		"from":        stringSchema,
+		"to":          stringSchema,
+		"roles":       {Type: "ARRAY", Items: &stringSchema, Description: "Optional: only people holding one of these roles of this application may take this step (\"only a manager approves\"). Leave out for any editor."},
+		"actor_field": {Type: "STRING", Description: "Optional: a person field of this same machine. Only the person named in it on a record may take this step on that record (\"only the requester reopens\")."},
 	},
 }
 

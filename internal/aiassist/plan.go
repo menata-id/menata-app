@@ -83,7 +83,7 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 	}
 	for _, t := range m.Transitions {
 		if t.Action == domain.ActionEdit {
-			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To})
+			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Roles: slices.Clone(t.Roles), ActorField: t.ActorField})
 		}
 	}
 	for _, e := range m.Events {
@@ -301,8 +301,8 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		switch {
 		case !exists:
 			p.add("status move %q on %q: %s -> %s", x.Name, m.Name, x.From, x.To)
-		case x != ox:
-			p.refuse("status move %s cannot be changed, only added", x.ID)
+		case x.Name != ox.Name || x.Field != ox.Field || x.From != ox.From || x.To != ox.To || x.ActorField != ox.ActorField || !sameSet(x.Roles, ox.Roles):
+			p.refuse("status move %s cannot be changed, only added -- who may take it included, because the file edit only appends", x.ID)
 		}
 	}
 	for _, x := range old.Transitions {
@@ -560,6 +560,13 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 			for _, r := range perm.Roles {
 				if !roles[r] {
 					issues = append(issues, fmt.Sprintf("machine %q permission %q names role %q, which the application does not declare in %v", m.ID, perm.ID, r, desired.Roles))
+				}
+			}
+		}
+		for _, tr := range m.Transitions {
+			for _, r := range tr.Roles {
+				if !roles[r] {
+					issues = append(issues, fmt.Sprintf("machine %q step %q names role %q, which the application does not declare in %v", m.ID, tr.ID, r, desired.Roles))
 				}
 			}
 		}

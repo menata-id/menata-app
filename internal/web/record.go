@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
+	"menata.app/internal/authorization"
 	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
@@ -245,7 +246,7 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 // by adding a route.
 func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) (*data.Record, bool) {
 	data.ApplyComputed(machine, values)
-	if !allowsTransition(w, req, store, machine, id, values) {
+	if !allowsTransition(w, req, store, machine, id, values, actor) {
 		return nil, false
 	}
 	if !passesWriteGuards(w, req, store, machines, machine, id, values) {
@@ -461,7 +462,7 @@ func carryForwardFixedFields(w http.ResponseWriter, req *http.Request, store *da
 // The fetch is skipped entirely for a Machine that declares no transitions -- the same fast path
 // recordEditAllowed takes for an undeclared Permission, and the reason declaring the state model
 // of one Machine costs nothing on every other write in the manifest.
-func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) bool {
 	if len(machine.Transitions) == 0 {
 		return true
 	}
@@ -473,6 +474,13 @@ func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Stor
 	if err := behavior.CheckTransitions(machine, domain.ActionEdit, existing.Values, values); err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return false
+	}
+	// The edge's own actor arms (roles, actor_field), read against the record as it stands before the move.
+	for _, t := range behavior.MovedTransitions(machine, existing.Values, values) {
+		if !authorization.AllowsTransition(machine, t, existing.Values, actor) {
+			http.Error(w, "not allowed to take the "+t.Name+" step on this record", http.StatusForbidden)
+			return false
+		}
 	}
 	return true
 }

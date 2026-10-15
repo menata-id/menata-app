@@ -54,8 +54,8 @@ permissions:
     action: edit
     roles: [requester, koordinator desain, desainer]
 
-# WISHED on every transition: `roles:`, who may take this edge. Today a Permission governs the whole edit Action, so
-# anyone who may edit may take any edge (the comment in menata-indonesia's own file says the same).
+# `roles:` says who may take each edge. It was WISHED until the runtime learned it (transition-actor); a Permission
+# alone governs the whole edit Action, so without it anyone who may edit may take any edge.
 transitions:
   - { id: trn_assign, name: Tugaskan, field: fld_status, from: diajukan, to: ditugaskan, action: edit, roles: [koordinator desain] }
   - { id: trn_start, name: Mulai Kerjakan, field: fld_status, from: ditugaskan, to: sedang_dikerjakan, action: edit, roles: [desainer] }

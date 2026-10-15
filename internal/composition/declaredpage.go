@@ -440,7 +440,16 @@ func recordTransition(src *domain.Machine, r *data.Record, viewer domain.Actor) 
 		if !editable || target == current {
 			return false, true
 		}
-		return behavior.CheckTransitions(src, domain.ActionEdit, r.Values, map[string]any{field: target}) == nil, true
+		next := map[string]any{field: target}
+		if behavior.CheckTransitions(src, domain.ActionEdit, r.Values, next) != nil {
+			return false, true
+		}
+		for _, e := range behavior.MovedTransitions(src, r.Values, next) {
+			if !authorization.AllowsTransition(src, e, r.Values, viewer) {
+				return false, true
+			}
+		}
+		return true, true
 	}
 	return t
 }

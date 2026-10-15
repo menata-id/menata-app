@@ -184,6 +184,13 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 				}
 			}
 		}
+		for _, tr := range m.Transitions {
+			for _, r := range tr.Roles {
+				if !seenRole[r] {
+					issues = append(issues, fmt.Sprintf("machine %q step %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the step could be taken by no one", m.ID, tr.ID, r, app.Roles))
+				}
+			}
+		}
 		if existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
 		}
@@ -274,6 +281,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		m.Transitions = append(m.Transitions, domain.Transition{
 			ID: gt.ID, Name: gt.Name, Field: gt.Field, From: gt.From, To: gt.To,
 			Action: domain.ActionEdit,
+			Roles:  slices.Clone(gt.Roles), ActorField: gt.ActorField,
 		})
 	}
 	for _, ge := range gm.Events {

@@ -104,7 +104,7 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 			return
 		}
 		data.ApplyComputed(machine, values)
-		if !allowsTransition(w, req, store, machine, id, values) {
+		if !allowsTransition(w, req, store, machine, id, values, actor) {
 			return
 		}
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {

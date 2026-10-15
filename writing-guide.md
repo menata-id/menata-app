@@ -649,6 +649,25 @@ above is why an Approval Step's decision cannot be changed through the generic e
 edit route realizes `edit`, and this edge is reserved for `decide`. Before transitions existed
 this was one hand-written Go rule naming this exact Machine and Field.
 
+**Who may take an edge: `roles:` and `actor_field:` (2026-10-15).** An edge performed by `edit` may say who takes it,
+using the same two arms a Permission has:
+
+```yaml
+transitions:
+  - { id: trn_approve, name: Setujui, field: fld_status, from: diajukan, to: disetujui, action: edit,
+      roles: [manajer], actor_field: fld_manager }
+  - { id: trn_cancel, name: Batalkan, field: fld_status, from: diajukan, to: dibatalkan, action: edit,
+      actor_field: fld_employee }
+```
+
+`roles:` are Application roles, any one of which suffices and each of which the Application must declare.
+`actor_field:` is a person Field of this Machine: only the person the record names in it may take the edge (a record
+whose field is empty can be taken by no one on that edge). Both together must both hold. A Permission on `edit` still
+decides who may edit the record at all; the edge's arms narrow that for one move, so a manager can edit a leave
+request without being able to cancel it. The key is refused on an edge whose `action:` is not `edit`, because only the
+generic update route enforces it. A page's `transition` Button is drawn only for a viewer who passes it, and the
+assistant can write both keys on a new status move (it cannot change them on an existing move).
+
 **Nothing may leave a value with no outgoing edge.** The two edges above both start at `pending`
 and none leaves `approved` or `rejected`, so a decision is final — and the Review screen reads
 the same declaration to decide whether to draw the Approve/Reject bar at all, rather than

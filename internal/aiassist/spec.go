@@ -241,6 +241,11 @@ type GeneratedTransition struct {
 	Field string `json:"field"`
 	From  string `json:"from"`
 	To    string `json:"to"`
+	// Roles limits who may take this edge to holders of any one of these Application roles ("only a manager
+	// approves"); ActorField limits it to the person named in a person Field of the record ("only the requester
+	// reopens"). Both optional; they AND when both are given (a transition's own roles/actor_field).
+	Roles      []string `json:"roles,omitempty"`
+	ActorField string   `json:"actor_field,omitempty"`
 }
 
 // GeneratedEvent mirrors the two Service shapes safe to generate unattended, on creation or on a field

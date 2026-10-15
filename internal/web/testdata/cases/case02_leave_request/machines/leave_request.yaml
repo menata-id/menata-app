@@ -39,9 +39,10 @@ permissions:
     action: edit
     roles: [karyawan, manajer]
 
-# WISHED on every transition: `roles:` (who may take the edge) and, on the manager's two edges, `actor_field:` (the
-# acting person must be the one the request names) and on cancel the employee's own. Today one Permission governs the
-# whole edit Action, so the roles above let a manager cancel and an employee approve.
+# `roles:` (who may take the edge) and, on the manager's two edges, `actor_field:` (the acting person must be the one
+# the request names) and on cancel the employee's own. Both were WISHED until the runtime learned them
+# (transition-actor); one Permission alone governs the whole edit Action, so the roles above would let a manager
+# cancel and an employee approve.
 transitions:
   - { id: trn_approve, name: Setujui, field: fld_status, from: diajukan, to: disetujui, action: edit, roles: [manajer], actor_field: fld_manager }
   - { id: trn_reject, name: Tolak, field: fld_status, from: diajukan, to: ditolak, action: edit, roles: [manajer], actor_field: fld_manager }

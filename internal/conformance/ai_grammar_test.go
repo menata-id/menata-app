@@ -39,6 +39,7 @@ func TestAIGrammarGapIsMeasured(t *testing.T) {
 	}{
 		{"machineDoc", reflect.TypeOf(aiassist.GeneratedMachine{})},
 		{"fieldDoc", reflect.TypeOf(aiassist.GeneratedField{})},
+		{"transitionDoc", reflect.TypeOf(aiassist.GeneratedTransition{})},
 	}
 	loader := loaderYAMLKeys(t)
 	for _, p := range pairs {

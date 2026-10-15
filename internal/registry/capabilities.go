@@ -69,6 +69,15 @@ var Capabilities = []Capability{
 	key("machineDoc", "status_categories", "presentation", "experience", false, "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet"),
 	key("machineDoc", "card_tags", "presentation", "experience", false, "board card tags; no generated board"),
 	key("machineDoc", "append_only", "behaviour", "behavior", false, "no generated Machine is a log"),
+	// transitionDoc
+	key("transitionDoc", "id", "identity", "domain", true, ""),
+	key("transitionDoc", "name", "identity", "domain", true, ""),
+	key("transitionDoc", "field", "structure", "domain", true, ""),
+	key("transitionDoc", "from", "structure", "domain", true, ""),
+	key("transitionDoc", "to", "structure", "domain", true, ""),
+	key("transitionDoc", "action", "behaviour", "behavior", false, "a generated Machine's edges are always the edit Action's; the assistant writes none other"),
+	key("transitionDoc", "roles", "authorization", "behavior", true, ""),
+	key("transitionDoc", "actor_field", "authorization", "behavior", true, ""),
 	// fieldDoc
 	key("fieldDoc", "id", "identity", "domain", true, ""),
 	key("fieldDoc", "name", "identity", "domain", true, ""),
@@ -82,8 +91,6 @@ var Capabilities = []Capability{
 
 	// Proposed: wished for by the case corpus, read by no loader. Each is a candidate for the A1-A5 admission test,
 	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1).
-	{ID: "transition-actor", Struct: "transitionDoc", Keys: []string{"roles", "actor_field"}, Kind: "authorization", Plane: "behavior", Stage: StageProposed,
-		AIReason: "lands with its assistant slot on GeneratedTransition", Cases: []string{"case01_design_request", "case02_leave_request", "case17_helpdesk"}},
 	{ID: "conditional-required", Struct: "fieldDoc", Keys: []string{"required_when"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
 		AIReason: "lands with its assistant slot on GeneratedField", Cases: []string{"case01_design_request"}},
 	{ID: "computed-default", Struct: "fieldDoc", Keys: []string{"default_from"}, Kind: "structure", Plane: "domain", Stage: StageProposed,

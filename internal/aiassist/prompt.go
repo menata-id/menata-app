@@ -82,7 +82,9 @@ func composableSurface() string {
   label of that second page; it is added to the menu for you. Same title requirement and the same note as
   a list: it filters what the pages show, nothing more.
 - Transitions: a status field moving from one declared option to another, always performed through
-  the ordinary edit form (never a dedicated approve/reject button).
+  the ordinary edit form (never a dedicated approve/reject button). A step may be limited to holders of
+  some roles ("roles") and/or to the person a person field of the record names ("actor_field": "only the
+  requester reopens"); without either, anyone allowed to edit the record may take it.
 - Events, when a record is created or when a field reaches one value: an activity-feed entry
   ("service": "log_activity", the default), or a notification ("service": "send_notification") to the
   person named in one of the record's own PERSON fields ("recipient_field"; the in-app notice is always

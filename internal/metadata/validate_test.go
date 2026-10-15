@@ -947,3 +947,60 @@ func TestValidate_FileCardRoleNeedsAFileField(t *testing.T) {
 		t.Fatalf("a file field in the file role was refused: %v", err)
 	}
 }
+
+func TestValidate_transitionActor(t *testing.T) {
+	machine := func(tr domain.Transition) *domain.Machine {
+		m := transitionMachine(tr)
+		m.Fields = append(m.Fields, domain.Field{ID: "fld_owner", Name: "Owner", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID})
+		return m
+	}
+	edge := domain.Transition{ID: "trn_x", Name: "X", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionEdit}
+	withRoles := edge
+	withRoles.Roles = []string{"manager"}
+	withActor := edge
+	withActor.ActorField = "fld_owner"
+	decide := withRoles
+	decide.Action = domain.ActionDecide
+	blank := edge
+	blank.Roles = []string{" "}
+	missing := edge
+	missing.ActorField = "fld_nope"
+	notPerson := edge
+	notPerson.ActorField = "fld_note"
+	for _, tc := range []struct {
+		name string
+		tr   domain.Transition
+		want string
+	}{
+		{"roles on an edit edge", withRoles, ""},
+		{"a person field on an edit edge", withActor, ""},
+		{"roles on a decide edge", decide, "only an edge with action"},
+		{"a blank role", blank, "roles entry 0 is empty"},
+		{"an actor_field the machine lacks", missing, "not a field of this machine"},
+		{"an actor_field that is not a reference", notPerson, "fld_note"},
+	} {
+		err := Validate(machine(tc.tr))
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: Validate = %v, want nil", tc.name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: Validate = %v, want an error containing %q", tc.name, err, tc.want)
+		}
+	}
+}
+
+func TestValidatePermissionRoles_coversTransitions(t *testing.T) {
+	apps := []domain.Application{{ID: "app_x", Roles: []string{"manager"}}}
+	mk := func(appID string, roles ...string) []*domain.Machine {
+		return []*domain.Machine{{ID: "mch_x", ApplicationID: appID, Transitions: []domain.Transition{{ID: "trn_x", Roles: roles}}}}
+	}
+	if err := validatePermissionRoles(apps, mk("app_x", "manager")); err != nil {
+		t.Errorf("a declared role was refused: %v", err)
+	}
+	if err := validatePermissionRoles(apps, mk("app_x", "boss")); err == nil || !strings.Contains(err.Error(), "boss") {
+		t.Errorf("an undeclared role = %v, want an error naming it", err)
+	}
+	if err := validatePermissionRoles(apps, mk("", "manager")); err == nil || !strings.Contains(err.Error(), "no application claims") {
+		t.Errorf("roles on an unclaimed Machine = %v, want a refusal", err)
+	}
+}

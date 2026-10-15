@@ -64,6 +64,20 @@ func AllowsActionWithParents(m *domain.Machine, action string, values map[string
 	return true
 }
 
+// AllowsTransition holds the actor against the two arms an edge may declare (domain.Transition.Roles and
+// ActorField), read against the record's values before the move. It is allowsOne on a Permission built from the
+// edge, so a role and a person on a transition mean exactly what they mean on a Permission: roles are alternatives,
+// the arms AND, an empty actor satisfies nothing, an unassigned record is takeable by no one.
+func AllowsTransition(m *domain.Machine, t domain.Transition, values map[string]any, actor domain.Actor) bool {
+	if len(t.Roles) == 0 && t.ActorField == "" {
+		return true
+	}
+	if actor.ID == "" {
+		return false
+	}
+	return allowsOne(m.ApplicationID, domain.Permission{ID: t.ID, Action: domain.ActionEdit, Roles: t.Roles, ActorField: t.ActorField}, values, actor, nil)
+}
+
 // ParentRef is one parent record a Permission needs read before it can be decided.
 type ParentRef struct {
 	// ViaField is the key AllowsActionWithParents expects the fetched values under.
