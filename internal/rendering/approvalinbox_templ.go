@@ -1364,7 +1364,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if c.SLA.Present && c.SLA.Urgent {
-			var templ_7745c5c3_Var66 = []any{"self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5", textClass(ctx, domain.RoleEyebrow), "font-semibold tracking-wide uppercase",
+			var templ_7745c5c3_Var66 = []any{"self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide uppercase",
 				slaPillTone(ctx, overdue)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var66...)
 			if templ_7745c5c3_Err != nil {

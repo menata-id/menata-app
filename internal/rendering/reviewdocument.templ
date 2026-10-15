@@ -374,7 +374,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 				case b.Kind == "signed" && b.ImageHref != "":
 					<img src={ b.ImageHref } alt={ fmt.Sprintf("%s's signature", b.Label) } class="h-9 max-w-[80%] object-contain"/>
 				case b.Kind == "signed":
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+					<svg class="text-emerald-600" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
 				case b.Kind == "yours":
 					<span class="px-1 text-3xs leading-tight text-blue-700">stamped when you approve</span>
 				default:

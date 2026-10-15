@@ -442,7 +442,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			// a screen of calm cards is not a screen of amber labels.
 			if c.SLA.Present && c.SLA.Urgent {
 				<span
-					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5", textClass(ctx, domain.RoleEyebrow), "font-semibold tracking-wide uppercase",
+					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide uppercase",
 						slaPillTone(ctx, overdue) }
 				>
 					{ c.SLA.Label }

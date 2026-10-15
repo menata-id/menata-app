@@ -155,7 +155,7 @@ templ inferenceStepBlock(n InferenceStep) {
 templ inferenceRoleBlock(r InferenceRole) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 		<div class={ "flex flex-wrap items-baseline", layoutGap(ctx, domain.GapTight), "border-b " + borderClass(ctx, domain.BorderDivider) + " pb-1.5" }>
-			<h3 class={ "m-0", textClass(ctx, domain.RoleMeta), "font-semibold tracking-wide", inkClass(ctx, domain.InkSecondary) }>{ r.Role }</h3>
+			<h3 class={ "m-0", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary) }>{ r.Role }</h3>
 			if r.MachineID != "" {
 				<code class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ r.MachineID }</code>
 			} else {

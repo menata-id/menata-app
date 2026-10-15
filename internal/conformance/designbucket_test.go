@@ -74,10 +74,9 @@ var unnamedDesignValues = map[string]struct {
 	// ink
 	"text-white": {2, "the brand glyph on bg-brand, and a signature marker's number on the PDF paper layer (owner decision CP5: paper stays light); every other on-fill ink reads onFillClass since CP1 (D3 holds background.accent)"},
 
-	"text-emerald-600": {1, "the signed marker's ink beside markGoodBorder: mark-good is a mark, not an ink"},
+	"text-emerald-600": {2, "the signed marker's ink beside markGoodBorder, and the colour its check mark draws in (stroke is currentColor): mark-good is a mark, not an ink, and the paper layer is fixed in both modes (DK9)"},
 	// weight
-	"font-semibold": {2, "two small labels at 600 (an uppercase pill, an inference role heading); the weight ladder is normal and medium only"},
-	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
+	"font-bold": {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
 	"bg-brand":       {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
 	"bg-blue-600":    {4, "signature markers and their legend on the PDF paper layer (CP5); the current step, numbered approver and unread dot read inkFillClass(InkAccent) since CP2"},

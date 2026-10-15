@@ -133,7 +133,7 @@ var handWrittenColours = map[string]struct {
 	"login.templ":              {2, "the focus ring (CP4) of the two sign-in fields"},
 	"layout.templ":             {6, "markGoodFill/Border/HoverBorder: the Design System's mark-good, one value in both modes (DK7); paperClass and paperInkClass: the PDF paper layer, white with fixed inks in both modes (DK9)"},
 	"machine.templ":            {3, "the board's drag-and-drop marks in its script: mark-good (markGoodScriptUses), one value in both modes (DK7)"},
-	"reviewdocument.templ":     {20, "the PDF paper layer (CP5, DK9): signature markers, their legend and the signature canvas, drawn over a white page image, so light in both modes"},
+	"reviewdocument.templ":     {21, "the PDF paper layer (CP5, DK9): signature markers, their legend and the signature canvas, drawn over a white page image, so light in both modes"},
 	"signatureplacement.templ": {8, "the PDF paper layer (CP5): placement markers drawn over the page image"},
 }
 

@@ -1482,6 +1482,17 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   paragraph gates. Reading size as a literal found six more hand-written paragraphs that read the Theme (App Settings' two
   `leading-6` descriptions, four `leading-5` role-matrix sentences), now floors with reasons, and the registered
   SegmentedControl's selected knob as a chip-shaped floor.
+- **Gap plan P6 first batch and P8a (2026-10-15).** The artifact follows the code for `accent-ring` (the accent at 20%) and
+  `primary-hover` (the strong ink at 90%): each is a role at an opacity, compared by `TestUnmappedAlphaTokensMatchTheirReaders`
+  (K-08), and `radius-inner` 4px is a token with no Theme role (K-11; compared in `TestUnmappedLengthTokensMatchTheirLiterals`, whose
+  `rounded` case reads the whole family so a knob drifting to `rounded-md` fails). `font-semibold` is gone (K-12): Ubuntu ships 400,
+  500 and 700, so 600 drew as 700; the two sites read the emphasis weight, which is the only visible change (`/inference` role
+  headings 600 to 500, measured). **K-09 done in half and K-16 held, both by measurement:** the signed check mark's stroke was a hex
+  nothing read and is `currentColor` over `text-emerald-600` now; its box edge `border-emerald-300` stays, because that box is
+  the paper layer, fixed in both modes (DK9) and tone readers turn dark in dark mode. A placeholder in `ink-faint` would lower its
+  contrast from about 3.4:1 (the browser's 50% of the strong ink) to 2.6:1, so the rule "placeholder = faint" stays unadopted
+  and the Field page says so. P8a: a Document whose PDF cannot be opened answers the signature placement screen with 422
+  (`pdf.ErrUnreadable`), as `/pdf-preview` did; it was a logged 500. The four AI sessions an audit crawler created were deleted by id.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

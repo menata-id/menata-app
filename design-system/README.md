@@ -2,7 +2,7 @@
 
 `tokens.json` is a **copy** of the Design System artifact "Menata App"
 (`https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS`, file `project/tokens.json`), taken at artifact version
-`1792019598-beab` (2026-10-14; token sync with the code: the four accepted tokens lost their status, four tone edges were added, usage strings corrected; before it `1791992280-76db` deepened the light steps of four Tag hues to reach 4.5:1, and before that `1791884364-e589` added the `dark` theme and the categorical colour tokens, owner decisions DK1–DK11). It is the token source the mockup canvases are generated from.
+`1792024156-16be` (2026-10-15; `accent-ring` and `primary-hover` follow the code as opacities of a role, `radius-inner` 4px added; before it `1792019598-beab`, 2026-10-14: token sync with the code: the four accepted tokens lost their status, four tone edges were added, usage strings corrected; before it `1791992280-76db` deepened the light steps of four Tag hues to reach 4.5:1, and before that `1791884364-e589` added the `dark` theme and the categorical colour tokens, owner decisions DK1–DK11). It is the token source the mockup canvases are generated from.
 
 It is here so a test can hold the artifact and the code to the same values without reading the network:
 `internal/rendering`'s `TestDesignSystemTokensMatchTheCode` (GS1 of `menata-app-document`'s

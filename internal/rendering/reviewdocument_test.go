@@ -173,3 +173,16 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 		t.Error("a reviewer must be told nobody has placed one yet, not shown an empty preview")
 	}
 }
+
+// A signed marker with no captured image draws a check mark whose stroke is the marker's own ink (mark-good, emerald-600),
+// not a hex of another green (gap plan K-09, 2026-10-15: the audit found stroke="#16a34a", which no colour gate reads).
+func TestReviewSignatureBox_signedCheckMarkDrawsInMarkGood(t *testing.T) {
+	var buf bytes.Buffer
+	if err := reviewSignatureBox(ReviewSignatureBox{Index: 1, Label: "Rina Nur", Kind: "signed", X: 20, Y: 84, Width: 20}).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, `class="text-emerald-600"`) || !strings.Contains(got, `stroke="currentColor"`) || strings.Contains(got, "#16a34a") {
+		t.Errorf("the check mark is not drawn in mark-good through currentColor: %s", got)
+	}
+}
