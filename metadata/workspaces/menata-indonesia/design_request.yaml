@@ -1,0 +1,205 @@
+id: mch_design_request
+name: Request Desain
+fields:
+  - id: fld_title
+    name: Judul
+    type: text
+    required: true
+  - id: fld_description
+    name: Deskripsi
+    type: long_text
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    # diajukan, sedang_dikerjakan, revisi, selesai are the values the first version declared and records
+    # already hold; ditugaskan and diserahkan were added between them for the coordinator's and requester's steps.
+    options:
+      - diajukan
+      - ditugaskan
+      - sedang_dikerjakan
+      - diserahkan
+      - revisi
+      - selesai
+    default: diajukan
+  - id: fld_due_date
+    name: Tenggat
+    type: date
+  # Filled by the runtime with whoever creates the request; never an input.
+  - id: fld_requester
+    name: Requester
+    type: person
+    stamp: current_user
+  # Who is emailed about a new request. Not required, so records created before this Field existed stay
+  # editable. The runtime cannot email "everyone holding the coordinator role" yet, so it is a person per request.
+  - id: fld_coordinator
+    name: Koordinator
+    type: person
+  - id: fld_designer
+    name: Desainer
+    type: person
+  - id: fld_reference_file
+    name: File Referensi
+    type: file
+  - id: fld_result_file
+    name: Hasil Desain
+    type: file
+
+# A Permission governs the edit Action on the whole Machine, not one transition: anyone below may move the status
+# along any edge declared under transitions:. "Only the requester approves" cannot be said yet.
+permissions:
+  - id: prm_create_request
+    action: create
+    roles:
+      - requester
+      - koordinator desain
+  - id: prm_edit_request
+    action: edit
+    roles:
+      - requester
+      - koordinator desain
+      - desainer
+  - id: prm_delete_request
+    action: delete
+    roles:
+      - koordinator desain
+
+transitions:
+  - id: trn_assign
+    name: Tugaskan
+    field: fld_status
+    from: diajukan
+    to: ditugaskan
+    action: edit
+  - id: trn_start
+    name: Mulai Kerjakan
+    field: fld_status
+    from: ditugaskan
+    to: sedang_dikerjakan
+    action: edit
+  - id: trn_submit
+    name: Serahkan Desain
+    field: fld_status
+    from: sedang_dikerjakan
+    to: diserahkan
+    action: edit
+  - id: trn_revise
+    name: Minta Revisi
+    field: fld_status
+    from: diserahkan
+    to: revisi
+    action: edit
+  - id: trn_resubmit
+    name: Serahkan Ulang
+    field: fld_status
+    from: revisi
+    to: diserahkan
+    action: edit
+  - id: trn_finish
+    name: Setujui
+    field: fld_status
+    from: diserahkan
+    to: selesai
+    action: edit
+
+completion: { field: fld_status, done: selesai }
+
+events:
+  - id: evt_request_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: Request "{fld_title}" dibuat
+  - id: evt_request_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" pindah dari {old} ke {new}"
+
+  # A new request: the coordinator. No preference key means "new request", so `assigned` is the nearest.
+  - id: evt_request_created_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_field: fld_coordinator
+      preference_key: assigned
+      summary: "Request desain baru: {fld_title}"
+  # Assigned: the designer.
+  - id: evt_request_assigned_notify
+    on: fld_status
+    when_equals: ditugaskan
+    then:
+      service: send_notification
+      recipient_field: fld_designer
+      preference_key: assigned
+      summary: "Kamu ditugaskan mengerjakan: {fld_title}"
+  # Submitted: the coordinator and the requester, one Event each.
+  - id: evt_request_submitted_notify_coordinator
+    on: fld_status
+    when_equals: diserahkan
+    then:
+      service: send_notification
+      recipient_field: fld_coordinator
+      preference_key: decided
+      summary: "Desain diserahkan: {fld_title}"
+  - id: evt_request_submitted_notify_requester
+    on: fld_status
+    when_equals: diserahkan
+    then:
+      service: send_notification
+      recipient_field: fld_requester
+      preference_key: decided
+      summary: "Desainmu sudah jadi, mohon ditinjau: {fld_title}"
+  # Revision asked: the designer.
+  - id: evt_request_revision_notify
+    on: fld_status
+    when_equals: revisi
+    then:
+      service: send_notification
+      recipient_field: fld_designer
+      preference_key: assigned
+      summary: "Desain perlu direvisi: {fld_title}"
+
+datasets:
+  - id: ds_my_requests
+    select: records
+    where: { field: fld_requester, op: equals, value: $current_user }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 200
+  - id: ds_my_design_work
+    select: records
+    where:
+      all:
+        - { field: fld_designer, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+    sort:
+      - { field: fld_due_date, direction: asc }
+    limit: 200
+  - id: ds_requests_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
+  - id: ds_requests_in_status
+    select: records
+    where: { field: fld_status, op: equals, value: $parameters.status }
+    sort:
+      - { field: fld_due_date, direction: asc }
+    limit: 200
+
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+  - { field: fld_designer, role: person }
+
+# The first View is the default: a board with one column per status.
+views:
+  - id: vw_design_request_board
+    name: Board
+    type: board
+    group_by: fld_status
+  - id: vw_design_request_table
+    name: Tabel
+    type: table

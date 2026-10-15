@@ -1,0 +1,145 @@
+id: app_design_request
+name: Desain Request
+machines:
+  - mch_design_request
+roles:
+  - requester
+  - koordinator desain
+  - desainer
+description: Aplikasi untuk mengelola dan melacak permintaan desain.
+icon: board
+color: blue
+summary_machine: mch_design_request
+navigation:
+  - id: nav_my_requests
+    label: Request Saya
+    title: Request yang saya minta
+    description: Semua request desain yang kamu ajukan, terbaru di atas.
+    route: /pages/nav_my_requests
+    priority: 1
+    home_card: true
+    icon: inbox
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          divided: true
+          complete: true
+          empty: Kamu belum mengajukan request desain.
+          binding: { dataset: ds_my_requests, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: person }
+                - component: StatusBadge
+                  tone: info
+                  from: { label: status }
+        - static: link
+          to: nav_design_request
+
+  - id: nav_my_design_work
+    label: Tugas Saya
+    title: Desain yang saya tangani
+    description: Request yang ditugaskan kepadamu dan belum selesai, tenggat terdekat di atas.
+    route: /pages/nav_my_design_work
+    priority: 2
+    icon: check-square
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          divided: true
+          complete: true
+          empty: Tidak ada desain yang sedang kamu tangani.
+          binding: { dataset: ds_my_design_work, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: link
+                  from: { text: title, href: record }
+                - component: StatusBadge
+                  tone: info
+                  from: { label: status }
+
+  # The coordinator's monitor: one tile per status; a tile opens nav_requests_in_status with ?status=<value>.
+  - id: nav_all_requests
+    label: Semua Request
+    title: Semua request desain
+    description: Jumlah request per status. Pilih satu status untuk melihat daftarnya.
+    route: /pages/nav_all_requests
+    priority: 3
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              binding: { dataset: ds_requests_by_status, measure: msr_total, rows: dimension }
+              to: nav_requests_in_status
+              param: status
+        - static: link
+          to: nav_design_request
+
+  - id: nav_requests_in_status
+    label: Per Status
+    title: Request dalam satu status
+    description: Request desain pada status yang dipilih di halaman Semua Request.
+    route: /pages/nav_requests_in_status
+    priority: 4
+    icon: file-text
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          divided: true
+          complete: true
+          empty: Tidak ada request pada status ini. Pilih status dari halaman Semua Request.
+          binding: { dataset: ds_requests_in_status, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: person }
+                - component: StatusBadge
+                  tone: info
+                  from: { label: status }
+
+  # The Machine's own page: the board by status (the first View), a table, and the form to add a request.
+  - id: nav_design_request
+    label: Board
+    title: Board request desain
+    description: Semua request per status. Tambah request baru dari sini.
+    route: /machines/mch_design_request
+    priority: 5
+    icon: board

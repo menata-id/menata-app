@@ -13,6 +13,8 @@ machines:
   - menata-indonesia/attachment.yaml
   - menata-indonesia/comment.yaml
   - menata-indonesia/checklist_item.yaml
+  - menata-indonesia/design_request.yaml
 
 applications:
   - menata-indonesia/applications/project-management.yaml
+  - menata-indonesia/applications/design_request.yaml
