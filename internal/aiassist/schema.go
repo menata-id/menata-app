@@ -215,26 +215,27 @@ var generatedChangeSchema = geminiSchema{
 }
 
 var capabilityGapSchema = geminiSchema{
-	PropertyOrdering: []string{"requested", "note"},
+	PropertyOrdering: []string{"requested", "kind", "note"},
 	Type:             "OBJECT",
-	Required:         []string{"requested", "note"},
+	Required:         []string{"requested", "kind", "note"},
 	Properties: map[string]geminiSchema{
+		"kind":      {Type: "STRING", Enum: []string{GapRuntime, GapAssistant}, Description: "\"runtime\" when the runtime cannot express this at all yet; \"assistant\" when the runtime can (it is in the first list) but you cannot write it yet."},
 		"requested": {Type: "STRING", Description: "A short name for the missing capability, e.g. \"multi-person voting approval\" -- stable enough that the same request from different conversations names the same thing, so gaps can be counted."},
 		"note":      {Type: "STRING", Description: "One sentence of context: what the user actually asked for."},
 	},
 }
 
-// replySchema is the whole response shape (see Reply) -- message is always required, change and
-// capability_gap are each optional and mutually exclusive in practice (the system prompt says so;
-// the schema cannot express "at most one of").
+// replySchema is the whole response shape (see Reply) -- message is always required; change and
+// capability_gaps are optional and may appear together (a reply can propose most of an application
+// and still name what it left out).
 var replySchema = geminiSchema{
-	PropertyOrdering: []string{"message", "capability_gap", "change"},
+	PropertyOrdering: []string{"message", "capability_gaps", "change"},
 	Type:             "OBJECT",
 	Required:         []string{"message"},
 	Properties: map[string]geminiSchema{
-		"message":        stringSchema,
-		"change":         generatedChangeSchema,
-		"capability_gap": capabilityGapSchema,
+		"message":         stringSchema,
+		"change":          generatedChangeSchema,
+		"capability_gaps": {Type: "ARRAY", Items: &capabilityGapSchema, Description: "Every part of the request you could not satisfy, one entry each. Empty or absent when nothing was left out."},
 	},
 }
 

@@ -150,12 +150,13 @@ func (s *Store) UpdateAISessionStatus(ctx context.Context, workspaceID, id, stat
 
 // RecordAICapabilityGap writes one structured "the runtime can't say this yet" row (the kajian's
 // own §3.4 ask) -- never updated or deleted once written, so a later count across many
-// conversations reflects real, unedited history.
-func (s *Store) RecordAICapabilityGap(ctx context.Context, sessionID, workspaceID, requested, note string) error {
+// conversations reflects real, unedited history. kind is "runtime", "assistant" or "unclassified"
+// (migration 017's CHECK refuses anything else).
+func (s *Store) RecordAICapabilityGap(ctx context.Context, sessionID, workspaceID, kind, requested, note string) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO ai_capability_gaps (id, session_id, workspace_id, requested_capability, note)
-		VALUES ($1, $2, $3, $4, $5)
-	`, newID("aigap_"), sessionID, workspaceID, requested, note)
+		INSERT INTO ai_capability_gaps (id, session_id, workspace_id, kind, requested_capability, note)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, newID("aigap_"), sessionID, workspaceID, kind, requested, note)
 	if err != nil {
 		return fmt.Errorf("record ai capability gap: %w", err)
 	}

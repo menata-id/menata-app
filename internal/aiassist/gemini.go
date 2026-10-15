@@ -39,17 +39,45 @@ type Reply struct {
 	// schema-shaped metadata change -- nil means "still gathering information", which is this
 	// package's own mechanical half of "confirm until metadata is complete".
 	Change *GeneratedChange `json:"change,omitempty"`
-	// CapabilityGap is set when the request (or part of it) is not something this runtime can
-	// express yet -- the model names the gap; internal/web's own handler is what records it
-	// (aiassist itself never touches a database), per the kajian's own "the model names the gap,
-	// the code decides nothing about what counts as one".
-	CapabilityGap *CapabilityGap `json:"capability_gap,omitempty"`
+	// CapabilityGaps lists every part of the request the assistant could not satisfy, whether or not
+	// it also set Change (a reply may build most of an application and still name what it left out).
+	// The model names the gap; internal/web's own handler records it (aiassist itself never touches
+	// a database), per the kajian's "the model names the gap, the code decides nothing about what
+	// counts as one".
+	CapabilityGaps []CapabilityGap `json:"capability_gaps,omitempty"`
+	// LegacyCapabilityGap is the single gap older replies stored under "capability_gap", before WG
+	// (2026-10-15). It is read back only so a stored conversation still decodes; nothing writes it.
+	LegacyCapabilityGap *CapabilityGap `json:"capability_gap,omitempty"`
 }
+
+// The kinds of gap. GapUnclassified is only ever a stored row from before the kind existed, or a
+// legacy reply; the response schema asks the model for one of the first two.
+const (
+	GapRuntime      = "runtime"      // the runtime cannot express it yet
+	GapAssistant    = "assistant"    // the runtime can, but the assistant cannot write it yet
+	GapUnclassified = "unclassified" // written before gaps carried a kind
+)
 
 // CapabilityGap is one thing the assistant told a user it cannot do yet.
 type CapabilityGap struct {
 	Requested string `json:"requested"`
 	Note      string `json:"note"`
+	Kind      string `json:"kind,omitempty"`
+}
+
+// Gaps is every gap this reply names, the legacy single one included, each with a kind a store
+// accepts: a kind the model got wrong becomes GapUnclassified rather than failing the turn.
+func (r Reply) Gaps() []CapabilityGap {
+	all := append([]CapabilityGap(nil), r.CapabilityGaps...)
+	if r.LegacyCapabilityGap != nil {
+		all = append(all, *r.LegacyCapabilityGap)
+	}
+	for i := range all {
+		if all[i].Kind != GapRuntime && all[i].Kind != GapAssistant {
+			all[i].Kind = GapUnclassified
+		}
+	}
+	return all
 }
 
 // Client is the one method this package needs from an AI backend -- narrow on purpose, so a test

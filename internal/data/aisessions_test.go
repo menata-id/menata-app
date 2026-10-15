@@ -93,7 +93,7 @@ func TestStore_RecordAICapabilityGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAISession: %v", err)
 	}
-	if err := store.RecordAICapabilityGap(ctx, session.ID, workspaceID, "multi-person voting approval", "user asked for three people to vote on a request"); err != nil {
+	if err := store.RecordAICapabilityGap(ctx, session.ID, workspaceID, "runtime", "multi-person voting approval", "user asked for three people to vote on a request"); err != nil {
 		t.Fatalf("RecordAICapabilityGap: %v", err)
 	}
 

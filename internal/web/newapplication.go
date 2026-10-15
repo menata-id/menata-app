@@ -216,8 +216,18 @@ func storeModelTurn(ctx context.Context, store *data.Store, workspaceID string, 
 		return err
 	}
 	session.Turns = append(session.Turns, data.AISessionTurn{Role: "model", Content: string(raw)})
-	if reply.CapabilityGap != nil {
-		return store.RecordAICapabilityGap(ctx, session.ID, workspaceID, reply.CapabilityGap.Requested, reply.CapabilityGap.Note)
+	return recordCapabilityGaps(ctx, store, workspaceID, session.ID, reply)
+}
+
+// recordCapabilityGaps writes one row and one AI-GAP log line per gap a reply names. The log line is
+// the reader (owner decision 2026-10-15: gaps feed the development process, not a screen), so it is
+// a stable key=value line and carries the request text quoted, never the conversation.
+func recordCapabilityGaps(ctx context.Context, store *data.Store, workspaceID, sessionID string, reply aiassist.Reply) error {
+	for _, g := range reply.Gaps() {
+		if err := store.RecordAICapabilityGap(ctx, sessionID, workspaceID, g.Kind, g.Requested, g.Note); err != nil {
+			return err
+		}
+		log.Printf("AI-GAP kind=%s workspace=%s session=%s requested=%q note=%q", g.Kind, workspaceID, sessionID, g.Requested, g.Note)
 	}
 	return nil
 }
@@ -516,9 +526,11 @@ func buildConversationView(session *data.AISession) (rendering.ConversationView,
 			return rendering.ConversationView{}, fmt.Errorf("decode stored assistant turn: %w", err)
 		}
 		view.Turns = append(view.Turns, rendering.ConversationTurn{Message: reply.Message})
-		if reply.CapabilityGap != nil {
-			view.Turns[len(view.Turns)-1].CapabilityGap = reply.CapabilityGap.Requested
+		var named []string
+		for _, g := range reply.Gaps() {
+			named = append(named, g.Requested)
 		}
+		view.Turns[len(view.Turns)-1].CapabilityGap = strings.Join(named, "; ")
 	}
 	change, hasChange, err := latestChange(session)
 	if err != nil {
