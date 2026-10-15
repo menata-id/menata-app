@@ -273,79 +273,76 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 // hardcoded today". Join, Make template, Watch and Archive from the mockup need a write primitive or a Machine
 // nothing declares yet, and are not drawn.
 templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove, canCopy bool, cp *RecordCopy) {
-	<details class="relative">
-		<summary aria-label="Card actions" class={ buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none" }>⋯</summary>
-		<div class={ "absolute top-full left-0 z-10 mt-1 flex w-72 flex-col", layoutGap(ctx, domain.GapMicro), surfaceClasses(ctx), "p-2 shadow-lg" }>
-			if canMove && move != nil {
-				<details>
-					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>
-						Move…
-						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Another list</span>
-					</summary>
-					<form
-						class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
-						hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, move.ViewID) }
-						hx-target="#record-detail"
-					>
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
-							List
-							<select name={ move.Field } class={ fieldClasses(ctx) + " w-full" }>
-								for _, t := range move.Targets {
-									<option value={ t.Value } selected?={ t.Value == move.Current }>{ t.Label }</option>
+	@popover("⋯", "Card actions", domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
+		if canMove && move != nil {
+			<details>
+				<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>
+					Move…
+					<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Another list</span>
+				</summary>
+				<form
+					class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
+					hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, move.ViewID) }
+					hx-target="#record-detail"
+				>
+					<label class={ formLabelClasses(ctx) }>
+						List
+						<select name={ move.Field } class={ fieldClasses(ctx) + " w-full" }>
+							for _, t := range move.Targets {
+								<option value={ t.Value } selected?={ t.Value == move.Current }>{ t.Label }</option>
+							}
+						</select>
+					</label>
+					for _, sc := range move.Scopes {
+						<label class={ formLabelClasses(ctx) }>
+							{ sc.Label }
+							<select name={ sc.Field } class={ fieldClasses(ctx) + " w-full" }>
+								if sc.Current == "" {
+									<option value="" selected>—</option>
+								}
+								for _, t := range sc.Targets {
+									<option value={ t.Value } selected?={ t.Value == sc.Current }>{ t.Label }</option>
 								}
 							</select>
 						</label>
-						for _, sc := range move.Scopes {
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
-								{ sc.Label }
-								<select name={ sc.Field } class={ fieldClasses(ctx) + " w-full" }>
-									if sc.Current == "" {
-										<option value="" selected>—</option>
-									}
-									for _, t := range sc.Targets {
-										<option value={ t.Value } selected?={ t.Value == sc.Current }>{ t.Label }</option>
-									}
-								</select>
-							</label>
-						}
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
-							Position
-							<select name="position" class={ fieldClasses(ctx) + " w-full" }>
-								for i := 1; i <= move.Positions; i++ {
-									<option value={ fmt.Sprint(i) } selected?={ i == move.Position }>{ fmt.Sprint(i) }</option>
-								}
-							</select>
-						</label>
-						@button("Move", domain.ButtonPrimary, "", "")
-					</form>
-				</details>
-			}
-			if canCopy && cp != nil {
-				<details>
-					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>Copy…</summary>
-					<form
-						class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
-						hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
-						hx-swap="none"
-					>
-						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleLabel) + " " + weightClass(ctx, domain.WeightEmphasis) + " tracking-wide " + inkClass(ctx, domain.InkSecondary) + " uppercase" }>
-							Title
-							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ fieldClasses(ctx) + " w-full" }/>
-						</label>
-						@button("Copy", domain.ButtonPrimary, "", "")
-					</form>
-				</details>
-			}
-			<button
-				type="button"
-				class={ "flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }
-				onclick="navigator.clipboard.writeText(location.href).then(() => { this.querySelector('[data-share-hint]').textContent = 'Link copied' })"
-			>
-				Share
-				<span data-share-hint class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Copy a link to this card</span>
-			</button>
-		</div>
-	</details>
+					}
+					<label class={ formLabelClasses(ctx) }>
+						Position
+						<select name="position" class={ fieldClasses(ctx) + " w-full" }>
+							for i := 1; i <= move.Positions; i++ {
+								<option value={ fmt.Sprint(i) } selected?={ i == move.Position }>{ fmt.Sprint(i) }</option>
+							}
+						</select>
+					</label>
+					@button("Move", domain.ButtonPrimary, "", "")
+				</form>
+			</details>
+		}
+		if canCopy && cp != nil {
+			<details>
+				<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>Copy…</summary>
+				<form
+					class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }
+					hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
+					hx-swap="none"
+				>
+					<label class={ formLabelClasses(ctx) }>
+						Title
+						<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ fieldClasses(ctx) + " w-full" }/>
+					</label>
+					@button("Copy", domain.ButtonPrimary, "", "")
+				</form>
+			</details>
+		}
+		<button
+			type="button"
+			class={ "flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }
+			onclick="navigator.clipboard.writeText(location.href).then(() => { this.querySelector('[data-share-hint]').textContent = 'Link copied' })"
+		>
+			Share
+			<span data-share-hint class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Copy a link to this card</span>
+		</button>
+	}
 }
 
 // recordActivity is the record's own history, newest first -- what happened to this record, in the

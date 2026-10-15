@@ -236,6 +236,7 @@ var allowedProps = map[string][]string{
 	"component/EmptyState":       {"text"},
 	"component/Disclosure":       {"summary"},
 	"component/SegmentedControl": {"label", "query", "options", "selected"},
+	"component/Popover":          {"label", "title", "trigger", "align", "density"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

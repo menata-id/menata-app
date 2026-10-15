@@ -1484,6 +1484,10 @@ templ uiNode(n ir.UINode) {
 					}
 				case domain.ComponentSegmentedControl:
 					@segmentedControl(n.Props["label"], n.Props["query"], n.Props["options"], n.Props["selected"])
+				case domain.ComponentPopover:
+					@popover(n.Props["label"], n.Props["title"], domain.PopoverTrigger(n.Props["trigger"]), domain.PopoverAlign(n.Props["align"]), domain.PopoverDensity(n.Props["density"])) {
+						@uiChildren(n)
+					}
 				case domain.ComponentFormInput:
 					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true")
 			}

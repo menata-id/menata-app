@@ -1,0 +1,51 @@
+package rendering
+
+import (
+	"context"
+
+	"menata.app/internal/domain"
+)
+
+// popover is the registered renderer for `domain.ComponentPopover`: a native `<details>` whose panel opens under its
+// trigger and floats over the page. Opening and closing is the browser's (the contract's `toggle`).
+//
+// It replaces the record page's "..." card-actions menu and the board header's "New <machine>" form, which drew this
+// markup twice with four differences: the trigger's look, the side the panel opens to, its padding, and the gap
+// under the trigger (4px and 8px; both are 6px now, the one visible change, 2px each). The panel is the surface
+// recipe with the popover shadow; the body is the slot, inside a wrapper that gives it the room its density names.
+templ popover(label, title string, trigger domain.PopoverTrigger, align domain.PopoverAlign, density domain.PopoverDensity) {
+	<details class="relative">
+		<summary
+			if title != "" {
+				aria-label={ title }
+			}
+			class={ popoverTriggerClasses(ctx, trigger) }
+		>{ label }</summary>
+		<div class={ "absolute z-10 mt-1.5 w-72", popoverAlignClass(align), surfaceClasses(ctx), "shadow-lg" }>
+			<div class={ popoverBodyClasses(ctx, density) }>
+				{ children... }
+			</div>
+		</div>
+	</details>
+}
+
+func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
+	if trigger == domain.PopoverTriggerFilled {
+		return "cursor-pointer list-none " + radiusClass(ctx, domain.RadiusControl) + " " + inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + onFillClass(ctx) + " " + inkFillHoverClass(ctx)
+	}
+	return buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none"
+}
+
+func popoverAlignClass(align domain.PopoverAlign) string {
+	if align == domain.PopoverAlignEnd {
+		return "top-full right-0"
+	}
+	return "top-full left-0"
+}
+
+func popoverBodyClasses(ctx context.Context, density domain.PopoverDensity) string {
+	if density == domain.PopoverDensityCompact {
+		return "flex flex-col " + layoutGap(ctx, domain.GapMicro) + " p-2"
+	}
+	return "p-4"
+}

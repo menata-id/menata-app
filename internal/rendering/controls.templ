@@ -72,7 +72,7 @@ func tableHeadCellClassesFor(ctx context.Context, a domain.TableAlign) string {
 func fieldClasses(ctx context.Context) string {
 	return strings.Join([]string{
 		"h-9", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl),
-		backgroundClass(ctx, domain.BackgroundRaised) + " px-3 font-sans", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong),
+		backgroundClass(ctx, domain.BackgroundRaised) + " px-3 font-sans", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightBody), inkClass(ctx, domain.InkStrong),
 		"focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300",
 	}, " ")
 }
@@ -362,4 +362,11 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// formLabelClasses is a label that wraps its control inside a floating form: the Design System's field label (12px,
+// emphasis weight, body ink) over the control with a 4px gap. Three looks existed (an uppercase 11px label, an 11px
+// caption, a 12px meta line) across the two popovers and the board card's quick edit; gap plan K-17 (2026-10-15) made them one.
+func formLabelClasses(ctx context.Context) string {
+	return "flex flex-col " + layoutGap(ctx, domain.GapMicro) + " " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + inkClass(ctx, domain.InkBody)
 }

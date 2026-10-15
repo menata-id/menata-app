@@ -275,8 +275,9 @@ func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
 var handWrittenButtonFloors = map[string]int{
 	"approvalinbox.templ":      1, // hx-* wiring on the button
 	"attachments.templ":        1, // a <label> wrapping a file input, not a <button>
-	"detail.templ":             5, // an <a> anchor (2), hx-* buttons (2), a <summary> disclosure trigger
+	"detail.templ":             4, // an <a> anchor (2), hx-* buttons (2); the <summary> trigger left for popover.templ (gap plan K-04)
 	"machine.templ":            5, // the onclick Cancel, hx-* buttons, and per-site mr-1 spacing
+	"popover.templ":            1, // the <summary> of a Popover wearing a Button's outline: an element a Button cannot be
 	"newapplication.templ":     2, // id="send-btn" (a script hook) and an <a> with justify-center
 	"reviewdocument.templ":     3, // sig-* hook classes and data-modal: control behaviour, not a name/value pair
 	"signatureplacement.templ": 1, // hx-* wiring on the button

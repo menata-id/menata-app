@@ -1076,3 +1076,29 @@ func TestPage_aSegmentedControlLoadsAndABadOneIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// TestPage_aPopoverLoadsWithABodyAndABadOneIsRefused: a page may declare `component: Popover` with its inputs and children
+// in its `body` slot; a missing input, a value outside a closed set, a glyph with no title and any undeclared property are
+// load errors.
+func TestPage_aPopoverLoadsWithABodyAndABadOneIsRefused(t *testing.T) {
+	page := func(props string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: Popover\n" + props
+	}
+	body := "          children:\n            - static: message\n              text: Inside.\n"
+	full := "          label: More\n          trigger: secondary\n          align: start\n          density: compact\n"
+	if err := pageFixture(t, page(full+body)); err != nil {
+		t.Errorf("a valid Popover was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ props, want string }{
+		"no label":      {"          trigger: secondary\n          align: start\n          density: compact\n" + body, "label"},
+		"a bad trigger": {"          label: More\n          trigger: primary\n          align: start\n          density: compact\n" + body, "trigger"},
+		"a bad align":   {"          label: More\n          trigger: secondary\n          align: left\n          density: compact\n" + body, "align"},
+		"a glyph":       {"          label: \"…\"\n          trigger: secondary\n          align: start\n          density: compact\n" + body, "glyph"},
+		"a class":       {full + "          class: mt-2\n" + body, "class"},
+	} {
+		err := pageFixture(t, page(c.props))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: got %v, want an error naming %q", name, err, c.want)
+		}
+	}
+}

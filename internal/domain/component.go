@@ -153,6 +153,18 @@ const (
 	// the two as one "second case"; they share a track and a knob, and differ in element, semantics and behaviour
 	// (the second needs 007 §12.3's `actions`). The radiogroup is not registered here.
 	ComponentSegmentedControl ComponentType = "SegmentedControl"
+
+	// ComponentPopover is a floating panel that opens under a trigger and holds a short form or a short list of actions:
+	// the record page's "..." card-actions menu and the board header's "New <machine>" form. It is a native `<details>`
+	// positioned under its trigger, so opening and closing needs no script (the same `toggle` Disclosure declares).
+	//
+	// **It was registered when an Application screen first needed one** (gap plan K-04, 2026-10-15). T-A had closed on
+	// "register a popover when an Application screen, not the shell, needs a menu", and the 2026-10-14 audit found two
+	// already hand-drawn there: they differ in their trigger's look, the side the panel opens to, its padding, and a few
+	// pixels of margin, so those four are the contract's closed inputs. The app shell's own menus are a different thing
+	// (`sheetPanel`, the native Popover API with a bottom-sheet form on a phone) and stay outside. The board card's
+	// quick-edit and a lane's "Add a card" expand in place; they are not popovers.
+	ComponentPopover ComponentType = "Popover"
 )
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not
@@ -420,3 +432,39 @@ func JoinSegmentOptions(opts []SegmentOption) string {
 	}
 	return strings.Join(parts, InputOptionsSep)
 }
+
+// PopoverTrigger is how a Popover's trigger looks: `secondary` is a Button's outline recipe (the record page's "..."),
+// `filled` is the strong ink as a fill with the on-fill text, the board header's "New <machine>".
+type PopoverTrigger string
+
+const (
+	PopoverTriggerSecondary PopoverTrigger = "secondary"
+	PopoverTriggerFilled    PopoverTrigger = "filled"
+)
+
+// KnownPopoverTriggers is the closed set.
+var KnownPopoverTriggers = map[PopoverTrigger]bool{PopoverTriggerSecondary: true, PopoverTriggerFilled: true}
+
+// PopoverAlign is the side of its trigger a Popover's panel lines up with: `start` opens toward the right from the
+// trigger's left edge, `end` toward the left from its right edge.
+type PopoverAlign string
+
+const (
+	PopoverAlignStart PopoverAlign = "start"
+	PopoverAlignEnd   PopoverAlign = "end"
+)
+
+// KnownPopoverAligns is the closed set.
+var KnownPopoverAligns = map[PopoverAlign]bool{PopoverAlignStart: true, PopoverAlignEnd: true}
+
+// PopoverDensity is the room a Popover gives its body: `compact` is a menu of rows (8px padding, 4px between rows),
+// `regular` is a form (16px padding, the body lays itself out).
+type PopoverDensity string
+
+const (
+	PopoverDensityCompact PopoverDensity = "compact"
+	PopoverDensityRegular PopoverDensity = "regular"
+)
+
+// KnownPopoverDensities is the closed set.
+var KnownPopoverDensities = map[PopoverDensity]bool{PopoverDensityCompact: true, PopoverDensityRegular: true}

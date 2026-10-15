@@ -942,7 +942,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
 						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
+							<label class={ formLabelClasses(ctx) }>
 								Move to list
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
@@ -950,7 +950,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 									}
 								</select>
 							</label>
-							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleCaption) + " " + inkClass(ctx, domain.InkSecondary) }>
+							<label class={ formLabelClasses(ctx) }>
 								Position
 								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 							</label>
@@ -1037,26 +1037,25 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
 templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
-	<details class="relative">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + onFillClass(ctx) + " " + inkFillHoverClass(ctx) }>{ "New " + strings.ToLower(m.Name) }</summary>
-		<form
-			class={ "absolute right-0 z-10 mt-2 flex w-72 flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-4 shadow-lg" }
-			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
-			hx-target="#machine-body"
-			hx-swap="innerHTML"
-			hx-encoding="multipart/form-data"
-		>
-			for _, f := range m.Fields {
-				if f.Compute == nil && f.Type != domain.FieldTypeFile {
-					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) }>
-						{ f.Name }
-						@fieldInput(f, nil, relations, groups)
-					</label>
-				}
+	@popover("New "+strings.ToLower(m.Name), "", domain.PopoverTriggerFilled, domain.PopoverAlignEnd, domain.PopoverDensityRegular) {
+	<form
+		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }
+		hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+		hx-target="#machine-body"
+		hx-swap="innerHTML"
+		hx-encoding="multipart/form-data"
+	>
+		for _, f := range m.Fields {
+			if f.Compute == nil && f.Type != domain.FieldTypeFile {
+				<label class={ formLabelClasses(ctx) }>
+					{ f.Name }
+					@fieldInput(f, nil, relations, groups)
+				</label>
 			}
-			@button("Create", domain.ButtonPrimary, "", "")
-		</form>
-	</details>
+		}
+		@button("Create", domain.ButtonPrimary, "", "")
+	</form>
+	}
 }
 
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't

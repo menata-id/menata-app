@@ -1493,6 +1493,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   contrast from about 3.4:1 (the browser's 50% of the strong ink) to 2.6:1, so the rule "placeholder = faint" stays unadopted
   and the Field page says so. P8a: a Document whose PDF cannot be opened answers the signature placement screen with 422
   (`pdf.ErrUnreadable`), as `/pdf-preview` did; it was a logged 500. The four AI sessions an audit crawler created were deleted by id.
+- `TestNoHandWrittenPopover` — gap plan K-04 and K-17 (2026-10-15), the **fifteenth registered Component**, `Popover`. T-A had closed on
+  "register one when an Application screen needs a menu"; the audit found two there: the record page's "..." card-actions menu and the board
+  header's "New <machine>" form (the board card's quick edit and a lane's "Add a card" expand in place and are not popovers). A native
+  `<details>`, `toggle`, no script. Inputs `label`, `title` (a glyph label with no title is refused), `trigger` (`secondary` | `filled`),
+  `align` (`start` | `end`) and `density` (`compact` for a menu, `regular` for a form), slot `body`. The two sites differed in exactly those four, so
+  they are the closed inputs; the gap under the trigger was 4px and 8px and is 6px (the one visible change, 2px each), and the body sits in
+  a wrapper that carries the room (one extra node, which is why the snapshot reports a structural difference on those pages). **Three label
+  looks became one** (`formLabelClasses`: 12px, emphasis, body ink), and measuring it found an old bug: a form control inherits `font-weight`
+  from the label that wraps it, so the Move and Copy forms had drawn their inputs at 500. `fieldClasses` states its own weight now (`font-normal`,
+  as the artifact's Field preview does). Verified with a multiset comparison of computed styles (the structural change defeats a positional
+  diff), a screenshot pair of both panels open, and the expected strings captured from the baseline server's real markup, not written by hand.
+  Mutation-proved eleven ways, including the generated files. The `buttonClasses(` floor for a `<summary>` moved from `detail.templ` to
+  `popover.templ`.
 - **Light-mode contrast, three pairs (owner decision 2026-10-14, "ok 123").** The Chromium audit that found them only met what the dev
   data holds, so every case was measured, and the result was wider than the three. **Tag hues**: blue, amber, emerald and cyan were below
   4.5:1 over their own 10% fill on the page canvas, amber also on a card (4.22 to 4.55); their light steps moved to blue-700, amber-800,

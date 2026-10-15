@@ -628,3 +628,49 @@ func TestValidateAvatar_whitespaceIsNotAName(t *testing.T) {
 		}
 	}
 }
+
+func TestValidatePopover(t *testing.T) {
+	ok := map[string]string{"label": "New task", "trigger": "filled", "align": "end", "density": "regular"}
+	if issues := ValidateComponentUse(domain.ComponentPopover, ok); len(issues) != 0 {
+		t.Errorf("a complete use must validate, got %v", issues)
+	}
+	glyph := map[string]string{"label": "⋯", "title": "Card actions", "trigger": "secondary", "align": "start", "density": "compact"}
+	if issues := ValidateComponentUse(domain.ComponentPopover, glyph); len(issues) != 0 {
+		t.Errorf("a glyph label with a title must validate, got %v", issues)
+	}
+	with := func(k, v string) map[string]string {
+		m := map[string]string{}
+		for a, b := range ok {
+			m[a] = b
+		}
+		if v == "-" {
+			delete(m, k)
+		} else {
+			m[k] = v
+		}
+		return m
+	}
+	for name, in := range map[string]map[string]string{
+		"no label":          with("label", "-"),
+		"a blank label":     with("label", "   "),
+		"a glyph, no title": with("label", "⋯"),
+		"a glyph, blank":    {"label": "⋯", "title": "  ", "trigger": "secondary", "align": "start", "density": "compact"},
+		"no trigger":        with("trigger", "-"),
+		"a bad trigger":     with("trigger", "primary"),
+		"a bad align":       with("align", "left"),
+		"a bad density":     with("density", "dense"),
+		"no align":          with("align", "-"),
+		"no density":        with("density", "-"),
+		"a class":           with("class", "mt-2"),
+		"an open state":     with("open", "true"),
+		"a hook":            with("hx-get", "/x"),
+	} {
+		if issues := ValidateComponentUse(domain.ComponentPopover, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+	c := Components[domain.ComponentPopover].Contract
+	if len(c.Slots) != 1 || c.Slots[0] != "body" || len(c.Actions) != 1 || c.Actions[0] != "toggle" {
+		t.Errorf("Popover declares slots %v and actions %v, want [body] and [toggle]", c.Slots, c.Actions)
+	}
+}

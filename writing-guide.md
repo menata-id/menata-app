@@ -1034,6 +1034,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
 | `Disclosure` | experimental | No installed `page:` declares one yet: Groups and Members draw it in Go ("+ New group", "+ Invite member") |
 | `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
+| `Popover` | experimental | No installed `page:` declares one yet: the record page's "..." menu and the board header's "New <machine>" form draw it in Go, and no declared screen has a menu |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -1410,6 +1411,26 @@ label is a load error, and so is any property that is not one of the four. The c
   label: Ana Putri
   size: inline
   presence: present
+```
+
+**`component: Popover`** (2026-10-15) is a floating panel that opens under a trigger and holds a short form or a short list of actions.
+`label` is the trigger's words and is required; a trigger that is a glyph ("…") needs a `title`, its accessible name. Three closed
+inputs choose what the hand-drawn ones differed in: `trigger` (`secondary`, an outlined button, or `filled`, the strong ink as a fill),
+`align` (`start` opens toward the right from the trigger's left edge, `end` toward the left from its right edge) and `density`
+(`compact` for a menu of rows, `regular` for a form). The `body` slot holds the children. It is a native `<details>`: it opens and
+closes with no script and no request, and a page writes no `open`, `class` or `hx-*`. **`experimental`**: the record page's menu and the
+board header's "New" form draw it in Go, and no installed page declares one. It is not the app shell's menus, a card that expands in place,
+or a modal dialog.
+
+```yaml
+- component: Popover
+  label: Actions
+  trigger: secondary
+  align: start
+  density: compact
+  children:
+    - static: message
+      text: Nothing to do here yet.
 ```
 
 **`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one

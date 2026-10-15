@@ -59,6 +59,55 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentDisclosure:  {Contract: disclosureContract, Validate: validateDisclosure},
 
 	domain.ComponentSegmentedControl: {Contract: segmentedControlContract, Validate: validateSegmentedControl},
+	domain.ComponentPopover:          {Contract: popoverContract, Validate: validatePopover},
+}
+
+// popoverContract is a floating panel under a trigger.
+//
+// **Five inputs, one slot, one action.** `label` is the trigger's words (required: a trigger with no words is a control
+// with no name), `title` is its accessible name when the label is a glyph ("..." announces as nothing), and the three
+// closed sets are what the two existing sites differ in -- the trigger's look, the side the panel opens to, and the room
+// it gives its body. `body` is the slot, composed by the caller; the panel never knows it holds a form. `toggle` is the
+// same native `<details>` action Disclosure declares: no script, no request, nothing a page may attach.
+//
+// What the contract forces that a reviewer would not have asked for: a glyph label with no `title` is refused (the
+// hand-written "..." button carried `aria-label` by luck, and nothing would have caught the next one without it).
+var popoverContract = domain.ComponentContract{
+	Type:   domain.ComponentPopover,
+	Status: domain.ComponentStatusExperimental,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "title", Kind: "string"},
+		{Name: "trigger", Kind: "PopoverTrigger", Required: true},
+		{Name: "align", Kind: "PopoverAlign", Required: true},
+		{Name: "density", Kind: "PopoverDensity", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"body"},
+	Actions:          []string{"toggle"},
+	Accessibility:    "a native <details> with a <summary>: Enter and Space open and close it and the browser announces the state; a trigger whose label is a glyph must carry a `title`, which becomes its aria-label",
+	Renderer:         "popover",
+}
+
+// validatePopover checks a use against the declared inputs, the three closed sets and the glyph rule.
+func validatePopover(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(popoverContract, inputs, "Popover")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Popover label is blank -- a trigger with no words is a control with no name")
+	}
+	if v := inputs["trigger"]; v != "" && !domain.KnownPopoverTriggers[domain.PopoverTrigger(v)] {
+		issues = append(issues, fmt.Sprintf("Popover trigger %q is not one of the declared looks", v))
+	}
+	if v := inputs["align"]; v != "" && !domain.KnownPopoverAligns[domain.PopoverAlign(v)] {
+		issues = append(issues, fmt.Sprintf("Popover align %q is not one of the declared sides", v))
+	}
+	if v := inputs["density"]; v != "" && !domain.KnownPopoverDensities[domain.PopoverDensity(v)] {
+		issues = append(issues, fmt.Sprintf("Popover density %q is not one of the declared densities", v))
+	}
+	if l := inputs["label"]; l != "" && strings.TrimSpace(inputs["title"]) == "" && !strings.ContainsAny(l, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+		issues = append(issues, fmt.Sprintf("Popover label %q is a glyph with no title -- give it a `title`, its accessible name", l))
+	}
+	return issues
 }
 
 // segmentedControlContract is a short row of mutually exclusive choices of the page itself, one marked.

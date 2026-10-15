@@ -794,8 +794,11 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 // The literal changed once on purpose (2026-10-12, DS-D14): `outline-none` became `focus:outline-solid`. Under
 // Tailwind v4, `outline-none` sets `--tw-outline-style: none`, which `focus:outline-2` then reuses, so no field drew
 // its focus ring at all (measured in Chromium: outline-style none on a focused input).
+// A field states its own weight (gap plan K-17, 2026-10-15): form controls inherit `font-weight` from the label that wraps them, and the
+// Move and Copy forms on the record page had been drawing their inputs at 500 because their labels were medium. `font-normal` is the one
+// token beyond the literal this test is named for.
 func TestFieldClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
-	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm font-normal text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
 	if got := resolveColourRoles(t, context.Background(), fieldClasses(context.Background())); got != want {
 		t.Errorf("default field rendered %q, want the pre-migration controlField literal %q", got, want)
 	}
