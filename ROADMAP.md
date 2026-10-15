@@ -538,11 +538,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `menata-app-document`'s `audits/2026-10-10-kajian-gap-mockup-kanvas-72-artboard.md`.
 
 ## Planned
-Only items that qualify now, in priority order. `Kxx` is the row in `menata-app-document`'s
-`audits/2026-10-10-kajian-kritis-arsitektur-struktur-dan-jalan-menuju-selesai.md` §10, which carries each item's
-reason, what done means, and the criteria (C defect, A agreed architecture with a consumer today, N new capability
-past `capability-lifecycle.md` §2). Items waiting on a trigger, and the six owner decisions D1-D6, are listed
-there and are deliberately not here.
+**Order (owner, 2026-10-15): docs catch up, then the AI assistant writes what the runtime has and screens become
+`page:`, then domain capabilities, mockup slices, and the process map last.** The stages and what "complete" means:
+`menata-app-document`'s `audits/2026-10-15-peta-jalan-menuju-aplikasi-lengkap.md`. `Kxx` is a row in that repo's
+`audits/2026-10-10-kajian-kritis-arsitektur-struktur-dan-jalan-menuju-selesai.md` §10 (reasons, what done means);
+items waiting on a trigger, and owner decisions D1-D6, are listed there and deliberately not here.
 
 **P0 -- defects, no dependencies**
 

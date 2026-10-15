@@ -412,6 +412,9 @@ Rules that follow from it:
   **The one status list for all design-system work** is `menata-app-document`'s
   `audits/2026-10-11-rencana-design-system.md`, section "STATUS MENYELURUH". Update it at the end of every slice, and
   do not keep a second list here.
+  **The top-level roadmap since 2026-10-15** is `menata-app-document`'s `audits/2026-10-15-peta-jalan-menuju-aplikasi-lengkap.md`:
+  stages in the owner's order (docs, then AI assistant and `page:`, then domain, mockups, process map last), what "complete" means, and
+  the rule that **a new metadata capability lands with its AI-assistant slot in the same slice** (or an `aiUnwritableKeys` entry).
   **Active work since 2026-10-14: closing the gaps the design-system audit found.** The plan and its status table are
   `menata-app-document`'s `audits/2026-10-14-rencana-perbaikan-gap-design-system.md` (P0–P8, owner decisions K-01–K-17;
   findings in `audits/2026-10-14-audit-gap-design-system/`). A new session resumes from its §0 "Cara melanjutkan" and its
