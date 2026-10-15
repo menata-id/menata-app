@@ -61,20 +61,21 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"GroupDetailPage":          {"workspace", "Workspace groups, registered as a fixed literal"},
 	"NotificationsPage":        {"workspace", "the person's inbox across Applications"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
-	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens, and the editor is a textarea plus a write -- form binding is 007 §11.3 (item 3), unbuilt"},
-	"InstallApplicationPage":   {"workspace", "installs into the Workspace; form binding is 007 §11.3 (item 3), unbuilt"},
-	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; form binding is 007 §11.3 (item 3), unbuilt"},
-	"NewApplicationReviewPage": {"workspace", "the AI assistant's review pane; form binding is 007 §11.3 (item 3), unbuilt"},
+	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens. Re-read 2026-10-15: a page's write binding (create/update/delete/move/transition) writes a Machine's records, and this form writes a metadata file, which no binding names"},
+	"InstallApplicationPage":   {"workspace", "installs into the Workspace; re-read 2026-10-15: the write binding writes records, and an install writes the Workspace's metadata, which no binding names"},
+	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; re-read 2026-10-15: it starts an AI session, not a record write, so the record write binding does not reach it"},
+	"NewApplicationReviewPage": {"workspace", "the AI assistant's review pane; re-read 2026-10-15: it edits and publishes generated metadata, not records, so the record write binding does not reach it"},
 
 	// generic: already one function over every Machine; the target pattern, not debt (001 #9).
 	"MachinePage":      {"generic", "one renderer over any Machine's declared fields"},
 	"RecordDetailPage": {"generic", "one renderer over any record's declared fields"},
 
-	// orchestration: Document Approval's multi-step engine screens (case-portfolio.md Case 3). They need
-	// Page/Slot (UI IR audit Tahap 3) and the write side of Binding, neither built.
-	"ApprovalInboxPage":      {"orchestration", "Case 3: three declared nav items over one handler; needs Collection + write-side Binding"},
-	"DocumentSubmitPage":     {"orchestration", "Case 3: submit wizard; form binding is 007 §11.3 (item 3), unbuilt"},
-	"ReviewDocumentPage":     {"orchestration", "Case 3: decision form and signed-PDF view; form binding unbuilt"},
+	// orchestration: Document Approval's multi-step engine screens (case-portfolio.md Case 3). Page, Slot and the
+	// record write binding have all shipped since this was written (2026-10-07..10); re-read 2026-10-15, what each
+	// still needs is named per entry.
+	"ApprovalInboxPage":      {"orchestration", "Case 3: three declared nav items over one handler; Collection and the write binding exist, but who sees a Document (its approvers, its submitter) is decided in Go, not by a Dataset"},
+	"DocumentSubmitPage":     {"orchestration", "Case 3: submit wizard; re-read 2026-10-15: a declared Form creates one record, and this writes a Document, its file upload and its Approval Steps in one submit (T4: uploads and child records in a declared form)"},
+	"ReviewDocumentPage":     {"orchestration", "Case 3: decision form and signed-PDF view; re-read 2026-10-15: the decision is the engine's decide Action with a signature, which no declared Button or Form writes"},
 	"SignaturePlacementPage": {"orchestration", "Case 3: placement editor with client script"},
 
 	// candidate: an Application's own screen, declared by that Application's `navigation:`. These are what
