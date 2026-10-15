@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func newAISessionTestWorkspace(t *testing.T, store *Store) string {
@@ -112,3 +113,58 @@ func TestStore_RecordAICapabilityGap(t *testing.T) {
 // comment: "new_application", or the id of an Application being extended), not a foreign key to
 // anything aiassist declares.
 const KindNewApplicationForTest = "new_application"
+
+// WU: a session's publication carries when and which application, and an application's origin is the
+// earliest new_application publication; an update session never counts as the origin.
+func TestStore_AISessionPublication_originIsTheFirstNewApplicationPublish(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+	ctx := context.Background()
+	workspaceID := newAISessionTestWorkspace(t, store)
+
+	if _, ok, err := store.AIApplicationOrigin(ctx, workspaceID, "app_w"); err != nil || ok {
+		t.Fatalf("origin of an unpublished application = ok %v err %v, want unknown", ok, err)
+	}
+	created, err := store.CreateAISession(ctx, workspaceID, "usr_test", KindNewApplicationForTest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkAISessionPublished(ctx, workspaceID, created.ID, "app_w"); err != nil {
+		t.Fatalf("MarkAISessionPublished: %v", err)
+	}
+	updated, err := store.CreateAISession(ctx, workspaceID, "usr_test", "app_w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkAISessionPublished(ctx, workspaceID, updated.ID, "app_w"); err != nil {
+		t.Fatal(err)
+	}
+	var createdAt, updatedAt time.Time
+	if err := pool.QueryRow(ctx, `SELECT published_at FROM ai_sessions WHERE id = $1`, created.ID).Scan(&createdAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT published_at FROM ai_sessions WHERE id = $1`, updated.ID).Scan(&updatedAt); err != nil {
+		t.Fatal(err)
+	}
+	origin, ok, err := store.AIApplicationOrigin(ctx, workspaceID, "app_w")
+	if err != nil || !ok {
+		t.Fatalf("origin = ok %v err %v, want known", ok, err)
+	}
+	if !origin.Equal(createdAt) {
+		t.Errorf("origin = %v, want the new_application session's publication %v (not the update's %v)", origin, createdAt, updatedAt)
+	}
+	// An application only ever updated by the assistant (handwritten, or installed from the library) has no origin.
+	onlyUpdated, err := store.CreateAISession(ctx, workspaceID, "usr_test", "app_hand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkAISessionPublished(ctx, workspaceID, onlyUpdated.ID, "app_hand"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := store.AIApplicationOrigin(ctx, workspaceID, "app_hand"); err != nil || ok {
+		t.Errorf("an application the assistant only updated reported an origin (ok %v, err %v): its first update would read as age zero", ok, err)
+	}
+	if err := store.MarkAISessionPublished(ctx, "ws_other", created.ID, "app_w"); err != ErrRecordNotFound {
+		t.Errorf("publishing through another workspace = %v, want ErrRecordNotFound", err)
+	}
+}

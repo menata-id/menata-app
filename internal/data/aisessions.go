@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -146,6 +147,43 @@ func (s *Store) UpdateAISessionStatus(ctx context.Context, workspaceID, id, stat
 		return ErrRecordNotFound
 	}
 	return nil
+}
+
+// MarkAISessionPublished moves a session to 'published' and records when, and which application it
+// created or updated (migration 018). It is UpdateAISessionStatus for the one transition that carries
+// facts of its own, kept separate so the facts cannot be forgotten at a call site that only meant to
+// change the status.
+func (s *Store) MarkAISessionPublished(ctx context.Context, workspaceID, id, applicationID string) error {
+	ct, err := s.pool.Exec(ctx, `
+		UPDATE ai_sessions
+		   SET status = $4, updated_at = NOW(), published_at = COALESCE(published_at, NOW()), application_id = $3
+		 WHERE id = $2 AND workspace_id = $1
+	`, workspaceID, id, applicationID, AISessionStatusPublished)
+	if err != nil {
+		return fmt.Errorf("mark ai session published: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
+}
+
+// AIApplicationOrigin is when the assistant first published an application in this Workspace: the
+// earliest publication of a new_application session for it. ok is false for an application the
+// assistant did not create (a library install, a hand-written file) or one published before migration
+// 018 -- the age of those is unknown, and the caller must say so rather than report zero.
+func (s *Store) AIApplicationOrigin(ctx context.Context, workspaceID, applicationID string) (published time.Time, ok bool, err error) {
+	var t *time.Time
+	if err := s.pool.QueryRow(ctx, `
+		SELECT min(published_at) FROM ai_sessions
+		 WHERE workspace_id = $1 AND application_id = $2 AND target = 'new_application' AND status = 'published'
+	`, workspaceID, applicationID).Scan(&t); err != nil {
+		return time.Time{}, false, fmt.Errorf("ai application origin: %w", err)
+	}
+	if t == nil {
+		return time.Time{}, false, nil
+	}
+	return *t, true, nil
 }
 
 // RecordAICapabilityGap writes one structured "the runtime can't say this yet" row (the kajian's

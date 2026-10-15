@@ -338,6 +338,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 		if !confirmRemovals(w, req, change, ws) {
 			return
 		}
+		plan, isUpdate := publishedPlan(*change, existingStateFor(ws))
 		snapshotBeforeWrite(cfg, manifestPath)
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
@@ -352,7 +353,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			serverError(w, fmt.Errorf("metadata was written but the live reload failed -- a process restart will pick it up: %w", err))
 			return
 		}
-		if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusPublished); err != nil {
+		if err := markPublished(ctx, store, workspaceID, session.ID, *change, newAppID, plan, isUpdate); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -372,12 +373,17 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			}
 		}
 
-		if newAppID != "" {
-			redirectTo(w, req, "/machines/"+firstMachineOf(*change))
-			return
-		}
-		redirectTo(w, req, "/home")
+		redirectTo(w, req, publishedLanding(*change, newAppID))
 	}
+}
+
+// publishedLanding is where a publication leaves the person: a new Application opens at its first Machine,
+// an update returns to Workspace Home.
+func publishedLanding(change aiassist.GeneratedChange, newAppID string) string {
+	if newAppID != "" {
+		return "/machines/" + firstMachineOf(change)
+	}
+	return "/home"
 }
 
 // failPublish routes a failed aiassist.Write by whose problem it is. A rejection goes back to the
