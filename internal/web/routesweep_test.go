@@ -822,3 +822,36 @@ func TestAddingAStepIsRefusedToAnyoneButTheDocumentsSubmitter(t *testing.T) {
 		t.Errorf("on their own Document the submitter was refused: %d %q", rec.Code, rec.Body.String())
 	}
 }
+
+// A Document whose uploaded file is not a readable PDF answers the placement screen with a 422 that says so, like
+// /pdf-preview does for the same file, and not a 500 (gap plan P8a, 2026-10-15). The audit found it on a dev record
+// whose file was damaged: the page logged "internal error: open pdf" and sent a server error for a user's upload.
+func TestSignaturePlacementOfAnUnreadablePDFIsAnUnprocessableEntity(t *testing.T) {
+	h, cookie, ctx, store, files, ws, _ := routerSetupParts(t, "placement-unreadable-pdf")
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("this Workspace casts no document role")
+	}
+	key, err := files.Save(doc.ID, "fld_file", "broken.pdf", strings.NewReader("%PDF-1.4\nthis is not a pdf\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := store.CreateRecord(ctx, doc.ID, map[string]any{"fld_title": "Broken upload", "fld_file": key})
+	if err != nil {
+		t.Fatalf("seed the Document: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, record.ID) })
+
+	for _, c := range []struct{ url, why string }{
+		{"/machines/" + doc.ID + "/records/" + record.ID + "/signature-placement", "the placement screen"},
+		{"/machines/" + doc.ID + "/records/" + record.ID + "/pdf-preview?page=1", "the preview it embeds"},
+	} {
+		req := httptest.NewRequest(http.MethodGet, c.url, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("%s: status %d, want 422 for a file that is not a PDF; body: %.120s", c.why, rec.Code, rec.Body.String())
+		}
+	}
+}

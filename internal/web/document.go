@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -801,6 +802,12 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 		documentID := chi.URLParam(req, "id")
 		ld := composition.NewLoader(store, machines)
 		document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, ld, files, machines, documentID)
+		if errors.Is(err, pdf.ErrUnreadable) {
+			// The same answer /pdf-preview gives for the same file, said in words a person can act on: the Document
+			// exists, its upload is the problem (gap plan P8a; this was a 500 and a logged "internal error").
+			http.Error(w, "This document's PDF could not be opened, so signature positions cannot be placed on it. Upload a readable PDF and try again.", http.StatusUnprocessableEntity)
+			return
+		}
 		if err != nil {
 			recordError(w, err)
 			return
