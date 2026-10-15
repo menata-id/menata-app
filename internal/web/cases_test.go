@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 	"menata.app/internal/storage"
 )
 
@@ -113,6 +115,9 @@ func TestCaseCorpusOnlyAdvances(t *testing.T) {
 		for _, r := range rep.Results {
 			t.Logf("  %s", r)
 		}
+		for _, msg := range catalogueProblems(name, rep.Rejected, registry.Capabilities) {
+			t.Error(msg)
+		}
 		want, ok := caseRatchet[name]
 		if !ok {
 			t.Errorf("%s has no entry in caseRatchet; add {Rejected: %d, Passed: %d, Steps: %d}", name, len(rep.Rejected), rep.Passed, rep.Steps)
@@ -127,6 +132,42 @@ func TestCaseCorpusOnlyAdvances(t *testing.T) {
 			t.Errorf("caseRatchet names %s, which has no directory", name)
 		}
 	}
+}
+
+// catalogueProblems holds a case's backlog to the capability catalogue (KT1) in both directions: every key the
+// loader rejects must belong to a proposed capability that names this case, and every proposed capability naming
+// this case must have at least one of its keys rejected here. So a wished key cannot sit outside the catalogue, and a catalogue
+// entry cannot cite a case that no longer wishes for it. A rejected entry reads "<file>: <key>".
+func catalogueProblems(name string, rejected []string, rows []registry.Capability) []string {
+	var out []string
+	rejectedKeys := map[string]bool{}
+	for _, r := range rejected {
+		k := r[strings.LastIndex(r, ": ")+2:]
+		rejectedKeys[k] = true
+		found := false
+		for _, c := range rows {
+			if c.Stage != registry.StageProposed || !slices.Contains(c.Cases, name) {
+				continue
+			}
+			found = found || slices.Contains(c.Keys, k)
+		}
+		if !found {
+			out = append(out, fmt.Sprintf("%s: the loader does not read %q and no proposed capability naming this case lists it -- add it to registry.Capabilities", name, k))
+		}
+	}
+	for _, c := range rows {
+		if c.Stage != registry.StageProposed || !slices.Contains(c.Cases, name) {
+			continue
+		}
+		wished := false
+		for _, k := range c.Keys {
+			wished = wished || rejectedKeys[k]
+		}
+		if !wished {
+			out = append(out, fmt.Sprintf("%s: capability %s names this case, which wishes for none of %v (or the loader now reads them) -- update the catalogue", name, c.ID, c.Keys))
+		}
+	}
+	return out
 }
 
 // outcomeProblem says why an HTTP answer is not the one a step expects, or "" when it is. A refusal is a 4xx; a 5xx
@@ -643,6 +684,33 @@ func TestCaseOutcomeAndRatchetJudgements(t *testing.T) {
 		got := ratchetProblem("c", c.rejected, c.passed, c.steps, rec)
 		if (c.want == "") != (got == "") || (c.want != "" && !strings.Contains(got, c.want)) {
 			t.Errorf("ratchetProblem(%d,%d,%d) = %q, want %q", c.rejected, c.passed, c.steps, got, c.want)
+		}
+	}
+}
+
+func TestCatalogueProblemsJudgesABacklogBothWays(t *testing.T) {
+	rows := []registry.Capability{
+		{ID: "p", Struct: "fieldDoc", Keys: []string{"a", "b"}, Stage: registry.StageProposed, Cases: []string{"c1"}},
+		{ID: "q", Struct: "fieldDoc", Keys: []string{"z"}, Stage: registry.StageProposed, Cases: []string{"c2"}},
+		{ID: "s", Struct: "fieldDoc", Keys: []string{"y"}, Stage: registry.StageSupported},
+	}
+	if p := catalogueProblems("c1", []string{"f.yaml: a", "f.yaml: b", "g.yaml: a"}, rows); len(p) != 0 {
+		t.Fatalf("a backlog the catalogue covers was refused: %v", p)
+	}
+	cases := []struct {
+		name     string
+		rejected []string
+		want     string
+	}{
+		{"c1", []string{"f.yaml: a", "f.yaml: b", "f.yaml: nope"}, `"nope"`},
+		{"c2", []string{"f.yaml: nothing"}, "wishes for none"},
+		{"c1", []string{"f.yaml: a", "f.yaml: b", "f.yaml: z"}, `"z"`}, // z belongs to another case
+		{"c1", []string{"f.yaml: a", "f.yaml: b", "f.yaml: y"}, `"y"`}, // a supported key is not a wish
+	}
+	for _, c := range cases {
+		got := strings.Join(catalogueProblems(c.name, c.rejected, rows), "; ")
+		if !strings.Contains(got, c.want) {
+			t.Errorf("%v: want a problem containing %s, got %q", c.rejected, c.want, got)
 		}
 	}
 }

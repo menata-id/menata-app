@@ -66,8 +66,8 @@ func TestPromptNamesEveryRegisteredCapability(t *testing.T) {
 
 // TestPromptDoesNotDenyWhatTheAssistantMerelyCannotWriteYet holds W0's claims. The prompt lists what the
 // runtime does and the assistant cannot yet write (aiassist.UnwritableByTheAssistant), and each entry
-// that names a grammar key must still be in aiUnwritableKeys: the day a slot is built the grammar gate
-// forces the entry out of that map, and this one forces it out of the prompt, so the model is never told
+// that names a grammar key must still be catalogued unwritable (registry.Capabilities): the day a slot is built the grammar gate
+// forces the entry's AIWritable true, and this one forces it out of the prompt, so the model is never told
 // it lacks something it now has. The templates the prompt recommends must exist in the library.
 func TestPromptDoesNotDenyWhatTheAssistantMerelyCannotWriteYet(t *testing.T) {
 	if len(aiassist.UnwritableByTheAssistant) == 0 {
@@ -77,8 +77,8 @@ func TestPromptDoesNotDenyWhatTheAssistantMerelyCannotWriteYet(t *testing.T) {
 		if e.Doc == "" {
 			continue // a permission key or a menu item's page:, which the grammar gate does not cover; held by review
 		}
-		if aiUnwritableKeys[e.Doc][e.Key] == "" {
-			t.Errorf("the prompt tells the model it cannot write %s.%s, but aiUnwritableKeys no longer lists it -- the slot exists now, so remove it from aiassist.UnwritableByTheAssistant", e.Doc, e.Key)
+		if unwritableReason(e.Doc, e.Key) == "" {
+			t.Errorf("the prompt tells the model it cannot write %s.%s, but the catalogue no longer marks it unwritable -- the slot exists now, so remove it from aiassist.UnwritableByTheAssistant", e.Doc, e.Key)
 		}
 	}
 	library, err := filepath.Glob(filepath.Join(repoRoot(), "metadata", "applications", "*.yaml"))

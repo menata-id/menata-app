@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"menata.app/internal/aiassist"
+	"menata.app/internal/registry"
 )
 
 // The assistant's output schema is a hand-written mirror of the loader's grammar (D2 = option G, K16): the
@@ -26,26 +27,10 @@ var aiRenamedKeys = map[string]map[string]string{
 	"fieldDoc": {"machine": "related_machine"},
 }
 
-// aiUnwritableKeys is the measured remainder, per loader struct. Shrink-only: a key that gains a slot
-// fails until it leaves this map, and a key that does not exist in the loader fails too.
-var aiUnwritableKeys = map[string]map[string]string{
-	"machineDoc": {
-		"constraints":           "block-if rules relate two Machines; the assistant has no related-record vocabulary yet",
-		"actions":               "declares what an Action writes; only the approval engine's Machines use it",
-		"datasets":              "free-form selection (a status filter, counts); a generated Machine gets a Dataset only as the list behind a menu entry (GeneratedMenuItem.List, W5-a)",
-		"sequencing":            "approval-engine ordering; generated Machines have no step Machine",
-		"signature_placement":   "approval-engine role (step); not generatable",
-		"signature_store":       "approval-engine role (signature); not generatable",
-		"flow_template":         "approval-engine role; not generatable",
-		"flow_template_step":    "approval-engine role; not generatable",
-		"blocks_member_removal": "no generated Machine is a member-removal blocker yet",
-		"sla_field":             "SLA badge; no forcing case in a generated Application",
-		"status_categories":     "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet",
-		"card_tags":             "board card tags; no generated board",
-		"append_only":           "no generated Machine is a log",
-	},
-	"fieldDoc": {},
-}
+// The reasons the assistant has no slot for a key live in the capability catalogue
+// (registry.Capabilities, KT1), which replaced the map that used to sit here. This gate holds the catalogue to both
+// the loader (every key is catalogued exactly once; a proposed key is not read yet) and the assistant's schema
+// (AIWritable is true exactly when a slot exists), so neither can be claimed.
 
 func TestAIGrammarGapIsMeasured(t *testing.T) {
 	pairs := []struct {
@@ -65,24 +50,45 @@ func TestAIGrammarGapIsMeasured(t *testing.T) {
 		for i := 0; i < p.gen.NumField(); i++ {
 			slots[strings.Split(p.gen.Field(i).Tag.Get("json"), ",")[0]] = true
 		}
-		listed := aiUnwritableKeys[p.doc]
+		supported := map[string]registry.Capability{}
+		for _, c := range registry.Capabilities {
+			if c.Struct != p.doc {
+				continue
+			}
+			for _, k := range c.Keys {
+				if c.Stage == registry.StageProposed {
+					for _, lk := range keys {
+						if lk == k {
+							t.Errorf("%s.%s is proposed in the catalogue but the loader reads it now -- mark %s supported", p.doc, k, c.ID)
+						}
+					}
+					continue
+				}
+				supported[k] = c
+			}
+		}
 		inLoader := map[string]bool{}
 		for _, k := range keys {
 			inLoader[k] = true
+			c, ok := supported[k]
+			if !ok {
+				t.Errorf("%s key %q is in no catalogue entry -- add one to registry.Capabilities", p.doc, k)
+				continue
+			}
 			slot := k
 			if r, ok := aiRenamedKeys[p.doc][k]; ok {
 				slot = r
 			}
 			switch {
-			case slots[slot] && listed[k] != "":
-				t.Errorf("%s key %q now has an assistant slot but is still listed as unwritable -- remove the entry", p.doc, k)
-			case !slots[slot] && listed[k] == "":
-				t.Errorf("%s key %q has no slot in %s and no entry in aiUnwritableKeys -- give the assistant a slot (schema.go, spec.go, writer.go) or list it with the reason it has none", p.doc, k, p.gen.Name())
+			case slots[slot] && !c.AIWritable:
+				t.Errorf("%s key %q now has an assistant slot but %s says it has none -- set AIWritable and drop the reason", p.doc, k, c.ID)
+			case !slots[slot] && c.AIWritable:
+				t.Errorf("%s key %q is catalogued as writable but %s has no slot for it", p.doc, k, p.gen.Name())
 			}
 		}
-		for k := range listed {
+		for k, c := range supported {
 			if !inLoader[k] {
-				t.Errorf("aiUnwritableKeys[%s] lists %q, which the loader no longer has -- remove the entry", p.doc, k)
+				t.Errorf("catalogue entry %s lists %q, which the loader no longer has -- remove it", c.ID, k)
 			}
 		}
 	}
@@ -122,4 +128,20 @@ func loaderYAMLKeys(t *testing.T) map[string][]string {
 		}
 	}
 	return out
+}
+
+// unwritableReason is the catalogue's reason the assistant has no slot for a loader key, or "" when it has one
+// (or the key is not catalogued).
+func unwritableReason(doc, key string) string {
+	for _, c := range registry.Capabilities {
+		if c.Struct != doc || c.Stage != registry.StageSupported || c.AIWritable {
+			continue
+		}
+		for _, k := range c.Keys {
+			if k == key {
+				return c.AIReason
+			}
+		}
+	}
+	return ""
 }

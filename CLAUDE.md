@@ -415,7 +415,7 @@ Rules that follow from it:
   do not keep a second list here.
   **The top-level roadmap since 2026-10-15** is `menata-app-document`'s `audits/2026-10-15-peta-jalan-menuju-aplikasi-lengkap.md`:
   stages in the owner's order (docs, then AI assistant and `page:`, then domain, mockups, process map last), what "complete" means, and
-  the rule that **a new metadata capability lands with its AI-assistant slot in the same slice** (or an `aiUnwritableKeys` entry).
+  the rule that **a new metadata capability lands with its AI-assistant slot in the same slice** (or a catalogue entry in `registry.Capabilities` saying why it has none).
   **Active work since 2026-10-14: closing the gaps the design-system audit found.** The plan and its status table are
   `menata-app-document`'s `audits/2026-10-14-rencana-perbaikan-gap-design-system.md` (P0–P8, owner decisions K-01–K-17;
   findings in `audits/2026-10-14-audit-gap-design-system/`). A new session resumes from its §0 "Cara melanjutkan" and its
@@ -1511,7 +1511,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   option must be the one marked `done` (one statement of "finished", 001 #8), and every state a transition touches must be categorised. Declared on
   `mch_document` and `mch_approval_step` in the library and in every Workspace copy (`hanomerch` too, at the owner's request, 2026-10-15). No
   renderer reads it yet: the Component kit (ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessSimulator, ProcessMap) is the next
-  slices. `aiUnwritableKeys` lists the key with its reason.
+  slices. `registry.Capabilities` lists the key with its reason.
 - `TestNoHandWrittenPopover` — gap plan K-04 and K-17 (2026-10-15), the **fifteenth registered Component**, `Popover`. T-A had closed on
   "register one when an Application screen needs a menu"; the audit found two there: the record page's "..." card-actions menu and the board
   header's "New <machine>" form (the board card's quick edit and a lane's "Add a card" expand in place and are not popovers). A native

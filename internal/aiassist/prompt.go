@@ -156,9 +156,9 @@ counted.`
 var ReadyMadeTemplates = []string{"Document Approval", "Project Management"}
 
 // UnwritableByTheAssistant is what the runtime can do and the assistant cannot yet write (roadmap
-// stage 1, W0). Each entry names the loader key it concerns, as conformance.aiUnwritableKeys does: a
+// stage 1, W0). Each entry names the loader key it concerns, as registry.Capabilities does: a
 // gate requires every Doc/Key here to still be listed there, so the day a slot is built (W2-W6) the
-// grammar gate demands the entry leave aiUnwritableKeys and this gate demands it leave this list --
+// grammar gate demands the entry be marked AIWritable in the catalogue and this gate demands it leave this list --
 // the prompt cannot go on telling the model it lacks something it now has. Doc "" marks a concern the
 // grammar gate does not cover (a permission key, a menu item's page:); those are held by review.
 var UnwritableByTheAssistant = []struct {
