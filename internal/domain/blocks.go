@@ -41,6 +41,7 @@ func (m *Machine) DeclaredBlocks() []string {
 	add(m.SignatureStore != nil, "signature_store")
 	add(m.SLAField != "", "sla_field")
 	add(m.Completion != nil, "completion")
+	add(m.StatusCategories != nil, "status_categories")
 	add(m.CardTags != nil, "card_tags")
 	add(len(m.CardFields) > 0, "card_fields")
 	add(len(m.Views) > 0, "views")

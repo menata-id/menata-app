@@ -527,6 +527,10 @@ type Machine struct {
 	// Completion declares which Field/value means a record is finished -- see Completion's own doc
 	// comment. Nil means this Machine declares no notion of "done", so nothing renders as complete.
 	Completion *Completion
+	// StatusCategories declares which of five closed categories each option of one status Field belongs
+	// to -- see StatusCategories' own doc comment. Nil means the Machine declares none, so a process map
+	// has nothing to colour by and says so rather than guessing.
+	StatusCategories *StatusCategories
 	// CardTags declares the tag chips a board card shows -- see CardTags' own doc comment.
 	CardTags *CardTags
 	// CardFields is the ordered list of this Machine's own Fields a card projects, each with its
@@ -568,6 +572,46 @@ type Machine struct {
 type Completion struct {
 	Field string
 	Done  string
+}
+
+// StatusCategory is one of the five closed kinds of state a process map tells apart (the Design System's
+// ProcessMap legend): where a record starts, that it is moving, that it needs someone's attention, that it
+// is finished, and that it was stopped without finishing. The words are business language, not tones; the
+// Experience Plane maps each to a tone it already has.
+type StatusCategory string
+
+const (
+	StatusStart     StatusCategory = "start"
+	StatusActive    StatusCategory = "active"
+	StatusAttention StatusCategory = "attention"
+	StatusDone      StatusCategory = "done"
+	StatusStopped   StatusCategory = "stopped"
+)
+
+// KnownStatusCategories is the closed set, in the order a legend lists them.
+var KnownStatusCategories = map[StatusCategory]bool{
+	StatusStart: true, StatusActive: true, StatusAttention: true, StatusDone: true, StatusStopped: true,
+}
+
+// StatusCategories assigns a category to options of one status Field (K-15, 2026-10-15). It is declared and
+// not derived because measurement showed nothing derives it: of the one installed Machine with a
+// `transitions:` graph (Document), `approved` and `rejected` both have outgoing edges so "no edge out" finds
+// no end state, `draft` is in no edge at all, and Document declares no `completion:`. An option left out is
+// not categorised and a map must say so rather than colour it. `completion:` stays the one statement of
+// "finished" for Machines that declare it; where both are declared they must agree
+// (metadata.validateMachine).
+type StatusCategories struct {
+	Field  string
+	Values map[string]StatusCategory
+}
+
+// CategoryOf returns the category of an option, and false when the option is not categorised.
+func (c *StatusCategories) CategoryOf(option string) (StatusCategory, bool) {
+	if c == nil {
+		return "", false
+	}
+	v, ok := c.Values[option]
+	return v, ok
 }
 
 // ReopenValue is what finishing's opposite writes: the completion Field's declared default when it has one,

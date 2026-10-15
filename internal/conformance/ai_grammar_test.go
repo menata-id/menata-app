@@ -41,6 +41,7 @@ var aiUnwritableKeys = map[string]map[string]string{
 		"blocks_member_removal": "no generated Machine is a member-removal blocker yet",
 		"sla_field":             "SLA badge; no forcing case in a generated Application",
 		"completion":            "done/reopen over a status; no forcing case in a generated Application",
+		"status_categories":     "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet",
 		"card_tags":             "board card tags; no generated board",
 		"card_fields":           "board card projection; no generated board",
 		"views":                 "every generated Machine gets the implicit table view",

@@ -39,6 +39,8 @@ type machineDoc struct {
 	SLAField string `yaml:"sla_field"`
 	// Completion -- see domain.Completion.
 	Completion *completionDoc `yaml:"completion"`
+	// StatusCategories -- see domain.StatusCategories.
+	StatusCategories *statusCategoriesDoc `yaml:"status_categories"`
 	// CardTags -- see domain.CardTags.
 	CardTags   *cardTagsDoc   `yaml:"card_tags"`
 	CardFields []cardFieldDoc `yaml:"card_fields"`
@@ -59,6 +61,12 @@ type cardTagsDoc struct {
 type completionDoc struct {
 	Field string `yaml:"field"`
 	Done  string `yaml:"done"`
+}
+
+// statusCategoriesDoc is the YAML serialization of a domain.StatusCategories.
+type statusCategoriesDoc struct {
+	Field  string            `yaml:"field"`
+	Values map[string]string `yaml:"values"`
 }
 
 // transitionDoc is the YAML serialization of a domain.Transition (Case 03 Fase 7).
@@ -580,6 +588,13 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 	if doc.Completion != nil {
 		m.Completion = &domain.Completion{Field: doc.Completion.Field, Done: doc.Completion.Done}
+	}
+	if doc.StatusCategories != nil {
+		sc := &domain.StatusCategories{Field: doc.StatusCategories.Field, Values: map[string]domain.StatusCategory{}}
+		for option, category := range doc.StatusCategories.Values {
+			sc.Values[option] = domain.StatusCategory(category)
+		}
+		m.StatusCategories = sc
 	}
 	m.AppendOnly = doc.AppendOnly
 	for _, cf := range doc.CardFields {

@@ -217,6 +217,7 @@ func Validate(m *domain.Machine) error {
 			issues = append(issues, fmt.Sprintf("machine %q: completion done %q is not one of %q's options %v", m.ID, m.Completion.Done, f.ID, f.Options))
 		}
 	}
+	issues = append(issues, validateStatusCategories(m, fieldsByID)...)
 	for _, cf := range m.CardFields {
 		if _, ok := fieldsByID[cf.Field]; !ok {
 			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q is not a field of this machine", m.ID, cf.Field))
@@ -1545,6 +1546,64 @@ func validateParentActorVia(m *domain.Machine, p domain.Permission, fieldsByID m
 		issues = append(issues, fmt.Sprintf("permission %q: parent_actor.via %q is not a field of machine %q", p.ID, pa.ViaField, m.ID))
 	case via.Type != domain.FieldTypeRelation:
 		issues = append(issues, fmt.Sprintf("permission %q: parent_actor.via %q must be a relation field pointing at the parent Machine, got %q", p.ID, pa.ViaField, via.Type))
+	}
+	return issues
+}
+
+// validateStatusCategories checks a Machine's `status_categories:` (K-15): the Field is a status Field of this
+// Machine, every key is one of its options, every value is one of the five closed categories, and the block is
+// not empty. Where the Machine also declares `completion:` on the same Field, the option it calls finished must
+// be the one categorised `done` -- "finished" is stated once, and two statements may not disagree (001 #8).
+func validateStatusCategories(m *domain.Machine, fieldsByID map[string]domain.Field) []string {
+	sc := m.StatusCategories
+	if sc == nil {
+		return nil
+	}
+	f, ok := fieldsByID[sc.Field]
+	switch {
+	case !ok:
+		return []string{fmt.Sprintf("machine %q: status_categories field %q is not a field of this machine", m.ID, sc.Field)}
+	case f.Type != domain.FieldTypeStatus:
+		return []string{fmt.Sprintf("machine %q: status_categories field %q must be a status field, got %q", m.ID, sc.Field, f.Type)}
+	case len(sc.Values) == 0:
+		return []string{fmt.Sprintf("machine %q: status_categories declares no values", m.ID)}
+	}
+	var issues []string
+	options := make([]string, 0, len(sc.Values))
+	for option := range sc.Values {
+		options = append(options, option)
+	}
+	slices.Sort(options)
+	for _, option := range options {
+		category := sc.Values[option]
+		if !slices.Contains(f.Options, option) {
+			issues = append(issues, fmt.Sprintf("machine %q: status_categories value %q is not one of %q's options %v", m.ID, option, f.ID, f.Options))
+		}
+		if !domain.KnownStatusCategories[category] {
+			issues = append(issues, fmt.Sprintf("machine %q: status_categories value %q has unknown category %q (want start, active, attention, done or stopped)", m.ID, option, category))
+		}
+	}
+	// A state a transition on this Field starts or ends in must be categorised: a map draws every edge, and an
+	// endpoint with no category would be drawn in a colour nobody chose.
+	for _, tr := range m.Transitions {
+		if tr.Field != sc.Field {
+			continue
+		}
+		for _, end := range []string{tr.From, tr.To} {
+			if _, ok := sc.Values[end]; !ok && end != "" {
+				issues = append(issues, fmt.Sprintf("machine %q: transition %q reaches %q, which status_categories does not categorise", m.ID, tr.ID, end))
+			}
+		}
+	}
+	if m.Completion != nil && m.Completion.Field == sc.Field {
+		if got, ok := sc.Values[m.Completion.Done]; !ok || got != domain.StatusDone {
+			issues = append(issues, fmt.Sprintf("machine %q: completion done %q must be categorised done in status_categories", m.ID, m.Completion.Done))
+		}
+		for _, option := range options {
+			if sc.Values[option] == domain.StatusDone && option != m.Completion.Done {
+				issues = append(issues, fmt.Sprintf("machine %q: status_categories marks %q done, but completion says %q is the finished value", m.ID, option, m.Completion.Done))
+			}
+		}
 	}
 	return issues
 }

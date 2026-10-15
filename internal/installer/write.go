@@ -242,10 +242,12 @@ type FullMachineCheckDoc struct {
 	FlowTemplateStep any    `yaml:"flow_template_step"`
 	SLAField         string `yaml:"sla_field"`
 	Completion       any    `yaml:"completion"`
-	CardTags         any    `yaml:"card_tags"`
-	CardFields       []any  `yaml:"card_fields"`
-	Views            []any  `yaml:"views"`
-	AppendOnly       bool   `yaml:"append_only"`
+	// StatusCategories is K-15's block (domain.StatusCategories, 2026-10-15), added in the same change.
+	StatusCategories any   `yaml:"status_categories"`
+	CardTags         any   `yaml:"card_tags"`
+	CardFields       []any `yaml:"card_fields"`
+	Views            []any `yaml:"views"`
+	AppendOnly       bool  `yaml:"append_only"`
 }
 
 type FullApplicationCheckDoc struct {

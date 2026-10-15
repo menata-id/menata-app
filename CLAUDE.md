@@ -1493,6 +1493,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   contrast from about 3.4:1 (the browser's 50% of the strong ink) to 2.6:1, so the rule "placeholder = faint" stays unadopted
   and the Field page says so. P8a: a Document whose PDF cannot be opened answers the signature placement screen with 422
   (`pdf.ErrUnreadable`), as `/pdf-preview` did; it was a logged 500. The four AI sessions an audit crawler created were deleted by id.
+- **`status_categories:` — K-15 slice 1 (2026-10-15), the process map's prerequisite.** A Machine may assign one of five closed categories
+  (`start`, `active`, `attention`, `done`, `stopped`) to options of one status Field (`domain.StatusCategories`; read the validation in
+  `metadata.validateStatusCategories`, tests `TestStatusCategories_*`, mutation-proved six ways). **Declared, not derived, and that was
+  measured:** the earlier recommendation (derive from `completion:`) failed because Document, the only Machine with a `transitions:` graph, has no
+  `completion:`, `draft` is in no edge, and `approved`/`rejected` both have edges out. Where `completion:` is declared on the same Field its `done`
+  option must be the one marked `done` (one statement of "finished", 001 #8), and every state a transition touches must be categorised. Declared on
+  `mch_document` and `mch_approval_step` in the library and in every Workspace copy except `hanomerch` (in real use; the owner opts in). No
+  renderer reads it yet: the Component kit (ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessSimulator, ProcessMap) is the next
+  slices. `aiUnwritableKeys` lists the key with its reason.
 - `TestNoHandWrittenPopover` — gap plan K-04 and K-17 (2026-10-15), the **fifteenth registered Component**, `Popover`. T-A had closed on
   "register one when an Application screen needs a menu"; the audit found two there: the record page's "..." card-actions menu and the board
   header's "New <machine>" form (the board card's quick edit and a lane's "Add a card" expand in place and are not popovers). A native
