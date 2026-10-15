@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/registry"
 )
 
@@ -58,6 +59,42 @@ func TestPromptNamesEveryRegisteredCapability(t *testing.T) {
 	} {
 		if strings.Contains(strings.SplitN(prompt, "func composableSurface", 2)[1], gone) {
 			t.Errorf("the prompt has regained the false claim %q -- it was retracted 2026-09-30; see composableSurface's own comment for what is true instead", gone)
+		}
+	}
+}
+
+// TestPromptDoesNotDenyWhatTheAssistantMerelyCannotWriteYet holds W0's claims. The prompt lists what the
+// runtime does and the assistant cannot yet write (aiassist.UnwritableByTheAssistant), and each entry
+// that names a grammar key must still be in aiUnwritableKeys: the day a slot is built the grammar gate
+// forces the entry out of that map, and this one forces it out of the prompt, so the model is never told
+// it lacks something it now has. The templates the prompt recommends must exist in the library.
+func TestPromptDoesNotDenyWhatTheAssistantMerelyCannotWriteYet(t *testing.T) {
+	if len(aiassist.UnwritableByTheAssistant) == 0 {
+		t.Fatal("the list is empty, so this gate would measure nothing")
+	}
+	for _, e := range aiassist.UnwritableByTheAssistant {
+		if e.Doc == "" {
+			continue // a permission key or a menu item's page:, which the grammar gate does not cover; held by review
+		}
+		if aiUnwritableKeys[e.Doc][e.Key] == "" {
+			t.Errorf("the prompt tells the model it cannot write %s.%s, but aiUnwritableKeys no longer lists it -- the slot exists now, so remove it from aiassist.UnwritableByTheAssistant", e.Doc, e.Key)
+		}
+	}
+	library, err := filepath.Glob(filepath.Join(repoRoot(), "metadata", "applications", "*.yaml"))
+	if err != nil || len(library) == 0 {
+		t.Fatalf("found no library templates (%v) -- the gate would pass by measuring nothing", err)
+	}
+	var all strings.Builder
+	for _, f := range library {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		all.Write(b)
+	}
+	for _, name := range aiassist.ReadyMadeTemplates {
+		if !strings.Contains(all.String(), "\nname: "+name+"\n") && !strings.HasPrefix(all.String(), "name: "+name+"\n") {
+			t.Errorf("the prompt recommends installing %q, which is not in metadata/applications", name)
 		}
 	}
 }

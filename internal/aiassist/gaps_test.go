@@ -72,3 +72,29 @@ func TestPrompt_instructsEveryDeclineToBeRecordedAlongsideAChange(t *testing.T) 
 		t.Error("the prompt still calls a change and a gap mutually exclusive")
 	}
 }
+
+// W0: the prompt tells the model what the runtime can do and it cannot yet write, instead of
+// letting it deny the capability, and it points at Install Application for a ready-made application.
+func TestPrompt_saysTheRuntimeCanWhenTheAssistantCannotYet(t *testing.T) {
+	full := SystemPromptFor(nil, nil)
+	for _, want := range []string{
+		"the runtime can do this, but I cannot write it for you yet",
+		`kind "assistant"`,
+		"Install Application",
+		"rather than rebuilding it from scratch or saying it cannot be copied",
+	} {
+		if !strings.Contains(full, want) {
+			t.Errorf("the prompt lacks %q", want)
+		}
+	}
+	for _, e := range UnwritableByTheAssistant {
+		if !strings.Contains(full, "`"+e.Key+"`") {
+			t.Errorf("the prompt does not list %s", e.Key)
+		}
+	}
+	for _, name := range ReadyMadeTemplates {
+		if !strings.Contains(full, name) {
+			t.Errorf("the prompt does not name the template %s", name)
+		}
+	}
+}

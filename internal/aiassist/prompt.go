@@ -84,6 +84,18 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   in your message. The owner must confirm that removal at review, the values already stored stay in the
   records unseen, and a field that a status move, a view or another rule still names is refused.
 
+The runtime also does the following, and you can neither write it nor should you say it does not exist.
+It is real; your generated shape simply has no slot for it yet. When a request needs one of these, say so
+in those words ("the runtime can do this, but I cannot write it for you yet"), build everything else you
+can, and record it in capability_gaps with kind "assistant":
+` + cannotYetWriteList() + `
+
+Two ready-made applications can be installed whole by an admin from Install Application in the Workspace
+menu: ` + strings.Join(ReadyMadeTemplates, " and ") + `. When the person wants one of them "as it already
+exists", or something close enough to start from, tell them to install it and then ask you to change it
+(an update_application), rather than rebuilding it from scratch or saying it cannot be copied. A rebuilt
+copy is worse than the real one: the real Document Approval has screens and mechanics you cannot write.
+
 If a request needs something from the second list, say so plainly in your reply's own message, and
 add it to capability_gaps -- do not approximate it with something from the first list and call it the
 same thing. Approximating is worse than declining: it produces metadata that looks like it does
@@ -97,6 +109,41 @@ name each thing you left out. Give each entry a kind: "runtime" when the runtime
 at all, "assistant" when the runtime can (it is in the first list, or you know it exists) but you
 cannot write it yet. Name the same missing thing the same way every time, so the entries can be
 counted.`
+}
+
+// ReadyMadeTemplates are the library Applications the prompt may point a person at. A conformance
+// gate holds each name against the installed library, so the prompt cannot recommend one that is gone.
+var ReadyMadeTemplates = []string{"Document Approval", "Project Management"}
+
+// UnwritableByTheAssistant is what the runtime can do and the assistant cannot yet write (roadmap
+// stage 1, W0). Each entry names the loader key it concerns, as conformance.aiUnwritableKeys does: a
+// gate requires every Doc/Key here to still be listed there, so the day a slot is built (W2-W6) the
+// grammar gate demands the entry leave aiUnwritableKeys and this gate demands it leave this list --
+// the prompt cannot go on telling the model it lacks something it now has. Doc "" marks a concern the
+// grammar gate does not cover (a permission key, a menu item's page:); those are held by review.
+var UnwritableByTheAssistant = []struct {
+	Doc, Key, Plain string
+}{
+	{"machineDoc", "views", "a board (cards grouped by a status) or other view of a machine's records"},
+	{"machineDoc", "card_fields", "what a board card shows"},
+	{"machineDoc", "card_tags", "tags on a board card"},
+	{"machineDoc", "datasets", "a narrower list of a machine's records, for example only mine, or only one status"},
+	{"", "page", "a menu item that draws its own screen from such a list, including a screen per person (\"my requests\") and status filter tiles"},
+	{"fieldDoc", "default", "a field's starting value, for example a status that begins at \"new\""},
+	{"fieldDoc", "stamp", "a field the runtime fills with who created or last changed the record"},
+	{"", "actor_field", "a permission that only the person named in a record's own field may use (\"only the requester edits\")"},
+	{"", "parent_actor", "a permission held by the owner of a related record (\"the owner of the room approves\")"},
+	{"machineDoc", "completion", "which status means a record is done, and a mark-done / reopen action"},
+	{"machineDoc", "sla_field", "an SLA deadline badge"},
+	{"machineDoc", "constraints", "a rule that blocks a change because of other records"},
+}
+
+func cannotYetWriteList() string {
+	var lines []string
+	for _, e := range UnwritableByTheAssistant {
+		lines = append(lines, "- "+e.Plain+" (`"+e.Key+"`)")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // fieldTypeSentence renders every declarable field type from domain.KnownFieldTypes, in that catalogue's
