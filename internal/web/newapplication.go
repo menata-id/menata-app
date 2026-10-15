@@ -172,11 +172,16 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 		}
 		problem := aiassist.Validate(*reply.Change, existing)
 		if problem == nil {
+			if attempt == 1 {
+				logAIReject(ctx, session.ID, "check", "recovered", 2, nil)
+			}
 			return store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusGenerated)
 		}
 		if attempt == 1 {
+			logAIReject(ctx, session.ID, "check", "unresolved", 2, problem)
 			return nil
 		}
+		logAIReject(ctx, session.ID, "check", "pending", 1, problem)
 		report := "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
 			problem.Error() + "\n\nCorrect it, or ask me what you need to know."
 		if err := store.AppendAISessionTurn(ctx, session.ID, "user", report); err != nil {
@@ -421,6 +426,7 @@ func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.
 	// Phrased as the person reporting it, because that is the role the model's own history format
 	// has for "here is what happened when we tried": a model turn would claim the assistant said
 	// it, and the schema has no third voice.
+	logAIReject(ctx, session.ID, "publish", "returned", 1, problem)
 	report := "Publishing this failed with:\n\n" + problem.Error() +
 		"\n\nPlease correct the metadata so it passes, staying inside what you can actually generate."
 	if err := store.AppendAISessionTurn(ctx, session.ID, "user", report); err != nil {

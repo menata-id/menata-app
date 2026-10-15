@@ -79,3 +79,49 @@ func TestPostNewApplicationMessage_everyNamedGapIsRecordedAndLogged(t *testing.T
 		t.Errorf("the conversation names %q, want every gap", shown)
 	}
 }
+
+// TestPostNewApplicationMessage_aRuntimeRefusalIsLogged: metadata the assistant produced that the
+// runtime refuses is evidence of a gap in capability, guide or grammar whether or not the model says
+// so. A refusal the model then fixes is logged "recovered" and one it does not "unresolved", so the
+// reader can tell a prompt problem from a grammar or capability problem.
+func TestPostNewApplicationMessage_aRuntimeRefusalIsLogged(t *testing.T) {
+	s := newAssistantRouteSetup(t, "Assistant Reject", "assistant-reject-workspace", "assistant_reject@example.com")
+	bad := &aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_nope"}
+
+	capture := func(t *testing.T, client aiassist.Client) string {
+		t.Helper()
+		var logged bytes.Buffer
+		log.SetOutput(&logged)
+		defer log.SetOutput(os.Stderr)
+		if rec := s.postMessage(t, client, "", "build it"); rec.Code != http.StatusSeeOther {
+			t.Fatalf("post = %d", rec.Code)
+		}
+		return logged.String()
+	}
+
+	t.Run("recovered", func(t *testing.T) {
+		out := capture(t, &sequenceAIClient{replies: []aiassist.Reply{
+			{Message: "Ready.", Change: bad},
+			{Message: "Fixed.", Change: validGeneratedChange("Leave Requests")},
+		}})
+		for _, want := range []string{"AI-REJECT stage=check final=pending attempt=1", "not installed", "AI-REJECT stage=check final=recovered attempt=2"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("log lacks %q:\n%s", want, out)
+			}
+		}
+		if strings.Contains(out, "unresolved") {
+			t.Errorf("a recovered refusal was logged unresolved:\n%s", out)
+		}
+	})
+	t.Run("unresolved", func(t *testing.T) {
+		out := capture(t, &sequenceAIClient{replies: []aiassist.Reply{{Message: "Ready.", Change: bad}}})
+		for _, want := range []string{"final=pending attempt=1", "final=unresolved attempt=2"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("log lacks %q:\n%s", want, out)
+			}
+		}
+		if strings.Contains(out, "recovered") {
+			t.Errorf("an unresolved refusal was logged recovered:\n%s", out)
+		}
+	})
+}

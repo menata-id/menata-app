@@ -1,8 +1,10 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -481,7 +483,13 @@ func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
 	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, occupied, "Publish Failure Test", false))
 	rec := httptest.NewRecorder()
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
 	r.ServeHTTP(rec, req)
+	log.SetOutput(os.Stderr)
+	if !strings.Contains(logged.String(), "AI-REJECT stage=publish final=returned") || !strings.Contains(logged.String(), "mch_already_here") {
+		t.Errorf("a publish refused by the runtime wrote no AI-REJECT line naming the cause:\n%s", logged.String())
+	}
 
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("publish status = %d, want 303 back to the conversation; body: %s", rec.Code, rec.Body.String())
