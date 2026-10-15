@@ -2,7 +2,7 @@ package domain
 
 // ActionEffect declares what one named Action writes onto the record it acts on, beyond the value the
 // request already carries (006-runtime-model.md §Domain Model names Approve and Reject as Actions;
-// ROADMAP.md "Document Approval: closing the last three layers", Stage B).
+// development-history.md "Document Approval: closing the last three layers", Stage B).
 //
 // It closes the audit's Gap A. `decide` existed here as a *name* long before this: KnownActions carried
 // it, a Permission gated it (prm_decide_own_step), Transitions said which moves it performs -- and what

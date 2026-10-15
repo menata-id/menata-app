@@ -15,7 +15,7 @@ import (
 )
 
 // showInstallApplication lists the template library and what installing each one into *this* Workspace
-// would do (ROADMAP.md "Installing a template into a Workspace that already uses its ids", 2026-09-28).
+// would do (development-history.md "Installing a template into a Workspace that already uses its ids", 2026-09-28).
 //
 // Every row's renames, added references and refusals come from installer.PlanInstall -- the same
 // function the POST runs, so the screen cannot promise something the write then declines. A screen

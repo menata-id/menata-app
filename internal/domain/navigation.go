@@ -83,7 +83,7 @@ type NavigationItem struct {
 	Heading     string
 	Description string
 	// SettingsHub marks the one navigation item that *is* an Application's Settings landing page
-	// (ROADMAP.md "In progress", "Application Settings hub") -- at most one per Application,
+	// (development-history.md "In progress", "Application Settings hub") -- at most one per Application,
 	// validated the same way HomeCard is. Its own Label/Title/Description/Route/Icon are what the
 	// Application chrome's "Settings" link and the hub page's own heading read, the same "declare
 	// it once, read it everywhere" shape HomeRoute already established.

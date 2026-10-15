@@ -65,8 +65,13 @@ func TestCitedRoadmapAnchorsResolve(t *testing.T) {
 			}
 		}
 	}
-	if cites == 0 {
-		t.Fatal("found no ROADMAP.md phase citations at all -- either the convention was abandoned or this gate stopped looking; both are worth a failure")
+	// Since 2026-10-15 ROADMAP.md is the public roadmap and names no phase at all, so the tree holds no citation
+	// of one and zero is the expected count; a new citation fails above unless the public file names it. The guard
+	// that used to fail on zero now checks the pattern itself, so a regex that silently stopped matching is still
+	// caught.
+	_ = cites
+	if !citedRoadmapAnchor.MatchString("see ROADMAP.md's " + "Fase 6") {
+		t.Fatal("citedRoadmapAnchor no longer matches a phase citation -- this gate would pass by measuring nothing")
 	}
 }
 

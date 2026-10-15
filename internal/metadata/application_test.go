@@ -1367,7 +1367,7 @@ func TestLoadApplication_stampsWorkflowRoles(t *testing.T) {
 	}
 
 	// And the declaration itself survives on the Application, since that is what an installer has
-	// to rewrite when a collision forces a rename (ROADMAP.md "Installing a template into a
+	// to rewrite when a collision forces a rename (development-history.md "Installing a template into a
 	// Workspace that already uses its ids").
 	binding := app.Workspace.Applications[0].Workflow
 	if binding.MachineForRole(domain.WorkflowRoleDocument) != "mch_surat" {
@@ -1515,7 +1515,7 @@ func TestLoadApplication_optionalWorkflowRolesAreStillValidated(t *testing.T) {
 }
 
 // TestDecodeStrict_rejectsAnUnknownKey closes this runtime's last validation hole, in the three
-// document kinds it has (ROADMAP.md's "Reject unknown metadata keys at load").
+// document kinds it has (development-history.md's "Reject unknown metadata keys at load").
 //
 // The Machine case is the 2026-09-20 finding turned into a test: a copy of metadata/ whose mch_document
 // used the pre-2026-09-20 singular `view:` block loaded with no error at all and simply had zero Views.

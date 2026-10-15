@@ -7,7 +7,7 @@ import (
 	"menata.app/internal/config"
 )
 
-// manifestJSON is the Web App Manifest that makes this app installable (ROADMAP.md's "Installable
+// manifestJSON is the Web App Manifest that makes this app installable (development-history.md's "Installable
 // as a PWA"). The name is the platform's own brand ("Menata App", the same suffix pageShell's
 // <title> already hardcodes), not Deps.AppName -- that resolves to the current metadata
 // Application's own name (e.g. "Task Tracker"), a different, narrower thing. start_url is /home

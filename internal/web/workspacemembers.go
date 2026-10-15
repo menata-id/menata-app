@@ -76,7 +76,7 @@ func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		// q narrows both lists in Go, over what's already been fetched -- no new query, matching
-		// every other filter this app has (ROADMAP.md "Application Settings hub"'s own search
+		// every other filter this app has (development-history.md "Application Settings hub"'s own search
 		// plan). totalMembers is the *unfiltered* count: the mockup's own member-count pill does
 		// not change as you type, only the rows below it do.
 		q := req.URL.Query().Get("q")

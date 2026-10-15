@@ -271,7 +271,7 @@ type FullApplicationCheckDoc struct {
 // so a crash mid-write can never leave a half-written file for the next reload to trip over.
 //
 // This was the only strict decoding in the repo until 2026-09-28, when internal/metadata's own loader
-// became strict too (decodeStrict, ROADMAP.md's "Reject unknown metadata keys at load"). It is not
+// became strict too (decodeStrict, development-history.md's "Reject unknown metadata keys at load"). It is not
 // redundant now -- it fails earlier, on this package's own output, rather than on the reload that
 // follows -- and TestCheckDocsMirrorMetadatasOwnKeys keeps the mirror types below in step with the
 // loader's own, which is the drift that broke the first template install.

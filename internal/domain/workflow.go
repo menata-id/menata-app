@@ -1,7 +1,7 @@
 package domain
 
 // Workflow is how an Application says which runtime workflow engine it runs on, and which of its
-// own Machines plays each role in that engine (ROADMAP.md "Document Approval: closing the last
+// own Machines plays each role in that engine (development-history.md "Document Approval: closing the last
 // three layers", Stage A; the audit is menata-app-document's
 // audits/2026-09-28-kajian-metadata-based-document-approval.md, Gap C).
 //

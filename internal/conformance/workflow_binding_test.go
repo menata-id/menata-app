@@ -10,7 +10,7 @@ import (
 	"menata.app/internal/metadata"
 )
 
-// Package workflow_binding_test.go holds the property Stage A of ROADMAP.md's "Document Approval:
+// Package workflow_binding_test.go holds the property Stage A of development-history.md's "Document Approval:
 // closing the last three layers" exists to give: the approval engine engages because an Application
 // *declares* that it does, not because anything is named a particular way.
 //

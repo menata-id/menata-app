@@ -494,7 +494,7 @@ func approverRows(w http.ResponseWriter, req *http.Request, docMachine *domain.M
 // Constraint has one shape only -- block a field transition while a *related Machine* has a
 // matching record -- which cannot condition on a sibling Field of the same record. So fld_assignee
 // is declared optional (see metadata/approval_step.yaml's own comment) and this is the enforcement.
-// Forward pointer: ROADMAP.md's "Conditional required" deferral row; when that lands, this check
+// Forward pointer: development-history.md's "Conditional required" deferral row; when that lands, this check
 // becomes two declarations and this function loses its reason to validate anything.
 //
 // An entirely blank row is skipped rather than rejected: the wizard renders one empty row to start

@@ -340,7 +340,8 @@ gates by name.
 2. **If metadata genuinely can't express it yet**, hardcoding is allowed, but the site must:
    (a) say so in a comment naming the missing capability (already required, above);
    (b) cite a forward-checkable pointer -- a `007-composable-runtime-architecture.md` section
-   number or a `ROADMAP.md` phase -- so a later reader can check whether that capability has since
+   number, a stage of `menata-app-document`'s top-level roadmap, or a `development-history.md` phase (never a
+   `ROADMAP.md` phase: that file is public and names none since 2026-10-15) -- so a later reader can check whether that capability has since
    landed, rather than trusting the comment forever; and
    (c) be listed in `writing-guide.md`'s "What comes free vs. what's hardcoded today" table.
    `internal/composition`'s Case 19 Machine-id constants predate this convention -- treat any
@@ -353,8 +354,8 @@ gates by name.
    criteria.md` (Q1-Q5) for rendering fragments in `internal/rendering`. Both were written for
    exactly this repo and already have real worked examples (`ActionDecide` generalizing into
    `ActionEdit`/`ActionDelete`; `logRecordCreated` generalizing into `Event.OnCreate`).
-4. **Capability keeps growing, so a standing exception isn't permanent.** At each `ROADMAP.md`
-   phase close, re-check exceptions already in the codebase (`internal/composition`'s Case 19
+4. **Capability keeps growing, so a standing exception isn't permanent.** At each roadmap
+   stage close, re-check exceptions already in the codebase (`internal/composition`'s Case 19
    constants, `internal/conformance`'s `runtimeLevelRoutes`/label allowlist if one exists) against
    *current* metadata capability, not the capability that existed when the exception was written --
    `card_fields` (Projection) and `Event.OnCreate` both landed by generalizing something that
@@ -1872,7 +1873,8 @@ staleness header on the right one.
 
 **The operational rule, before you write:** a finding's narrative — what forced it, what you measured,
 what the mutation proved, what could not be checked live — goes to `development-history.md`.
-`ROADMAP.md` gets a feature-level line plus a pointer to it. A paragraph containing a commit hash,
+`ROADMAP.md` is the **public** roadmap (owner, 2026-10-15): it gets a feature-level line in plain words, with no commit
+hashes, gate names, owner-decision codes or private file paths, and no pointer into the private repo beyond its footer. A paragraph containing a commit hash,
 "measured", "mutation-proved" or "probe" is a history entry; if you are about to put one in
 `ROADMAP.md`, that is the signal it belongs in the other repo.
 

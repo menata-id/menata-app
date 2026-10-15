@@ -30,7 +30,7 @@ var (
 	memberBlockIDPattern = regexp.MustCompile(`^blk_[a-z][a-z0-9_]*$`)
 )
 
-// validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
+// validateNavigation checks the Application's own navigation: list (development-history.md's "Navigation is
 // code, not metadata" gap, closed by making the topbar a projection of this list). Unlike a
 // Machine's own declarations, a nav item's Route can't be cross-checked against anything else in
 // metadata -- most real routes are bespoke internal/web handlers, not generated from a Machine --

@@ -90,7 +90,7 @@ type Viewer struct {
 //     nothing reads as protection without being it. The server-side gate (requireWorkspaceAdmin)
 //     was always the real one and is untouched; Workspace Home's own "Manage members" link keeps
 //     its separate `workspaceRole != "member"` check, which is the half still capable of leaking.
-//     ROADMAP.md's "Per-user/role navigation filtering" goes back to having no real case.
+//     development-history.md's "Per-user/role navigation filtering" goes back to having no real case.
 //
 // switchWorkspaceHref is the launcher's own "All Workspaces" link target, or "" to omit it --
 // internal/web.viewerWorkspaceContext's second return value. "" exactly for the shared admin
@@ -279,7 +279,7 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 	return menu
 }
 
-// settingsHubItem finds app's own SettingsHub-marked item, if it declares one (ROADMAP.md "In
+// settingsHubItem finds app's own SettingsHub-marked item, if it declares one (development-history.md "In
 // progress", "Application Settings hub") -- a search, not a fixed id, so applicationMenuRow/
 // moreSheet never panic on an Application that declares no hub at all.
 // domain.NavigationItem's own validation guarantees at most one match per Application.
@@ -492,7 +492,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 //
 // The mockup's third row, "<Application> settings", is now drawn -- present exactly when app
 // declares a SettingsHub item (settingsHubItem), same as applicationMenuRow's own right-hand link
-// added the same day ("Application Settings hub", ROADMAP.md "In progress"). Absent for an
+// added the same day ("Application Settings hub", development-history.md "In progress"). Absent for an
 // Application declaring none (Project Management, today), never a link to nowhere.
 //
 // THE POPOVER API, not <details> (2026-09-24, and it replaced <details> the same day it shipped

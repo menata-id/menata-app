@@ -1,579 +1,94 @@
 # Menata App Roadmap
 
-A high-level view of what menata-app can do today and what's coming next, kept at the feature
-level on purpose. It is not the same document as the root-level concept docs (001-007), which
-describe the target architecture. The full day-to-day development history -- design rationale,
-forcing conditions, verification steps -- is tracked in a private companion repository,
-`menata-app-document`.
+What Menata App can do today, what is being built now, and what comes next. It is kept at the feature level on
+purpose. Menata App is a runtime: an application is described in metadata (YAML), and the runtime turns that
+description into a working product, without per-application code. The target architecture is described in the
+concept documents (001–007) at the root of this repository. Design notes and the detailed development history are
+kept in a private companion repository.
 
 ## Shipped
 
-- **Metadata-driven CRUD** -- define a data model ("Machine") in YAML and get a working table or
-  board view, create/edit/delete, relations (one-to-many and many-to-many), nested child
-  collections, and file attachments, with no per-model code required.
-- **Multi-user accounts** -- registration (creates a workspace), email verification, login,
-  password reset, and session-based authentication.
-- **Workspaces & members** -- invite teammates, assign per-application roles, a workspace home
-  screen.
-- **Document Approval** -- submission wizard, sequential or parallel multi-step approval, SLA
-  tracking, an approval inbox and dashboard, an activity feed, drag-to-place PDF signatures, and
-  automatic signature compositing onto the approved document. Two pieces of the flow as originally
-  scoped are **not** here: a per-document-type saved default approval flow, and a third wizard step
-  where sending actually happens (both in the deferral table below, both "no phase yet"). Read this
-  bullet as the feature set that exists, not as the flow being closed.
-- **Project Management** (core mechanics shipped, still rounding out) -- task boards with labels
-  and ordered lists, my-tasks view, calendar, sprint dashboard, team capacity view, activity feed.
-- **Grouped navigation**, declared as metadata rather than hardcoded per page.
-- **Continuous architecture and code-quality checks** running in CI on every change.
-- **Authentication and file-handling hardening**, based on an internal security review --
-  invite-acceptance and session handling, upload validation and access checks, security response
-  headers, and CSRF protection.
-- **An Application with a role vocabulary is closed to anyone without a role in it** (owner
-  decision, 2026-09-21: *someone who is not a member of an application cannot do anything in it --
-  not even look*). `web.requireApplicationAccess`, at the one chokepoint every Application route
-  already passes through. It is what finally makes a view-only role legible on the Authorization
-  Matrix: before it the page had no "view" row at all, so `reviewer` rendered as an empty column,
-  which reads as a role that can do nothing rather than one whose whole purpose is looking.
-  **Coarser than per-Machine read on purpose** -- this runtime has no `read` Action, so the
-  statement is "in or out", and the finer shape stays a deferral row below.
-- **The three declared roles now mean three different things** (owner decision, 2026-09-21):
-  *approver* decides a step assigned to them and may submit; *submitter* submits and builds the
-  approval chain; **reviewer may only look** -- cannot submit, cannot approve, cannot change a
-  Document. Until that decision the vocabulary said nothing: approver and reviewer named the
-  identical grant everywhere they appeared, so the two words were indistinguishable to anyone
-  reading the Members screen, and submitter named no grant at all. Declared on the Machines that
-  own the rules (`mch_approval_step`'s three Permissions, `mch_document`'s create/edit/delete,
-  and -- on a same-day correction from the owner -- `mch_signature`'s, since a signature has
-  exactly one consumer and only an approver reaches it),
-  not on the vocabulary, and it closed both of the Authorization Matrix's amber rows on the way.
-  **Live effect when it landed**: of nine pending Approval Steps in the dev Workspace, six were
-  assigned to people holding no `approver` role and could no longer be decided. **That sentence
-  was true for about an hour and is recorded here as past tense on purpose** -- the owner granted
-  `approver` to all three members and to the Group the same day, so the number was already wrong
-  by the next time it was quoted, and quoting it again as current is exactly the failure this
-  table's own preamble warns about. Re-check a live-data claim against the database, not against
-  having written it. What is actually left is five pending steps whose assignee is not a Workspace
-  member at all -- old test data, two of its three documents deleted 2026-09-21 on owner request.
-- **Authorization review, and the four holes it closed** (2026-09-21, prompted by the owner asking
-  what a member and an admin can each actually do). The audit's own finding was that the answer was
-  almost nowhere in metadata: the manifest declared a role *vocabulary* and exactly one rule using
-  it, while nine of ten Machines declared no Permission at all -- which in this runtime means open
-  to any authenticated member. Four things were ungoverned and none had a test:
-  **record creation**, on every Machine (now `action: create`, whose `actor_field` reads "the
-  record must name you" -- the arm that stops a `mch_signature` being written in someone else's
-  name, which decided whose signature got composited onto an approved PDF); the **member
-  directory** (`mch_user` now `workspace_role: admin`); the **audit trail** (`mch_activity` now
-  `append_only: true` -- never changed or removed, by anyone); and `requireWorkspaceAdmin` itself,
-  which **failed open** for any identity with no membership row rather than for the one shared
-  credential it was written for. `/authorization-matrix` draws all of it, because the review also
-  found that an ungoverned action and a fully granted one are indistinguishable in a YAML file.
-- **Role-based Permission and a declared transition model** (Case 03 Fase 7, 2026-09-21) -- a
-  Permission may require an Application role (`roles:`, upstream's CAP-P01), and a Machine may
-  declare which moves of a status Field exist and which Action performs each (`transitions:`).
-  Together they replaced one hand-written Go rule and closed two real holes it never covered: an
-  already-approved step could be decided again on a parallel Document, and a Document's status
-  could be written straight to `approved` through the generic edit route with no step decided.
-  The **Approval Role Matrix** (`/approval-role-matrix`) draws both declarations as one table.
-- **Permission-aware action visibility** -- Edit/Delete/Save buttons, and an Approval Step's own
-  signature-marker drag controls, follow the current user's authorization the same way
-  Approve/Reject already did: hidden (not just disabled) when the backend's own
-  `authorization.AllowsAction` would refuse the action, declared per Machine
-  (`mch_approval_step`'s `prm_edit_own_step`/`prm_delete_own_step`, its own assignee). A Machine
-  declaring no such Permission stays open to any authenticated Workspace member, unchanged. The
-  Workspace Home "Members" link is likewise hidden from non-admins now, matching the
-  `requireWorkspaceAdmin` gate the destination already enforced. Not yet covered: `application.navigation`
-  role-filtering (below) and declaring this Permission on any Machine besides Approval Step, which
-  is a business-rule decision, not assumed here.
-- **Event primitive** -- the first real declaration of 006-runtime-model.md's Behavioral Model
-  (`Event → Action → Permission/Constraint → Service/Data operation → State change`): a Field
-  changing (optionally to one target value), or a record being created, runs a closed,
-  runtime-owned Service purely from metadata (`domain.Event`/`domain.Service`,
-  `behavior.MatchedEvents`/`MatchedCreateEvents`, `internal/web`'s `runEvents`/`runCreateEvents`;
-  `capabilities.md`, `writing-guide.md` §10). Proven by replacing what used to be hardcoded Go
-  (Task status move logging) with a declared `mch_task.evt_task_status_changed`, and verified
-  live: editing only the YAML wording changes the Activity feed's own text, no code touched.
-  Extended 2026-09-19 to a second shape,
-  `on_create: true`, generalizing what was `internal/web`'s own hardcoded `logRecordCreated`
-  switch (`mch_document`/`mch_task`/`mch_project` record-creation logging) -- a real third case
-  proven before the shape was built, per `menata-app-document`'s
-  `workflow-behavior-decomposition-criteria.md`. The Document-approval decide cascade remains
-  hardcoded, on purpose. SLA-breach detection, which used to fire on a page read for lack of a
-  scheduler, is the Event primitive's own third shape now (`schedule:`, 2026-09-27) -- see the
-  "SLA-breach reminder via a scheduler primitive" entry below.
-- **Metadata-hardcoding gate extended to `label:`, not just `route:`** -- a Page's own title
-  (`pageShell(...)`, `<h1>`, card/back-link text) must now come from `rendering.labelByID(id)`
-  (`internal/rendering/machine.templ`), the label-side counterpart of the existing `routeByID`,
-  gated by `internal/conformance.TestRenderingHasNoHardcodedApplicationLabel`/
-  `TestHandlersHaveNoHardcodedApplicationLabel`. Found real drift across twelve `.templ` files
-  before it existed -- nine caught by the test itself the first time it ran, three more (including
-  `documentsubmit.templ`, `workspacehome.templ`) found and fixed by hand while designing it -- every
-  case the same shape: a page's title retyped on the line right next to an already-correct
-  `routeByID` href. `CLAUDE.md`'s new "Deciding whether a literal is a metadata-hardcoding
-  violation" section generalizes the underlying question beyond routes/labels; full kajian in
-  `menata-app-document`'s `audits/2026-09-19-metadata-hardcoding-gate-mapping.md`.
-- **Search on list screens** -- Workspace Members, My Documents and Assigned to me (2026-09-25).
-- **Draft and revise a submission** -- save a Document before submitting it, and send one back for
-  revision (2026-09-25).
-- **Settings navigation for an Application** -- Flow 2's Tahap 5 (2026-09-26).
-- **Notifications** -- in-app and email, on two triggers (2026-09-26).
-- **Workspace lifecycle** -- archive and restore a Workspace (2026-09-26).
-- **AI Metadata Assistant** -- describe an Application in prose, then review, edit and publish the
-  generated metadata into the Workspace (2026-09-26).
-- **A View composing other Views** -- one real case, the approval stepper (2026-09-26).
-- **Scheduled work** -- SLA-breach reminders that arrive without anyone opening a page, on a
-  schedule/time trigger of the Event primitive (2026-09-27).
-- **Saved approval flow per Document Type** -- the next submission is offered the approvers the last
-  one used (2026-09-27).
-- **Per-Workspace metadata** -- installing an Application *copies* it, so two Workspaces hold their
-  own and may diverge independently (2026-09-27).
-- **Installing a template into a Workspace that already uses its ids** -- a colliding Machine or
-  Application id is renamed; a colliding navigation id, route or Dataset id is refused with a reason
-  (2026-09-28).
-- **Document Approval runs on declarations, not names** -- an Application declares `workflow:`, and
-  every Machine is resolved by the role it is cast in, under any names (2026-09-28).
-- **Role-based Permissions** -- an Action can be granted to an Application role, not only to a
-  record's own actor (2026-09-21).
-- **Strict metadata loading** -- an unknown key in a metadata file is a load error, not a silently
-  dropped line (2026-09-28).
-- **Read diagnostics and the query layer** -- every statement counted at the driver, anomalies marked in the log, identity resolved
-  once per request, GET routes barred from writing, the per-route sweep at zero, static assets compressed (2026-09-22).
-- **Fixtures validated by the production pipeline** -- `metadata.Normalize` makes the `person` inference reachable outside the
-  loader, and a sweep per package holds every test Machine to it (2026-09-29).
-- **AI-session routes covered, and a cross-Workspace discard closed** -- the store's statement now carries the Workspace (2026-09-29).
-- **Flow 2 canvas gaps closed** -- launcher Administration section, reversible member deactivation with a metadata-declared removal
-  guard, draft Application row with suggestion chips, account-menu Workspaces, Choose Workspace parity, archive no longer signs the
-  admin out, and the orphan `/authorization-matrix` deleted (2026-09-27).
+**Building applications from metadata**
+- **Data models from YAML**: a Machine (a kind of record) gets list, board and calendar views, create/edit/delete,
+  relations, child collections, checklists, comments and file attachments, with no per-model code.
+- **Behaviour from YAML**: permissions per action and per role, declared status transitions, what an action writes,
+  events (on change, on create, on a schedule) that log activity, notify, or roll a status up to a parent record.
+- **Declared screens**: a navigation item can declare its whole screen as a tree of layouts, text and components,
+  bound to declared data. Lists, metrics, forms that create and edit records, buttons that move, delete or change
+  the status of a record, and conditions on what a record shows. The board settings, dashboard, My Tasks and
+  calendar screens are drawn this way.
+- **Data definitions**: named datasets with filters, sorting, grouping, counts and relations between models.
+- **Status categories**: a model can say which of its statuses are a start, in progress, needing attention, done or
+  stopped, the basis for drawing a process map.
+- **Strict loading**: a mistake in a metadata file is reported when it loads, not discovered on a screen.
+
+**Workspaces and people**
+- Accounts with registration, email verification, login and password reset.
+- Workspaces with members, invitations, roles per application, groups, archive and restore.
+- Applications are installed into a Workspace as its own copy, so each Workspace can change its applications
+  without affecting another. A broken Workspace no longer stops the others.
+- Notifications in the app and by email; scheduled reminders.
+
+**Applications built on the runtime**
+- **Document Approval**: submission wizard, drafts and revisions, sequential or parallel approval, saved approval
+  flows per document type, SLA tracking, an approval inbox, signature placement and signing onto the PDF.
+- **Project Management**: boards with lists and labels, My Tasks, calendar, dashboard, checklists.
+
+**AI Metadata Assistant**
+- Describe an application in plain words; review, edit and install the generated metadata into a Workspace.
+
+**Design system**
+- A theme a Workspace can adjust (radius, weight, text size, spacing, colours, padding and more), light and dark
+  mode following the device, fifteen shared components, and design tokens exported in the W3C format.
+- Contrast and touch-target checks on the shipped colours and controls.
+
+**Quality**
+- Architecture, accessibility and design-system checks run on every change; security hardening of
+  authentication, uploads, sessions and cross-workspace access.
 
 ## In progress
 
-- **Document Approval is the current proof-of-concept scope** (owner decision, 2026-09-20), with
-  an explicit constraint attached: narrowing the scope must not become a licence to hardcode for
-  it. Its work is broken into four screens plus three behaviours, each tracked on two independent
-  axes -- does the feature exist at all, and is it composable -- so a screen can never be reported
-  finished on the strength of the first axis alone. All three behaviours it named as
-  hand-written Go -- approval-step sequencing, document status rollup, PDF signature compositing --
-  are **declared** now (`sequencing:`, `rollup_parent_status`, `composite_signed_document`), so this
-  entry's own reason for existing is spent.
-  **The sentence that stood here claimed `menata-runtime`'s capability registry "already carries them as
-  admitted, built, conformance-tested rows, so the work is to implement those capabilities rather than
-  to re-decide them"** -- treating another repository as authority over what this one has settled. It was
-  wrong twice over by 2026-10-02: the three were re-decided here, on this repo's own evidence, and the
-  registry it deferred to is not in this tree at all. A `CAP-` reference is **precedent**, never a
-  decision already taken. Breakdown: `menata-app-document`'s `case-03-composability-checklist.md`.
-
-  **Composability is layered, not binary** (owner, 2026-09-28) -- a screen can exist and still not be
-  composable, so each is tracked on both axes. The layer-by-layer measurement, and the correction that
-  produced it, are in `menata-app-document`'s `development-history.md`.
-- **Porting the Case 03 Flow 1 design** (owner mockup, 2026-09-20, unpacked into
-  `ui-sample/case-03-flow1/` — twelve desktop boards at 1280px, ten mobile at 390px, two of them
-  marked TIDAK DIPAKAI). The gap study behind the sequence below found three things worth
-  recording, because each one contradicts an assumption that looked safe: the app was **not**
-  actually using Tailwind (`static/vendor/tailwind.play.js` was loaded only by the `ui-sample`
-  mockups); the boards' palette **is** Tailwind's own default slate/blue scale, so the color
-  tokens came free; and board 06's explanatory copy cites a `ProcessEdge` primitive and a
-  `/{machineID}/process-map` route that **exist nowhere in this repo**, while the word "role"
-  appears nowhere in `006`/`007` either — the Permission shape that does exist is record-scoped
-  (`actor_field`), which cannot express "Finance Reviewer may approve the Finance transition".
-  Owner decisions, 2026-09-20: Tailwind enters via a **CLI build step** (not the dev-only Play
-  build), the declared-View gate below is **decided before** the composed screens are ported, and
-  board 06 is built **in full**, role-based Permission and transition model included. Seven
-  phases, in dependency order:
-  1. **Design system + Tailwind pipeline** — *shipped 2026-09-20*. See `capabilities.md`'s
-     "Styling: two systems, on purpose". Boards 01 and 02 are ported, and the `authShell` kit
-     replaced the seven near-identical `<style>` blocks the pre-auth screens each carried.
-  2. **Chrome: launcher + breadcrumb** — *shipped 2026-09-20*. `appShell` (9-dot launcher,
-     `Workspace / Page` breadcrumb, avatar) plus boards 03/04/05, replacing `workspaceHomeShell`.
-     Scoped to those three screens rather than all fourteen because Preflight ties chrome to
-     content (above). The section tab strip was the only piece needing `navigation:` to grow a
-     second level, and it is deferred — so this phase changed **no metadata** and left
-     `domain.NavigationItem` untouched. Two things it did surface: putting navigation in the
-     launcher created the first real case for **per-viewer navigation filtering** (see
-     `capabilities.md`, "Navigation: two filters"), and it confirmed the launcher must read
-     `AllNavigation`, since a hidden group's routes stay reachable there.
-  2b. **The launcher becomes cards** — *shipped 2026-09-20* (`e973630`), an owner-requested
-     redesign authored in a parallel session. The panel was a flat list of every declared
-     navigation item; it becomes `ui-sample/nav-chrome.js`'s card shape — a WORKSPACE header row,
-     the Workspace's own remaining destinations, one entry per Application, closing on "All
-     Workspaces". `show_nav` gained a second reader, and only to decide **how** an Application
-     appears, never whether it does. Full description in `capabilities.md`'s `appShell` row.
-
-     **This entry was missing entirely until the Fase 7 close**, which is the same failure this
-     section's own table warns about one paragraph below: the work was recorded in
-     `capabilities.md` and in its commit message, and in no plan anyone re-reads. Numbered 2b
-     rather than appended to Fase 2 because it post-dates Fase 3a (it reads
-     `Workspace.Applications`), and renumbering 3-7 would break every reference to them.
-  3. **Multi-application** — 3a *shipped 2026-09-20*: `applications:` is a list of per-Application
-     files, Machines are workspace-level (loaded once, unique by id), and Task Tracker is now
-     `app_document_approval` + `app_project_management`. Which Application a request is in is
-     resolved Machine-first with navigation as fallback, because most of Document Approval's
-     routes are named by no navigation item. `hidden_nav_groups` became per-Application
-     `show_nav`. **3b** *shipped 2026-09-20*: an Application declares its own `roles:` vocabulary
-     and a member holds one role per Application (`workspace_member_app_roles`, migration 008,
-     which keeps the old `app_role` column so a rollback loses nothing). It also closed a
-     pre-existing gap — the write paths accepted any `app_role` string, since until roles were
-     declared there was nothing to validate against. **3c** *shipped 2026-09-20*: the card face —
-     `description`, `icon`, `color` and `summary_machine`, the Machine whose count a card reports.
-     Declared rather than summed, because summing an Application's Machines counts its
-     configuration as work (Project Management totals 13, of which 4 are tasks). **Fase 3 is
-     complete.**
-  4. **Groups** — *shipped 2026-09-20*. Three platform tables mirroring `menata-runtime`'s own
-     shipped CAP-O07 schema, plus a Groups admin screen ported from its `groups.html` /
-     `group-detail.html` (copied into `ui-sample/`). Effective access is the **union** of direct
-     and group-granted roles, computed at read time by the pure `data.EffectiveRoles` — CAP-O07's
-     rule, not an invented one, and deliberately without a precedence rule where the two differ.
-     Board 04's Source column and board 05's Effective-access panel are closed.
-     **Group-as-Approval-Step-assignee moved to Fase 6**, with the screens that show it: upstream's
-     **CAP-F24** (✅ admitted, not yet built) solves it *without* a polymorphic relation — a Field
-     pair, `approver_type: value_list [User, Group]` plus `approver_user`/`approver_group`, each an
-     ordinary relation targeting one `machine:`. Read that row before designing Fase 6.
-  5. ~~**A View as a declared object**~~ — *shipped 2026-09-20*, ahead of the screens that would
-     otherwise have hardcoded around it, exactly as this ordering intended. `mch_document` declares
-     two arrangements; `type: cards` gave Projection the first consumer whose output varies per
-     record, so a primitive that had run zero times since it shipped now actually runs.
-  6. **The approval-flow screens (boards 07-10)** — next, split three ways because it is larger
-     than Fase 3 was. These port as **bespoke**: Fase 5's increment carries three view types
-     (`table`/`board`/`cards`), and these screens compose *across* Machines with layouts no type
-     covers, so what improves is the projection ratchet rather than the screens becoming
-     declarative.
-     - **6a Approval Inbox (board 07)** — *shipped 2026-09-20*. `nav_workspace_groups` is
-       declared, which emptied the undeclared-route gate's allowlist rather than adding to it; the
-       four-tab strip is page chrome, not a second `navigation:` level (two tabs are `?tab=` views
-       of one route, so the case Fase 2 predicted would force one never materialized); and the
-       card face gained an approver list and `role="progressbar"`. The constraint held:
-       `approvalinbox.templ` stayed out of `projectionRatchet`, so the per-approver state the
-       board draws is composed in `internal/composition.stepStates` (`[]rendering.StepApprover`,
-       replacing a `[]string` that carried states with nothing to attach them to) rather than read
-       off records in the `.templ`. **Hour-scale SLA wording is the one board element not
-       rendered** — `fld_due_date` is `type: date` and no datetime Field type exists; see the
-       deferral table.
-     - **6b Review (board 10)** — *shipped 2026-09-20*, and **board 09 moved to 6c** rather than
-       shipping here as this line first paired it. Three pieces of evidence, all from the mockup
-       and the companion repo rather than from convenience: board 09's own eyebrow reads `STEP 2
-       OF 3`, so it is a step of the submit wizard 6c owns, not a standalone screen; its approver
-       list shows `Legal Group · Group · 4 members` under the explicit note *"Approvers are
-       supplied by Groups"*, which is CAP-F24, also 6c; and it replaces per-interaction saves with
-       a batch `Save positions →`, a rework of the interaction model rather than a port. The
-       companion repo's own staged plan already placed it last (`case-03-composability-
-       checklist.md` Stage 4, *"boleh tidak sampai"*), because Q3 names signature coordinates as
-       the canonical shape that stays page-internal.
-
-       What board 10 bought: **`detail.templ` left `projectionRatchet` — the first entry ever to
-       do so.** The Approve/Reject bar, the signature canvas and the placement confirmation lived
-       on the *generic* record-detail page only because an Approval Step had no screen of its own,
-       and the bar read `fld_decision` straight off the record. They now live on
-       `reviewdocument.templ`, whose values `composition.ReviewDocument` resolves, and which
-       contains no raw read at all — a new file may not be added to that list. A second thing fell
-       out: `hasSignatureForGate` was being run on *every* Machine's detail page, `mch_task`
-       included; only the review screen asks it now. **What is not claimed:** `detail.templ` still
-       carries five `m.ID ==` branches. The ratchet measures raw field reads, not Machine-id
-       branches, and saying otherwise would be this repo's own recorded failure shape.
-     - **6c-1 CAP-F24, the actor gate** — *shipped 2026-09-20*. Split out from the boards because
-       it lands in the Domain Plane and can be proven through the existing `/decide` gate with no
-       new screen at all. **This line used to describe CAP-F24 as "a Field pair … each an ordinary
-       relation targeting one `machine:`", and that was wrong.** Upstream's *shipped* artifacts
-       say otherwise, and the shipped artifact is what runs: `approver_group` is a new Field
-       **type** with no target machine, and the capability also adds three columns to the
-       *permissions* table — it is a Permission-gate feature, not only a Field feature. The
-       registry row never said so. A relation was impossible here regardless: this repo has no
-       `mch_group`, and `capabilities.md` had already named "whether a Group needs a thin
-       `mch_group`" as the question `approver_group` would force. **Answered: no.** A `group` Field
-       type over the platform `workspace_groups` table, the same posture `person` takes over
-       `mch_user`.
-
-       One deliberate divergence from upstream, and it removes a bug they recorded: `fld_assignee`
-       *is* the User half (`actor_user_field` points at it), so there is no second person picker —
-       upstream added one beside its legacy Field and found "two independent Approver pickers on
-       one screen". Two new Fields, not three. `actor_field` stays as the fallback, so every
-       Approval Step already in the database kept working with no migration and no rewritten test;
-       the existing permission tests needed only a type wrapper, which is the evidence rather than
-       the claim.
-     - **6c-2 Submit wizard (board 08)** — *shipped 2026-09-20*. The chrome port, the User/Group
-       toggle per approver row, and **the first writer of `fld_step_name` and the CAP-F24 pair** —
-       until this, the gate 6c-1 built was reachable only by hand-editing a record through the
-       generic form. `documentsubmit.templ` left `projectionRatchet` (eight entries now): it sat
-       there for one hand-built `<option>` list reading `fld_name`, which
-       `composition.Loader.RelationOptions` already resolves — so unlike `detail.templ`'s exit in
-       6b, which needed a whole new screen, this entry was one screen not asking for what it
-       already had. `fld_mode` now reads its options from metadata too; it was the last hardcoded
-       option list in the wizard, sitting two sections below a select that already did it right.
-
-       **A silent data-loss trap was found while planning this and fixed before it could fire.**
-       `signatureplacement.templ`'s hidden-field block carried four of a step's Fields through its
-       generic PUT, and the generic route rewrites a record from what it is given — so the moment
-       the wizard started writing the three new Fields, the next marker drag would have erased
-       them with no error at all, turning a Group-held step back into an ungated one. It was
-       invisible for two phases because the Fields were always empty. Board 09's own port is
-       6c-3; this fix could not wait for it.
-     - **6c-3 Signature positions (board 09)** — *shipped 2026-09-20*. Three things landed, and the port
-       was the smallest of them.
-
-       **This entry originally claimed "Case 3 is fully ported". That was false, and the owner
-       caught it the same day** -- the fourth instance of this repo's own recorded failure shape,
-       written an hour after a note about that shape went into the companion repo. Three Case 3
-       screens are still `pageStyles`: `/dashboard`, which is a *declared navigation item* at
-       priority 1, and the Document and Approval Step detail pages. See the deferral rows below.
-
-       **A live bug 6c-2 created, closed.** `prm_edit_own_step`/`prm_delete_own_step` gated only on
-       `actor_field`, which a Group-held step leaves empty — so the signature marker on the one
-       screen built for dragging it was draggable by *nobody*, and the step deletable by nobody.
-       Both Permissions now carry the same dynamic arm `decide` got in 6c-1; the fix is three lines
-       of metadata each, and the test that proves it runs against the **real manifest**, because
-       the failure was a missing declaration and a hand-built fixture would simply have declared it.
-
-       **`signatureplacement.templ` left `projectionRatchet` — seven entries left — and its exit is
-       the most interesting of the three.** A third of its raw reads were not a projection at all:
-       seven echoed the record back verbatim as hidden inputs, forced by the generic update route
-       rewriting a whole record from whatever the form submits. Composition now derives that list
-       from the Machine's own declared Fields, which turned a hand-maintained list **that had
-       already forgotten four Fields** into one that cannot forget. 6c-2's fix added three names
-       and missed `fld_signature_image`, so a one-time signature was still being erased by the next
-       drag after the "fix" shipped.
-
-       **Three defects in shipped code, found while planning and fixed here.** A doc comment named
-       a test that did not exist (`TestSignaturePlacementPut_preservesApproverFields`) — written
-       inside the 6c-2 change whose own argument is that claims must match artifacts; that test now
-       exists. Board 10's signature dialog had been rendering with its `pageStyles` rules unloaded
-       since 6b, including `touch-action: none`, which is behaviour: signing on a phone did not
-       work. And the drag script threw a TypeError on any marker the viewer could not edit.
-  7. **Role-based Permission + a declared transition model, then board 06** — *shipped
-     2026-09-21*. Three things landed, and step zero is what decided the shape of all three.
-
-     **Step zero, run this time, and it overturned this entry's own premise.** This line used to
-     read "both primitives are still absent from 006 and 007, which is why this stays last" —
-     true about *this repo's* concept docs and irrelevant, because the companion rule
-     (`case-03-composability-checklist.md` §5) binds on upstream's shipped artifacts as well.
-     Upstream carries role-based event permission (**CAP-P01 ✅**, conformance T11/T12) and a
-     whole `process:` overlay whose `transitions[]` compile to guarded Events. So neither
-     primitive needed deciding; both needed implementing. Two divergences were then forced by the
-     *shipped* shapes differing (the rule's own "if two kinds of prior art disagree, the shipped
-     schema wins"), and both are recorded at the declaration rather than here:
-     a Transition does **not** compile into an Event, because a `domain.Event` in this runtime is
-     a post-write notification rather than a triggerable operation — compiling an edge into one
-     would produce a declaration that notifies and never guards; and a Transition carries no
-     `actor:`, because Permission here already says *which records* an actor may move, more
-     richly than upstream can (CAP-F24's dynamic gate), and restating a role on the edge would be
-     two sources for one answer.
-
-     - **Role-based Permission (CAP-P01).** `roles:` on any `permissions:` entry; the actor must
-       hold one of them in the Application that claims the Machine (`domain.Machine.
-       ApplicationID`, stamped at load from that Application's own `machines:` list — an index
-       over a claim already declared once, never a second declaration). Roles within one
-       Permission are alternatives, Permissions on one Action stay requirements, which is
-       `AllowsAction`'s existing contract unchanged — so the arm was added to the *one* function
-       both the button and the POST already call, rather than beside it. The actor's half is
-       their **effective** roles (`data.EffectiveRoles`, direct ∪ group-granted), so CAP-O07's
-       union reaches a Permission gate without a second merge existing anywhere.
-     - **A declared transition model.** `transitions:` on a Machine — which moves of a status
-       Field exist and which Action performs each, `behavior.CheckTransitions` deciding, the
-       generic update route, its JSON twin and `/decide` enforcing. It **replaced**
-       `allowsDecisionChange`, a hand-written Go rule naming one Machine and one Field, and
-       closed two holes that rule never covered. Both were live and neither had a test:
-       an already-approved step could be decided again on a *parallel* Document (sequencing only
-       ever locked a step behind an *earlier* one, so nothing anywhere said a decision was
-       final); and a Document's own `fld_status` could be written straight to `approved` through
-       the generic route with no step decided at all — skipping the approval flow, the sequencing
-       rule and the PDF compositing together. Verified live against the dev database: that PUT is
-       now `422 fld_status moves from "in_review" to "approved" by itself`, record unchanged.
-     - **Board 06.** `/approval-role-matrix`, Workspace-level and `requireWorkspaceAdmin`-gated
-       beside Members and Groups — which the board itself dictated rather than this list: it
-       carries an Application selector and an appShell breadcrumb, not an Application topbar.
-       `composition.RoleMatrix` is a pure projection with no store call at all, which is the
-       honest shape of a screen every fact of which is declared. Its one subtlety is that a cell
-       is the **intersection** of the role sets across an Action's Permissions, not the union —
-       a union would tick a role the server refuses, which is the exact button-says-yes /
-       server-says-no disagreement this screen exists to make visible.
-
-     **A third consumer moved onto the declaration rather than a constant:** the Review screen's
-     Approve/Reject bar asked `decision == "pending"`; it now asks whether any declared edge
-     leaves the current value through `decide`. Same answer today, one declaration instead of
-     two places that could drift.
-
-     **What this narrows, and it is visible in the live data.** `mch_approval_step`'s three
-     Permissions now declare `roles: [approver, reviewer]`, so being the person a step names is
-     no longer sufficient. Of the dev Workspace's three members, two hold a qualifying role
-     (one directly, one through the Groups grant — both paths reach the gate, which is the
-     property the placement integration test now pins); the third holds only `submitter` and has
-     one pending step assigned, which they can no longer decide until a role is granted on
-     Workspace Members or through a Group. That is the capability working rather than a
-     regression, but it is a real access change on real data and is called out rather than left
-     to be discovered.
-
-     **Board 06's Application selector renders only when more than one Application declares
-     roles, so today it does not render at all** — Project Management declares none. The mockup's
-     own three options (Document Approval, Procurement, HR) assume Applications this Workspace
-     has no Machines, routes or roles for, the same board-03 situation the deferral table already
-     records.
-
-     **The screen is shipped and truthful; it is not board 06, and it cannot be made into board
-     06 by working on the screen.** That board presupposes a *stage* model — the Document itself
-     holding `Draft → In Review → Finance OK → Legal OK → Approved`, each stage gated on a role —
-     while this app derives a Document's status from its Approval Steps and treats *who approves*
-     as per-record data the submitter picks. Under the model that actually runs there are exactly
-     two role-gated transitions in the whole Application, which is what the matrix shows. Six
-     deferral rows below record that and the five smaller things board 06 asks for that this
-     runtime cannot yet say (`draft`, a multi-`from` transition, the mixed Workspace/Application
-     role columns, the transition-first process map, and m06's chip layout). Closing the first of
-     them is an approval-model decision for the owner, not engineering — it is deliberately not
-     taken here.
-
-  **Open at the 2026-09-21 session close — three things waiting on the owner, not on engineering.**
-  Written here rather than left in a chat log, because a decision that lives only in a reply is
-  the failure this whole table exists against, and two of these were already noticed as such.
-
-  1. **Which approval model** (the board 06 row below). Three ways forward are written into that
-     row with the trade-off of each; **CAP-V28 is the recommendation**. Nothing else in the
-     Document Approval backlog can be sequenced honestly until this is answered, because the stage
-     model would rework the wizard, the rollup and boards 07-10 while the other two would not.
-  2. **One document's fate.** `Vendor Contract 2026` (`rec_e56a51b513564f98f9da6099`) holds two
-     Approval Steps: one still pending and assigned to a user record that is not a Workspace
-     member at all, and one **already approved**. It is the last of the orphaned test data; its
-     two siblings were deleted on owner request the same day. It was not deleted with them
-     precisely because of that approved step -- removing a document to tidy up a dangling
-     assignment would destroy a real approval record, and rolling that up would also flip the
-     document's own status. Delete the document, or only the pending step?
-  3. **Does `approver` vs `submitter` still need narrowing anywhere?** The vocabulary now grants
-     three different things, but `submitter` and `approver` are identical on every Document and
-     Approval Step *create* rule. That is deliberate (an approver submits their own documents
-     too), and it is the kind of sameness that made `approver`/`reviewer` indistinguishable for a
-     phase, so it is named here rather than left to be rediscovered.
-
-  **State of the tree at that close**, for whoever picks this up: `menata-app` and
-  `menata-app-document` are both pushed and in sync, every test green including the
-  Postgres-backed ones, and the dev server running the current build. A parallel session's
-  Account-menu work (`1ba1a1a`) and its `ui-sample` chrome redesign landed in the same window; one
-  collision is recorded on that commit (it registered a middleware whose function was still
-  uncommitted, so it does not build in isolation -- `64662c1` restored it).
-
-  **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
-  on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
-  stops being. The "no phase yet" rows are the point of having it — an unscheduled gap that looks
-  scheduled is worse than one that admits it, and those are the rows to re-check at each phase
-  close (the same discipline `CLAUDE.md` asks for standing metadata exceptions).
-
-  **Re-reading this table is part of closing a phase, not a tidy-up.** That is written here
-  because it was not done: the bottom-bar row below sat wrong through the 3a, 3b, 3c and 4 closes,
-  still naming a blocker that had dissolved at 3a. A row whose blocker quietly stops being true
-  reads exactly like a row that is still blocked — which is the same failure shape as a
-  conformance gate that passes while checking nothing, and it happened twice in one day. Check
-  each row against the code, not against memory of having written it.
-
-  | Left undone | Finished in | Blocked on |
-  |---|---|---|
-  | ~~Workspace Home's Application cards~~ — *done in 3a/3c*: one card per declared Application, with its own icon, description and declared count. Board 03's three cards assume Procurement and HR, which this app has no Machines, routes or roles for | — | — |
-  | ~~Per-Application role columns on Members~~ — *done in 3b*: one line per Application that declares a `roles:` vocabulary, captioned with its name | — | — |
-  | ~~Source / "Group: Reviewers" column~~ — *done in Fase 4* | — | — |
-  | ~~Effective-access panel, direct ∪ group-inherited~~ — *done in Fase 4*: `data.EffectiveRoles`, computed not stored | — | — |
-  | ~~The wizard's approver picker offers every Workspace member~~ — *done 2026-09-21*: `composition.ApproverOptions` narrows the person picker to members holding a role the step Machine's own `decide` Permission requires, which is upstream's CAP-F05 shape ("a query-time filter, no new metadata concept"). Derived, never declared twice: the required roles come from the same Permissions `AllowsAction` enforces, and a member's own come from `data.EffectiveRoles`, so a role held through a Group qualifies exactly as a direct one. A Machine whose `decide` Permission names no role narrows nothing | — | — |
-  | ~~Placing signature boxes was gated on "may edit this step"~~ — *done 2026-09-21*: board 09 is `STEP 2 OF 3` of the submit wizard, so the person laying the boxes out is the Document's **submitter**, while `prm_edit_own_step` says only a step's own approver may change it. The wizard redirected submitters to a screen where every marker was static and the write would have been refused. `composition.MayPlaceSignature` resolves the real rule (the Document's submitter, or the step's own approver) for both the marker and the route, and the write moved to its own `PUT .../signature-placement` — which **also ended the carry-forward echo**, since a route writing four named Fields cannot erase a fifth | — | — |
-  | Old row, kept for its reasoning: the picker gap | **closed the day it was recorded** | It was written into this table at the moment the reviewer decision created it, and closed in the next change. Left here because the sequence is the point: the deferral row is what made it a scheduled piece of work rather than a bug someone would eventually hit |
-  | Only the Document's own submitter may edit or delete it | **no phase yet** — **blocked on data, not on a primitive; the role half landed 2026-09-21** | The *role* half is declared (`prm_edit_document_not_reviewer`/`prm_delete_document_not_reviewer`, `roles: [approver, submitter]`), so a reviewer may not touch a Document at all. What is still open is the owner-scoped half, and a second Permission on the same Action ANDs with the first, so adding it later narrows rather than replaces. `fld_submitted_by` exists as of 2026-09-21 and the wizard stamps it, so `actor_field: fld_submitted_by` on an `edit`/`delete` Permission would express the rule exactly. It is not declared because every Document written before that field is empty, and an empty actor field satisfies **nobody** (`authorization.isActor`: an unassigned record is actionable by no one, rather than by everyone) — declaring it would make every existing Document permanently uneditable and undeletable by every person. Backfilling does not rescue it: checked against the real data, eight of nine existing Documents were created by the shared admin credential's placeholder identity, which is not a real `mch_user` record, so the derived value would match nobody. **The trigger is the existing Documents being gone or re-created, not a second case.** Until then any member may delete anyone's in-review Document (business state is the only guard: not approved, no decided steps) |
-  | ~~Only a Document's own submitter may add Approval Steps to it~~ | **done 2026-10-10 (K21)** | `prm_create_step` declares `parent_actor: {via: fld_document, field: fld_submitted_by}`; see capabilities.md's Parent actor gate row. The wizard still writes its steps directly, unaffected. Not applied to `hanomerch`'s copy |
-  | Machine-level `read` permission, and deny-by-default — **per-role read/create/edit on a Machine, not only on its Events** (the precedent is `menata-runtime`'s CAP-P05, universal across 6 of 6 platforms it surveyed; recorded here so the deferral is readable without that repo) | **no phase yet** — **the coarse half landed 2026-09-21; this is the fine half, and it has a blast radius worth naming** | Reading is now gated at the **Application** boundary (`requireApplicationAccess`): no role in an Application, no access to any of its screens. What is still missing is reading gated *per Machine and per role* — "a reviewer may see Documents but not Approval Steps" is not sayable, because there is no `read` Action to declare it on. Upstream ships `can_read`/`can_create`/`can_edit` per permission row **plus** the structural half — "a role with no permission row at all on a machine is now denied" — which is the real change and why this is not a small addition here: switching this runtime from Principle #6's *unrestricted-unless-declared* to deny-by-default means **every** Machine must declare permissions first or the app stops working, the same all-or-nothing shape as `KnownFields` in §Planned. It also collides with a rule this repo holds deliberately (metadata describes exceptions, not defaults), so it is a design decision, not just work |
-  | **Board 06 presupposes an approval model this app does not have** — the matrix ships and is truthful, but it can never look like the board | **no phase yet** — **and this is a model decision, not a screen one** | Board 06's own rows are `Submit: Draft → In Review`, `Approve — Finance: In Review → Finance OK`, `Approve — Legal: Finance OK → Legal OK`, `Approve — Director: Legal OK → Approved`. That is a **stage model**: the Document itself holds a multi-state status and each stage's transition is gated on a *role*, declared once per Application. This app does the opposite, on purpose: a Document's status is **derived** from its Approval Steps (`evt_step_decision_rollup`, three values), and who approves each step is **per-record data** the submitter picks in the wizard (`fld_assignee`/`fld_approver_group`), not metadata. Under that model there are exactly two role-gated transitions in the whole Application — Approve and Reject on a step — which is what the shipped matrix correctly shows, six `System` rows and two real ones. **Neither model is wrong and this row does not pick one**; what it records is that the screen cannot be made to resemble the board without first changing the approval model, and that no amount of work on the screen is the missing piece. **Three ways forward, written down 2026-09-21 after the owner asked what this row actually means:** *(a) keep the per-record chain* -- flexible, no standard flow, and board 06 never resembles its drawing; *(b) adopt the stage model* -- a fixed per-Application flow gated on roles, matching the board, at the cost of reworking the wizard, the rollup and boards 07-10; *(c) **CAP-V28**, the saved default approval flow per Document Type* -- the chain becomes a declared template without status becoming a stage machine. **(c) is the recommendation**: it delivers what the board is actually reaching for (a flow that is dependable and readable rather than rebuilt per document) without dismantling a model that works. **Owner confirmed (c), 2026-09-27 -- shipped the same day** (below). Upstream's own `process:` overlay is the stage model, and its board-06 copy citing `ProcessEdge` and `/{machineID}/process-map` is drawn against it -- the same "mockup draws data the app doesn't have" class as board 03's Procurement/HR cards and board 07's hour-scale SLA. A middle path exists and is already a row below: **CAP-V28**, a saved default approval flow per Document Type, which makes the chain a declared template without making status a stage machine |
-  | `draft` as a Document status (board 06: `Submit: Draft → In Review`, `Reopen: Rejected → Draft`) | **no phase yet** — lands with the wizard's third step, below | Two of board 06's six rows need a state `metadata/document.yaml` deliberately removed, with its own note: *"add it back only alongside a real save-as-draft flow, not speculatively."* That flow is the wizard's third step, which has no board anywhere. So this is the same deferral seen from the matrix's end, not a second one — worth listing because from board 06 it reads as a missing transition rather than a missing flow |
-  | A transition with more than one `from` (board 06: `Reject: any pending state → Rejected`) | **no phase yet** — **a second real case, not a phase** | `domain.Transition` names exactly one `from`, so "any pending state" is declarable only by enumerating one edge per source state. With `fld_decision`'s single open value that enumeration is one row and costs nothing, which is precisely why the shape should not be generalized yet; it starts costing the moment a status Field has several non-final states, which is the stage model above. Recorded so the board's wording is not read as an unimplemented feature of the matrix |
-  | Board 06's columns mix two role namespaces | **closed 2026-09-25, by the Flow 2 port rather than by answering the question** | Its five columns are `ADMIN`, `FINANCE REVIEWER`, `LEGAL REVIEWER`, `DIRECTOR`, `MEMBER`. `ui-sample/member-role-detail.html` settles what those words are, in the owner's own design language: a "Workspace role" section holding exactly `Admin`/`Member` — captioned *"controls workspace administration, independent of application permissions"* — above a separate "Application access" section whose Document Approval vocabulary is Approver/Submitter/Reviewer. So **two** of board 06's five columns are Workspace-level, not one, and the other three appear in no declared vocabulary at all. The 2026-09-21 answer put Workspace rules in their own section with no role columns (`06b-authorization-matrix.html`, this screen's shipped shape at the time); the remaining open half -- "whether a Workspace admin should appear as an always-✓ column" -- is moot now rather than merely unanswered, because this file's own "Application Settings hub" entry (Phase 2) rewrote the Permissions content into the Flow 2 mockup's actual shape, which has **no role-per-column grid at all** any more, on either screen: `Who can do it` is a plain phrase per row, not a tick per role. There is no column left for an admin, or anyone, to always occupy |
-  | Process map — the same edges drawn transition-first (`/{machineID}/process-map`) — **a read-only state/transition diagram derived from one Machine's own status values and guarded transitions, purely presentational, introducing no new metadata concept** (precedent: `menata-runtime`'s CAP-W05) | **no phase yet** | Board 06's own copy says the matrix "re-projects `ProcessEdge` (already rendered per-transition on `/{machineID}/process-map`) role-first instead of transition-first" — describing that route as already existing. It does not exist here; Fase 7 built the role-first projection only. Upstream's is *derived*, needing no new metadata concept, and `domain.Machine.Transitions` is now exactly the input it reads, so this is a small screen rather than a capability — it simply has no case asking for it yet |
-  | Board m06's mobile layout (role **chips** per transition, not a grid) | **closed 2026-09-25 -- superseded, not fixed** | This row described Flow 1's `m06-approval-role-matrix.html`, a role×transition matrix whose mobile board dropped the grid for chips under each transition. That whole screen concept is gone: Flow 2's own `M06-RoleMatrix.dc.html` is not a matrix at all, on either breakpoint -- a plain two-column list, no grid and no chips -- and that is what got ported (`ROADMAP.md`'s "Application Settings hub" entry, Phase 2). Asking "did the chips ship" no longer has an answer, because nothing in the current design draws a matrix for chips to be a mobile variant of |
-  | Member full name beside the email (board 04/05) | **Done (2026-09-22)** | Closed by the identity rework, not by the phase it was pinned to. A full name is now identity data (`credentials.full_name`, migration 010) rather than a Field on a per-Workspace `mch_user` record, so `showWorkspaceMembers` resolves it through `data.Store.MemberNames` and the row renders name above email as the board always drew it. `memberInitials` became `personInitials(name, email)`, using the real name when there is one and falling back to the email local part for an invitation nobody has accepted yet — which has no name by design, since only its owner ever states one |
-  | ~~Section tab strip (board 07)~~ — *done in 6a, and re-answered 2026-09-21*: 6a built `rendering.inboxTabs` as page chrome — two hardcoded `?tab=` entries plus Groups and Admin borrowed from the Workspace menu — on the reasoning that a second `navigation:` level "never materialized". The owner rejected both halves: Groups/Admin were removed (already reachable from the launcher, so re-listing them was duplication), and the strip is now a **projection of Document Approval's own level-1 `navigation:`**, which is exactly two items — `nav_approval_inbox` and `nav_my_documents` (`/approval-inbox?tab=mine`). So the case for a second level still never materialized, but for the opposite reason than recorded here: a level-1 item's route may carry a query, which is all "My Documents" ever needed. A `tabs:` metadata level was drafted and deleted unbuilt — *"dengan level 1, kebutuhanku sudah cukup"* | — | — |
-  | Hour-scale SLA wording (board 07: "SLA breached · 4h"; board 10: "Breached · 4 hours ago") | **no phase yet** | `fld_due_date` is `type: date` — a bare calendar date, no time component — and `domain.KnownFieldTypes` has no datetime type at all. `experience.EvaluateSLA` truncates to day *deliberately*, which is what makes "Due today" mean anything. Adding a Field type to satisfy one label is shape-before-need; the trigger is a second, independent caller that genuinely needs sub-day precision. Noted at the site in `ApprovalInboxPage`'s and `ReviewDocumentPage`'s own doc comments. **Two screens now want it and it is still not built** — that is the row working, not a row going stale: both are the same board's day-vs-hour mismatch, not two independent callers |
-  | ~~Review document as its own screen (board 10)~~ — *done in 6b*: `reviewdocument.templ` + `composition.ReviewDocument`, which is what let `detail.templ` out of `projectionRatchet` | — | — |
-  | The wizard's third step (boards 08/09 both say "OF 3") | **no phase yet** — and it is a *flow* question, not a screen | No step-3 board exists anywhere in the set, so what it would contain is inference. Behind the label sits the real finding: `submitDocumentWizard` sets `fld_status = in_review` at creation, **before** any signature is placed — so an approver can decide a Document while the submitter is still on the placement screen, and abandoning the wizard leaves a live in-review Document with no placements. A third step would be where sending actually happens, which is also what would earn `draft` back as a `fld_status` option (`metadata/document.yaml` already says: "add it back only alongside a real save-as-draft flow, not speculatively"). The wizard says "Step 1 of 2" meanwhile, because two screens exist |
-  | Conditional required (a Field required only when a sibling Field holds a given value) | **no phase yet** | `domain.Constraint` has one shape — block a field transition while a *related Machine* has a matching record — which cannot condition on a sibling Field of the same record. The one real case is live as of 6c-2: `fld_assignee` is required for a User-held Approval Step and meaningless for a Group-held one, so it is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing in Go. Upstream declares the same rule as two conditional Constraints, so the shape is known. Trigger is a second real case, as always |
-  | Dashboard (`/dashboard`) still on `pageStyles` | **no phase yet** | **Moved to Project Management on 2026-09-21**, which is the Application whose data it actually composes (Projects, Tasks, Activity); it had been declared under Document Approval only because the two were one Application before Fase 3. That reclassification also drops the "most visible unported screen in Case 3" framing this row used to carry — it is not a Case 3 screen at all. Its board is `12-approval-dashboard-UNUSED.html`, marked TIDAK DIPAKAI by the owner, so there is no mockup to port it against: the blocker is a design decision, not engineering. Either the board is un-retired, or the screen is ported to the Tailwind idiom the other four Case 3 screens now share without one |
-  | Document / Approval Step detail pages still on `pageStyles` | **no phase yet** — lands with whatever ports Project Management | They are `detail.templ`, the *generic* record view every Machine shares, so porting it reaches `mch_task`, `mch_project` and the rest. Fase 6b and 6c-3 both deliberately split a Component rather than port it for this reason. The cost is visible today: the Signature positions screen's own back link lands on an old-style page, mid-flow |
-  | Board 09's zoom controls, selected-step highlight, and approver department sub-line | **no phase yet** | Zoom and selection are ephemeral view state nothing stores or needs — the app serves one rendered size and the screen works without a selection model. The department ("Finance", "Director") has no Field anywhere: `mch_user` holds none, and 3b's Application role is per-Application, not per-person-per-step. **`fld_step_name` was rendered in its place until 2026-09-29, and that substitution is what got it deleted**: a free-text step name standing in for a person's job title is a field nobody fills, and nobody did — 0 of 23 records. The sub-line now renders only the placement. What board 09 wants is still unmet and is now named honestly: a title on the identity, and a member count for a Group |
-  | Uploaded file size (board 10: "6 pages · 2.4 MB") | **no phase yet** | the page count is real (`internal/pdf.PageCount`) and is rendered; **the byte size is stored nowhere** — not on the record, not in `internal/storage`'s key, which embeds only the original filename. It needs a write-path change (capture size at upload) plus a Field to hold it, for one label. The trigger is a second caller that needs file metadata, not this line |
-  | ~~Step names with real values (board 10: "Finance Review")~~ **Closed by deletion 2026-09-29** | — | `fld_step_name` was declared in Fase 6b and read by `composition.stepLabel`; nothing ever wrote it. Measured before deciding: **0 of 23 records carried the key**, including a real submission made that morning by a real user, with the wizard's own input on screen and marked "(optional)". Board 08 — the wizard's own mockup — collects no step name at all and says why: *"Each step is one person or a whole group."* Its rows are labelled "Step 1 approver". And what boards 09 and 10 draw in that column is not a process name but the approver's **job title** ("Director · Page 6", "Finance · Page 6") or a Group's size ("4 members · Page 6"). So the Field was a stand-in for identity data, invented by this app rather than asked for by the design. Deleted: the Field from both Machines and all four Workspace copies, the two Go constants, `stepLabel`, the wizard input, `StepPrefill.Name`, `PlacementStep.StepName`, `flow_template_step:`'s `name_field:`, and `domain.FlowTemplateStep.NameField`. Field-coupling ratchet **9 → 4**; no data migration, because no record held the key. **What board 09/10 wanted is still unmet**, and the row above now names it properly: a job title belongs on the identity, a size on the Group |
-  | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |
-  | ~~Approval Role Matrix (board 06)~~ — *done in Fase 7*: `/approval-role-matrix`. The blocker this row named ("neither in 006/007") was answered by step zero rather than by building both from scratch — upstream had already shipped CAP-P01 and a `transitions[]` shape; what this repo's concept docs say about them turned out not to be the binding question | — | — |
-  | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — and **Fase 7 came and went without supplying one**, which this row predicted it would ("likeliest around Fase 7") | Re-checked at the Fase 7 close, which is the only reason this line is honest. Fase 7 *did* add a third id to `appShell`'s `hiddenNavIDs` (`nav_role_matrix`, beside Members and Groups) — but all three are gated on the **Workspace** role (admin), which a handler naming an id expresses perfectly well. The trigger this row names is an item gated on an **Application** role, the case a handler *cannot* express, and role-based Permission landing did not create one: no navigation item in the manifest is scoped to an Application role. Three instances of the same shape is, separately, the B1 repetition signal — so the next hardcoded id is worth running through the decomposition criteria even if the trigger below still has not arrived |
-  | ~~Mobile bottom bar for an Application's own menu~~ | **done 2026-09-22** (`applicationBottomBar`), extended with a "More" sheet 2026-09-24 | **This row was stale for two further closes after the thing it describes shipped**, which is worse than the wrongness it already records below: a row saying "no phase yet" about built code reads exactly like a real gap, and the 2026-09-23 Flow 2 gap study had to re-derive from the source that the bar existed. Kept, struck through, with its own history: it previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a — Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links. It then said the blocker was Project Management still being `pageStyles`; those screens ported to `appShell` on 2026-09-22 and the bar came with them. Three wrong states, one cause: nobody re-read the table, which is the one thing this table needs |
-  | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **shipped 2026-09-27** | See below -- CAP-V28, two companion Machines (one template per Document Type, plus its own ordered steps) with a find-or-create write path, exactly as this row's own prior text described the blocker rather than a fix |
-  | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
-  | Member search box (board 04) | **closed 2026-09-25** | See this file's "In progress" section, "Search on Workspace Members, My Documents and Assigned to me" |
-  | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` four (this read "six" until it was counted, 2026-09-21), while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list). **Half of that trigger arrived 2026-09-21, and the count did not move at all** -- which is the useful part. Board 09's forms left the generic route for one that writes four named Fields, so the carry-forward echo is gone; the twelve hand-typed bindings are exactly as hand-typed as before. The first guess while writing this row said the count would drop to four, and checking the file said twelve: the echo rendered `name={ f.Name }` from a derived list, never `action.Field*`, so it was never part of this number. The whole-record rewrite was the reason the *echo* existed; it was never the reason the *bindings* are literal, and removing it changes nothing here. The other half of the trigger -- a third bespoke write screen -- is still the one to watch. **And `documentsubmit.templ`'s are gone as of 2026-09-29, without that trigger arriving**: Stage D's `rendering.PlacementFields` was the shape, and this row's own "primitive unbuilt" was stale from the day Stage D shipped -- the read side of that same form had derived the ids all along. So the row now covers `signatureplacement.templ`'s twelve alone, for a narrower reason than it used to state: those twelve *are* declared (`signature_placement:`), they are simply named as constants inside `internal/action` rather than threaded as a resolved shape. **Re-measure this row whenever a stage ships a primitive**, not only when its own trigger fires |
-  | `NavBadgeApprovalInboxPending` still resolved in the Domain Plane | **no phase yet** | `domain.NavigationItem.Badge` names one live count the runtime special-cases end to end (`domain/navigation.go`, `web/workspacehome.go`, `appshell.templ`, `machine.templ`). It cannot become an ordinary Dataset: the count filters on assignee **and** on `behavior.CanAct`, which reads a *sibling* record, while a Measure's `where:` is evaluated per record against its own values. So the blocker is record selection (007 §8), not the identity sentinel below — a point the companion repo's Stage 0 first got wrong in the other direction |
-  | ~~PDF signature compositing is hand-written Go~~ | **closed 2026-09-28 (Stage C)** | **This row was stale and is struck rather than kept with a note, because its claim was simply false by then**: compositing is a declared Service (`composite_signed_document` in `registry.Services`, named by an `events:` block in two Workspaces' own `approval_step.yaml`), executed by `internal/execution/composite.go` through the Service dispatch table. `internal/action/composite.go`/`banner.go` still hold the binary-PDF mechanics, which is where physical work belongs (002's Runtime Boundary) — what changed is that *which Fields it reads and when it fires* are declarations. Found by measuring the row rather than by reading it |
-  | ~~The approval stepper is five constants, not a declared View~~ (upstream CAP-V20 ✅) | **done 2026-09-26**: `domain.ViewStepper` — "a View composing other Views" (this file's own Planned entry) implemented as the narrow real case it always was | `mch_approval_step` declares `vw_step_progress` (`type: stepper`), validated to require `sequencing:` (`internal/metadata.validateView`, mirroring the existing `cards`/`card_fields` requirement). `internal/rendering/detail.templ` composes it via `domain.Machine.StepperView()`, replacing the `m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID` check with a declared-View lookup any future Sequencing-declaring Machine pair gets for free. `approvalstepper.templ` reads `Sequencing.OrderField`/`StateField` (dynamic field names) and the Machine's first `person` Field generically instead of `action.Field*` constants — closing `approvalstepper.templ`, the **last Case 3 entry**, out of `internal/conformance`'s `projectionRatchet` (five Case 19 screens remain). Matches upstream's own admitted CAP-V20 shape exactly (done/current/pending, three states) rather than keeping the hardcoded version's extra red/green approved-vs-rejected split — the outcome still reads from the decided step's own text label. Deliberately did **not** reuse `card_fields`/Projection for the assignee: `mch_approval_step`'s own dormant `card_fields` wiring already serves the Approval Inbox's pending-card list, where every value would be constant ("pending", "me") — declaring `card_fields` to feed the stepper would have silently activated that unrelated screen's own chip rendering too, checked directly before ruling it out |
-  | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
-- Rounding out Project Management **against its own mockup** (the "Case 19" page of the design canvas, nine
-  desktop boards plus the mobile set): the rest of the card's ⋯ menu (Join, Watch, Archive, Make template, moving to another board), Calendar's
-  Month view and drag-to-reschedule, and Board Settings' write gestures (reorder, rename, new list/label). **What
-  that canvas does not draw is not queued**: a project-level workspace overview, scoping every screen to one
-  project, a Timeline, burndown/sprint points, a separate Team Capacity or Workflow Automation screen. Those came
-  from the older `ui-sample/` set and stay out until a board asks for them. **Its standing relative to the
-  Document Approval scope decision is unsettled**, but the ratchet no longer waits on it: the `projectionRatchet`
-  migration needed no feature work, only four `card_fields:` declarations and a derivation.
-- ~~Two-level navigation for switching between applications inside a workspace~~ — *shipped*: the
-  9-dot launcher (Fase 2) over real Applications (Fase 3a).
-- Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
-  own responsive rules per component as each screen lands, rather than deferring them to a later
-  sweep. The `navigation.html` / M01-M10 disagreement over a mobile bottom bar is **resolved and
-  not a conflict**: M01-M10 are all Document Approval or Workspace screens, which have no
-  Application menu to put in a bottom bar, so neither source is wrong. The bottom bar belongs to
-  the Project Management screens, and waits on their own boards — see the deferral table.
-- "Keep me signed in" on the sign-in board — deliberately *not* rendered during phase 1, because it
-  is a session-lifetime change rather than styling and `internal/authorization` has no remember-me
-  concept; a checkbox that does nothing would be worse than none.
-- **Read diagnostics and the query layer** -- the log review of 2026-09-22 is closed: every statement is counted at the driver,
-  anomalies mark themselves in the log, identity resolves once per request, a GET may not write, and the per-route sweep
-  ratchet is empty. **Open, no phase:** `ListRecordsBy` filters on `data->>$2 = $3` with no supporting index -- a row count
-  that makes it hurt is the trigger. Narrative: `menata-app-document`'s `development-history.md`, "2026-10-05 -- Narrative moved out of ROADMAP.md".
-- **What a composable runtime actually costs, measured against a conventional app** (owner request,
-  2026-09-22). Measured rather than argued, and the cheapest answer to the data-path cost it found is
-  pagination (007 §7.9) rather than pushdown -- see `## Planned`.
-  Method, numbers and caveats: `menata-app-document`'s
-  `audits/2026-09-22-kinerja-composable-vs-konvensional-kajian.md`.
-- **The query layer and its indexes** (owner request, 2026-09-22). Reviewed and **no new indexes
-  added**, deliberately: the decode (`json.Unmarshal`) is the expensive half at this volume, and the
-  refusal was explicitly conditional on the read-all-then-filter-in-Go pattern that later work
-  removes. 007 §21.4 becomes live at the 50,000-row threshold, not now.
-  Measurements and the conditional refusal in full:
-  `menata-app-document`'s `audits/2026-09-22-lapisan-query-dan-indeks-kajian.md`.
-- **The owner's mockup canvas -- "Flow 2 mockup" (2026-09-23), "Flow 2 canvas re-audit" (2026-09-27), and the 72-artboard
-  review (2026-10-10).** The canvas grew from 39 boards to five pages; its work is scheduled under `## Planned`, "Mockup
-  canvas". Still open from 2026-09-27: hour-precision SLA (a datetime Field), uploaded byte size, owner Q3. Detail:
-  `menata-app-document`'s `audits/2026-10-10-kajian-gap-mockup-kanvas-72-artboard.md`.
+- **Bringing the documentation up to date with what has shipped.**
 
 ## Planned
-**Order (owner, 2026-10-15): docs catch up, then the AI assistant writes what the runtime has and screens become
-`page:`, then domain capabilities, mockup slices, and the process map last.** The stages and what "complete" means:
-`menata-app-document`'s `audits/2026-10-15-peta-jalan-menuju-aplikasi-lengkap.md`. `Kxx` is a row in that repo's
-`audits/2026-10-10-kajian-kritis-arsitektur-struktur-dan-jalan-menuju-selesai.md` §10 (reasons, what done means);
-items waiting on a trigger, and owner decisions D1-D6, are listed there and deliberately not here.
 
-**P0 -- defects, no dependencies**
+In order. Each stage is broken into small, finished steps.
 
-**P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
+**1. The AI assistant can write everything the runtime can do**
+- Updating an application through the assistant keeps everything it does not understand.
+- The assistant says clearly what it cannot write yet, and those requests are recorded and reviewed.
+- It writes defaults, completion, owner fields, notifications, boards and card layouts, datasets and declared
+  screens, including screens per user and filter tiles.
+- From now on, a new metadata capability arrives with the assistant's ability to write it.
 
-**Mockup canvas -- 77 boards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
-- S0, S1, S2.1-S2.3 shipped (2026-10-10), then a 77-board re-audit (2026-10-11, `audits/2026-10-11-audit-ulang-kanvas-77-board-terhadap-kode-dan-kajian.md`):
-  Settings drawn from navigation, per-Application Members & roles, a settings sidebar; Board in every PM install, editable label colours (S3.6), a leave-Workspace confirmation when a form holds unsaved input (S3.4; its destination and pending count wait on S2.5).
-- Open: S2.4-S2.8 (mobile bar, account menu, My Documents table, the PM Dashboard's activity panel, touch drag; several wait on M-D1..M-D7),
-  the interim K15 pages are gone; the Apps Builder page is out of scope for now (owner, 2026-10-11).
-- S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
+**2. Every application screen is declared, not coded**
+- Workspace-level declared screens, and conditions on who is viewing, so members, groups, settings and
+  Application Settings can be declared.
+- A table component, reference and group fields in declared forms, child records and uploads in declared forms,
+  a single record's own page.
+- "Mine" lists (My Tasks, the approval inbox) defined by data instead of code.
+- Done means: a new data model appears on every generic screen with no code change.
 
-**P2 -- the Experience Plane meets 007 §12.4**
-- K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
-- K15 Application Settings migrates to `page:` (its bespoke screen was restyled to the tokens-v1 boards M06a/RoleMatrix on 2026-10-11 and is still bespoke; the Dashboard, My Tasks and Calendar did on 2026-10-11 and their bespoke screens are gone; re-check each screen first; `write: transition` (K13) and record-scoped `when:` (K11) exist; a viewer- or Application-scoped condition does not; stage 1 shipped: a Dimension over a reference Field is named by the related record; stage 2 shipped: a `container` card role draws a record's Project by title, read by id for the listed records only; stage 3 shipped: a Dataset's `where:` takes an `any:` OR-group and `is_empty`, so My Tasks' four buckets are Datasets on a declared page; a node can be drawn once per tag of a record, `each: tags`, so those buckets draw their Labels).
-- K16 AI schema from the loader's grammar (D2 = option G). Field types, colours and Field removal (owner-confirmed) done; owed: the
-  rest of the schema (the generated YAML is shown at review since 2026-10-11, and a pasted file has its own screen, `/workspace-settings/files`).
+**3. More business rules in metadata**
+- Who may read which records, deny-by-default.
+- Notifications to a role or a group; permissions per status transition; multi-level approval for any
+  application.
+- Fields required only under a condition; a transition from several statuses; date-and-time fields (SLA by the
+  hour); money.
+- Editing a document limited to its submitter; deleting a field without leaving orphaned data.
 
-**P3 -- bounded work (007 §18.8, §28)**
+**4. Remaining mockup screens**
+- A mobile bottom bar, an account menu and page, a My Documents table, touch drag on the board.
+- Account deletion with a grace period, deactivating an application, notification settings per application,
+  card actions.
 
-**P4 -- new capability with evidence**
+**5. Process map and Application Builder**
+- A process map that draws a model's statuses and transitions, then the Application Builder screens on it.
 
-**Carried over**
-- PWA / Play-ready (TWA env vars); a privacy policy page is still owed. Per-user navigation filtering
-  (`requires_role:`) waits for a second real case, likely an Application role.
-- Three Go screens still scope to "mine" by hand (`PersonalTasks`, `ApprovalInbox`, `AssignedToMe`); the Case 19
-  constants in `internal/composition/pages.go` await a B1-B5 owner decision.
-- Ordered comparisons left: My Tasks counts (`$today +/- n` exists now, K14), hour-scale SLA (needs a datetime Field), `$today` in constraints, money.
-  Deleting a Field still orphans its data; change classification rides with K09-K10.
-- A second unrelated background job triggers a dedicated worker; the wider portfolio (HR, inventory, POS,
-  e-commerce, helpdesk) follows the triggered capabilities in §10.
+**Alongside**
+- A privacy policy and terms page; installable as an app (Play Store ready).
+- Scaling the data layer (indexes, pagination, a query planner) when real data volume asks for it.
+
 ---
 
 Full build history, architecture decisions, and audit records live in the private

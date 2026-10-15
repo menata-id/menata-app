@@ -2307,7 +2307,7 @@ func recordTitle(m *domain.Machine, r *data.Record) string {
 // noise on a detail page" is a judgement metadata cannot express today, because there is no
 // per-Field "hide me on a detail page" declaration and 007 §12.4 says the answer is not a new
 // `detail` ViewType either ("a View MUST NOT be required as the universal composition primitive").
-// Forward-checkable pointer: ROADMAP.md's "A View composing other Views", the entry that would give
+// Forward-checkable pointer: development-history.md's "A View composing other Views", the entry that would give
 // a detail screen a declared arrangement.
 func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 	if !action.IsStep(m) {

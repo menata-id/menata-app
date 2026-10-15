@@ -61,7 +61,7 @@ var roadmapDiaryVocabulary = regexp.MustCompile(`\b[0-9a-f]{7,40}\b|\b[Mm]easure
 // Read the numbers out of this map, not out of any prose describing it.
 var roadmapDiaryLines = map[string]int{
 	"Shipped":     0,
-	"In progress": 6,
+	"In progress": 0,
 	"Planned":     0,
 }
 
@@ -89,10 +89,15 @@ var roadmapDiaryLines = map[string]int{
 // `Planned` **rose** 54 -> 62, at the owner's request, to schedule the mockup canvas's work plan as
 // feature-level lines (the "Mockup canvas" group), and `In progress` fell 399 -> 393 as its canvas
 // bullet gave its list to that group -- a raise the owner asked for, not one this gate excuses. `Planned` fell 62 -> 55 on 2026-10-10 when K02-K05, K08 and K09 shipped and left the list, and 55 -> 54 with K20, 54 -> 53 with K19, 53 -> 52 with K18, 51 -> 50 with K21, 50 -> 48 with K10, 48 -> 47 with K14, 47 -> 46 with K13, 46 -> 45 with K11, 45 -> 44 with K17, 44 -> 43 with K06, 43 -> 42 with K07.
+//
+// **2026-10-15, owner: ROADMAP.md is the public roadmap, and private development notes live in the companion repo.**
+// The file was rewritten at feature level and everything it held moved verbatim to `development-history.md` ("ROADMAP.md
+// becomes a public roadmap"): `In progress` 393 -> 4, `Planned` 42 -> 44 (the stages of the top-level roadmap), and
+// `Shipped` 138 -> 40, which now covers the two weeks the old list never reached (declared screens, the design system).
 var roadmapSectionLines = map[string]int{
-	"Shipped":     138,
-	"In progress": 393,
-	"Planned":     42,
+	"Shipped":     40,
+	"In progress": 4,
+	"Planned":     44,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {

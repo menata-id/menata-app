@@ -170,7 +170,7 @@ func capitalizeRole(role string) string {
 // restrictionText is the line under a row: what the rule says *besides* which roles may, in the
 // words the screens use rather than in field ids. whoText already carries the role half, so this
 // never repeats it the way this function's own predecessor (qualifier) did before the Flow 2
-// mockup gave "who may" its own column (ROADMAP.md "Application Settings hub").
+// mockup gave "who may" its own column (development-history.md "Application Settings hub").
 //
 // It also says so, and says so in amber, when *nothing* is declared. An ungoverned action and a
 // fully granted one read identically in Who ("All roles" either way), and only one of them is
