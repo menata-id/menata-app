@@ -94,10 +94,12 @@ var roadmapDiaryLines = map[string]int{
 // The file was rewritten at feature level and everything it held moved verbatim to `development-history.md` ("ROADMAP.md
 // becomes a public roadmap"): `In progress` 393 -> 4, `Planned` 42 -> 44 (the stages of the top-level roadmap), and
 // `Shipped` 138 -> 40, which now covers the two weeks the old list never reached (declared screens, the design system).
+// `Planned` 44 -> 45 the same day, at the owner's request to align the roadmap with the capability-strategy review: one
+// line for the reference-case corpus that will order the business-rule stage.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     40,
 	"In progress": 4,
-	"Planned":     44,
+	"Planned":     45,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {

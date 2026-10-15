@@ -60,6 +60,7 @@ In order. Each stage is broken into small, finished steps.
 - It writes defaults, completion, owner fields, notifications, boards and card layouts, datasets and declared
   screens, including screens per user and filter tiles.
 - From now on, a new metadata capability arrives with the assistant's ability to write it.
+- A set of reference applications, written ahead of the runtime, shows which capability to build next.
 
 **2. Every application screen is declared, not coded**
 - Workspace-level declared screens, and conditions on who is viewing, so members, groups, settings and
