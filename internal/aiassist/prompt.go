@@ -52,6 +52,10 @@ func composableSurface() string {
 - A starting value for a field ("default", as text; a status field's must be one of its options, e.g. the
   first, so new records begin at "new"). A person field the runtime fills with whoever created the record
   ("stamp": "current_user" -- use it for "Requester"; it is never typed in, and it takes no default).
+- A field required only under a condition ("required_when": {field, equals}: it must be filled while a STATUS
+  field of the same machine holds that option, e.g. a reference file when the format is a banner; "required"
+  stays false). A date that starts as today plus some days chosen by a status field's value ("default_from":
+  {field, days: [{value, days}]}, e.g. a due date from the priority; not together with a default).
 - How a machine's records are arranged ("views"): "board" (one column per option of a STATUS field named in
   "group_by"; this is what people usually mean by kanban or papan), "table", or "cards". The first view is
   what opens by default, so put the board first when the person wants one. A board or cards view needs

@@ -260,6 +260,19 @@ type fieldDoc struct {
 	Compute *computeDoc `yaml:"compute"`
 	// Stamp declares a stamped Field -- see domain.FieldStamp.
 	Stamp string `yaml:"stamp"`
+	// RequiredWhen and DefaultFrom: see domain.Field.
+	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
+	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
+}
+
+type requiredWhenDoc struct {
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
+}
+
+type defaultFromDoc struct {
+	Field string         `yaml:"field"`
+	Days  map[string]int `yaml:"days"`
 }
 
 type computeDoc struct {
@@ -386,7 +399,17 @@ func Parse(data []byte) (*domain.Machine, error) {
 		if fd.Compute != nil {
 			compute = &domain.FieldCompute{Op: domain.ComputeOp(fd.Compute.Op), Fields: fd.Compute.Fields}
 		}
+		var requiredWhen *domain.FieldCondition
+		if fd.RequiredWhen != nil {
+			requiredWhen = &domain.FieldCondition{Field: fd.RequiredWhen.Field, Equals: fd.RequiredWhen.Equals}
+		}
+		var defaultFrom *domain.FieldDefaultFrom
+		if fd.DefaultFrom != nil {
+			defaultFrom = &domain.FieldDefaultFrom{Field: fd.DefaultFrom.Field, Days: fd.DefaultFrom.Days}
+		}
 		m.Fields = append(m.Fields, domain.Field{
+			RequiredWhen:   requiredWhen,
+			DefaultFrom:    defaultFrom,
 			ID:             fd.ID,
 			Name:           fd.Name,
 			Type:           fieldType,

@@ -13,10 +13,11 @@ fields:
   - id: fld_description
     name: Deskripsi
     type: long_text
-  # Free text for now; the case only needs one value of it to mean "banner 2:1".
+  # A closed set, because a conditional requirement compares against one of its options.
   - id: fld_format
     name: Format
-    type: text
+    type: status
+    options: [poster, banner_2_1]
   - id: fld_status
     name: Status
     type: status
@@ -43,7 +44,7 @@ fields:
   - id: fld_reference_file
     name: File Referensi
     type: file
-    # WISHED: a Field that is required only while another Field holds a value.
+    # Required only while another Field holds a value (was WISHED until the runtime learned it).
     required_when: { field: fld_format, equals: banner_2_1 }
 
 permissions:

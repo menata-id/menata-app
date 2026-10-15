@@ -52,6 +52,7 @@ machines:
   - default/signature.yaml
   - default/approval_flow_template.yaml
   - default/approval_flow_template_step.yaml
+  - default/helpdesk_ticket.yaml
 
 # applications: which Applications are installed here. Paths are resolved relative to this file,
 # and these are this Workspace's own copies too -- metadata/applications/ holds the templates they
@@ -59,6 +60,7 @@ machines:
 applications:
   - default/applications/document-approval.yaml
   - default/applications/project-management.yaml
+  - default/applications/helpdesk.yaml
 
 # suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
 # re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared

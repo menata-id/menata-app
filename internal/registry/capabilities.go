@@ -119,13 +119,11 @@ var Capabilities = []Capability{
 	key("fieldDoc", "default", "structure", "domain", true, ""),
 	key("fieldDoc", "compute", "structure", "domain", true, ""),
 	key("fieldDoc", "stamp", "structure", "domain", true, ""),
+	key("fieldDoc", "required_when", "structure", "domain", true, ""),
+	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 
 	// Proposed: wished for by the case corpus, read by no loader. Each is a candidate for the A1-A5 admission test,
 	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1).
-	{ID: "conditional-required", Struct: "fieldDoc", Keys: []string{"required_when"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
-		AIReason: "lands with its assistant slot on GeneratedField", Cases: []string{"case01_design_request"}},
-	{ID: "computed-default", Struct: "fieldDoc", Keys: []string{"default_from"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
-		AIReason: "lands with its assistant slot on GeneratedField", Cases: []string{"case17_helpdesk"}},
 	{ID: "escalation", Struct: "machineDoc", Keys: []string{"escalation"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
 		AIReason: "needs a Service that writes a Field and a clock; not designed yet", Cases: []string{"case17_helpdesk"}},
 }

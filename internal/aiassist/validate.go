@@ -254,6 +254,19 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			}
 		}
 		f.Stamp = domain.FieldStamp(gf.Stamp)
+		if gf.RequiredWhen != nil {
+			f.RequiredWhen = &domain.FieldCondition{Field: gf.RequiredWhen.Field, Equals: gf.RequiredWhen.Equals}
+		}
+		if gf.DefaultFrom != nil {
+			days := make(map[string]int, len(gf.DefaultFrom.Days))
+			for _, d := range gf.DefaultFrom.Days {
+				if _, dup := days[d.Value]; dup {
+					issues = append(issues, fmt.Sprintf("machine %q field %q: default_from names %q more than once", gm.ID, gf.ID, d.Value))
+				}
+				days[d.Value] = d.Days
+			}
+			f.DefaultFrom = &domain.FieldDefaultFrom{Field: gf.DefaultFrom.Field, Days: days}
+		}
 		m.Fields = append(m.Fields, f)
 	}
 	for _, gp := range gm.Permissions {

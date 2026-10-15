@@ -126,3 +126,100 @@ func TestNewApplicationWritesWhoMayTakeAStep(t *testing.T) {
 	}
 	t.Fatal("the new Machine was not loaded")
 }
+
+func withConditionalFields(a *GeneratedApplication) {
+	m := &a.Machines[1]
+	m.Fields = append(m.Fields,
+		GeneratedField{ID: "fld_lampiran", Name: "Lampiran", Type: "text", RequiredWhen: &GeneratedRequiredWhen{Field: "fld_status", Equals: "sent"}},
+		GeneratedField{ID: "fld_tenggat", Name: "Tenggat", Type: "date", DefaultFrom: &GeneratedDefaultFrom{Field: "fld_status", Days: []GeneratedDayCount{{Value: "draft", Days: 7}, {Value: "sent", Days: 1}}}})
+}
+
+func TestConditionalAndDerivedFieldsAreWrittenLoadedAndDescribedBack(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	loaded := publish(t, manifestPath, update(t, manifestPath, withConditionalFields))
+	var lampiran, tenggat domain.Field
+	for _, m := range loaded.Machines {
+		if m.ID == "mch_pencatatan_sampah" {
+			lampiran, _ = m.FieldByID("fld_lampiran")
+			tenggat, _ = m.FieldByID("fld_tenggat")
+		}
+	}
+	if lampiran.RequiredWhen == nil || lampiran.RequiredWhen.Field != "fld_status" || lampiran.RequiredWhen.Equals != "sent" {
+		t.Fatalf("the loaded required_when = %+v", lampiran.RequiredWhen)
+	}
+	if tenggat.DefaultFrom == nil || tenggat.DefaultFrom.Days["draft"] != 7 || tenggat.DefaultFrom.Days["sent"] != 1 {
+		t.Fatalf("the loaded default_from = %+v", tenggat.DefaultFrom)
+	}
+	state, _ := stateOf(t, manifestPath)
+	back := DescribeApplication("app_pengelolaan_sampah", state.Applications["app_pengelolaan_sampah"])
+	var gl, gt GeneratedField
+	for _, f := range back.Machines[1].Fields {
+		switch f.ID {
+		case "fld_lampiran":
+			gl = f
+		case "fld_tenggat":
+			gt = f
+		}
+	}
+	if gl.RequiredWhen == nil || gl.RequiredWhen.Equals != "sent" || gt.DefaultFrom == nil || len(gt.DefaultFrom.Days) != 2 || gt.DefaultFrom.Days[0].Value != "draft" {
+		t.Fatalf("described back: %+v / %+v", gl.RequiredWhen, gt.DefaultFrom)
+	}
+	// Describing and resubmitting changes nothing.
+	same := update(t, manifestPath, func(a *GeneratedApplication) {})
+	if plan := PlanUpdate(DescribeApplication(same.TargetAppID, state.Applications[same.TargetAppID]), *same.Application); len(plan.Refusals) != 0 {
+		t.Errorf("an unchanged application was refused: %v", plan.Refusals)
+	}
+}
+
+func TestConditionalAndDerivedFieldsAreHeldToTheLoadersRulesAndCannotBeChanged(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	bad := update(t, manifestPath, func(a *GeneratedApplication) {
+		withConditionalFields(a)
+		a.Machines[1].Fields[len(a.Machines[1].Fields)-2].RequiredWhen.Equals = "zzz"
+	})
+	state, _ := stateOf(t, manifestPath)
+	if err := Validate(bad, state); err == nil || !strings.Contains(err.Error(), "zzz") {
+		t.Fatalf("a required_when on a value that is no option = %v, want an error naming it", err)
+	}
+	dup := update(t, manifestPath, func(a *GeneratedApplication) {
+		withConditionalFields(a)
+		d := a.Machines[1].Fields[len(a.Machines[1].Fields)-1].DefaultFrom
+		d.Days = append(d.Days, GeneratedDayCount{Value: "draft", Days: 2})
+	})
+	if err := Validate(dup, state); err == nil || !strings.Contains(err.Error(), "more than once") {
+		t.Fatalf("a value counted twice = %v, want a refusal", err)
+	}
+	publish(t, manifestPath, update(t, manifestPath, withConditionalFields))
+	for name, edit := range map[string]func(*GeneratedField){
+		"required_when changed": func(f *GeneratedField) {
+			if f.RequiredWhen != nil {
+				f.RequiredWhen.Equals = "draft"
+			}
+		},
+		"required_when dropped": func(f *GeneratedField) { f.RequiredWhen = nil },
+		"a day count added": func(f *GeneratedField) {
+			if f.DefaultFrom != nil {
+				f.DefaultFrom.Days = append(f.DefaultFrom.Days, GeneratedDayCount{Value: "x", Days: 1})
+			}
+		},
+		"days changed": func(f *GeneratedField) {
+			if f.DefaultFrom != nil {
+				f.DefaultFrom.Days[0].Days = 9
+			}
+		},
+		"default_from dropped": func(f *GeneratedField) { f.DefaultFrom = nil },
+	} {
+		change := update(t, manifestPath, func(a *GeneratedApplication) {
+			for i := range a.Machines[1].Fields {
+				if id := a.Machines[1].Fields[i].ID; id == "fld_lampiran" || id == "fld_tenggat" {
+					edit(&a.Machines[1].Fields[i])
+				}
+			}
+		})
+		st, _ := stateOf(t, manifestPath)
+		plan := PlanUpdate(DescribeApplication(change.TargetAppID, st.Applications[change.TargetAppID]), *change.Application)
+		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "cannot change when it is required") {
+			t.Errorf("%s: refusals = %v, want exactly the field-source refusal", name, plan.Refusals)
+		}
+	}
+}

@@ -337,11 +337,8 @@ var perViewerDatasets = map[string]string{
 
 // unflaggedViewerPredicates are Datasets that already scope by `$current_user` but do not yet say so with
 // `viewer_scoped: true` (W5-0, 2026-10-15). Shrink-only: a flagged Dataset leaves the list, and a new Dataset
-// may not join it. Both are Desain Request's, a file the owner wrote and has not been asked to touch.
-var unflaggedViewerPredicates = map[string]string{
-	"ds_my_requests":    "menata-indonesia's Desain Request; the owner's file, flag pending",
-	"ds_my_design_work": "menata-indonesia's Desain Request; the owner's file, flag pending",
-}
+// may not join it. Desain Request's two were flagged on 2026-10-15 at the owner's request, and the map is empty (and stays declared).
+var unflaggedViewerPredicates = map[string]string{}
 
 // TestPerViewerDatasetsScopeByIdentity holds the three halves of "this list shows the viewer's own records".
 // The loader makes a flagged Dataset true (`viewer_scoped: true` without a top-level `equals $current_user`

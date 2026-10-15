@@ -3,6 +3,7 @@ package aiassist
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -57,6 +58,17 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 			gf.Default = fmt.Sprint(f.Default)
 		}
 		gf.Stamp = string(f.Stamp)
+		if f.RequiredWhen != nil {
+			gf.RequiredWhen = &GeneratedRequiredWhen{Field: f.RequiredWhen.Field, Equals: f.RequiredWhen.Equals}
+		}
+		if f.DefaultFrom != nil {
+			df := &GeneratedDefaultFrom{Field: f.DefaultFrom.Field}
+			for value, days := range f.DefaultFrom.Days {
+				df.Days = append(df.Days, GeneratedDayCount{Value: value, Days: days})
+			}
+			sort.Slice(df.Days, func(i, j int) bool { return df.Days[i].Value < df.Days[j].Value })
+			gf.DefaultFrom = df
+		}
 		g.Fields = append(g.Fields, gf)
 	}
 	if m.Completion != nil {
@@ -360,6 +372,9 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	if f.Stamp != of.Stamp {
 		p.refuse("field %s on %s cannot gain, lose or change its stamp: records already stored would not match it", f.ID, m.ID)
 	}
+	if !sameRequiredWhen(f.RequiredWhen, of.RequiredWhen) || !sameDefaultFrom(f.DefaultFrom, of.DefaultFrom) {
+		p.refuse("field %s on %s cannot change when it is required or what its date starts as -- the file edit only appends; add a new field instead", f.ID, m.ID)
+	}
 	if f.Default != of.Default {
 		p.change("field %q on %q now starts at %q (was %q); records already stored keep their value", f.Name, m.Name, f.Default, of.Default)
 	}
@@ -601,4 +616,30 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+func sameRequiredWhen(a, b *GeneratedRequiredWhen) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func sameDefaultFrom(a, b *GeneratedDefaultFrom) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Field != b.Field || len(a.Days) != len(b.Days) {
+		return false
+	}
+	have := map[GeneratedDayCount]bool{}
+	for _, d := range a.Days {
+		have[d] = true
+	}
+	for _, d := range b.Days {
+		if !have[d] {
+			return false
+		}
+	}
+	return true
 }

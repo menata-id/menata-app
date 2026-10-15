@@ -147,6 +147,8 @@ func Validate(m *domain.Machine) error {
 	for _, f := range m.Fields {
 		issues = append(issues, validateCompute(f, fieldsByID)...)
 		issues = append(issues, validateStamp(f)...)
+		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
+		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
 
 	for _, c := range m.Constraints {
@@ -1469,6 +1471,71 @@ func sortableColumnList() string {
 	return strings.Join(names, ", ")
 }
 
+// validateRequiredWhen holds a conditionally required Field to what its enforcement assumes: another status
+// Field of this Machine to compare, one of that Field's own options to compare with (a value it can never hold
+// would never require anything, which reads as a rule), and no second statement of "required" beside it.
+func validateRequiredWhen(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	rw := f.RequiredWhen
+	if rw == nil {
+		return nil
+	}
+	var issues []string
+	if f.Required {
+		issues = append(issues, fmt.Sprintf("field %q: required and required_when together -- it is either always required or only while %q holds a value", f.ID, rw.Field))
+	}
+	if f.Compute != nil || f.Stamp != "" {
+		issues = append(issues, fmt.Sprintf("field %q: a computed or stamped field is written by the runtime, so required_when could never ask a person for it", f.ID))
+	}
+	other, ok := fieldsByID[rw.Field]
+	switch {
+	case rw.Field == f.ID:
+		issues = append(issues, fmt.Sprintf("field %q: required_when names itself", f.ID))
+	case !ok:
+		issues = append(issues, fmt.Sprintf("field %q: required_when.field %q is not a field of this machine", f.ID, rw.Field))
+	case other.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("field %q: required_when.field %q must be a status field, got %q -- a comparison needs a closed set of values", f.ID, rw.Field, other.Type))
+	case !slices.Contains(other.Options, rw.Equals):
+		issues = append(issues, fmt.Sprintf("field %q: required_when.equals %q is not one of %q's own options %v -- it would never be required", f.ID, rw.Equals, rw.Field, other.Options))
+	}
+	return issues
+}
+
+// validateDefaultFrom holds a derived default to its shape: a date Field, a status Field of this Machine to read,
+// a non-negative day count for options that exist, at least one entry, and no second default beside it.
+func validateDefaultFrom(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	df := f.DefaultFrom
+	if df == nil {
+		return nil
+	}
+	var issues []string
+	if f.Type != domain.FieldTypeDate {
+		issues = append(issues, fmt.Sprintf("field %q: default_from is only valid on a date field, got type %q", f.ID, f.Type))
+	}
+	if f.Default != nil || f.Compute != nil || f.Stamp != "" {
+		issues = append(issues, fmt.Sprintf("field %q: default_from beside a default, compute or stamp -- a field has one source for its value", f.ID))
+	}
+	other, ok := fieldsByID[df.Field]
+	switch {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("field %q: default_from.field %q is not a field of this machine", f.ID, df.Field))
+	case other.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("field %q: default_from.field %q must be a status field, got %q", f.ID, df.Field, other.Type))
+	default:
+		for value, days := range df.Days {
+			if !slices.Contains(other.Options, value) {
+				issues = append(issues, fmt.Sprintf("field %q: default_from.days names %q, which is not one of %q's own options %v", f.ID, value, df.Field, other.Options))
+			}
+			if days < 0 {
+				issues = append(issues, fmt.Sprintf("field %q: default_from.days[%q] is %d -- a due date is not in the past", f.ID, value, days))
+			}
+		}
+	}
+	if len(df.Days) == 0 {
+		issues = append(issues, fmt.Sprintf("field %q: default_from.days is empty -- it would derive nothing", f.ID))
+	}
+	return issues
+}
+
 // validateStamp holds a stamped Field to what its application assumes: a known source, a person Field to
 // hold the user it names, and no default (the stamp is always what gets stored).
 func validateStamp(f domain.Field) []string {
@@ -1567,6 +1634,10 @@ func validateComputedFieldsAreGenericallyWritten(machines []*domain.Machine) err
 // validateStampedFieldsAreGenericallyWritten is the same refusal for a stamped Field: the acting user is
 // written by the generic create routes (record.go, api.go), and the engines' own screens and the runtime's
 // own writers would leave it empty.
+func validateDerivedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
+	return validateFieldsAreGenericallyWritten(machines, "conditionally required or derived", func(f domain.Field) bool { return f.RequiredWhen != nil || f.DefaultFrom != nil })
+}
+
 func validateStampedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
 	return validateFieldsAreGenericallyWritten(machines, "stamped", func(f domain.Field) bool { return f.Stamp != "" })
 }

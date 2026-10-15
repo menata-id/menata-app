@@ -10,8 +10,10 @@ fields:
     required: true
   - id: fld_priority
     name: Prioritas
-    type: text
+    type: status
     required: true
+    options: [tinggi, normal, rendah]
+    default: normal
   - id: fld_status
     name: Status
     type: status
@@ -25,7 +27,7 @@ fields:
   - id: fld_agent
     name: Petugas
     type: person
-  # WISHED: a due date computed from another Field when the record is created (tinggi 1 day, normal 3, rendah 7).
+  # A due date computed from another Field when the record is created (tinggi 1 day, normal 3, rendah 7); was WISHED.
   - id: fld_due
     name: Batas SLA
     type: date

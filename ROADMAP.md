@@ -73,8 +73,7 @@ In order. Each stage is broken into small, finished steps.
 **3. More business rules in metadata**
 - Who may read which records, deny-by-default.
 - Notifications to a role or a group; multi-level approval for any application.
-- Fields required only under a condition; a transition from several statuses; date-and-time fields (SLA by the
-  hour); money.
+- A transition from several statuses; date-and-time fields (SLA by the hour); money.
 - Editing a document limited to its submitter; deleting a field without leaving orphaned data.
 
 **4. Remaining mockup screens**

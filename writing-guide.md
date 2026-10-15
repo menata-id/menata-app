@@ -227,6 +227,32 @@ once the whole Application loads, a `relation`/`person` field whose target Machi
 actually exist in the manifest's own `machines:` list also fails (a single Machine file can't check
 this on its own — it's checked once every file is loaded).
 
+### 3.1. Required only under a condition, and a date derived from a status (2026-10-15)
+
+```yaml
+  - id: fld_format
+    name: Format
+    type: status
+    options: [poster, banner_2_1]
+  - id: fld_reference_file
+    name: Reference file
+    type: file
+    required_when: { field: fld_format, equals: banner_2_1 }   # refused on any write while this holds and the field is empty
+  - id: fld_due
+    name: Due date
+    type: date
+    default_from:                                              # on create, when left empty: today + days
+      field: fld_priority
+      days: { tinggi: 1, normal: 3, rendah: 7 }
+```
+
+`required_when` compares one **status** Field of the same Machine with one of its own options (a value it can never hold
+would require nothing, so it is a load error), and cannot sit beside `required:`. `default_from` is for a `date` Field,
+reads a status Field's value, and takes only non-negative day counts for options that exist; a value it has no entry for
+derives nothing, and a date the submitter chose is kept. It does not combine with `default`, `compute` or `stamp`, and
+both are refused on a Machine that a workflow engine's own screens write. The assistant writes both on a NEW field, and
+cannot change them on an existing one.
+
 ## 4. Relations, `person`, and child collections
 
 `relation` is a single-value reference to another Machine — `fld_component` above renders as a

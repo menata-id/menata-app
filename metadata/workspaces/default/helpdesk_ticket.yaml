@@ -1,0 +1,163 @@
+id: mch_helpdesk_ticket
+name: Ticket
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_category
+    name: Category
+    type: status
+    required: true
+    options:
+      - hardware
+      - software
+      - access
+    default: software
+  - id: fld_asset_tag
+    name: Asset tag
+    type: text
+    required_when:
+      field: fld_category
+      equals: hardware
+  - id: fld_priority
+    name: Priority
+    type: status
+    required: true
+    options:
+      - urgent
+      - normal
+      - low
+    default: normal
+  - id: fld_due
+    name: Due date
+    type: date
+    default_from:
+      field: fld_priority
+      days:
+        low: 7
+        normal: 3
+        urgent: 1
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - new
+      - in_progress
+      - waiting
+      - resolved
+      - reopened
+    default: new
+  - id: fld_reporter
+    name: Reporter
+    type: person
+    stamp: current_user
+  - id: fld_agent
+    name: Agent
+    type: person
+completion:
+  field: fld_status
+  done: resolved
+card_fields:
+  - field: fld_title
+    role: title
+  - field: fld_status
+    role: status
+  - field: fld_due
+    role: date
+  - field: fld_agent
+    role: person
+views:
+  - id: vw_board
+    name: Board
+    type: board
+    group_by: fld_status
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_ticket_create
+    action: create
+    roles:
+      - reporter
+      - agent
+  - id: prm_ticket_edit
+    action: edit
+    roles:
+      - reporter
+      - agent
+transitions:
+  - id: trn_ticket_take
+    name: Take
+    field: fld_status
+    from: new
+    to: in_progress
+    action: edit
+    roles:
+      - agent
+  - id: trn_ticket_wait
+    name: Wait for reporter
+    field: fld_status
+    from: in_progress
+    to: waiting
+    action: edit
+    roles:
+      - agent
+  - id: trn_ticket_resume
+    name: Resume
+    field: fld_status
+    from: waiting
+    to: in_progress
+    action: edit
+    roles:
+      - agent
+  - id: trn_ticket_resolve
+    name: Resolve
+    field: fld_status
+    from: in_progress
+    to: resolved
+    action: edit
+    roles:
+      - agent
+  - id: trn_ticket_reopen
+    name: Reopen
+    field: fld_status
+    from: resolved
+    to: reopened
+    action: edit
+    actor_field: fld_reporter
+  - id: trn_ticket_retake
+    name: Take again
+    field: fld_status
+    from: reopened
+    to: in_progress
+    action: edit
+    roles:
+      - agent
+events:
+  - id: evt_ticket_opened
+    on_create: true
+    then:
+      service: log_activity
+      summary: Ticket "{fld_title}" opened
+  - id: evt_ticket_resolved_notify
+    "on": fld_status
+    when_equals: resolved
+    then:
+      service: send_notification
+      summary: Your ticket "{fld_title}" was resolved
+      recipient_field: fld_reporter
+      preference_key: decided
+datasets:
+  - id: ds_helpdesk_helpdesk_ticket_mine_list
+    select: records
+    viewer_scoped: true
+    where:
+      field: fld_reporter
+      op: equals
+      value: $current_user
+    sort:
+      - field: fld_due
+        direction: asc
+    limit: 50

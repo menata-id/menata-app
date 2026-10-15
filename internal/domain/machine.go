@@ -147,6 +147,28 @@ type Field struct {
 	// case, and the reason it is a Field property and not a form input: an input can name anyone, and an
 	// author a client may choose is not an author. Empty for an ordinary Field.
 	Stamp FieldStamp
+	// RequiredWhen makes this Field required only while another Field of the record holds one value
+	// ("a banner needs a reference file"). Nil for a Field that is required always (Required) or never.
+	// Enforced by internal/data.ValidateRecord on every write, so an update that changes the other Field
+	// into the value is refused until this one is filled.
+	RequiredWhen *FieldCondition
+	// DefaultFrom fills a date Field on create from another Field's value plus a number of days
+	// ("priority decides the due date"). Nil for none. Applied by internal/data.ApplyDefaults only where the
+	// submitter left the Field empty, and only on create, like Default.
+	DefaultFrom *FieldDefaultFrom
+}
+
+// FieldCondition is "Field holds Equals", the one comparison a conditionally required Field needs.
+type FieldCondition struct {
+	Field  string
+	Equals string
+}
+
+// FieldDefaultFrom derives a date from a status Field: today plus Days[value of Field]. A value with no entry
+// derives nothing, so the Field stays as the submitter left it.
+type FieldDefaultFrom struct {
+	Field string
+	Days  map[string]int
 }
 
 // FieldStamp is what a stamped Field is stamped with. A closed vocabulary, like ComputeOp: a source is added

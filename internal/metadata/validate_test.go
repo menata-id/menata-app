@@ -1004,3 +1004,52 @@ func TestValidatePermissionRoles_coversTransitions(t *testing.T) {
 		t.Errorf("roles on an unclaimed Machine = %v, want a refusal", err)
 	}
 }
+
+func TestValidate_conditionalAndDerivedFields(t *testing.T) {
+	base := func(extra ...domain.Field) *domain.Machine {
+		m := validMachine()
+		m.Fields = append(m.Fields,
+			domain.Field{ID: "fld_kind", Name: "Kind", Type: domain.FieldTypeStatus, Options: []string{"a", "b"}},
+			domain.Field{ID: "fld_note2", Name: "Note", Type: domain.FieldTypeText})
+		m.Fields = append(m.Fields, extra...)
+		return m
+	}
+	rw := func(f domain.Field, field, equals string) domain.Field {
+		f.RequiredWhen = &domain.FieldCondition{Field: field, Equals: equals}
+		return f
+	}
+	df := func(f domain.Field, field string, days map[string]int) domain.Field {
+		f.DefaultFrom = &domain.FieldDefaultFrom{Field: field, Days: days}
+		return f
+	}
+	txt := domain.Field{ID: "fld_x", Name: "X", Type: domain.FieldTypeText}
+	date := domain.Field{ID: "fld_d", Name: "D", Type: domain.FieldTypeDate}
+	for _, tc := range []struct {
+		name string
+		f    domain.Field
+		want string
+	}{
+		{"a sound required_when", rw(txt, "fld_kind", "a"), ""},
+		{"a sound default_from", df(date, "fld_kind", map[string]int{"a": 1, "b": 3}), ""},
+		{"required beside required_when", rw(domain.Field{ID: "fld_x", Name: "X", Type: domain.FieldTypeText, Required: true}, "fld_kind", "a"), "required and required_when together"},
+		{"required_when on itself", rw(txt, "fld_x", "a"), "names itself"},
+		{"required_when on a missing field", rw(txt, "fld_nope", "a"), "not a field of this machine"},
+		{"required_when on a text field", rw(txt, "fld_note2", "a"), "must be a status field"},
+		{"required_when on a value that is not an option", rw(txt, "fld_kind", "zzz"), "never be required"},
+		{"default_from on a text field", df(txt, "fld_kind", map[string]int{"a": 1}), "only valid on a date field"},
+		{"default_from beside a default", df(domain.Field{ID: "fld_d", Name: "D", Type: domain.FieldTypeDate, Default: "2026-01-01"}, "fld_kind", map[string]int{"a": 1}), "one source"},
+		{"default_from reading a missing field", df(date, "fld_nope", map[string]int{"a": 1}), "not a field of this machine"},
+		{"default_from reading a text field", df(date, "fld_note2", map[string]int{"a": 1}), "must be a status field"},
+		{"default_from naming a value that is not an option", df(date, "fld_kind", map[string]int{"zzz": 1}), "not one of"},
+		{"default_from with a negative count", df(date, "fld_kind", map[string]int{"a": -1}), "not in the past"},
+		{"default_from with no days", df(date, "fld_kind", nil), "derive nothing"},
+	} {
+		err := Validate(base(tc.f))
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: Validate = %v, want nil", tc.name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: Validate = %v, want an error containing %q", tc.name, err, tc.want)
+		}
+	}
+}

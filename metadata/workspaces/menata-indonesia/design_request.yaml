@@ -163,12 +163,14 @@ events:
 datasets:
   - id: ds_my_requests
     select: records
+    viewer_scoped: true
     where: { field: fld_requester, op: equals, value: $current_user }
     sort:
       - { field: created_at, direction: desc }
     limit: 200
   - id: ds_my_design_work
     select: records
+    viewer_scoped: true
     where:
       all:
         - { field: fld_designer, op: equals, value: $current_user }

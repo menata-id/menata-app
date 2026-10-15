@@ -146,6 +146,19 @@ type fieldDoc struct {
 	Compute  *computeDoc `yaml:"compute,omitempty"`
 	Default  string      `yaml:"default,omitempty"`
 	Stamp    string      `yaml:"stamp,omitempty"`
+
+	RequiredWhen *requiredWhenDoc `yaml:"required_when,omitempty"`
+	DefaultFrom  *defaultFromDoc  `yaml:"default_from,omitempty"`
+}
+
+type requiredWhenDoc struct {
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
+}
+
+type defaultFromDoc struct {
+	Field string         `yaml:"field"`
+	Days  map[string]int `yaml:"days"`
 }
 
 type cardFieldDoc struct {
@@ -386,6 +399,16 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		}
 		if f.Compute != nil {
 			fd.Compute = &computeDoc{Op: f.Compute.Op, Fields: f.Compute.Fields}
+		}
+		if f.RequiredWhen != nil {
+			fd.RequiredWhen = &requiredWhenDoc{Field: f.RequiredWhen.Field, Equals: f.RequiredWhen.Equals}
+		}
+		if f.DefaultFrom != nil {
+			days := make(map[string]int, len(f.DefaultFrom.Days))
+			for _, d := range f.DefaultFrom.Days {
+				days[d.Value] = d.Days
+			}
+			fd.DefaultFrom = &defaultFromDoc{Field: f.DefaultFrom.Field, Days: days}
 		}
 		doc.Fields = append(doc.Fields, fd)
 	}

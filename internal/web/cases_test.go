@@ -92,9 +92,9 @@ var caseRatchet = map[string]struct {
 	Passed   int
 	Steps    int
 }{
-	"case01_design_request": {Rejected: 1, Passed: 11, Steps: 12},
+	"case01_design_request": {Rejected: 0, Passed: 12, Steps: 12},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
-	"case17_helpdesk":       {Rejected: 2, Passed: 8, Steps: 9},
+	"case17_helpdesk":       {Rejected: 1, Passed: 9, Steps: 9},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)

@@ -1,0 +1,42 @@
+id: app_helpdesk
+name: Helpdesk
+machines:
+  - mch_helpdesk_ticket
+roles:
+  - reporter
+  - agent
+icon: check
+color: blue
+navigation:
+  - id: nav_helpdesk
+    label: Tickets
+    route: /machines/mch_helpdesk_ticket
+    home_card: true
+  - id: nav_helpdesk_helpdesk_ticket_mine
+    label: My tickets
+    route: /pages/nav_helpdesk_helpdesk_ticket_mine
+    home_card: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          empty: Nothing to show.
+          binding:
+            dataset: ds_helpdesk_helpdesk_ticket_mine_list
+            rows: records
+          children:
+            - layout: row
+              children:
+                - static: link
+                  from:
+                    href: record
+                    text: title
+                - component: StatusBadge
+                  tone: info
+                  from:
+                    label: status
+                - static: caption
+                  from:
+                    text: person

@@ -88,7 +88,7 @@ var roadmapDiaryLines = map[string]int{
 // work list K01-K21 whose reasons live in the companion repo's 2026-10-10 audit §10. Later that day
 // `Planned` **rose** 54 -> 62, at the owner's request, to schedule the mockup canvas's work plan as
 // feature-level lines (the "Mockup canvas" group), and `In progress` fell 399 -> 393 as its canvas
-// bullet gave its list to that group -- a raise the owner asked for, not one this gate excuses. `Planned` fell 62 -> 55 on 2026-10-10 when K02-K05, K08 and K09 shipped and left the list, and 55 -> 54 with K20, 54 -> 53 with K19, 53 -> 52 with K18, 51 -> 50 with K21, 50 -> 48 with K10, 48 -> 47 with K14, 47 -> 46 with K13, 46 -> 45 with K11, 45 -> 44 with K17, 44 -> 43 with K06, 43 -> 42 with K07, and 45 -> 44 on 2026-10-15 when permissions per status transition shipped.
+// bullet gave its list to that group -- a raise the owner asked for, not one this gate excuses. `Planned` fell 62 -> 55 on 2026-10-10 when K02-K05, K08 and K09 shipped and left the list, and 55 -> 54 with K20, 54 -> 53 with K19, 53 -> 52 with K18, 51 -> 50 with K21, 50 -> 48 with K10, 48 -> 47 with K14, 47 -> 46 with K13, 46 -> 45 with K11, 45 -> 44 with K17, 44 -> 43 with K06, 43 -> 42 with K07, and 45 -> 44 on 2026-10-15 when permissions per status transition shipped, and 44 -> 43 the same day with conditional required fields.
 //
 // **2026-10-15, owner: ROADMAP.md is the public roadmap, and private development notes live in the companion repo.**
 // The file was rewritten at feature level and everything it held moved verbatim to `development-history.md` ("ROADMAP.md
@@ -99,7 +99,7 @@ var roadmapDiaryLines = map[string]int{
 var roadmapSectionLines = map[string]int{
 	"Shipped":     40,
 	"In progress": 4,
-	"Planned":     44,
+	"Planned":     43,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {

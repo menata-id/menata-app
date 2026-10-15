@@ -67,7 +67,7 @@ func fieldTypeEnum() []string {
 }
 
 var generatedFieldSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp"},
+	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp", "required_when", "default_from"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "type", "required"},
 	Properties: map[string]geminiSchema{
@@ -85,6 +85,24 @@ var generatedFieldSchema = geminiSchema{
 		},
 		"default": {Type: "STRING", Description: "The value a new record starts with, as text (\"5\", \"true\"); for a status field, one of its own options (e.g. the first). Never on a computed, stamped or file field."},
 		"stamp":   {Type: "STRING", Enum: fieldStampEnum(), Description: "Only on a person field the runtime should fill with who created the record (e.g. \"Requester\"); it is never an input. Do not also give it a default."},
+		"required_when": {
+			Type:             "OBJECT",
+			Description:      "Only on a field that must be filled when another field has one value (e.g. a reference file required when the format is a banner). Then \"required\" must be false. The other field is a status field of this same machine; \"equals\" is one of its options.",
+			Required:         []string{"field", "equals"},
+			PropertyOrdering: []string{"field", "equals"},
+			Properties:       map[string]geminiSchema{"field": stringSchema, "equals": stringSchema},
+		},
+		"default_from": {
+			Type:             "OBJECT",
+			Description:      "Only on a date field that starts as today plus some days depending on a status field of this same machine (e.g. a due date that depends on the priority). Not together with default.",
+			Required:         []string{"field", "days"},
+			PropertyOrdering: []string{"field", "days"},
+			Properties: map[string]geminiSchema{
+				"field": stringSchema,
+				"days": {Type: "ARRAY", Items: &geminiSchema{Type: "OBJECT", Required: []string{"value", "days"}, PropertyOrdering: []string{"value", "days"},
+					Properties: map[string]geminiSchema{"value": stringSchema, "days": {Type: "INTEGER", Description: "0 or more."}}}},
+			},
+		},
 		"compute": {
 			Type:             "OBJECT",
 			Description:      "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",

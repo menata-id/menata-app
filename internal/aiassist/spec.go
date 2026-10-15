@@ -172,6 +172,27 @@ type GeneratedField struct {
 	Default string `json:"default,omitempty"`
 	// Stamp makes a person Field filled by the runtime with who created the record: "current_user" (W2).
 	Stamp string `json:"stamp,omitempty"`
+	// RequiredWhen makes the Field required only while a status Field of the record holds one value ("a banner
+	// needs a reference file"); it replaces Required, which must then be false. DefaultFrom fills a date Field on
+	// create from a status Field's value plus a number of days ("the priority sets the due date").
+	RequiredWhen *GeneratedRequiredWhen `json:"required_when,omitempty"`
+	DefaultFrom  *GeneratedDefaultFrom  `json:"default_from,omitempty"`
+}
+
+type GeneratedRequiredWhen struct {
+	Field  string `json:"field"`
+	Equals string `json:"equals"`
+}
+
+type GeneratedDefaultFrom struct {
+	Field string              `json:"field"`
+	Days  []GeneratedDayCount `json:"days"`
+}
+
+// GeneratedDayCount is one entry of the days map as a list, because a response schema cannot name free map keys.
+type GeneratedDayCount struct {
+	Value string `json:"value"`
+	Days  int    `json:"days"`
 }
 
 // GeneratedView mirrors domain.View for the three arrangements a generated Machine may declare.

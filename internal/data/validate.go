@@ -40,7 +40,7 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 		v, present := values[f.ID]
 		empty := !present || v == nil || v == ""
 
-		if f.Required && empty {
+		if empty && (f.Required || requiredNow(f, values)) {
 			issues = append(issues, fmt.Sprintf("field %q is required", f.ID))
 			continue
 		}
@@ -75,6 +75,12 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 		return &RecordValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// requiredNow is a conditionally required Field's answer for these values: the Field it watches holds the value
+// that asks for it.
+func requiredNow(f domain.Field, values map[string]any) bool {
+	return f.RequiredWhen != nil && fmt.Sprint(values[f.RequiredWhen.Field]) == f.RequiredWhen.Equals
 }
 
 func contains(options []string, v string) bool {
