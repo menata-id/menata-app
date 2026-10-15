@@ -56,6 +56,7 @@ func TestPromptNamesEveryRegisteredCapability(t *testing.T) {
 	for _, gone := range []string{
 		"no such capability exists in this runtime yet",
 		"hardcoded to mch_document/mch_approval_step specifically",
+		"You cannot emit any but the first",
 	} {
 		if strings.Contains(strings.SplitN(prompt, "func composableSurface", 2)[1], gone) {
 			t.Errorf("the prompt has regained the false claim %q -- it was retracted 2026-09-30; see composableSurface's own comment for what is true instead", gone)

@@ -177,14 +177,36 @@ type GeneratedTransition struct {
 	To    string `json:"to"`
 }
 
-// GeneratedEvent mirrors the one Service shape safe to generate unattended: log_activity, on
-// creation or on a field reaching one value. rollup_parent_status is not offered -- it names a
-// parent/child relationship shape that would need cross-Machine validation this first increment
-// does not build.
+// GeneratedEvent mirrors the two Service shapes safe to generate unattended, on creation or on a field
+// reaching one value: log_activity (the default, an activity-feed entry) and, since W3 (2026-10-15),
+// send_notification (a message to the person named in one of the record's own person fields).
+// rollup_parent_status and composite_signed_document are not offered -- they name a parent/child shape
+// and a PDF engine that need cross-Machine validation this package does not build.
 type GeneratedEvent struct {
 	ID         string `json:"id"`
 	On         string `json:"on,omitempty"`
 	WhenEquals string `json:"when_equals,omitempty"`
 	OnCreate   bool   `json:"on_create,omitempty"`
-	Summary    string `json:"summary"`
+	// Service is "log_activity" (also what an empty value means) or "send_notification".
+	Service string `json:"service,omitempty"`
+	// Summary is the activity sentence, or the notification's message; {fld_x} placeholders are filled.
+	Summary string `json:"summary"`
+	// RecipientField and PreferenceKey are send_notification's own: a person Field of this same Machine
+	// whose person is told, and which of that person's notification settings also gates the email.
+	RecipientField string `json:"recipient_field,omitempty"`
+	PreferenceKey  string `json:"preference_key,omitempty"`
+}
+
+// The Services a generated Event may name.
+const (
+	EventServiceLogActivity      = "log_activity"
+	EventServiceSendNotification = "send_notification"
+)
+
+// EventService is the Service an event names, with "" read as the default.
+func (e GeneratedEvent) EventService() string {
+	if e.Service == "" {
+		return EventServiceLogActivity
+	}
+	return e.Service
 }

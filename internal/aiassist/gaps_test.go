@@ -98,3 +98,13 @@ func TestPrompt_saysTheRuntimeCanWhenTheAssistantCannotYet(t *testing.T) {
 		}
 	}
 }
+
+// W3: the prompt tells the model it can send notifications, and how.
+func TestPrompt_teachesNotifications(t *testing.T) {
+	full := SystemPromptFor(nil, nil)
+	for _, want := range []string{`"service": "send_notification"`, "recipient_field", "preference_key", "to tell two, write two events", "You can emit the first two"} {
+		if !strings.Contains(full, want) {
+			t.Errorf("the prompt lacks %q", want)
+		}
+	}
+}

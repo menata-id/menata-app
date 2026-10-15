@@ -77,8 +77,17 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		}
 	}
 	for _, e := range m.Events {
-		if e.Schedule == nil && e.Then.Name == domain.ServiceLogActivity && e.Then.SummaryOverrideWhen == "" {
+		if e.Schedule != nil || e.Then.SummaryOverrideWhen != "" {
+			continue
+		}
+		switch e.Then.Name {
+		case domain.ServiceLogActivity:
 			g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Summary: e.Then.Summary})
+		case domain.ServiceSendNotification:
+			if e.Then.Notify != nil {
+				g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Service: EventServiceSendNotification,
+					Summary: e.Then.Summary, RecipientField: e.Then.Notify.RecipientField, PreferenceKey: e.Then.Notify.PreferenceKey})
+			}
 		}
 	}
 	return g
@@ -465,6 +474,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 			}
 		}
 		dm, fieldIssues := buildDomainMachine(m, targets)
+		fieldIssues = append(fieldIssues, notificationIssues(m, existing)...)
 		issues = append(issues, fieldIssues...)
 		if len(fieldIssues) == 0 {
 			if err := metadata.Validate(dm); err != nil {

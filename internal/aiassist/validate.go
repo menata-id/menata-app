@@ -192,6 +192,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		seenMachine[m.ID] = true
 
 		domainMachine, fieldIssues := buildDomainMachine(m, knownFieldTargets)
+		fieldIssues = append(fieldIssues, notificationIssues(m, existing)...)
 		issues = append(issues, fieldIssues...)
 		if len(fieldIssues) > 0 {
 			continue // metadata.Validate would only pile on the same field-shape complaints
@@ -268,12 +269,54 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		})
 	}
 	for _, ge := range gm.Events {
+		svc := domain.Service{Name: ge.EventService(), Summary: ge.Summary}
+		switch ge.EventService() {
+		case EventServiceLogActivity:
+			if ge.RecipientField != "" || ge.PreferenceKey != "" {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: recipient_field and preference_key belong to send_notification, not log_activity", gm.ID, ge.ID))
+			}
+		case EventServiceSendNotification:
+			svc.Notify = &domain.Notify{RecipientField: ge.RecipientField, PreferenceKey: ge.PreferenceKey}
+			// The loader only asks that the recipient be a field; a notification to anything but a person
+			// reaches nobody and says nothing, so the assistant asks for more than the loader does.
+			if f := fieldOf(m, ge.RecipientField); f != nil && f.Type != domain.FieldTypePerson {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: recipient_field %q must be a person field, got %q -- otherwise the notification reaches nobody", gm.ID, ge.ID, ge.RecipientField, f.Type))
+			}
+		default:
+			issues = append(issues, fmt.Sprintf("machine %q event %q: service %q is not one a generated event may name (log_activity or send_notification)", gm.ID, ge.ID, ge.Service))
+		}
 		m.Events = append(m.Events, domain.Event{
-			ID: ge.ID, On: ge.On, WhenEquals: ge.WhenEquals, OnCreate: ge.OnCreate,
-			Then: domain.Service{Name: domain.ServiceLogActivity, Summary: ge.Summary},
+			ID: ge.ID, On: ge.On, WhenEquals: ge.WhenEquals, OnCreate: ge.OnCreate, Then: svc,
 		})
 	}
 	return m, issues
+}
+
+// notificationMachineID is the runtime-level Machine a send_notification writes to. A Workspace created
+// through the UI holds it already; one without it cannot take a notifying Application, and this package
+// cannot add it (it is a shared runtime Machine, not part of any generated Application).
+const notificationMachineID = "mch_notification"
+
+// notificationIssues refuses a notifying Machine in a Workspace that has nowhere for the notice to land.
+func notificationIssues(gm GeneratedMachine, existing ExistingState) []string {
+	if existing.MachineIDs[notificationMachineID] {
+		return nil
+	}
+	for _, e := range gm.Events {
+		if e.EventService() == EventServiceSendNotification {
+			return []string{fmt.Sprintf("machine %q event %q sends a notification, but this workspace has no %s to hold it", gm.ID, e.ID, notificationMachineID)}
+		}
+	}
+	return nil
+}
+
+func fieldOf(m *domain.Machine, id string) *domain.Field {
+	for i := range m.Fields {
+		if m.Fields[i].ID == id {
+			return &m.Fields[i]
+		}
+	}
+	return nil
 }
 
 func contains(list []string, want string) bool {

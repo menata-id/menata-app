@@ -109,6 +109,15 @@ func applicationColorEnum() []string {
 	return names
 }
 
+func notificationPreferenceEnum() []string {
+	out := make([]string, 0, len(domain.KnownNotificationPreferenceKeys))
+	for k := range domain.KnownNotificationPreferenceKeys {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func fieldStampEnum() []string {
 	out := make([]string, 0, len(domain.KnownFieldStamps))
 	for s := range domain.KnownFieldStamps {
@@ -163,15 +172,18 @@ var generatedTransitionSchema = geminiSchema{
 }
 
 var generatedEventSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "on_create", "on", "when_equals", "summary"},
+	PropertyOrdering: []string{"id", "service", "on_create", "on", "when_equals", "summary", "recipient_field", "preference_key"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "summary"},
 	Properties: map[string]geminiSchema{
-		"id":          stringSchema,
-		"on":          {Type: "STRING", Description: "A field id this event fires when it changes. Omit if on_create is true."},
-		"when_equals": {Type: "STRING", Description: "Optional: narrow \"on\" to firing only when the field reaches this exact value."},
-		"on_create":   boolSchema,
-		"summary":     {Type: "STRING", Description: "The activity-log sentence this event writes, e.g. \"{fld_title} submitted\"."},
+		"id":              stringSchema,
+		"service":         {Type: "STRING", Enum: []string{EventServiceLogActivity, EventServiceSendNotification}, Description: "\"log_activity\" (the default) writes an activity-feed entry; \"send_notification\" tells a person."},
+		"recipient_field": {Type: "STRING", Description: "Required for send_notification: a PERSON field of this same machine; the person named in it on the record is told. Not for log_activity."},
+		"preference_key":  {Type: "STRING", Enum: notificationPreferenceEnum(), Description: "Required for send_notification: which of the recipient's own notification settings also gates the email (the in-app notice is always written). \"assigned\" for being given something to do, \"decided\" for an outcome, \"sla_breach\" for lateness."},
+		"on":              {Type: "STRING", Description: "A field id this event fires when it changes. Omit if on_create is true."},
+		"when_equals":     {Type: "STRING", Description: "Optional: narrow \"on\" to firing only when the field reaches this exact value."},
+		"on_create":       boolSchema,
+		"summary":         {Type: "STRING", Description: "The activity-log sentence this event writes, e.g. \"{fld_title} submitted\"."},
 	},
 }
 

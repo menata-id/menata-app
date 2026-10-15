@@ -33,6 +33,10 @@ import (
 // GeneratedEvent's own shape is what stopped the assistant being told it could emit something its
 // publish path would silently turn into log_activity.
 //
+// **Resolved 2026-10-15 (W3):** GeneratedEvent now carries a service, recipient_field and preference_key, so the
+// assistant can emit send_notification and the writer no longer forces log_activity. The paragraph above is the
+// record of why the earlier refusal was right then; the prompt below states the present truth.
+//
 // The field-type sentence is **generated** now, from domain.KnownFieldTypes (fieldTypeSentence below), so
 // that part cannot drift at all. The rest is still prose and still needs the review discipline the old
 // comment described -- the difference is that it no longer *claims* prose is drift-free, and
@@ -58,7 +62,13 @@ func composableSurface() string {
   room approves"). Ask who is allowed, then use these instead of a role when the answer is "that person".
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
-- Events: log an activity-feed entry when a record is created, or when a field reaches one value.
+- Events, when a record is created or when a field reaches one value: an activity-feed entry
+  ("service": "log_activity", the default), or a notification ("service": "send_notification") to the
+  person named in one of the record's own PERSON fields ("recipient_field"; the in-app notice is always
+  written and the email follows that person's own setting, selected by "preference_key": "assigned" for
+  being given something to do, "decided" for an outcome, "sla_breach" for lateness). It tells one person
+  per event: to tell two, write two events. It cannot tell "everyone holding a role" or a group, and when
+  asked to, say so and record a capability gap of kind "runtime".
 - A change to an application that already exists (kind "update_application"): return the whole
   application as it should be afterwards, starting from its current definition below. You may add
   anything (roles, machines, fields, options, permissions, status moves, activity entries, menu items),
@@ -75,13 +85,12 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   Go routes that no metadata you write can add. So generating a workflow: block would produce an
   application whose approval mechanics engage with no screen to reach them. "Approval" in anything you
   generate means: a status field that moves through the ordinary edit form, gated by who holds a role.
-- Any Event Service other than the activity-feed entry above. The runtime has four -- ` + "`log_activity`" + `,
+- Any Event Service other than the two above. The runtime has four -- ` + "`log_activity`" + `,
   ` + "`send_notification`" + ` (in-app and email), ` + "`rollup_parent_status`" + ` (a child's status rolling
   up to its parent) and ` + "`composite_signed_document`" + ` (stamping signatures into a PDF) -- and every
-  one is a real Service a hand-written machine file may declare. **You cannot emit any but the first**, and
-  the reason is your own output shape rather than a missing feature: the Event you generate carries no
-  service at all, so it is always written as an activity-feed entry. Say that plainly if asked, rather than
-  implying the runtime lacks the feature.
+  one is a real Service a hand-written machine file may declare. **You can emit the first two**; the last
+  two name a parent/child shape and a PDF engine your output has no slot for. Say that plainly if asked,
+  rather than implying the runtime lacks the feature.
 - A saved default approval flow. Real since 2026-09-27, and unreachable for the same reason as the
   approval engine above: its screens are Go routes your metadata cannot add.
 - Conditional-required fields, or anything needing a new field type, action, or service beyond the ones

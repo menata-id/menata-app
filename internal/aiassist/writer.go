@@ -184,8 +184,10 @@ type eventDoc struct {
 	WhenEquals string `yaml:"when_equals,omitempty"`
 	OnCreate   bool   `yaml:"on_create,omitempty"`
 	Then       struct {
-		Service string `yaml:"service"`
-		Summary string `yaml:"summary"`
+		Service        string `yaml:"service"`
+		Summary        string `yaml:"summary"`
+		RecipientField string `yaml:"recipient_field,omitempty"`
+		PreferenceKey  string `yaml:"preference_key,omitempty"`
 	} `yaml:"then"`
 }
 
@@ -372,7 +374,8 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	for _, e := range m.Events {
 		var ed eventDoc
 		ed.ID, ed.On, ed.WhenEquals, ed.OnCreate = e.ID, e.On, e.WhenEquals, e.OnCreate
-		ed.Then.Service, ed.Then.Summary = "log_activity", e.Summary
+		ed.Then.Service, ed.Then.Summary = e.EventService(), e.Summary
+		ed.Then.RecipientField, ed.Then.PreferenceKey = e.RecipientField, e.PreferenceKey
 		doc.Events = append(doc.Events, ed)
 	}
 	return doc
