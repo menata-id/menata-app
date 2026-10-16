@@ -183,3 +183,101 @@ func TestUpdate_refusesToDropAPageMenuItem(t *testing.T) {
 		t.Fatal("Write accepted an update that drops page menu items")
 	}
 }
+
+// TestDesainRequestRoundTripsThroughTheAssistant is roadmap stage 1's closing measurement for the reference
+// Application. Describing it and handing the description back changes nothing (an empty plan, no refusal), and the
+// keys the assistant learned later (a step's roles, a conditionally required field, a status Field's derived or
+// stamped values) are in the description, so a model that returns it unchanged cannot drop them.
+func TestDesainRequestRoundTripsThroughTheAssistant(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, filepath.Join("..", "..", "metadata"), root)
+	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
+	state, _ := stateOf(t, manifest)
+	current := DescribeApplication("app_design_request", state.Applications["app_design_request"])
+	if plan := PlanUpdate(current, current); len(plan.Items) != 0 || len(plan.Refusals) != 0 {
+		t.Fatalf("returning the description unchanged is not an empty plan: %+v", plan)
+	}
+	var m GeneratedMachine
+	for _, x := range current.Machines {
+		if x.ID == "mch_design_request" {
+			m = x
+		}
+	}
+	gated := 0
+	for _, tr := range m.Transitions {
+		if len(tr.Roles) > 0 {
+			gated++
+		}
+	}
+	if gated != len(m.Transitions) || gated == 0 {
+		t.Errorf("%d of %d status moves carry their roles in the description, want all", gated, len(m.Transitions))
+	}
+	var ref GeneratedField
+	for _, f := range m.Fields {
+		if f.ID == "fld_reference_file" {
+			ref = f
+		}
+	}
+	if ref.RequiredWhen == nil || ref.RequiredWhen.Field != "fld_format" || ref.RequiredWhen.Equals != "banner_2_1" {
+		t.Errorf("the reference file's required_when is not described: %+v", ref.RequiredWhen)
+	}
+}
+
+// What the assistant cannot yet write for Desain Request, measured by generating a twin from the description and
+// listing the hand-written file's keys (at any depth) the twin lacks. Shrink-only: a key leaving this list must come out of the
+// map, and a new one means something the assistant did not lose before is lost now.
+var desainRequestHandOnly = map[string]string{
+	"datasets": "free-form Datasets (counts by status, a status filter) are written only as the list or status page behind a menu entry",
+}
+
+func TestDesainRequestTwinLacksOnlyWhatIsListed(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, filepath.Join("..", "..", "metadata"), root)
+	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
+	state, _ := stateOf(t, manifest)
+	desc := DescribeApplication("app_design_request", state.Applications["app_design_request"])
+	desc.ID = "app_design_request_twin"
+	desc.Name = "Twin"
+	desc.PublisherRole = desc.Roles[0]
+	for i := range desc.Machines {
+		desc.Machines[i].ID += "_twin"
+	}
+	var nav []GeneratedMenuItem
+	for _, n := range desc.Navigation {
+		if n.MachineID == "" {
+			continue // a hand-written page: menu item; the assistant cannot add one back
+		}
+		n.MachineID += "_twin"
+		n.ID = ""
+		nav = append(nav, n)
+	}
+	desc.Navigation = nav
+	for i := range desc.Machines {
+		for j := range desc.Machines[i].Fields {
+			if f := &desc.Machines[i].Fields[j]; f.RelatedMachine != "" && f.RelatedMachine != "mch_user" {
+				f.RelatedMachine += "_twin"
+			}
+		}
+	}
+	change := GeneratedChange{Kind: KindNewApplication, Application: &desc}
+	publish(t, manifest, change)
+
+	hand := readGeneric(t, filepath.Join(root, "workspaces", "menata-indonesia", "design_request.yaml")).(map[string]any)
+	twin := readGeneric(t, filepath.Join(root, "workspaces", "menata-indonesia", "design_request_twin.yaml")).(map[string]any)
+	// Compared at every depth, not only at the top: a step's roles or an event's recipient lost inside a kept block
+	// would show here as a path.
+	got := map[string]bool{}
+	for _, lost := range missingKeys("design_request", hand, twin) {
+		got[strings.TrimPrefix(lost, "design_request.")] = true
+	}
+	for k := range got {
+		if desainRequestHandOnly[k] == "" {
+			t.Errorf("the twin generated from the description lacks %q, which is not a known gap", k)
+		}
+	}
+	for k := range desainRequestHandOnly {
+		if !got[k] {
+			t.Errorf("%q is listed as a gap but the twin has it now -- remove the entry", k)
+		}
+	}
+}
