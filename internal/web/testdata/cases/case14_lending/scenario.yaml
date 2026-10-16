@@ -40,3 +40,25 @@ steps:
     tick: { days: 40, ref: apply }
     expect: ok
     count: { machine: mch_installment, where: { fld_status: terlambat }, equals: 1 }
+
+  # A second loan taken through the JSON routes end to end: the edge's sets and its schedule are written by that route too.
+  - id: json-apply
+    as: rani
+    api: true
+    create: { machine: mch_loan, values: { fld_purpose: Renovasi, fld_amount: "3000000", fld_months: "3" } }
+    expect: ok
+
+  - id: json-officer-approves
+    as: yoga
+    api: true
+    update: { ref: json-apply, values: { fld_status: disetujui } }
+    expect: ok
+    record: { fld_status: disetujui }
+
+  - id: json-officer-disburses
+    as: yoga
+    api: true
+    update: { ref: json-apply, values: { fld_status: dicairkan } }
+    expect: ok
+    record: { fld_status: dicairkan }
+    count: { machine: mch_installment, equals: 6 }

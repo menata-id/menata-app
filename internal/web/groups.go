@@ -47,13 +47,14 @@ func showGroupDetail(store *data.Store, cfg config.Config) http.HandlerFunc {
 		// request already lists this Workspace's Groups, and each listing re-reads their role grants
 		// -- so asking for one Group by id read the same grants a second time (the per-record route
 		// sweep measured `group grants x2` for the same Workspace, 2026-09-28). Same data, one read.
+		workspaceID, _ := data.WorkspaceScope(ctx)
 		ld := composition.NewLoader(store, machinesFor(ctx))
 		group, err := groupFromListing(ctx, ld, groupID)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		choices, err := groupMemberChoices(ctx, ld, store, groupID)
+		choices, err := groupMemberChoices(ctx, ld, store, workspaceID, groupID)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -87,7 +88,7 @@ func groupFromListing(ctx context.Context, ld *composition.Loader, groupID strin
 
 // groupMemberChoices lists every Workspace member with whether they are currently in this Group --
 // what the detail screen's checkbox list renders.
-func groupMemberChoices(ctx context.Context, ld *composition.Loader, store *data.Store, groupID string) ([]rendering.GroupMemberChoice, error) {
+func groupMemberChoices(ctx context.Context, ld *composition.Loader, store *data.Store, workspaceID, groupID string) ([]rendering.GroupMemberChoice, error) {
 	// Through the Loader, not store.ListMembers: that call reaches ListGroups itself (for each
 	// member's own Groups), so a screen that also lists Groups read them -- and their role grants --
 	// twice. Loader.Members already feeds ListMembersFrom its memoized Group list; this screen simply
@@ -96,7 +97,7 @@ func groupMemberChoices(ctx context.Context, ld *composition.Loader, store *data
 	if err != nil {
 		return nil, err
 	}
-	inGroup, err := store.GroupMemberIDs(ctx, groupID)
+	inGroup, err := store.GroupMemberIDs(ctx, workspaceID, groupID)
 	if err != nil {
 		return nil, err
 	}

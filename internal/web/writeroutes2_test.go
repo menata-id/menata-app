@@ -151,7 +151,7 @@ func TestSubmitGroupMembers_membershipLandsAndEffectiveRolesSeeIt(t *testing.T) 
 		t.Fatalf("set group members = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
 
-	ids, err := store.GroupMemberIDs(ctx, group.ID)
+	ids, err := store.GroupMemberIDs(ctx, workspaceID, group.ID)
 	if err != nil {
 		t.Fatalf("GroupMemberIDs: %v", err)
 	}

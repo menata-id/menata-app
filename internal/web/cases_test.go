@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -51,13 +52,16 @@ type caseActor struct {
 }
 
 type caseStep struct {
-	ID       string            `yaml:"id"`
-	As       string            `yaml:"as"`
-	Create   *caseCreate       `yaml:"create"`
-	Update   *caseUpdate       `yaml:"update"`
-	Tick     *caseTick         `yaml:"tick"`
-	Delete   *caseDelete       `yaml:"delete"`
-	Expect   string            `yaml:"expect"`
+	ID     string      `yaml:"id"`
+	As     string      `yaml:"as"`
+	Create *caseCreate `yaml:"create"`
+	Update *caseUpdate `yaml:"update"`
+	Tick   *caseTick   `yaml:"tick"`
+	Delete *caseDelete `yaml:"delete"`
+	Expect string      `yaml:"expect"`
+	// API sends the step through the JSON routes (/api/machines/...) instead of the form routes. Both end in the same
+	// guards, and a case that wants a refusal proved on both says so with a second, state-neutral step.
+	API      bool              `yaml:"api"`
 	Record   map[string]string `yaml:"record"`
 	Notified []caseNotified    `yaml:"notified"`
 	// Count checks how many records a Machine holds (optionally only those whose Fields hold given values) after
@@ -127,11 +131,11 @@ var caseRatchet = map[string]ratchetEntry{
 	"case01_design_request": {Rejected: 0, Passed: 13, Steps: 13, Red: nil},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
-	"case04_maintenance":    {Rejected: 0, Passed: 4, Steps: 4},
+	"case04_maintenance":    {Rejected: 0, Passed: 6, Steps: 6},
 	"case05_inventory":      {Rejected: 0, Passed: 6, Steps: 6},
-	"case06_petty_cash":     {Rejected: 0, Passed: 10, Steps: 10},
-	"case14_lending":        {Rejected: 0, Passed: 6, Steps: 6},
-	"case09_accounting":     {Rejected: 0, Passed: 12, Steps: 12},
+	"case06_petty_cash":     {Rejected: 0, Passed: 15, Steps: 15},
+	"case14_lending":        {Rejected: 0, Passed: 9, Steps: 9},
+	"case09_accounting":     {Rejected: 0, Passed: 14, Steps: 14},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -563,6 +567,43 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		return rec.Code
 	}
 
+	// sendJSON is the JSON route's twin of send: an update overlays the changed Fields on the stored record (a PUT carries
+	// the whole record), numbers go as numbers, and the answer is the status code alone.
+	sendJSON := func(method, path, actor string, stored map[string]any, changes map[string]string, machine string) int {
+		tok := csrfTokenFor(t, h, path)
+		values := map[string]any{}
+		for k, v := range stored {
+			values[k] = v
+		}
+		var m *domain.Machine
+		for _, cand := range installed.Machines {
+			if cand.ID == machine {
+				m = cand
+			}
+		}
+		for k, v := range changes {
+			v = subst(v)
+			values[k] = v
+			if f, ok := m.FieldByID(k); ok && f.Type == domain.FieldTypeNumber {
+				if n, err := strconv.ParseFloat(v, 64); err == nil {
+					values[k] = n
+				}
+			}
+		}
+		raw, err := json.Marshal(values)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(method, path, bytes.NewReader(raw))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookies[actor]})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
 	var lines []string
 	passed := 0
 	for _, s := range sc.Steps {
@@ -595,7 +636,11 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 					snapshot[k] = v
 				}
 			}
-			code = send(http.MethodDelete, "/machines/"+machine+"/records/"+id, s.As, nil, nil)
+			if s.API {
+				code = sendJSON(http.MethodDelete, "/api/machines/"+machine+"/records/"+id, s.As, nil, nil, machine)
+			} else {
+				code = send(http.MethodDelete, "/machines/"+machine+"/records/"+id, s.As, nil, nil)
+			}
 			if s.Expect == "refused" && !(code >= 400 && code < 500) && snapshot != nil {
 				// The runtime deleted what the case says it must keep: put it back so later steps stay meaningful.
 				if _, err := store.CreateRecord(wsCtx, machine, snapshot); err != nil {
@@ -605,7 +650,11 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		} else if s.Create != nil {
 			machine = s.Create.Machine
 			before := recordIDs(t, store, wsCtx, machine)
-			code = send(http.MethodPost, "/machines/"+machine+"/records", s.As, s.Create.Values, s.Create.Files)
+			if s.API {
+				code = sendJSON(http.MethodPost, "/api/machines/"+machine+"/records", s.As, nil, s.Create.Values, machine)
+			} else {
+				code = send(http.MethodPost, "/machines/"+machine+"/records", s.As, s.Create.Values, s.Create.Files)
+			}
 			for rid := range recordIDs(t, store, wsCtx, machine) {
 				if !before[rid] {
 					id = rid
@@ -623,7 +672,11 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 					snapshot[k] = v
 				}
 			}
-			code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, nil)
+			if s.API {
+				code = sendJSON(http.MethodPut, "/api/machines/"+machine+"/records/"+id, s.As, snapshot, s.Update.Values, machine)
+			} else {
+				code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, nil)
+			}
 		}
 		machineOf[s.ID], recordOf[s.ID] = machine, id
 		refused := code >= 400 && code < 500

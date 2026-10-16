@@ -155,12 +155,16 @@ func (s *Store) GetGroup(ctx context.Context, workspaceID, groupID string) (*Gro
 	return &filled[0], nil
 }
 
-// GroupMemberIDs returns the user record ids belonging to one Group.
-func (s *Store) GroupMemberIDs(ctx context.Context, groupID string) ([]string, error) {
+// GroupMemberIDs returns the user record ids belonging to one Group of workspaceID. The Workspace is in the statement, not
+// left to the caller: a Group id from another Workspace resolves to nobody.
+func (s *Store) GroupMemberIDs(ctx context.Context, workspaceID, groupID string) ([]string, error) {
 	readLogFrom(ctx).record("group member ids")
 	rows, err := s.pool.Query(ctx, `
-		SELECT user_record_id FROM workspace_group_members WHERE group_id = $1
-	`, groupID)
+		SELECT gm.user_record_id
+		FROM workspace_group_members gm
+		JOIN workspace_groups g ON g.id = gm.group_id
+		WHERE g.workspace_id = $1 AND gm.group_id = $2
+	`, workspaceID, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("list group members: %w", err)
 	}

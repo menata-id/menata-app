@@ -31,6 +31,12 @@ steps:
     update: { ref: entry, values: { fld_status: diposting } }
     expect: refused
 
+  - id: json-unbalanced-entry-is-not-posted
+    as: pak_surya
+    api: true
+    update: { ref: entry, values: { fld_status: diposting } }
+    expect: refused
+
   - id: fixing-the-credit
     as: amel
     update: { ref: credit-line, values: { fld_credit: "500000" } }
@@ -56,6 +62,12 @@ steps:
   - id: nor-a-line-added
     as: amel
     create: { machine: mch_ac_line, values: { fld_entry: $entry, fld_account: Kas, fld_debit: "5" } }
+    expect: refused
+
+  - id: json-posted-line-is-frozen
+    as: amel
+    api: true
+    update: { ref: debit-line, values: { fld_debit: "1" } }
     expect: refused
 
   - id: supervisor-closes-the-period

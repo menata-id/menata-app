@@ -33,6 +33,19 @@ steps:
     update: { ref: first-voucher, values: { fld_amount: "600000", fld_description: ATK kantor dan kertas } }
     expect: ok
 
+  # The same two bounds through the JSON routes (api: true), which share the guards with the form routes.
+  - id: json-voucher-beyond-the-fund
+    as: dina
+    api: true
+    create: { machine: mch_pc_voucher, values: { fld_description: Konsumsi rapat, fld_amount: "500000", fld_period: $open-period } }
+    expect: refused
+
+  - id: json-raising-a-voucher-beyond-the-fund
+    as: dina
+    api: true
+    update: { ref: first-voucher, values: { fld_amount: "1200000" } }
+    expect: refused
+
   - id: custodian-cannot-close-the-period
     as: dina
     update: { ref: open-period, values: { fld_status: ditutup } }
@@ -57,5 +70,23 @@ steps:
 
   - id: nor-added-to-a-closed-period
     as: dina
+    create: { machine: mch_pc_voucher, values: { fld_description: Parkir, fld_amount: "10000", fld_period: $open-period } }
+    expect: refused
+
+  - id: json-voucher-of-a-closed-period-is-frozen
+    as: dina
+    api: true
+    update: { ref: first-voucher, values: { fld_amount: "100000" } }
+    expect: refused
+
+  - id: json-nor-deleted
+    as: dina
+    api: true
+    delete: { ref: first-voucher }
+    expect: refused
+
+  - id: json-nor-added-to-a-closed-period
+    as: dina
+    api: true
     create: { machine: mch_pc_voucher, values: { fld_description: Parkir, fld_amount: "10000", fld_period: $open-period } }
     expect: refused

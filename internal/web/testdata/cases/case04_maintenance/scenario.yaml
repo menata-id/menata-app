@@ -28,3 +28,17 @@ steps:
     update: { ref: schedule, values: { fld_status: selesai, fld_last_done: "1999-01-01" } }
     expect: ok
     record: { fld_status: selesai, fld_last_done: "prefix:20", fld_following_due: "prefix:20" }
+
+  # The same completion through the JSON route: its sets and its computed date are applied there too.
+  - id: json-schedule
+    as: kana
+    api: true
+    create: { machine: mch_maintenance_task, values: { fld_equipment: Pompa air, fld_frequency_days: "30", fld_next_due: "2099-01-15" } }
+    expect: ok
+
+  - id: json-technician-completes
+    as: tomo
+    api: true
+    update: { ref: json-schedule, values: { fld_status: selesai, fld_last_done: "1999-01-01" } }
+    expect: ok
+    record: { fld_status: selesai, fld_last_done: "prefix:20", fld_following_due: "prefix:20" }
