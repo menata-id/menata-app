@@ -1223,6 +1223,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
 | `Disclosure` | experimental | No installed `page:` declares one yet: Groups and Members draw it in Go ("+ New group", "+ Invite member") |
 | `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
+| `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
 | `Popover` | experimental | No installed `page:` declares one yet: the record page's "..." menu and the board header's "New <machine>" form draw it in Go, and no declared screen has a menu |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
@@ -1625,6 +1626,26 @@ or a modal dialog.
     - static: message
       text: Nothing to do here yet.
 ```
+
+**`component: Table`** (2026-10-16) is a records table: a header row from the columns you declare and one row per record.
+
+```yaml
+- component: Table
+  label: All tickets          # the table's accessible name: required
+  empty: No tickets yet.      # said in place of a header over nothing
+  columns:
+    - { header: Ticket, from: title, href: record }   # the cell links to the record's own page
+    - { header: Status, from: status }                # a status role is drawn as a badge
+    - { header: Due, from: date, align: end }         # align: start (default) or end
+  binding: { dataset: ds_tickets, rows: records }
+```
+
+Each column's `from:` is a role the bound Dataset's Machine projects with `card_fields:` (`title`, `status`, `date`, `person`, ...);
+the loader refuses a role the Machine does not declare, the way it does for a Collection's item. `href: record` is the only address a
+cell may take and makes it a link to the record's own page. There are up to twelve columns. The cells are produced for you, so a Table holds no `children:`,
+and `headers` and `aligns` are never written. A Table is bound with `rows: records` only: a table of several Measures per Dimension
+(the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a window and claims nothing about completeness. **`stable`**: the
+Helpdesk's All tickets page declares one.
 
 **`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one
 marked. `label` names the group for assistive technology, `query` is the query parameter the choice travels in,

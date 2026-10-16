@@ -42,6 +42,7 @@ type pageNodeDoc struct {
 	each     string
 	step     *domain.PageStep
 	window   string
+	columns  []domain.PageColumn
 	children []pageNodeDoc
 }
 
@@ -127,6 +128,23 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: window: names one dataset id, such as ds_tasks_due_week -- the Dataset whose date window the text says", key.Line)
 			}
 			p.window = val.Value
+		case "columns":
+			// A Grid layout's `columns: 4` is a scalar property; a Table's `columns:` is a list. The shape says which.
+			if val.Kind != yaml.SequenceNode {
+				if val.Kind != yaml.ScalarNode {
+					return fmt.Errorf("line %d: columns: is a number on a grid or a list of columns on a Table", key.Line)
+				}
+				if _, dup := p.props[key.Value]; dup {
+					return fmt.Errorf("line %d: %s: declared more than once", key.Line, key.Value)
+				}
+				p.props[key.Value] = val.Value
+				break
+			}
+			cols, err := decodePageColumns(val)
+			if err != nil {
+				return err
+			}
+			p.columns = cols
 		case "when":
 			w, err := decodePageWhen(val)
 			if err != nil {
@@ -153,6 +171,41 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 		return fmt.Errorf("line %d: a page node needs exactly one of %v", n.Line, pageDiscriminators)
 	}
 	return nil
+}
+
+// decodePageColumns reads a Table's `columns:`: a list of `{header, from, align, href}`, every value a scalar. Whether
+// the role exists and the Table is bound is `ir.Lower`'s and `bindingIssues`' question, which have the tree and the Machine.
+func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
+	if n.Kind != yaml.SequenceNode || len(n.Content) == 0 {
+		return nil, fmt.Errorf("line %d: columns: is a list of {header, from} entries, such as [{header: Title, from: title}]", n.Line)
+	}
+	var out []domain.PageColumn
+	for _, item := range n.Content {
+		if item.Kind != yaml.MappingNode {
+			return nil, fmt.Errorf("line %d: a column is a mapping of header and from, and optionally align and href", item.Line)
+		}
+		var c domain.PageColumn
+		for i := 0; i+1 < len(item.Content); i += 2 {
+			key, val := item.Content[i], item.Content[i+1]
+			if val.Kind != yaml.ScalarNode {
+				return nil, fmt.Errorf("line %d: columns.%s: a single value, not a list or mapping", key.Line, key.Value)
+			}
+			switch key.Value {
+			case "header":
+				c.Header = val.Value
+			case "from":
+				c.From = val.Value
+			case "align":
+				c.Align = val.Value
+			case "href":
+				c.Href = val.Value
+			default:
+				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, align, href)", key.Line, key.Value)
+			}
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
 
 // decodePageFrom reads `from: {text: title}`: a property of this node, and the Projection role it takes from
@@ -299,7 +352,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -627,7 +680,13 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if (readsDerivedRole(n.Children, domain.PageDateLabelRole) || readsDerivedRole(n.Children, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s/%s -- machine %q declares no card_fields role %q to derive them from", where, domain.PageDateLabelRole, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
 	}
-	for _, role := range sortedKeys(fromRoles(n.Children)) {
+	roles := fromRoles(n.Children)
+	for _, c := range n.Columns {
+		if c.From != "" && c.From != domain.PageRecordRole {
+			roles[c.From] = true
+		}
+	}
+	for _, role := range sortedKeys(roles) {
 		fieldID := source.CardFieldFor(domain.CardFieldRole(role))
 		f, ok := source.FieldByID(fieldID)
 		switch {

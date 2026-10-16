@@ -1921,3 +1921,39 @@ func TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee(t *testing.T) {
 		t.Errorf("the assignee is named on %d cards, want both of ours", n)
 	}
 }
+
+// TestDeclaredPageDrawsAnInstalledTable: the Helpdesk's All tickets page declares a Table over a records Dataset. Three
+// tickets created out of due order come back as table rows soonest due first, the title is a link to the record's own
+// page, the status is a badge, and the header names each column.
+func TestDeclaredPageDrawsAnInstalledTable(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredtable", "default")
+	var ticket *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_helpdesk_ticket" {
+			ticket = m
+		}
+	}
+	if ticket == nil {
+		t.Fatal("default installs no Helpdesk ticket Machine")
+	}
+	for title, due := range map[string]string{"Table-probe-late": "2031-03-01", "Table-probe-soon": "2031-01-01", "Table-probe-mid <b>x</b>": "2031-02-01"} {
+		rec, err := store.CreateRecord(ctx, ticket.ID, map[string]any{"fld_title": title, "fld_category": "software", "fld_priority": "normal", "fld_status": "new", "fld_due": due})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, ticket.ID, rec.ID) })
+	}
+	body := getPage(t, h, cookie, "/pages/nav_helpdesk_table")
+	for _, want := range []string{`aria-label="All tickets"`, ">Ticket</th>", ">Status</th>", ">Due</th>", ">Agent</th>", `href="/machines/mch_helpdesk_ticket/records/rec_`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page does not contain %s", want)
+		}
+	}
+	soon, mid, late := strings.Index(body, "Table-probe-soon"), strings.Index(body, "Table-probe-mid"), strings.Index(body, "Table-probe-late")
+	if soon < 0 || mid < 0 || late < 0 || !(soon < mid && mid < late) {
+		t.Errorf("rows are not soonest due first: soon=%d mid=%d late=%d", soon, mid, late)
+	}
+	if strings.Contains(body, "<b>x</b>") {
+		t.Error("a ticket title reached the page unescaped")
+	}
+}

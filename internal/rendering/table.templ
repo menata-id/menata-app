@@ -1,6 +1,10 @@
 package rendering
 
-import "menata.app/internal/domain"
+import (
+	"strings"
+
+	"menata.app/internal/domain"
+)
 
 // TableColumn is one column of a Table: the words in its header and which edge its text sits on. A cell does not
 // repeat either -- the cell is drawn by the caller, which asks `tableCellClasses`/`tableAlignClass` for its look.
@@ -54,4 +58,47 @@ func recordTableColumns(fields []domain.Field) []TableColumn {
 		cols = append(cols, TableColumn{Header: f.Name})
 	}
 	return append(cols, TableColumn{})
+}
+
+// table is the registered renderer for `domain.ComponentTable` (007 §12.3 `Table`): `dataTable` with its rows drawn from
+// cells that arrive composed, one row's worth at a time. headers is one header per line and aligns one alignment per
+// header, both produced by lowering from the page's `columns:`; the cells are row-major, so cell i belongs to column
+// i mod the number of headers and to row i div that number. A table with no cells and an `empty` text says that instead
+// of drawing a header over nothing.
+templ table(label, empty, headers, aligns string, cells []templ.Component) {
+	{{ cols := tableColumnsFromProps(headers, aligns) }}
+	if len(cells) == 0 && empty != "" {
+		@staticText(domain.StaticMessage, empty)
+	} else {
+		@dataTable(label, cols) {
+			for i := 0; i+len(cols) <= len(cells) && len(cols) > 0; i += len(cols) {
+				<tr>
+					for j, c := range cols {
+						<td class={ tableCellClasses(ctx), tableAlignClass(c.Align) }>
+							@cells[i+j]
+						</td>
+					}
+				</tr>
+			}
+		}
+	}
+}
+
+// tableColumnsFromProps reads the two lowered properties back into columns. A missing or short alignment list is the
+// start edge, never a panic: ir.Validate and the contract's validator refuse a tree whose counts disagree, and this is
+// the second line of defence for one that reached the renderer anyway.
+func tableColumnsFromProps(headers, aligns string) []TableColumn {
+	if headers == "" {
+		return nil
+	}
+	hs := strings.Split(headers, "\n")
+	as := strings.Split(aligns, ",")
+	out := make([]TableColumn, len(hs))
+	for i, h := range hs {
+		out[i].Header = h
+		if i < len(as) && domain.TableAlign(as[i]) == domain.TableAlignEnd {
+			out[i].Align = domain.TableAlignEnd
+		}
+	}
+	return out
 }

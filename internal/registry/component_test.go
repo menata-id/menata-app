@@ -674,3 +674,32 @@ func TestValidatePopover(t *testing.T) {
 		t.Errorf("Popover declares slots %v and actions %v, want [body] and [toggle]", c.Slots, c.Actions)
 	}
 }
+
+func TestValidateTable(t *testing.T) {
+	good := map[string]string{"label": "Tickets", "headers": "Ticket\nDue", "aligns": "start,end"}
+	if issues := ValidateComponentUse(domain.ComponentTable, good); len(issues) != 0 {
+		t.Fatalf("a sound Table was refused: %v", issues)
+	}
+	for name, tc := range map[string]struct {
+		edit func(m map[string]string)
+		want string
+	}{
+		"no label":             {func(m map[string]string) { delete(m, "label") }, "label"},
+		"a blank label":        {func(m map[string]string) { m["label"] = " " }, "label is blank"},
+		"no headers":           {func(m map[string]string) { delete(m, "headers") }, "headers"},
+		"a blank header":       {func(m map[string]string) { m["headers"] = "A\n \nB"; m["aligns"] = "start,start,start" }, "blank header"},
+		"fewer aligns":         {func(m map[string]string) { m["aligns"] = "start" }, "2 headers and 1 alignments"},
+		"an unknown alignment": {func(m map[string]string) { m["aligns"] = "start,centre" }, "start or end"},
+		"an undeclared input":  {func(m map[string]string) { m["class"] = "x" }, "class"},
+	} {
+		m := map[string]string{}
+		for k, v := range good {
+			m[k] = v
+		}
+		tc.edit(m)
+		issues := ValidateComponentUse(domain.ComponentTable, m)
+		if len(issues) == 0 || !strings.Contains(strings.Join(issues, "; "), tc.want) {
+			t.Errorf("%s: %v, want an issue containing %q", name, issues, tc.want)
+		}
+	}
+}

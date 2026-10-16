@@ -363,6 +363,12 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Step != nil && !(NodeKind(n.Kind) == NodeStatic && n.Type == string(domain.StaticLink) && n.To != "") {
 		return nil, fmt.Errorf("%s: step: moves a link's address, so it is valid only on a static: link with to:", path)
 	}
+	if len(n.Columns) > 0 && !(NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentTable)) {
+		return nil, fmt.Errorf("%s: columns: declares a Table's columns, so it is valid only on a Table", path)
+	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentTable) && (n.Binding == nil || n.Binding.Write != "") {
+		return nil, fmt.Errorf("%s: a Table lists records, so it is bound with rows: %s", path, domain.PageRowsRecords)
+	}
 	if n.Window != "" && NodeKind(n.Kind) != NodeStatic {
 		return nil, fmt.Errorf("%s: window: produces text, so it is valid only on a static node", path)
 	}
@@ -765,6 +771,8 @@ func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		return nil, fmt.Errorf("%s: a binding names a dataset", path)
 	}
 	switch {
+	case n.Type == string(domain.ComponentTable):
+		return lowerTable(n, r, path)
 	case b.Rows == domain.PageRowsRecords:
 		return lowerRecords(n, r, path)
 	case b.Rows == domain.PageRowsTotal:

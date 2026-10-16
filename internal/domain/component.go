@@ -165,6 +165,16 @@ const (
 	// (`sheetPanel`, the native Popover API with a bottom-sheet form on a phone) and stay outside. The board card's
 	// quick-edit and a lane's "Add a card" expand in place; they are not popovers.
 	ComponentPopover ComponentType = "Popover"
+
+	// ComponentTable is a records table: a header row from the columns a page declares and one row per record, each cell
+	// one of the record's Projection roles. It is `dataTable`, the one `<table>` this tree draws (007 §12.3 `Table`; 006
+	// "List View = Collection + Projection + Table renderer", K12), made nameable by a `page:`: the frame, the header cells
+	// and the scroll box are the table's, and the cells arrive composed, the way a Collection's items do.
+	//
+	// **Records only.** A dimension-bound table (several Measures per Dimension row, the Dashboard's shape) is the next
+	// case and is refused by name rather than half built; its first consumer is the bespoke Dashboard, which this does not
+	// migrate.
+	ComponentTable ComponentType = "Table"
 )
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not

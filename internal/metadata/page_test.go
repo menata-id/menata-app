@@ -1102,3 +1102,78 @@ func TestPage_aPopoverLoadsWithABodyAndABadOneIsRefused(t *testing.T) {
 		}
 	}
 }
+
+const validTablePage = `
+  - id: nav_table
+    label: Table
+    route: /pages/nav_table
+    page:
+      layout: stack
+      children:
+        - component: Table
+          label: Docs
+          empty: Nothing yet.
+          columns:
+            - { header: Title, from: title, href: record }
+            - { header: Status, from: status }
+            - { header: Colour, from: color, align: end }
+          binding: { dataset: ds_rows, rows: records }
+`
+
+func TestPage_aTableLoadsAndItsColumnsReachTheTree(t *testing.T) {
+	if err := pageFixture(t, validTablePage); err != nil {
+		t.Fatalf("a valid Table page was refused: %v", err)
+	}
+	var doc pageNodeDoc
+	if err := yaml.Unmarshal([]byte("component: Table\nlabel: T\ncolumns:\n  - { header: A, from: title, align: end, href: record }\nbinding: { dataset: ds_rows, rows: records }\n"), &doc); err != nil {
+		t.Fatal(err)
+	}
+	got := doc.toDomain().Columns
+	if len(got) != 1 || got[0] != (domain.PageColumn{Header: "A", From: "title", Align: "end", Href: "record"}) {
+		t.Errorf("columns = %+v", got)
+	}
+}
+
+// A grid's `columns: 4` is a scalar and a Table's `columns:` is a list: the same key, told apart by shape.
+func TestPage_columnsIsANumberOnAGridAndAListOnATable(t *testing.T) {
+	var grid pageNodeDoc
+	if err := yaml.Unmarshal([]byte("layout: grid\ncolumns: 4\nchildren:\n  - static: paragraph\n    text: x\n"), &grid); err != nil {
+		t.Fatal(err)
+	}
+	if g := grid.toDomain(); g.Props["columns"] != "4" || len(g.Columns) != 0 {
+		t.Errorf("a grid's columns = props %v, columns %v", g.Props, g.Columns)
+	}
+	for name, src := range map[string]string{
+		"a mapping":       "component: Table\ncolumns: { header: A }\n",
+		"an empty list":   "component: Table\ncolumns: []\n",
+		"a scalar column": "component: Table\ncolumns:\n  - A\n",
+		"an unknown key":  "component: Table\ncolumns:\n  - { header: A, from: title, width: 3 }\n",
+		"a nested value":  "component: Table\ncolumns:\n  - { header: A, from: [title] }\n",
+	} {
+		var doc pageNodeDoc
+		if err := yaml.Unmarshal([]byte(src), &doc); err == nil {
+			t.Errorf("%s: the declaration was accepted", name)
+		}
+	}
+}
+
+func TestPage_eachTableMisuseIsALoadError(t *testing.T) {
+	for name, tc := range map[string]struct{ from, to, want string }{
+		"a role the machine does not project": {"from: title, href: record }\n            - { header: Start, from: owner2", "from: title, href: record }\n            - { header: Start, from: date", "no card_fields role"},
+		"a dataset that is an aggregate":      {"dataset: ds_rows", "dataset: ds_flat", "aggregate"},
+		"a column with no header":             {"{ header: Status, from: status }", "{ header: \"\", from: status }", "header"},
+		"a dimension binding":                 {"rows: records }", "rows: dimension }", "takes a binding"},
+	} {
+		nav := strings.Replace(validTablePage, tc.from, tc.to, 1)
+		if name == "a role the machine does not project" {
+			nav = strings.Replace(validTablePage, "{ header: Title, from: title, href: record }", "{ header: Title, from: title, href: record }\n            - { header: Start, from: date }", 1)
+		}
+		err := pageFixture(t, nav)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+	if err := pageFixture(t, strings.Replace(validTablePage, "          binding: { dataset: ds_rows, rows: records }\n", "", 1)); err == nil {
+		t.Error("a Table with no binding was accepted")
+	}
+}

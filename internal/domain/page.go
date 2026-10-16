@@ -72,8 +72,22 @@ type PageNode struct {
 	// 18 Oct 2026"): the very bounds a `group: date` Collection over it draws its days from, so the label above a
 	// list and the days in it cannot disagree. The node's text is produced, never written. Valid only on a
 	// `static` node.
-	Window   string
+	Window string
+	// Columns are a Table's columns, in order (`columns: [{header: Title, from: title, href: record}]`): each names the
+	// Projection role its cell shows. Valid only on a `Table` bound with rows: records; `ir.Lower` builds the cells, so a
+	// Table holds no children of its own.
+	Columns  []PageColumn
 	Children []PageNode
+}
+
+// PageColumn is one column of a declared Table. Header is the words in the column's header cell, From the Projection
+// role (`card_fields`, 007 §7.6) each row's cell takes, Align the edge its text sits on (empty is the start), and Href,
+// when it is PageRecordRole, makes the cell a link to the record's own page.
+type PageColumn struct {
+	Header string
+	From   string
+	Align  string
+	Href   string
 }
 
 // PageStep is a link's request-relative parameter: Parameter is the one the runtime names (PageParameterWeek) and
@@ -284,4 +298,5 @@ func PageDerivedRole(role string) bool {
 var BindableComponents = map[ComponentType][]string{
 	ComponentMetric:     {PageRowsDimension, PageRowsTotal},
 	ComponentCollection: {PageRowsRecords, PageRowsDimension},
+	ComponentTable:      {PageRowsRecords},
 }

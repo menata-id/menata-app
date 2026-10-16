@@ -40,3 +40,25 @@ navigation:
                 - static: caption
                   from:
                     text: person
+  - id: nav_helpdesk_table
+    label: All tickets
+    title: All tickets
+    description: Every ticket, soonest due first.
+    route: /pages/nav_helpdesk_table
+    priority: 2
+    home_card: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: All tickets
+          empty: No tickets yet.
+          columns:
+            - { header: Ticket, from: title, href: record }
+            - { header: Status, from: status }
+            - { header: Due, from: date, align: end }
+            - { header: Agent, from: person }
+          binding:
+            dataset: ds_helpdesk_tickets_table
+            rows: records

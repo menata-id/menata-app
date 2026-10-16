@@ -185,3 +185,10 @@ datasets:
       - field: fld_due
         direction: asc
     limit: 50
+  # Every ticket, soonest due first: the records behind the All tickets table. A window of 100, not a claim to be complete.
+  - id: ds_helpdesk_tickets_table
+    select: records
+    sort:
+      - field: fld_due
+        direction: asc
+    limit: 100

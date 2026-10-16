@@ -60,6 +60,62 @@ var Components = map[domain.ComponentType]Component{
 
 	domain.ComponentSegmentedControl: {Contract: segmentedControlContract, Validate: validateSegmentedControl},
 	domain.ComponentPopover:          {Contract: popoverContract, Validate: validatePopover},
+	domain.ComponentTable:            {Contract: tableContract, Validate: validateTable},
+}
+
+// tableContract is a records table, the nameable form of `dataTable`.
+//
+// **Three inputs the author never writes the last two of.** `label` is the table's accessible name (required: a screen
+// reader reaching "table, 3 columns" must be told which), `empty` is what a table with no records says in place of a
+// header over nothing. `headers` and `aligns` are produced by lowering from the page's `columns:` -- one header per line,
+// one alignment per header -- and are inputs because the renderer takes them and a boundedness gate reads its signature;
+// `ir.Lower` refuses a page that writes them. The cells are the `cell` slot, row by row, already composed: the Table
+// selects, sorts and formats nothing.
+var tableContract = domain.ComponentContract{
+	Type:   domain.ComponentTable,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "empty", Kind: "string"},
+		{Name: "headers", Kind: "string", Required: true},
+		{Name: "aligns", Kind: "string"},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"cell"},
+	Actions:          nil,
+	Accessibility:    "a real <table> with a caption-equivalent aria-label from `label`, a header row of <th scope=\"col\"> cells, and one <tr> per record so a screen reader announces the row and column of every cell; with no records and an `empty` text it draws that text in place of a header over nothing; the scroll box is the table's own, so a table wider than a phone scrolls itself rather than the page",
+	Renderer:         "table",
+}
+
+// validateTable checks a use against the declared inputs, a non-blank label, and that the headers and alignments agree
+// (one alignment per header, each from the closed set).
+func validateTable(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(tableContract, inputs, "Table")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Table label is blank -- a table with no name is announced as only \"table\"")
+	}
+	headers := strings.Split(inputs["headers"], "\n")
+	if inputs["headers"] == "" {
+		return issues
+	}
+	for _, h := range headers {
+		if strings.TrimSpace(h) == "" {
+			issues = append(issues, "Table has a blank header")
+			break
+		}
+	}
+	if a := inputs["aligns"]; a != "" {
+		parts := strings.Split(a, ",")
+		if len(parts) != len(headers) {
+			issues = append(issues, fmt.Sprintf("Table has %d headers and %d alignments", len(headers), len(parts)))
+		}
+		for _, p := range parts {
+			if !domain.KnownTableAligns[domain.TableAlign(p)] {
+				issues = append(issues, fmt.Sprintf("Table alignment %q is not start or end", p))
+			}
+		}
+	}
+	return issues
 }
 
 // popoverContract is a floating panel under a trigger.
