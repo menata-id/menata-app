@@ -223,3 +223,90 @@ func TestConditionalAndDerivedFieldsAreHeldToTheLoadersRulesAndCannotBeChanged(t
 		}
 	}
 }
+
+func withEnsure(a *GeneratedApplication, atLeast float64) {
+	m := &a.Machines[1]
+	m.Fields = append(m.Fields, GeneratedField{ID: "fld_jumlah", Name: "Jumlah", Type: "number"}, GeneratedField{ID: "fld_barang", Name: "Barang", Type: "text"})
+	m.Ensure = []GeneratedEnsure{{ID: "ens_tidak_negatif", SumOf: "fld_jumlah", Per: "fld_barang", AtLeast: &atLeast, Reason: "Stok tidak boleh negatif."}}
+}
+
+func TestEnsureIsWrittenLoadedDescribedBackAndNotChangeable(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	loaded := publish(t, manifestPath, update(t, manifestPath, func(a *GeneratedApplication) { withEnsure(a, 0) }))
+	var b domain.AggregateBound
+	for _, m := range loaded.Machines {
+		if m.ID == "mch_pencatatan_sampah" && len(m.Bounds) == 1 {
+			b = m.Bounds[0]
+		}
+	}
+	if b.ID != "ens_tidak_negatif" || b.AtLeast == nil || *b.AtLeast != 0 || b.AtMost != nil || b.Reason != "Stok tidak boleh negatif." {
+		t.Fatalf("the loaded bound = %+v (zero must survive as a real bound)", b)
+	}
+	state, _ := stateOf(t, manifestPath)
+	back := DescribeApplication("app_pengelolaan_sampah", state.Applications["app_pengelolaan_sampah"])
+	if e := back.Machines[1].Ensure; len(e) != 1 || e[0].AtLeast == nil || *e[0].AtLeast != 0 || e[0].SumOf != "fld_jumlah" {
+		t.Fatalf("described back: %+v", e)
+	}
+	same := update(t, manifestPath, func(a *GeneratedApplication) {})
+	if plan := PlanUpdate(DescribeApplication(same.TargetAppID, state.Applications[same.TargetAppID]), *same.Application); len(plan.Refusals) != 0 || len(plan.Items) != 0 {
+		t.Errorf("an unchanged application planned something: %+v", plan)
+	}
+	for name, edit := range map[string]func(*GeneratedEnsure){
+		"the bound moved":  func(e *GeneratedEnsure) { v := 5.0; e.AtLeast = &v },
+		"a bound added":    func(e *GeneratedEnsure) { v := 9.0; e.AtMost = &v },
+		"the group moved":  func(e *GeneratedEnsure) { e.Per = "fld_jumlah" },
+		"the reason moved": func(e *GeneratedEnsure) { e.Reason = "lain" },
+	} {
+		change := update(t, manifestPath, func(a *GeneratedApplication) { edit(&a.Machines[1].Ensure[0]) })
+		plan := PlanUpdate(DescribeApplication(change.TargetAppID, state.Applications[change.TargetAppID]), *change.Application)
+		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "ens_tidak_negatif") {
+			t.Errorf("%s: refusals = %v", name, plan.Refusals)
+		}
+	}
+	dropped := update(t, manifestPath, func(a *GeneratedApplication) { a.Machines[1].Ensure = nil })
+	if plan := PlanUpdate(DescribeApplication(dropped.TargetAppID, state.Applications[dropped.TargetAppID]), *dropped.Application); len(plan.Refusals) != 1 {
+		t.Errorf("dropping a limit: refusals = %v", plan.Refusals)
+	}
+}
+
+func TestEnsureIsHeldToTheLoadersRules(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	state, _ := stateOf(t, manifestPath)
+	for name, edit := range map[string]func(*GeneratedEnsure){
+		"no bound":      func(e *GeneratedEnsure) { e.AtLeast = nil },
+		"a text sum":    func(e *GeneratedEnsure) { e.SumOf = "fld_barang" },
+		"a bad id":      func(e *GeneratedEnsure) { e.ID = "batas" },
+		"a missing per": func(e *GeneratedEnsure) { e.Per = "fld_nope" },
+	} {
+		change := update(t, manifestPath, func(a *GeneratedApplication) {
+			withEnsure(a, 0)
+			edit(&a.Machines[1].Ensure[0])
+		})
+		if err := Validate(change, state); err == nil {
+			t.Errorf("%s: Validate accepted it", name)
+		}
+	}
+}
+
+// A NEW Machine takes the other write path (a whole file), so the bound, with its zero, is held there too.
+func TestNewApplicationWritesItsLimits(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	zero := 0.0
+	change := GeneratedChange{Kind: KindNewApplication, Application: &GeneratedApplication{
+		ID: "app_gudang", Name: "Gudang", Roles: []string{"petugas"}, PublisherRole: "petugas",
+		Navigation: []GeneratedMenuItem{{Label: "Mutasi", MachineID: "mch_mutasi"}},
+		Machines: []GeneratedMachine{{ID: "mch_mutasi", Name: "Mutasi",
+			Fields: []GeneratedField{{ID: "fld_barang", Name: "Barang", Type: "text", Required: true}, {ID: "fld_delta", Name: "Jumlah", Type: "number", Required: true}},
+			Ensure: []GeneratedEnsure{{ID: "ens_stok", SumOf: "fld_delta", Per: "fld_barang", AtLeast: &zero, Reason: "Stok negatif."}}}},
+	}}
+	loaded := publish(t, manifestPath, change)
+	for _, m := range loaded.Machines {
+		if m.ID == "mch_mutasi" {
+			if len(m.Bounds) != 1 || m.Bounds[0].AtLeast == nil || *m.Bounds[0].AtLeast != 0 || m.Bounds[0].Reason != "Stok negatif." {
+				t.Fatalf("the written bound = %+v", m.Bounds)
+			}
+			return
+		}
+	}
+	t.Fatal("the new Machine was not loaded")
+}

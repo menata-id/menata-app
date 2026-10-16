@@ -158,6 +158,21 @@ type Field struct {
 	DefaultFrom *FieldDefaultFrom
 }
 
+// AggregateBound is a limit on a total over this Machine's own records ("stock may not go below zero", "the vouchers of
+// a period may not exceed the fund"): the sum of SumOf across every record sharing one value of Per, kept at or above
+// AtLeast and/or at or below AtMost. Checked by every generic write of a record of this Machine, with the record as it
+// would be after the write standing in for its stored self. A Constraint relates two Machines; this is the one-Machine
+// total it cannot say.
+type AggregateBound struct {
+	ID string
+	// SumOf is a number Field whose values are added; Per is the Field whose value groups the records (an item, a period).
+	SumOf, Per string
+	// AtLeast and AtMost are the bounds; at least one is set. A pointer, because zero is a real bound ("not below 0").
+	AtLeast, AtMost *float64
+	// Reason is what a refused write is told; empty reads as a default naming the bound.
+	Reason string
+}
+
 // FieldCondition is "Field holds Equals", the one comparison a conditionally required Field needs.
 type FieldCondition struct {
 	Field  string
@@ -537,7 +552,9 @@ type Machine struct {
 	WorkflowRole   string
 	Fields         []Field
 	Constraints    []Constraint
-	Events         []Event
+	// Bounds are aggregate constraints over this Machine's own records (`ensure:`): see AggregateBound.
+	Bounds []AggregateBound
+	Events []Event
 	// MemberRemovalBlocks declare when a record naming a person blocks deactivating them out of
 	// the Workspace (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- see MemberRemovalBlock's
 	// own doc comment for why this is not a second Constraint shape.

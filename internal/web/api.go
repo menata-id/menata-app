@@ -55,7 +55,7 @@ func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 		if !allowsRecordCreate(w, req, store, machine, values, actor) {
 			return
 		}
-		if !validRecord(w, req, store, machine, values) {
+		if !validRecord(w, req, store, machine, values) || !withinBounds(w, req, store, machine, "", values) {
 			return
 		}
 

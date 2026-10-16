@@ -1,0 +1,49 @@
+id: mch_wh_movement
+name: Stock movement
+fields:
+  - id: fld_item
+    name: Item
+    type: text
+    required: true
+  - id: fld_delta
+    name: Quantity (+ in, - out)
+    type: number
+    required: true
+  - id: fld_note
+    name: Note
+    type: text
+  - id: fld_recorded_by
+    name: Recorded by
+    type: person
+    stamp: current_user
+card_fields:
+  - field: fld_item
+    role: title
+  - field: fld_recorded_by
+    role: person
+views:
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_movement_create
+    action: create
+    roles:
+      - storekeeper
+  - id: prm_movement_edit
+    action: edit
+    roles:
+      - storekeeper
+      - supervisor
+ensure:
+  - id: ens_no_negative_stock
+    sum_of: fld_delta
+    per: fld_item
+    at_least: 0
+    reason: Stock cannot go below zero.
+events:
+  - id: evt_movement_recorded
+    on_create: true
+    then:
+      service: log_activity
+      summary: 'Stock movement for "{fld_item}": {fld_delta}'

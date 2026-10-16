@@ -22,6 +22,17 @@ steps:
     create: { machine: mch_pc_voucher, values: { fld_description: Konsumsi rapat, fld_amount: "500000", fld_period: $open-period } }
     expect: refused
 
+  # An edit is judged as the total it would leave: raising the one voucher to 1.200.000 breaks the fund, lowering it does not.
+  - id: raising-a-voucher-beyond-the-fund
+    as: dina
+    update: { ref: first-voucher, values: { fld_amount: "1200000" } }
+    expect: refused
+
+  - id: lowering-a-voucher-is-fine
+    as: dina
+    update: { ref: first-voucher, values: { fld_amount: "600000", fld_description: ATK kantor dan kertas } }
+    expect: ok
+
   - id: custodian-cannot-close-the-period
     as: dina
     update: { ref: open-period, values: { fld_status: ditutup } }

@@ -55,3 +55,78 @@ func CheckConstraints(m *domain.Machine, recordID string, values map[string]any,
 	}
 	return nil
 }
+
+// BoundError names every aggregate bound a write would break.
+type BoundError struct {
+	Issues []string
+}
+
+func (e *BoundError) Error() string {
+	return fmt.Sprintf("limit exceeded:\n  - %s", strings.Join(e.Issues, "\n  - "))
+}
+
+// CheckBounds evaluates every aggregate bound on m for a write of values as record recordID ("" for a create), against
+// siblings: every stored record of m (the caller fetches them, this performs no I/O). The record being written replaces
+// its stored self, so an edit is judged as the total it would leave. Only the group the written record belongs to is
+// totalled, so a write is never refused for another group's overrun. A record that names no group value, or no number,
+// is outside every bound: required-ness is ValidateRecord's question, not this one's.
+func CheckBounds(m *domain.Machine, recordID string, values map[string]any, siblings []*data.Record) error {
+	var issues []string
+	for _, b := range m.Bounds {
+		group, ok := boundGroup(values[b.Per])
+		if !ok {
+			continue
+		}
+		own, _ := numberOf(values[b.SumOf])
+		total := own
+		for _, r := range siblings {
+			if r.ID == recordID {
+				continue
+			}
+			if g, ok := boundGroup(r.Values[b.Per]); !ok || g != group {
+				continue
+			}
+			n, _ := numberOf(r.Values[b.SumOf])
+			total += n
+		}
+		reason := b.Reason
+		switch {
+		case b.AtLeast != nil && total < *b.AtLeast:
+			if reason == "" {
+				reason = fmt.Sprintf("the total of %s may not go below %v", b.SumOf, *b.AtLeast)
+			}
+			issues = append(issues, fmt.Sprintf("%s: %s (it would be %v for %s)", b.ID, reason, total, group))
+		case b.AtMost != nil && total > *b.AtMost:
+			if reason == "" {
+				reason = fmt.Sprintf("the total of %s may not exceed %v", b.SumOf, *b.AtMost)
+			}
+			issues = append(issues, fmt.Sprintf("%s: %s (it would be %v for %s)", b.ID, reason, total, group))
+		}
+	}
+	if len(issues) > 0 {
+		return &BoundError{Issues: issues}
+	}
+	return nil
+}
+
+func boundGroup(v any) (string, bool) {
+	s := fmt.Sprint(v)
+	if v == nil || s == "" || s == "<nil>" {
+		return "", false
+	}
+	return s, true
+}
+
+func numberOf(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	}
+	return 0, false
+}

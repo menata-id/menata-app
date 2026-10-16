@@ -89,6 +89,10 @@ func composableSurface() string {
   the ordinary edit form (never a dedicated approve/reject button). A step may be limited to holders of
   some roles ("roles") and/or to the person a person field of the record names ("actor_field": "only the
   requester reopens"); without either, anyone allowed to edit the record may take it.
+- A limit on a total over a machine's own records ("ensure": {id starting ens_, sum_of: a number field, per: the
+  field that groups records, at_least and/or at_most, reason}): stock may not go below zero per item
+  (at_least 0), the vouchers of a period may not exceed the fund (at_most). It is checked on every create and
+  edit of that machine, so a write that would break it is refused with the reason.
 - Events, when a record is created or when a field reaches one value: an activity-feed entry
   ("service": "log_activity", the default), or a notification ("service": "send_notification") to the
   person named in one of the record's own PERSON fields ("recipient_field"; the in-app notice is always

@@ -19,6 +19,7 @@ import (
 var (
 	machineIDPattern     = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
 	constraintIDPattern  = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
+	boundIDPattern       = regexp.MustCompile(`^ens_[a-z][a-z0-9_]*$`)
 	eventIDPattern       = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
 	permissionIDPattern  = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
 	navItemIDPattern     = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
@@ -149,6 +150,11 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
+	}
+
+	seenBound := map[string]bool{}
+	for _, b := range m.Bounds {
+		issues = append(issues, validateBound(m, b, fieldsByID, seenBound)...)
 	}
 
 	for _, c := range m.Constraints {
@@ -1491,6 +1497,43 @@ func sortableColumnList() string {
 	return strings.Join(names, ", ")
 }
 
+// validateBound holds an aggregate bound to what its check assumes: an id, a number Field to add up (a computed one is
+// fine, it is evaluated before the check), a Field of this Machine to group by (not the summed one), and at least one
+// bound in the right order. A bound that can never be violated reads as a rule and protects nothing, so an empty
+// range is refused.
+func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+	if !boundIDPattern.MatchString(b.ID) {
+		issues = append(issues, fmt.Sprintf("machine %q: ensure id %q must match %s", m.ID, b.ID, boundIDPattern.String()))
+	}
+	if seen[b.ID] {
+		issues = append(issues, fmt.Sprintf("machine %q: ensure id %q is declared more than once", m.ID, b.ID))
+	}
+	seen[b.ID] = true
+	sum, ok := fieldsByID[b.SumOf]
+	switch {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: sum_of %q is not a field of this machine", m.ID, b.ID, b.SumOf))
+	case sum.Type != domain.FieldTypeNumber && sum.Type != domain.FieldTypeMoney:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: sum_of %q must be a number or money field, got %q", m.ID, b.ID, b.SumOf, sum.Type))
+	}
+	switch per, ok := fieldsByID[b.Per]; {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per %q is not a field of this machine", m.ID, b.ID, b.Per))
+	case b.Per == b.SumOf:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per and sum_of name the same field", m.ID, b.ID))
+	case per.Type == domain.FieldTypeNumber || per.Type == domain.FieldTypeMoney || per.Type == domain.FieldTypeDate || per.Type == domain.FieldTypeFile || per.Type == domain.FieldTypeBoolean:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per %q must group records by a text, status, person or relation field, got %q", m.ID, b.ID, b.Per, per.Type))
+	}
+	switch {
+	case b.AtLeast == nil && b.AtMost == nil:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: declares neither at_least nor at_most, so it bounds nothing", m.ID, b.ID))
+	case b.AtLeast != nil && b.AtMost != nil && *b.AtLeast > *b.AtMost:
+		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: at_least %v is above at_most %v, so no total could satisfy it", m.ID, b.ID, *b.AtLeast, *b.AtMost))
+	}
+	return issues
+}
+
 // validateRequiredWhen holds a conditionally required Field to what its enforcement assumes: another status
 // Field of this Machine to compare, one of that Field's own options to compare with (a value it can never hold
 // would never require anything, which reads as a rule), and no second statement of "required" beside it.
@@ -1654,6 +1697,22 @@ func validateComputedFieldsAreGenericallyWritten(machines []*domain.Machine) err
 // validateStampedFieldsAreGenericallyWritten is the same refusal for a stamped Field: the acting user is
 // written by the generic create routes (record.go, api.go), and the engines' own screens and the runtime's
 // own writers would leave it empty.
+// validateBoundsAreGenericallyWritten refuses `ensure:` on a Machine that Go writes through its own routes: the bound is
+// checked by the generic create and update routes, and an engine's screens or the runtime's own writers would skip it.
+func validateBoundsAreGenericallyWritten(machines []*domain.Machine) error {
+	var issues []string
+	for _, m := range machines {
+		if len(m.Bounds) == 0 || m.GenericallyWritten() {
+			continue
+		}
+		issues = append(issues, fmt.Sprintf("machine %q declares ensure: but is written by the runtime or a workflow engine's own screens, which do not check it", m.ID))
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
 func validateDerivedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
 	return validateFieldsAreGenericallyWritten(machines, "conditionally required or derived", func(f domain.Field) bool { return f.RequiredWhen != nil || f.DefaultFrom != nil })
 }

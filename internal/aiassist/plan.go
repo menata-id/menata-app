@@ -98,6 +98,9 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Roles: slices.Clone(t.Roles), ActorField: t.ActorField})
 		}
 	}
+	for _, b := range m.Bounds {
+		g.Ensure = append(g.Ensure, GeneratedEnsure{ID: b.ID, SumOf: b.SumOf, Per: b.Per, AtLeast: cloneFloat(b.AtLeast), AtMost: cloneFloat(b.AtMost), Reason: b.Reason})
+	}
 	for _, e := range m.Events {
 		if e.Schedule != nil || e.Then.SummaryOverrideWhen != "" {
 			continue
@@ -321,6 +324,27 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	for _, x := range old.Transitions {
 		if !seen[x.ID] {
 			p.refuse("status move %s cannot be removed", x.ID)
+		}
+	}
+
+	oldEnsure := map[string]GeneratedEnsure{}
+	for _, x := range old.Ensure {
+		oldEnsure[x.ID] = x
+	}
+	seen = map[string]bool{}
+	for _, x := range m.Ensure {
+		seen[x.ID] = true
+		ox, exists := oldEnsure[x.ID]
+		switch {
+		case !exists:
+			p.add("limit %q on %q: the total of %s per %s", x.ID, m.Name, x.SumOf, x.Per)
+		case !sameEnsure(x, ox):
+			p.refuse("limit %s cannot be changed, only added -- the file edit only appends", x.ID)
+		}
+	}
+	for _, x := range old.Ensure {
+		if !seen[x.ID] {
+			p.refuse("limit %s cannot be removed: writes it refuses would be accepted", x.ID)
 		}
 	}
 
@@ -648,4 +672,23 @@ func sameDefaultFrom(a, b *GeneratedDefaultFrom) bool {
 		}
 	}
 	return true
+}
+
+func cloneFloat(f *float64) *float64 {
+	if f == nil {
+		return nil
+	}
+	v := *f
+	return &v
+}
+
+func sameFloat(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func sameEnsure(a, b GeneratedEnsure) bool {
+	return a.SumOf == b.SumOf && a.Per == b.Per && a.Reason == b.Reason && sameFloat(a.AtLeast, b.AtLeast) && sameFloat(a.AtMost, b.AtMost)
 }

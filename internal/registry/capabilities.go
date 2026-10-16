@@ -69,6 +69,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "status_categories", "presentation", "experience", false, "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet"),
 	key("machineDoc", "card_tags", "presentation", "experience", false, "board card tags; no generated board"),
 	key("machineDoc", "append_only", "behaviour", "behavior", false, "no generated Machine is a log"),
+	key("machineDoc", "ensure", "behaviour", "behavior", true, ""),
 	// transitionDoc
 	key("transitionDoc", "id", "identity", "domain", true, ""),
 	key("transitionDoc", "name", "identity", "domain", true, ""),
@@ -126,8 +127,6 @@ var Capabilities = []Capability{
 	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). The first
 	// corpus (Cases 1, 2, 17) was fully built on 2026-10-16; these are the second (KZ2: Cases 4, 5, 6, 14), written red
 	// on 2026-10-16. Their order is read from the failing steps (internal/web.TestCaseCorpusOnlyAdvances -v).
-	{ID: "aggregate-constraint", Struct: "machineDoc", Keys: []string{"ensure"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
-		AIReason: "lands with its assistant slot; a total over one Machine's records, per a Field, bounded", Cases: []string{"case05_inventory", "case06_petty_cash"}},
 	{ID: "frozen-when", Struct: "machineDoc", Keys: []string{"frozen_when"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
 		AIReason: "lands with its assistant slot; a record read-only while a related record holds a value", Cases: []string{"case06_petty_cash"}},
 	{ID: "date-arithmetic", Struct: "fieldDoc", Keys: []string{"add_days"}, Kind: "structure", Plane: "domain", Stage: StageProposed,

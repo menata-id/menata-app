@@ -73,7 +73,7 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 
 	actor := currentActor(req, store, cfg)
 	data.ApplyStamps(machine, values, actor.ID)
-	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) {
+	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) || !withinBounds(w, req, store, machine, "", values) {
 		return nil, actor, false
 	}
 	record, err := store.CreateRecord(req.Context(), machine.ID, values)
@@ -485,10 +485,46 @@ func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Stor
 	return true
 }
 
+// withinBounds holds a write against the Machine's aggregate bounds (`ensure:`, domain.AggregateBound): the records
+// sharing each bound's group are read, and the write is judged as the total it would leave. id is "" for a create. Only
+// the groups the write touches are read, one query per bound. A Machine declaring none costs nothing.
+func withinBounds(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	if len(machine.Bounds) == 0 {
+		return true
+	}
+	var siblings []*data.Record
+	seen := map[string]bool{}
+	for _, b := range machine.Bounds {
+		group := fmt.Sprint(values[b.Per])
+		if group == "" || group == "<nil>" {
+			continue
+		}
+		rows, err := store.ListRecordsBy(req.Context(), machine.ID, b.Per, group)
+		if err != nil {
+			serverError(w, err)
+			return false
+		}
+		for _, r := range rows {
+			if !seen[r.ID] {
+				seen[r.ID] = true
+				siblings = append(siblings, r)
+			}
+		}
+	}
+	if err := behavior.CheckBounds(machine, id, values, siblings); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
+}
+
 // passesWriteGuards runs the three checks every write has to clear: the record's own shape, the
 // existence of anything it points at, and the Machine's declared Constraints.
 func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Store, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any) bool {
 	if !validRecord(w, req, store, machine, values) {
+		return false
+	}
+	if !withinBounds(w, req, store, machine, id, values) {
 		return false
 	}
 	relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)

@@ -122,8 +122,8 @@ var caseRatchet = map[string]ratchetEntry{
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
 	"case04_maintenance":    {Rejected: 3, Passed: 3, Steps: 4, Red: []string{"technician-completes"}},
-	"case05_inventory":      {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"another-item-has-its-own-balance", "cannot-issue-more-than-on-hand"}},
-	"case06_petty_cash":     {Rejected: 2, Passed: 4, Steps: 6, Red: []string{"voucher-beyond-the-fund", "voucher-of-a-closed-period-is-frozen"}},
+	"case05_inventory":      {Rejected: 0, Passed: 6, Steps: 6},
+	"case06_petty_cash":     {Rejected: 1, Passed: 7, Steps: 8, Red: []string{"voucher-of-a-closed-period-is-frozen"}},
 	"case14_lending":        {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"first-installment-is-flagged", "officer-disburses"}},
 }
 

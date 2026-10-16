@@ -153,6 +153,19 @@ type GeneratedMachine struct {
 	Permissions []GeneratedPermission `json:"permissions"`
 	Transitions []GeneratedTransition `json:"transitions"`
 	Events      []GeneratedEvent      `json:"events"`
+	// Ensure bounds a total over this Machine's own records ("stock may not go below zero"): see GeneratedEnsure.
+	Ensure []GeneratedEnsure `json:"ensure,omitempty"`
+}
+
+// GeneratedEnsure mirrors domain.AggregateBound: the sum of SumOf (a number Field) over the records sharing one value
+// of Per, kept at or above AtLeast and/or at or below AtMost. A pointer for each bound, because zero is a real bound.
+type GeneratedEnsure struct {
+	ID      string   `json:"id"`
+	SumOf   string   `json:"sum_of"`
+	Per     string   `json:"per"`
+	AtLeast *float64 `json:"at_least,omitempty"`
+	AtMost  *float64 `json:"at_most,omitempty"`
+	Reason  string   `json:"reason,omitempty"`
 }
 
 // GeneratedField mirrors domain.Field's own composable surface. Type is restricted at validation

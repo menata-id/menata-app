@@ -23,7 +23,7 @@ permissions:
     action: edit
     roles: [kasir]
 
-# WISHED: an aggregate constraint -- the vouchers of one period may not total more than the fund (Rp 1.000.000).
+# An aggregate constraint (ensure:, was WISHED until built) -- the vouchers of one period may not total more than the fund (Rp 1.000.000).
 ensure:
   - id: ens_within_fund
     sum_of: fld_amount

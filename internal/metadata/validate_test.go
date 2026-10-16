@@ -1097,3 +1097,62 @@ func TestValidatePermissionRoles_coversNotifiedRoles(t *testing.T) {
 		t.Errorf("a person recipient was judged by the role vocabulary: %v", err)
 	}
 }
+
+func TestValidate_aggregateBounds(t *testing.T) {
+	zero := 0.0
+	hi, lo := 10.0, 20.0
+	mk := func(b domain.AggregateBound) *domain.Machine {
+		m := validMachine()
+		m.Fields = append(m.Fields,
+			domain.Field{ID: "fld_qty", Name: "Qty", Type: domain.FieldTypeNumber},
+			domain.Field{ID: "fld_item", Name: "Item", Type: domain.FieldTypeText},
+			domain.Field{ID: "fld_when", Name: "When", Type: domain.FieldTypeDate})
+		m.Bounds = []domain.AggregateBound{b}
+		return m
+	}
+	good := domain.AggregateBound{ID: "ens_x", SumOf: "fld_qty", Per: "fld_item", AtLeast: &zero}
+	if err := Validate(mk(good)); err != nil {
+		t.Fatalf("a sound bound was refused: %v", err)
+	}
+	with := func(f func(*domain.AggregateBound)) domain.AggregateBound { b := good; f(&b); return b }
+	for _, tc := range []struct {
+		name string
+		b    domain.AggregateBound
+		want string
+	}{
+		{"a bad id", with(func(b *domain.AggregateBound) { b.ID = "limit" }), "must match"},
+		{"a missing sum field", with(func(b *domain.AggregateBound) { b.SumOf = "fld_nope" }), "sum_of"},
+		{"a text sum field", with(func(b *domain.AggregateBound) { b.SumOf = "fld_item" }), "must be a number or money"},
+		{"a missing group field", with(func(b *domain.AggregateBound) { b.Per = "fld_nope" }), "per \"fld_nope\" is not a field"},
+		{"the same field twice", with(func(b *domain.AggregateBound) { b.Per = "fld_qty" }), "name the same field"},
+		{"a date group", with(func(b *domain.AggregateBound) { b.Per = "fld_when" }), "must group records by"},
+		{"no bound", with(func(b *domain.AggregateBound) { b.AtLeast = nil }), "bounds nothing"},
+		{"an empty range", with(func(b *domain.AggregateBound) { b.AtLeast, b.AtMost = &lo, &hi }), "no total could satisfy"},
+	} {
+		if err := Validate(mk(tc.b)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: Validate = %v, want an error containing %q", tc.name, err, tc.want)
+		}
+	}
+	dup := mk(good)
+	dup.Bounds = append(dup.Bounds, good)
+	if err := Validate(dup); err == nil || !strings.Contains(err.Error(), "more than once") {
+		t.Errorf("a repeated id = %v", err)
+	}
+}
+
+func TestValidateBoundsAreGenericallyWritten(t *testing.T) {
+	zero := 0.0
+	b := domain.AggregateBound{ID: "ens_x", SumOf: "fld_n", Per: "fld_p", AtLeast: &zero}
+	if err := validateBoundsAreGenericallyWritten([]*domain.Machine{{ID: "mch_stock", Bounds: []domain.AggregateBound{b}}}); err != nil {
+		t.Errorf("an ordinary Machine was refused: %v", err)
+	}
+	for name, m := range map[string]*domain.Machine{
+		"the user Machine":    {ID: domain.UserMachineID, Bounds: []domain.AggregateBound{b}},
+		"an engine's Machine": {ID: "mch_doc", WorkflowRole: "document", Bounds: []domain.AggregateBound{b}},
+		"the activity log":    {ID: "mch_activity", Bounds: []domain.AggregateBound{b}},
+	} {
+		if err := validateBoundsAreGenericallyWritten([]*domain.Machine{m}); err == nil {
+			t.Errorf("%s: ensure: was accepted on a Machine the generic routes do not write", name)
+		}
+	}
+}

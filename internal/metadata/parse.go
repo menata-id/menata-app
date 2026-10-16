@@ -16,6 +16,8 @@ type machineDoc struct {
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
 	Constraints []constraintDoc `yaml:"constraints"`
+	// Ensure declares aggregate bounds over this Machine's own records (domain.AggregateBound).
+	Ensure      []ensureDoc     `yaml:"ensure"`
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
 	Transitions []transitionDoc `yaml:"transitions"`
@@ -280,6 +282,15 @@ type computeDoc struct {
 	Fields []string `yaml:"fields"`
 }
 
+type ensureDoc struct {
+	ID      string   `yaml:"id"`
+	SumOf   string   `yaml:"sum_of"`
+	Per     string   `yaml:"per"`
+	AtLeast *float64 `yaml:"at_least"`
+	AtMost  *float64 `yaml:"at_most"`
+	Reason  string   `yaml:"reason"`
+}
+
 type constraintDoc struct {
 	ID         string `yaml:"id"`
 	On         string `yaml:"on"`
@@ -443,6 +454,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				},
 			},
 		})
+	}
+	for _, ed := range doc.Ensure {
+		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: ed.ID, SumOf: ed.SumOf, Per: ed.Per, AtLeast: ed.AtLeast, AtMost: ed.AtMost, Reason: ed.Reason})
 	}
 	for _, bd := range doc.MemberRemovalBlocks {
 		block := domain.MemberRemovalBlock{ID: bd.ID, ActorField: bd.ActorField, Reason: bd.Reason}

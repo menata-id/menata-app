@@ -132,6 +132,7 @@ type machineDoc struct {
 	Views       []viewDoc       `yaml:"views,omitempty"`
 	Permissions []permissionDoc `yaml:"permissions,omitempty"`
 	Transitions []transitionDoc `yaml:"transitions,omitempty"`
+	Ensure      []ensureDoc     `yaml:"ensure,omitempty"`
 	Events      []eventDoc      `yaml:"events,omitempty"`
 	Datasets    []datasetDoc    `yaml:"datasets,omitempty"`
 }
@@ -159,6 +160,15 @@ type requiredWhenDoc struct {
 type defaultFromDoc struct {
 	Field string         `yaml:"field"`
 	Days  map[string]int `yaml:"days"`
+}
+
+type ensureDoc struct {
+	ID      string   `yaml:"id"`
+	SumOf   string   `yaml:"sum_of"`
+	Per     string   `yaml:"per"`
+	AtLeast *float64 `yaml:"at_least,omitempty"`
+	AtMost  *float64 `yaml:"at_most,omitempty"`
+	Reason  string   `yaml:"reason,omitempty"`
 }
 
 type cardFieldDoc struct {
@@ -432,6 +442,9 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	}
 	for _, t := range m.Transitions {
 		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField})
+	}
+	for _, e := range m.Ensure {
+		doc.Ensure = append(doc.Ensure, ensureDoc{ID: e.ID, SumOf: e.SumOf, Per: e.Per, AtLeast: e.AtLeast, AtMost: e.AtMost, Reason: e.Reason})
 	}
 	for _, e := range m.Events {
 		var ed eventDoc

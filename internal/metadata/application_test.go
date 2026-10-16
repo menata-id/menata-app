@@ -1842,3 +1842,35 @@ func TestResolveTheme_textCaption(t *testing.T) {
 		t.Errorf("a Tailwind token is not a text scale; got %v", issues)
 	}
 }
+
+// The wiring half of TestValidateBoundsAreGenericallyWritten: through the real loader, a bound on the user Machine (which
+// the runtime writes itself) is refused, and the same bound on an ordinary Machine loads.
+func TestLoadApplication_boundsOnARuntimeWrittenMachine(t *testing.T) {
+	load := func(machineID string) error {
+		dir := t.TempDir()
+		writeFile(t, dir, "m.yaml", `id: `+machineID+`
+name: M
+fields:
+  - id: fld_n
+    name: N
+    type: number
+  - id: fld_p
+    name: P
+    type: text
+ensure:
+  - id: ens_x
+    sum_of: fld_n
+    per: fld_p
+    at_least: 0
+`)
+		writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - m.yaml\napplications: []\n")
+		_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+		return err
+	}
+	if err := load("mch_stock"); err != nil {
+		t.Fatalf("an ordinary Machine with a bound did not load: %v", err)
+	}
+	if err := load(domain.UserMachineID); err == nil || !strings.Contains(err.Error(), "ensure") {
+		t.Errorf("the user Machine with a bound = %v, want a refusal naming ensure", err)
+	}
+}

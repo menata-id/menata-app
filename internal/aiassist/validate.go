@@ -302,6 +302,9 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			Roles:  slices.Clone(gt.Roles), ActorField: gt.ActorField,
 		})
 	}
+	for _, e := range gm.Ensure {
+		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: e.ID, SumOf: e.SumOf, Per: e.Per, AtLeast: e.AtLeast, AtMost: e.AtMost, Reason: e.Reason})
+	}
 	for _, ge := range gm.Events {
 		svc := domain.Service{Name: ge.EventService(), Summary: ge.Summary}
 		switch ge.EventService() {

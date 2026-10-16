@@ -93,3 +93,39 @@ func TestCheckConstraints_notFiredWhenTransitionDoesNotMatch(t *testing.T) {
 		t.Fatalf("CheckConstraints() error = %v, want nil: this constraint only fires when fld_status becomes done", err)
 	}
 }
+
+func TestCheckBounds(t *testing.T) {
+	zero, cap := 0.0, 100.0
+	floor := &domain.Machine{Bounds: []domain.AggregateBound{{ID: "ens_floor", SumOf: "fld_n", Per: "fld_item", AtLeast: &zero, Reason: "stok negatif"}}}
+	ceil := &domain.Machine{Bounds: []domain.AggregateBound{{ID: "ens_cap", SumOf: "fld_n", Per: "fld_item", AtMost: &cap}}}
+	rec := func(id, item string, n float64) *data.Record {
+		return &data.Record{ID: id, Values: map[string]any{"fld_item": item, "fld_n": n}}
+	}
+	stored := []*data.Record{rec("r1", "a", 100), rec("r2", "a", -30), rec("r3", "b", 5)}
+	for _, tc := range []struct {
+		name    string
+		m       *domain.Machine
+		id      string
+		values  map[string]any
+		refused string
+	}{
+		{"a floor kept", floor, "", map[string]any{"fld_item": "a", "fld_n": -70.0}, ""},
+		{"a floor broken by one more", floor, "", map[string]any{"fld_item": "a", "fld_n": -71.0}, "stok negatif"},
+		{"another group has its own total", floor, "", map[string]any{"fld_item": "b", "fld_n": -6.0}, "it would be -1 for b"},
+		{"a group with nothing stored", floor, "", map[string]any{"fld_item": "new", "fld_n": -1.0}, "ens_floor"},
+		{"an edit replaces its stored self", floor, "r1", map[string]any{"fld_item": "a", "fld_n": 30.0}, ""},
+		{"an edit that leaves too little", floor, "r1", map[string]any{"fld_item": "a", "fld_n": 29.0}, "ens_floor"},
+		{"a cap kept at its edge", ceil, "", map[string]any{"fld_item": "b", "fld_n": 95.0}, ""},
+		{"a cap broken", ceil, "", map[string]any{"fld_item": "b", "fld_n": 96.0}, "may not exceed 100"},
+		{"no group value is outside every bound", floor, "", map[string]any{"fld_n": -999.0}, ""},
+		{"a missing number counts as nothing", floor, "", map[string]any{"fld_item": "a"}, ""},
+	} {
+		err := CheckBounds(tc.m, tc.id, tc.values, stored)
+		switch {
+		case tc.refused == "" && err != nil:
+			t.Errorf("%s: refused: %v", tc.name, err)
+		case tc.refused != "" && (err == nil || !strings.Contains(err.Error(), tc.refused)):
+			t.Errorf("%s: got %v, want an error containing %q", tc.name, err, tc.refused)
+		}
+	}
+}

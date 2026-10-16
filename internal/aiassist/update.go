@@ -268,6 +268,17 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			}
 		}
 	}
+	oldEnsure := map[string]bool{}
+	for _, x := range old.Ensure {
+		oldEnsure[x.ID] = true
+	}
+	for _, x := range m.Ensure {
+		if !oldEnsure[x.ID] {
+			if err := appendEncoded(ensureSeq(doc, "ensure"), ensureDoc{ID: x.ID, SumOf: x.SumOf, Per: x.Per, AtLeast: x.AtLeast, AtMost: x.AtMost, Reason: x.Reason}); err != nil {
+				return err
+			}
+		}
+	}
 	oldEvents := map[string]bool{}
 	for _, x := range old.Events {
 		oldEvents[x.ID] = true

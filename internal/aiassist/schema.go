@@ -223,6 +223,20 @@ var generatedTransitionSchema = geminiSchema{
 	},
 }
 
+var generatedEnsureSchema = geminiSchema{
+	PropertyOrdering: []string{"id", "sum_of", "per", "at_least", "at_most", "reason"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "sum_of", "per"},
+	Properties: map[string]geminiSchema{
+		"id":       {Type: "STRING", Description: "Starts with ens_, e.g. ens_no_negative_stock."},
+		"sum_of":   {Type: "STRING", Description: "A number (or money) field of this same machine whose values are added up across records."},
+		"per":      {Type: "STRING", Description: "A text, status, person or relation field of this same machine: records sharing its value are totalled together (an item, a period)."},
+		"at_least": {Type: "NUMBER", Description: "The total may not go below this (0 for \"never negative\"). Give at_least, at_most, or both."},
+		"at_most":  {Type: "NUMBER", Description: "The total may not go above this (a fund, a capacity)."},
+		"reason":   {Type: "STRING", Description: "What a refused write is told, in the user's language."},
+	},
+}
+
 var generatedEventSchema = geminiSchema{
 	PropertyOrdering: []string{"id", "service", "on_create", "on", "when_equals", "summary", "recipient_field", "recipient_role", "recipient_group_field", "preference_key"},
 	Type:             "OBJECT",
@@ -242,7 +256,7 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events"},
+	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events", "ensure"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
@@ -263,6 +277,7 @@ var generatedMachineSchema = geminiSchema{
 		"views":       {Type: "ARRAY", Items: &generatedViewSchema, Description: "How this machine's records are arranged; the first is what opens by default. A board is columns per status."},
 		"permissions": {Type: "ARRAY", Items: &generatedPermissionSchema},
 		"transitions": {Type: "ARRAY", Items: &generatedTransitionSchema},
+		"ensure":      {Type: "ARRAY", Items: &generatedEnsureSchema},
 		"events":      {Type: "ARRAY", Items: &generatedEventSchema},
 	},
 }

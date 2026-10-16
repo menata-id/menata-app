@@ -24,7 +24,7 @@ permissions:
     action: create
     roles: [petugas gudang]
 
-# WISHED: an aggregate constraint over the records of this Machine -- for one item, the sum of the signed quantities
+# An aggregate constraint over the records of this Machine (ensure:, was WISHED until the runtime learned it) -- for one item, the sum of the signed quantities
 # may not go below zero. Today a constraint relates two Machines; none can say "the total of all of these".
 ensure:
   - id: ens_no_negative_stock

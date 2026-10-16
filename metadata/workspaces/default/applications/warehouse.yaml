@@ -1,0 +1,14 @@
+id: app_warehouse
+name: Warehouse
+machines:
+  - mch_wh_movement
+roles:
+  - storekeeper
+  - supervisor
+icon: board
+color: blue
+navigation:
+  - id: nav_warehouse
+    label: Stock movements
+    route: /machines/mch_wh_movement
+    home_card: true

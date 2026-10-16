@@ -217,11 +217,13 @@ type FullMachineCheckDoc struct {
 	Name        string `yaml:"name"`
 	Fields      []any  `yaml:"fields"`
 	Constraints []any  `yaml:"constraints"`
-	Events      []any  `yaml:"events"`
-	Permissions []any  `yaml:"permissions"`
-	Transitions []any  `yaml:"transitions"`
-	Datasets    []any  `yaml:"datasets"`
-	Sequencing  any    `yaml:"sequencing"`
+	// Ensure is the aggregate bounds block (domain.AggregateBound, 2026-10-16), added the moment the mirror gate asked.
+	Ensure      []any `yaml:"ensure"`
+	Events      []any `yaml:"events"`
+	Permissions []any `yaml:"permissions"`
+	Transitions []any `yaml:"transitions"`
+	Datasets    []any `yaml:"datasets"`
+	Sequencing  any   `yaml:"sequencing"`
 	// Actions is Stage B's own block (domain.ActionEffect, 2026-09-28) -- added here in the same change
 	// that introduced it, because TestCheckDocsMirrorMetadatasOwnKeys failed the moment it did not
 	// exist. That is the gate working: without it, installing Document Approval would have failed its

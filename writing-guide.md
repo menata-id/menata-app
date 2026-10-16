@@ -227,6 +227,27 @@ once the whole Application loads, a `relation`/`person` field whose target Machi
 actually exist in the manifest's own `machines:` list also fails (a single Machine file can't check
 this on its own — it's checked once every file is loaded).
 
+### 3.0. A limit on a total: `ensure:` (2026-10-16)
+
+A Machine may bound the total of a number Field over its own records, per group:
+
+```yaml
+ensure:
+  - id: ens_no_negative_stock      # starts with ens_
+    sum_of: fld_delta              # a number or money Field of this Machine, added up
+    per: fld_item                  # records sharing this Field's value are totalled together
+    at_least: 0                    # and/or at_most; zero is a real bound
+    reason: Stok tidak boleh negatif.
+```
+
+Every create and edit through the generic routes (the form route and the JSON route) is judged as the total it would leave:
+an edit replaces the record's stored self, only the group the write touches is read, and a record naming no group is outside
+every bound. `per` is a text, status, person or relation Field (never the summed one, never a date or a number), at least one
+bound is required and `at_least` may not exceed `at_most`. A Machine the runtime writes itself or a workflow engine's screens
+write is refused, since they would skip the check. A `constraints:` block relates two Machines; this is the one-Machine total
+it cannot say. **Limit:** the check reads, then the write follows, so two simultaneous writes to one group can both pass; the
+runtime is one process and this is not a lock. The assistant writes new limits and cannot change or remove one.
+
 ### 3.1. Required only under a condition, and a date derived from a status (2026-10-15)
 
 ```yaml
