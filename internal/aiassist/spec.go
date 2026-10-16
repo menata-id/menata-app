@@ -291,6 +291,15 @@ type GeneratedTransition struct {
 	// reopens"). Both optional; they AND when both are given (a transition's own roles/actor_field).
 	Roles      []string `json:"roles,omitempty"`
 	ActorField string   `json:"actor_field,omitempty"`
+	// Sets are Fields this step writes from the clock when taken ("the completion date is the day it was completed"):
+	// each names a date Field and a source, today.
+	Sets []GeneratedSet `json:"sets,omitempty"`
+}
+
+// GeneratedSet is one Transition.Sets entry as a list item, because a response schema cannot name free map keys.
+type GeneratedSet struct {
+	Field  string `json:"field"`
+	Source string `json:"source"`
 }
 
 // GeneratedEvent mirrors the two Service shapes safe to generate unattended, on creation or on a field

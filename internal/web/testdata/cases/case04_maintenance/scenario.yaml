@@ -21,9 +21,10 @@ steps:
     update: { ref: schedule, values: { fld_status: selesai } }
     expect: refused
 
-  # Completing records the date and advances the next due date: both are WISHED and red until built.
+  # Completing records the day it happened (sets) and advances the next due date from it (compute add_days). Nothing is
+  # typed: even a date the technician types is replaced by the clock.
   - id: technician-completes
     as: tomo
-    update: { ref: schedule, values: { fld_status: selesai, fld_last_done: "2020-02-01" } }
+    update: { ref: schedule, values: { fld_status: selesai, fld_last_done: "1999-01-01" } }
     expect: ok
-    record: { fld_status: selesai, fld_following_due: "2020-03-02" }
+    record: { fld_status: selesai, fld_last_done: "prefix:20", fld_following_due: "prefix:20" }

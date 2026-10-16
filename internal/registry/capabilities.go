@@ -80,6 +80,7 @@ var Capabilities = []Capability{
 	key("transitionDoc", "action", "behaviour", "behavior", false, "a generated Machine's edges are always the edit Action's; the assistant writes none other"),
 	key("transitionDoc", "roles", "authorization", "behavior", true, ""),
 	key("transitionDoc", "actor_field", "authorization", "behavior", true, ""),
+	key("transitionDoc", "sets", "behaviour", "behavior", true, ""),
 	// permissionDoc
 	key("permissionDoc", "id", "identity", "domain", true, ""),
 	key("permissionDoc", "action", "authorization", "behavior", true, ""),
@@ -128,10 +129,6 @@ var Capabilities = []Capability{
 	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). The first
 	// corpus (Cases 1, 2, 17) was fully built on 2026-10-16; these are the second (KZ2: Cases 4, 5, 6, 14), written red
 	// on 2026-10-16. Their order is read from the failing steps (internal/web.TestCaseCorpusOnlyAdvances -v).
-	{ID: "date-arithmetic", Struct: "fieldDoc", Keys: []string{"add_days"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
-		AIReason: "lands with its assistant slot; a date Field computed as another date plus a number of days", Cases: []string{"case04_maintenance"}},
-	{ID: "transition-sets", Struct: "transitionDoc", Keys: []string{"sets"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
-		AIReason: "lands with its assistant slot; a Field an edge writes from the clock when taken", Cases: []string{"case04_maintenance"}},
 	{ID: "record-generation", Struct: "transitionDoc", Keys: []string{"generates"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
 		AIReason: "multi-record Action: an edge that creates records (a repayment schedule); needs its own design before a slot", Cases: []string{"case14_lending"}},
 }

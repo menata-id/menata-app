@@ -1,0 +1,102 @@
+id: mch_mt_task
+name: Maintenance task
+fields:
+  - id: fld_equipment
+    name: Equipment
+    type: text
+    required: true
+  - id: fld_frequency_days
+    name: Every (days)
+    type: number
+    required: true
+  - id: fld_next_due
+    name: Due
+    type: date
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - scheduled
+      - overdue
+      - done
+    default: scheduled
+  - id: fld_last_done
+    name: Last done
+    type: date
+  - id: fld_following_due
+    name: Next due
+    type: date
+    compute:
+      op: add_days
+      fields: [fld_last_done, fld_frequency_days]
+completion:
+  field: fld_status
+  done: done
+card_fields:
+  - field: fld_equipment
+    role: title
+  - field: fld_status
+    role: status
+  - field: fld_next_due
+    role: date
+views:
+  - id: vw_board
+    name: Board
+    type: board
+    group_by: fld_status
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_task_create
+    action: create
+    roles:
+      - coordinator
+      - technician
+  - id: prm_task_edit
+    action: edit
+    roles:
+      - coordinator
+      - technician
+transitions:
+  - id: trn_task_overdue
+    name: Overdue
+    field: fld_status
+    from: scheduled
+    to: overdue
+  - id: trn_task_complete
+    name: Complete
+    field: fld_status
+    from: scheduled
+    to: done
+    action: edit
+    roles:
+      - technician
+    sets:
+      fld_last_done: today
+  - id: trn_task_complete_late
+    name: Complete (overdue)
+    field: fld_status
+    from: overdue
+    to: done
+    action: edit
+    roles:
+      - technician
+    sets:
+      fld_last_done: today
+events:
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: 'Maintenance scheduled: {fld_equipment}'
+  # A task past its due date and still scheduled is flagged overdue by itself (set_field on a schedule; the assistant
+  # cannot write a schedule event, so this pair is by hand). The edge scheduled -> overdue is the runtime's own, with no action.
+  - id: evt_task_overdue_log
+    schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: scheduled }
+    then: { service: log_activity, summary: "Maintenance overdue: {fld_equipment}" }
+  - id: evt_task_overdue_flag
+    schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: scheduled }
+    then: { service: set_field, target_field: fld_status, value: overdue }

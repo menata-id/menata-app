@@ -88,7 +88,9 @@ func composableSurface() string {
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button). A step may be limited to holders of
   some roles ("roles") and/or to the person a person field of the record names ("actor_field": "only the
-  requester reopens"); without either, anyone allowed to edit the record may take it.
+  requester reopens"); without either, anyone allowed to edit the record may take it. A step may also write
+  date fields with the day it is taken ("sets": [{field, source: "today"}], e.g. the completion date); a DATE
+  field may be computed as another date plus a number of days (compute op "add_days", fields: [date, number]).
 - A limit on a total over a machine's own records ("ensure": {id starting ens_, sum_of: a number field, per: the
   field that groups records, at_least and/or at_most, reason}): stock may not go below zero per item
   (at_least 0), the vouchers of a period may not exceed the fund (at_most). It is checked on every create and

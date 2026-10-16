@@ -214,14 +214,15 @@ type permissionDoc struct {
 }
 
 type transitionDoc struct {
-	ID         string   `yaml:"id"`
-	Name       string   `yaml:"name"`
-	Field      string   `yaml:"field"`
-	From       string   `yaml:"from"`
-	To         string   `yaml:"to"`
-	Action     string   `yaml:"action"`
-	Roles      []string `yaml:"roles,omitempty"`
-	ActorField string   `yaml:"actor_field,omitempty"`
+	ID         string            `yaml:"id"`
+	Name       string            `yaml:"name"`
+	Field      string            `yaml:"field"`
+	From       string            `yaml:"from"`
+	To         string            `yaml:"to"`
+	Action     string            `yaml:"action"`
+	Roles      []string          `yaml:"roles,omitempty"`
+	ActorField string            `yaml:"actor_field,omitempty"`
+	Sets       map[string]string `yaml:"sets,omitempty"`
 }
 
 type eventDoc struct {
@@ -448,7 +449,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.Permissions = append(doc.Permissions, pd)
 	}
 	for _, t := range m.Transitions {
-		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField})
+		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField, Sets: setsOf(t.Sets)})
 	}
 	if m.FrozenWhen != nil {
 		doc.FrozenWhen = &frozenWhenDoc{Via: m.FrozenWhen.Via, Field: m.FrozenWhen.Field, Equals: m.FrozenWhen.Equals}

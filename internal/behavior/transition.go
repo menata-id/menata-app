@@ -2,6 +2,7 @@ package behavior
 
 import (
 	"fmt"
+	"time"
 
 	"menata.app/internal/domain"
 )
@@ -100,6 +101,30 @@ func MovedTransitions(m *domain.Machine, current, next map[string]any) []domain.
 		}
 	}
 	return out
+}
+
+// ApplyTransitionSets writes into next the Fields each edge the write takes sets from the clock (domain.Transition.Sets),
+// overriding what the form carried: the date a task was completed is the day it was. It changes nothing for a write that
+// takes no such edge, so an edit that leaves the status alone cannot rewrite a completion date.
+func ApplyTransitionSets(m *domain.Machine, current, next map[string]any, now time.Time) {
+	for _, t := range MovedTransitions(m, current, next) {
+		for fieldID, source := range t.Sets {
+			if source == domain.TransitionSourceToday {
+				next[fieldID] = now.Format(domain.DateLayout)
+			}
+		}
+	}
+}
+
+// HasTransitionSets reports whether any edge of m writes a Field from the clock, so a caller can skip the read of the
+// stored record for the Machines that declare none.
+func HasTransitionSets(m *domain.Machine) bool {
+	for _, t := range m.Transitions {
+		if len(t.Sets) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // displayValue renders a stored value the same way a declared option is written in metadata, so

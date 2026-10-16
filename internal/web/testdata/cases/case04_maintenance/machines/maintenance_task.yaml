@@ -26,12 +26,12 @@ fields:
   - id: fld_last_done
     name: Terakhir dikerjakan
     type: date
-    # WISHED: written from the clock by the transition that completes the task (see `sets:` below).
-  # WISHED: a date computed from other Fields: the completion date plus the frequency, which is the next due date.
+    # Written from the clock by the edge that completes the task (`sets:` below), not typed.
+  # The completion date plus the frequency is the next due date (compute add_days, was WISHED as its own key).
   - id: fld_following_due
     name: Jatuh tempo berikutnya
     type: date
-    add_days: { from: fld_last_done, days_field: fld_frequency_days }
+    compute: { op: add_days, fields: [fld_last_done, fld_frequency_days] }
 
 permissions:
   - id: prm_create_task
@@ -44,7 +44,7 @@ permissions:
 transitions:
   # Escalation is the runtime's own move (no action), written by the schedule below.
   - { id: trn_overdue, name: Terlambat, field: fld_status, from: terjadwal, to: terlambat }
-  # WISHED: `sets:`, a Field the edge writes from the clock when it is taken.
+  # `sets:` is a Field the edge writes from the clock when it is taken (was WISHED until built).
   - { id: trn_complete, name: Selesaikan, field: fld_status, from: terjadwal, to: selesai, action: edit, roles: [teknisi], sets: { fld_last_done: today } }
   - { id: trn_complete_late, name: Selesaikan (terlambat), field: fld_status, from: terlambat, to: selesai, action: edit, roles: [teknisi], sets: { fld_last_done: today } }
 

@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"fmt"
 	"regexp"
+	"time"
 
 	"menata.app/internal/expression"
 )
@@ -216,10 +218,16 @@ type ComputeOp string
 const (
 	// ComputeSum adds number Fields. The first case: a water-usage report totalling three meters.
 	ComputeSum ComputeOp = "sum"
+	// ComputeAddDays is a date: its two operands are a date Field and a number Field, and the value is the date plus that
+	// many days ("the next maintenance is the completion date plus the frequency"). Case 4.
+	ComputeAddDays ComputeOp = "add_days"
 )
 
 // KnownComputeOps is the closed set of operations a computed Field may declare.
-var KnownComputeOps = map[ComputeOp]bool{ComputeSum: true}
+var KnownComputeOps = map[ComputeOp]bool{ComputeSum: true, ComputeAddDays: true}
+
+// DateLayout is how a date Field is stored: a calendar day, no time.
+const DateLayout = "2006-01-02"
 
 // FieldCompute is how a computed Field derives its value: Op applied to Fields, in order. Operands
 // are number Fields of the same Machine that are not computed themselves, which is what makes the
@@ -243,6 +251,16 @@ func (c FieldCompute) Evaluate(values map[string]any) (v any, ok bool) {
 			}
 		}
 		return total, ok
+	case ComputeAddDays:
+		if len(c.Fields) != 2 {
+			return nil, false
+		}
+		day, err := time.Parse(DateLayout, fmt.Sprint(values[c.Fields[0]]))
+		days, isNum := values[c.Fields[1]].(float64)
+		if err != nil || !isNum {
+			return nil, false
+		}
+		return day.AddDate(0, 0, int(days)).Format(DateLayout), true
 	}
 	return nil, false
 }

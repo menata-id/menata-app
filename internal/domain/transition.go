@@ -52,7 +52,17 @@ type Transition struct {
 	// it (the Permission `actor_field` arm, read per edge). ANDs with Roles, like every arm. A record whose
 	// field is empty satisfies nothing: an unassigned record is takeable by no one on this edge.
 	ActorField string
+	// Sets are Fields this edge writes when it is taken, each from a clock source in KnownTransitionSources: field id to
+	// source. The write overrides whatever the form carried, so "the date the task was completed" is the day it was, not
+	// a day someone typed. Only an edge performed by the `edit` Action may declare it, like Roles.
+	Sets map[string]string
 }
+
+// TransitionSourceToday is the day the edge is taken, as a date.
+const TransitionSourceToday = "today"
+
+// KnownTransitionSources is the closed set of values a Transition.Sets entry may be written from.
+var KnownTransitionSources = map[string]bool{TransitionSourceToday: true}
 
 // TransitionFor returns the declared Transition moving field from -> to, if m declares one.
 //

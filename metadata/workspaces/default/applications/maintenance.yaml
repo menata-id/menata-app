@@ -1,0 +1,14 @@
+id: app_maintenance
+name: Maintenance
+machines:
+  - mch_mt_task
+roles:
+  - coordinator
+  - technician
+icon: board
+color: blue
+navigation:
+  - id: nav_maintenance
+    label: Maintenance tasks
+    route: /machines/mch_mt_task
+    home_card: true

@@ -127,7 +127,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case01_design_request": {Rejected: 0, Passed: 13, Steps: 13, Red: nil},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
-	"case04_maintenance":    {Rejected: 3, Passed: 3, Steps: 4, Red: []string{"technician-completes"}},
+	"case04_maintenance":    {Rejected: 0, Passed: 4, Steps: 4},
 	"case05_inventory":      {Rejected: 0, Passed: 6, Steps: 6},
 	"case06_petty_cash":     {Rejected: 0, Passed: 10, Steps: 10},
 	"case14_lending":        {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"first-installment-is-flagged", "officer-disburses"}},

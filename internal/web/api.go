@@ -103,6 +103,9 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 		if !carryForwardFixedFields(w, req, store, machine, id, nil, values) {
 			return
 		}
+		if !applyTransitionSets(w, req, store, machine, id, values) {
+			return
+		}
 		data.ApplyComputed(machine, values)
 		if !allowsTransition(w, req, store, machine, id, values, actor) {
 			return

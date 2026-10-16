@@ -245,6 +245,9 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 // edit route and the single-Field one both end here, so a write that skips none of it cannot be written
 // by adding a route.
 func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) (*data.Record, bool) {
+	if !applyTransitionSets(w, req, store, machine, id, values) {
+		return nil, false
+	}
 	data.ApplyComputed(machine, values)
 	if !allowsTransition(w, req, store, machine, id, values, actor) {
 		return nil, false
@@ -544,6 +547,22 @@ func notFrozen(w http.ResponseWriter, req *http.Request, store *data.Store, mach
 		http.Error(w, reason, http.StatusConflict)
 		return false
 	}
+	return true
+}
+
+// applyTransitionSets stamps the Fields the edge this write takes sets from the clock (`sets:` on a transition), before
+// computed Fields are derived so a date computed from one (the next due date from the completion date) sees it. It reads
+// the stored record only for a Machine with such an edge.
+func applyTransitionSets(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	if !behavior.HasTransitionSets(machine) {
+		return true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return false
+	}
+	behavior.ApplyTransitionSets(machine, existing.Values, values, time.Now())
 	return true
 }
 

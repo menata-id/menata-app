@@ -87,6 +87,8 @@ type transitionDoc struct {
 	// Roles and ActorField gate who may take the edge (domain.Transition.Roles/ActorField).
 	Roles      []string `yaml:"roles"`
 	ActorField string   `yaml:"actor_field"`
+	// Sets writes Fields from the clock when the edge is taken (domain.Transition.Sets).
+	Sets map[string]string `yaml:"sets"`
 }
 
 // actionEffectDoc/fieldWriteDoc are the YAML serialization of a domain.ActionEffect (Stage B,
@@ -573,6 +575,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 
 			Roles:      td.Roles,
 			ActorField: td.ActorField,
+			Sets:       td.Sets,
 		})
 	}
 	for _, ad := range doc.Actions {

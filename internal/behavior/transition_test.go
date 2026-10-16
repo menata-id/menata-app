@@ -2,6 +2,7 @@ package behavior
 
 import (
 	"testing"
+	"time"
 
 	"menata.app/internal/domain"
 )
@@ -133,5 +134,34 @@ func TestMovedTransitions(t *testing.T) {
 		if got := MovedTransitions(m, map[string]any{"fld_decision": "pending", "fld_approver_type": "User"}, next); len(got) != 0 {
 			t.Errorf("%s: MovedTransitions = %+v, want none", name, got)
 		}
+	}
+}
+
+func TestApplyTransitionSets(t *testing.T) {
+	m := &domain.Machine{
+		Fields: []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"open", "done"}}, {ID: "fld_when", Type: domain.FieldTypeDate}},
+		Transitions: []domain.Transition{
+			{ID: "trn_done", Field: "fld_status", From: "open", To: "done", Action: domain.ActionEdit, Sets: map[string]string{"fld_when": domain.TransitionSourceToday}},
+			{ID: "trn_reopen", Field: "fld_status", From: "done", To: "open", Action: domain.ActionEdit},
+		},
+	}
+	now := time.Date(2026, 10, 16, 23, 59, 0, 0, time.UTC)
+	for name, tc := range map[string]struct {
+		current, next map[string]any
+		want          any
+	}{
+		"the edge is taken":             {map[string]any{"fld_status": "open"}, map[string]any{"fld_status": "done"}, "2026-10-16"},
+		"a typed date is overridden":    {map[string]any{"fld_status": "open"}, map[string]any{"fld_status": "done", "fld_when": "1999-01-01"}, "2026-10-16"},
+		"the status is left alone":      {map[string]any{"fld_status": "open"}, map[string]any{"fld_status": "open"}, nil},
+		"an edge that sets nothing":     {map[string]any{"fld_status": "done", "fld_when": "2026-01-01"}, map[string]any{"fld_status": "open", "fld_when": "2026-01-01"}, "2026-01-01"},
+		"an edit that omits the status": {map[string]any{"fld_status": "open"}, map[string]any{}, nil},
+	} {
+		ApplyTransitionSets(m, tc.current, tc.next, now)
+		if got := tc.next["fld_when"]; got != tc.want {
+			t.Errorf("%s: fld_when = %v, want %v", name, got, tc.want)
+		}
+	}
+	if !HasTransitionSets(m) || HasTransitionSets(&domain.Machine{Transitions: []domain.Transition{{ID: "t"}}}) {
+		t.Error("HasTransitionSets misreads the edges")
 	}
 }

@@ -108,3 +108,29 @@ func TestFieldTypeOrderIsExactlyKnownFieldTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestFieldComputeAddDays(t *testing.T) {
+	c := FieldCompute{Op: ComputeAddDays, Fields: []string{"fld_done", "fld_every"}}
+	for name, tc := range map[string]struct {
+		in   map[string]any
+		want any
+		ok   bool
+	}{
+		"thirty days on":             {map[string]any{"fld_done": "2026-10-16", "fld_every": 30.0}, "2026-11-15", true},
+		"across a year":              {map[string]any{"fld_done": "2026-12-20", "fld_every": 20.0}, "2027-01-09", true},
+		"a leap day":                 {map[string]any{"fld_done": "2028-02-28", "fld_every": 1.0}, "2028-02-29", true},
+		"zero days":                  {map[string]any{"fld_done": "2026-10-16", "fld_every": 0.0}, "2026-10-16", true},
+		"no date yet":                {map[string]any{"fld_every": 30.0}, nil, false},
+		"an unreadable date":         {map[string]any{"fld_done": "soon", "fld_every": 30.0}, nil, false},
+		"no number of days":          {map[string]any{"fld_done": "2026-10-16"}, nil, false},
+		"days that are not a number": {map[string]any{"fld_done": "2026-10-16", "fld_every": "30"}, nil, false},
+	} {
+		got, ok := c.Evaluate(tc.in)
+		if ok != tc.ok || got != tc.want {
+			t.Errorf("%s: Evaluate = %v, %v; want %v, %v", name, got, ok, tc.want, tc.ok)
+		}
+	}
+	if _, ok := (FieldCompute{Op: ComputeAddDays, Fields: []string{"fld_done"}}).Evaluate(map[string]any{"fld_done": "2026-10-16"}); ok {
+		t.Error("a single operand derived a value")
+	}
+}

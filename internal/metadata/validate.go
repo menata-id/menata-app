@@ -580,6 +580,22 @@ func validateTransitionActor(m *domain.Machine, t domain.Transition, fieldsByID 
 			issues = append(issues, fmt.Sprintf("machine %q: transition %q: roles entry %d is empty -- omit it rather than declaring a blank role, which no vocabulary contains", m.ID, t.ID, i))
 		}
 	}
+	if len(t.Sets) > 0 && t.Action != domain.ActionEdit {
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: sets is written by the generic update route, so only an edge with action %q may declare it, not %q", m.ID, t.ID, domain.ActionEdit, t.Action))
+	}
+	for fieldID, source := range t.Sets {
+		f, ok := fieldsByID[fieldID]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: sets names %q, which is not a field of this machine", m.ID, t.ID, fieldID))
+		case !domain.KnownTransitionSources[source]:
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: sets %q from %q, which is not a source this runtime knows (%v)", m.ID, t.ID, fieldID, source, sortedTransitionSources()))
+		case source == domain.TransitionSourceToday && f.Type != domain.FieldTypeDate:
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: sets %q from today, but it is a %s field, not a date", m.ID, t.ID, fieldID, f.Type))
+		case f.Compute != nil || f.Stamp != "":
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: sets %q, which the runtime already writes another way (compute or stamp)", m.ID, t.ID, fieldID))
+		}
+	}
 	if t.ActorField != "" {
 		f, ok := fieldsByID[t.ActorField]
 		switch {
@@ -590,6 +606,15 @@ func validateTransitionActor(m *domain.Machine, t domain.Transition, fieldsByID 
 		}
 	}
 	return issues
+}
+
+func sortedTransitionSources() []string {
+	out := make([]string, 0, len(domain.KnownTransitionSources))
+	for s := range domain.KnownTransitionSources {
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // validateTransition checks one declared edge of a Machine's state model (Case 03 Fase 7).
@@ -1651,14 +1676,23 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 		return nil
 	}
 	var issues []string
-	if f.Type != domain.FieldTypeNumber {
-		issues = append(issues, fmt.Sprintf("field %q: compute: is only valid on a number field, got type %q", f.ID, f.Type))
+	// What an operation produces and what it reads: sum adds numbers into a number; add_days adds a number of days to a
+	// date and gives a date, so its operands are exactly [a date field, a number field].
+	wantType, operandTypes := domain.FieldTypeNumber, []domain.FieldType{domain.FieldTypeNumber}
+	if f.Compute.Op == domain.ComputeAddDays {
+		wantType, operandTypes = domain.FieldTypeDate, []domain.FieldType{domain.FieldTypeDate, domain.FieldTypeNumber}
+	}
+	if f.Type != wantType {
+		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a %s field, got type %q", f.ID, f.Compute.Op, wantType, f.Type))
 	}
 	if !domain.KnownComputeOps[f.Compute.Op] {
 		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, f.Compute.Op, sortedComputeOps()))
 	}
 	if len(f.Compute.Fields) == 0 {
 		issues = append(issues, fmt.Sprintf("field %q: compute: needs at least one field to compute from", f.ID))
+	}
+	if f.Compute.Op == domain.ComputeAddDays && len(f.Compute.Fields) != 2 {
+		issues = append(issues, fmt.Sprintf("field %q: compute add_days takes exactly two fields, a date and a number of days", f.ID))
 	}
 	if f.Required {
 		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot be required -- nobody enters it", f.ID))
@@ -1667,15 +1701,16 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot declare a default -- its value is always derived", f.ID))
 	}
 	seen := map[string]bool{}
-	for _, id := range f.Compute.Fields {
+	for i, id := range f.Compute.Fields {
 		operand, ok := fieldsByID[id]
+		want := operandTypes[min(i, len(operandTypes)-1)]
 		switch {
 		case id == f.ID:
 			issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
 		case !ok:
 			issues = append(issues, fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, id))
-		case operand.Type != domain.FieldTypeNumber:
-			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a number field, got type %q", f.ID, id, operand.Type))
+		case operand.Type != want:
+			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a %s field, got type %q", f.ID, id, want, operand.Type))
 		case operand.Compute != nil:
 			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q is itself computed -- compute from the fields it is computed from instead", f.ID, id))
 		}

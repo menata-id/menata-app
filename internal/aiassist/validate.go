@@ -297,10 +297,18 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		m.Completion = &domain.Completion{Field: gm.Completion.Field, Done: gm.Completion.Done}
 	}
 	for _, gt := range gm.Transitions {
+		seenSet := map[string]bool{}
+		for _, st := range gt.Sets {
+			if seenSet[st.Field] {
+				issues = append(issues, fmt.Sprintf("machine %q step %q: sets names %q more than once", gm.ID, gt.ID, st.Field))
+			}
+			seenSet[st.Field] = true
+		}
 		m.Transitions = append(m.Transitions, domain.Transition{
 			ID: gt.ID, Name: gt.Name, Field: gt.Field, From: gt.From, To: gt.To,
 			Action: domain.ActionEdit,
 			Roles:  slices.Clone(gt.Roles), ActorField: gt.ActorField,
+			Sets: setsOf(gt.Sets),
 		})
 	}
 	if gm.FrozenWhen != nil {
@@ -448,6 +456,19 @@ func frozenIssues(gm GeneratedMachine, all []GeneratedMachine) []string {
 		return []string{fmt.Sprintf("machine %q: frozen_when.field %q is not a field of %q, which %q points at", gm.ID, f.Field, other.ID, f.Via)}
 	}
 	return nil
+}
+
+// setsOf turns a step's list of clock writes into domain.Transition.Sets. A field named twice keeps the last, which the
+// loader cannot see, so the duplicate is the validator's to refuse (setsDuplicates).
+func setsOf(list []GeneratedSet) map[string]string {
+	if len(list) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(list))
+	for _, s := range list {
+		out[s.Field] = s.Source
+	}
+	return out
 }
 
 func fieldOf(m *domain.Machine, id string) *domain.Field {

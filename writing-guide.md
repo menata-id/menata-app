@@ -248,6 +248,31 @@ write is refused, since they would skip the check. A `constraints:` block relate
 it cannot say. **Limit:** the check reads, then the write follows, so two simultaneous writes to one group can both pass; the
 runtime is one process and this is not a lock. The assistant writes new limits and cannot change or remove one.
 
+### 3.0b. A date from a date, and a Field an edge writes from the clock (2026-10-16)
+
+`compute:` gained a second operation. `op: add_days` is a **date** Field computed as a date Field plus a number Field of days:
+
+```yaml
+  - id: fld_following_due
+    name: Next due
+    type: date
+    compute: { op: add_days, fields: [fld_last_done, fld_frequency_days] }   # [a date field, a number field], in that order
+```
+
+It is derived on every generic write, empty until both operands hold a value, and never an input (like `sum`). And an edge of
+`transitions:` may write Fields from the clock when it is taken:
+
+```yaml
+transitions:
+  - { id: trn_complete, name: Complete, field: fld_status, from: scheduled, to: done, action: edit,
+      roles: [technician], sets: { fld_last_done: today } }
+```
+
+`today` is the only source (a closed set); the target must be a `date` Field that is not computed or stamped, and only an edge
+with `action: edit` may declare it. The write overrides whatever the form carried, and it happens only when the write takes that
+edge, so an edit that leaves the status alone cannot rewrite the date. It runs before computed Fields are derived, which is why
+the example above gives the next due date from today. The assistant writes both.
+
 ### 3.0a. A record frozen by its parent: `frozen_when:` (2026-10-16)
 
 ```yaml

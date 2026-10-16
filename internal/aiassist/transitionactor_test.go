@@ -396,3 +396,84 @@ func TestFrozenWhenIsHeldToItsTargetInTheSameChange(t *testing.T) {
 		t.Errorf("a via that is not a relation = %v", err)
 	}
 }
+
+func withClockWrites(a *GeneratedApplication) {
+	m := &a.Machines[1]
+	m.Fields = append(m.Fields,
+		GeneratedField{ID: "fld_selesai", Name: "Selesai", Type: "date"},
+		GeneratedField{ID: "fld_tiap", Name: "Tiap (hari)", Type: "number"},
+		GeneratedField{ID: "fld_berikut", Name: "Berikutnya", Type: "date", Compute: &GeneratedCompute{Op: "add_days", Fields: []string{"fld_selesai", "fld_tiap"}}})
+	m.Transitions = []GeneratedTransition{{ID: "trn_kirim", Name: "Kirim", Field: "fld_status", From: "draft", To: "sent", Sets: []GeneratedSet{{Field: "fld_selesai", Source: "today"}}}}
+}
+
+func TestClockWritesAndAddDaysAreWrittenLoadedDescribedBackAndNotChangeable(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	loaded := publish(t, manifestPath, update(t, manifestPath, withClockWrites))
+	for _, m := range loaded.Machines {
+		if m.ID != "mch_pencatatan_sampah" {
+			continue
+		}
+		if len(m.Transitions) != 1 || m.Transitions[0].Sets["fld_selesai"] != "today" {
+			t.Fatalf("the loaded step = %+v", m.Transitions)
+		}
+		f, _ := m.FieldByID("fld_berikut")
+		if f.Compute == nil || f.Compute.Op != domain.ComputeAddDays {
+			t.Fatalf("the loaded computed date = %+v", f.Compute)
+		}
+	}
+	st, _ := stateOf(t, manifestPath)
+	cur := DescribeApplication("app_pengelolaan_sampah", st.Applications["app_pengelolaan_sampah"])
+	if s := cur.Machines[1].Transitions[0].Sets; len(s) != 1 || s[0].Field != "fld_selesai" || s[0].Source != "today" {
+		t.Fatalf("described back: %+v", s)
+	}
+	if plan := PlanUpdate(cur, cur); len(plan.Items) != 0 || len(plan.Refusals) != 0 {
+		t.Errorf("an unchanged application planned something: %+v", plan)
+	}
+	desired := DescribeApplication("app_pengelolaan_sampah", st.Applications["app_pengelolaan_sampah"])
+	desired.Machines[1].Transitions[0].Sets = nil
+	if plan := PlanUpdate(cur, desired); len(plan.Refusals) != 1 {
+		t.Errorf("dropping a clock write: refusals = %v", plan.Refusals)
+	}
+}
+
+func TestClockWritesAreHeldToTheLoadersRules(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	state, _ := stateOf(t, manifestPath)
+	for name, edit := range map[string]func(*GeneratedTransition){
+		"a field that is not a date": func(tr *GeneratedTransition) { tr.Sets[0].Field = "fld_tiap" },
+		"a missing field":            func(tr *GeneratedTransition) { tr.Sets[0].Field = "fld_nope" },
+		"a source that is not known": func(tr *GeneratedTransition) { tr.Sets[0].Source = "tomorrow" },
+		"a field named twice":        func(tr *GeneratedTransition) { tr.Sets = append(tr.Sets, tr.Sets[0]) },
+	} {
+		change := update(t, manifestPath, func(a *GeneratedApplication) {
+			withClockWrites(a)
+			edit(&a.Machines[1].Transitions[0])
+		})
+		if err := Validate(change, state); err == nil {
+			t.Errorf("%s: Validate accepted it", name)
+		}
+	}
+}
+
+func TestNewApplicationWritesItsClockWrites(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	change := GeneratedChange{Kind: KindNewApplication, Application: &GeneratedApplication{
+		ID: "app_rawat", Name: "Rawat", Roles: []string{"teknisi"}, PublisherRole: "teknisi",
+		Navigation: []GeneratedMenuItem{{Label: "Tugas", MachineID: "mch_tugas"}},
+		Machines: []GeneratedMachine{{ID: "mch_tugas", Name: "Tugas",
+			Fields: []GeneratedField{
+				{ID: "fld_status", Name: "Status", Type: "status", Required: true, Options: []string{"jadwal", "selesai"}, Default: "jadwal"},
+				{ID: "fld_selesai", Name: "Selesai", Type: "date"}},
+			Transitions: []GeneratedTransition{{ID: "trn_selesai", Name: "Selesai", Field: "fld_status", From: "jadwal", To: "selesai", Sets: []GeneratedSet{{Field: "fld_selesai", Source: "today"}}}}}},
+	}}
+	loaded := publish(t, manifestPath, change)
+	for _, m := range loaded.Machines {
+		if m.ID == "mch_tugas" {
+			if m.Transitions[0].Sets["fld_selesai"] != "today" {
+				t.Fatalf("the written step = %+v", m.Transitions[0])
+			}
+			return
+		}
+	}
+	t.Fatal("the new Machine was not loaded")
+}

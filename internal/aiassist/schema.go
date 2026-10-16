@@ -105,7 +105,7 @@ var generatedFieldSchema = geminiSchema{
 		},
 		"compute": {
 			Type:             "OBJECT",
-			Description:      "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",
+			Description:      "Only on a field that should be calculated rather than entered: a total (op sum, on a number field over number fields), or a date plus a number of days (op add_days, on a DATE field, fields: [a date field, a number field]). It is never shown as an input; it is calculated every time the record is saved.",
 			Required:         []string{"op", "fields"},
 			PropertyOrdering: []string{"op", "fields"},
 			Properties: map[string]geminiSchema{
@@ -132,6 +132,16 @@ func sortDirectionEnum() []string {
 	out := make([]string, 0, len(domain.KnownSortDirections))
 	for d := range domain.KnownSortDirections {
 		out = append(out, d)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// transitionSourceEnum is domain.KnownTransitionSources, sorted.
+func transitionSourceEnum() []string {
+	out := make([]string, 0, len(domain.KnownTransitionSources))
+	for s := range domain.KnownTransitionSources {
+		out = append(out, s)
 	}
 	sort.Strings(out)
 	return out
@@ -209,7 +219,7 @@ var generatedPermissionSchema = geminiSchema{
 }
 
 var generatedTransitionSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "field", "from", "to", "roles", "actor_field"},
+	PropertyOrdering: []string{"id", "name", "field", "from", "to", "roles", "actor_field", "sets"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "field", "from", "to"},
 	Properties: map[string]geminiSchema{
@@ -220,6 +230,9 @@ var generatedTransitionSchema = geminiSchema{
 		"to":          stringSchema,
 		"roles":       {Type: "ARRAY", Items: &stringSchema, Description: "Optional: only people holding one of these roles of this application may take this step (\"only a manager approves\"). Leave out for any editor."},
 		"actor_field": {Type: "STRING", Description: "Optional: a person field of this same machine. Only the person named in it on a record may take this step on that record (\"only the requester reopens\")."},
+		"sets": {Type: "ARRAY", Description: "Optional: date fields of this machine this step writes with the day it is taken (e.g. the completion date when completing). The clock wins over anything typed.",
+			Items: &geminiSchema{Type: "OBJECT", Required: []string{"field", "source"}, PropertyOrdering: []string{"field", "source"},
+				Properties: map[string]geminiSchema{"field": stringSchema, "source": {Type: "STRING", Enum: transitionSourceEnum()}}}},
 	},
 }
 

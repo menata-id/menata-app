@@ -1200,3 +1200,47 @@ func TestValidateFrozenWhen(t *testing.T) {
 		t.Errorf("a freeze naming nothing = %v", err)
 	}
 }
+
+func TestValidate_computeAddDaysAndTransitionSets(t *testing.T) {
+	mk := func(edit func(*domain.Machine)) *domain.Machine {
+		m := transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionEdit})
+		m.Fields = append(m.Fields,
+			domain.Field{ID: "fld_when", Name: "When", Type: domain.FieldTypeDate},
+			domain.Field{ID: "fld_every", Name: "Every", Type: domain.FieldTypeNumber},
+			domain.Field{ID: "fld_next", Name: "Next", Type: domain.FieldTypeDate, Compute: &domain.FieldCompute{Op: domain.ComputeAddDays, Fields: []string{"fld_when", "fld_every"}}})
+		if edit != nil {
+			edit(m)
+		}
+		return m
+	}
+	if err := Validate(mk(nil)); err != nil {
+		t.Fatalf("a sound add_days was refused: %v", err)
+	}
+	next := func(m *domain.Machine) *domain.Field { return &m.Fields[len(m.Fields)-1] }
+	for name, tc := range map[string]struct {
+		edit func(*domain.Machine)
+		want string
+	}{
+		"a number result":       {func(m *domain.Machine) { next(m).Type = domain.FieldTypeNumber }, "only valid on a date field"},
+		"one operand":           {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when"} }, "exactly two fields"},
+		"operands swapped":      {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_every", "fld_when"} }, "must be a date field"},
+		"a text second operand": {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when", "fld_note"} }, "must be a number field"},
+		"sum still wants numbers": {func(m *domain.Machine) {
+			next(m).Type, next(m).Compute = domain.FieldTypeNumber, &domain.FieldCompute{Op: domain.ComputeSum, Fields: []string{"fld_when"}}
+		}, "must be a number field"},
+		"sets on a decide edge": {func(m *domain.Machine) {
+			m.Transitions[0].Action, m.Transitions[0].Sets = domain.ActionDecide, map[string]string{"fld_when": "today"}
+		}, "only an edge with action"},
+		"sets a missing field":  {func(m *domain.Machine) { m.Transitions[0].Sets = map[string]string{"fld_nope": "today"} }, "not a field of this machine"},
+		"sets from nowhere":     {func(m *domain.Machine) { m.Transitions[0].Sets = map[string]string{"fld_when": "tomorrow"} }, "not a source"},
+		"sets a text field":     {func(m *domain.Machine) { m.Transitions[0].Sets = map[string]string{"fld_note": "today"} }, "not a date"},
+		"sets a computed field": {func(m *domain.Machine) { m.Transitions[0].Sets = map[string]string{"fld_next": "today"} }, "already writes"},
+	} {
+		if err := Validate(mk(tc.edit)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: Validate = %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+	if err := Validate(mk(func(m *domain.Machine) { m.Transitions[0].Sets = map[string]string{"fld_when": "today"} })); err != nil {
+		t.Errorf("a sound sets was refused: %v", err)
+	}
+}
