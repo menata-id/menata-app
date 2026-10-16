@@ -1,0 +1,32 @@
+id: app_accounting
+name: Accounting
+machines:
+  - mch_ac_period
+  - mch_ac_entry
+  - mch_ac_line
+roles:
+  - supervisor
+  - accountant
+description: General journal for a small organisation, with a monthly close.
+icon: board
+color: blue
+summary_machine: mch_ac_entry
+navigation:
+  - id: nav_ac_entry
+    label: Journal
+    title: General journal
+    description: Every journal entry and its status.
+    route: /machines/mch_ac_entry
+    home_card: true
+  - id: nav_ac_line
+    label: Journal lines
+    title: Journal lines
+    description: The debit and credit of each entry.
+    route: /machines/mch_ac_line
+    home_card: false
+  - id: nav_ac_period
+    label: Periods
+    title: Accounting periods
+    description: Periods the supervisor opens and closes.
+    route: /machines/mch_ac_period
+    home_card: false

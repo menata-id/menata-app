@@ -521,11 +521,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   while the two invariants above do not.
 - `TestCaseCorpusOnlyAdvances` / `TestAIGrammarGapIsMeasured` (2026-10-15/16) — the **case corpus** and the
   **capability catalogue**. `internal/web/testdata/cases/<case>/` holds a business case written as it should read
-  (Cases 1, 2, 17) plus a scenario played through the real router (`tick:` steps run the scheduler as if days had
+  (Cases 1, 2, 17, then 4, 5, 6, 14, then 9) plus a scenario played through the real router (`tick:` steps run the scheduler as if days had
   passed); keys the loader does not read are stripped and become the case's backlog, and `caseRatchet` locks each
   case's numbers both ways. `registry.Capabilities` is one row per loader key (ten structs) with `AIWritable` or the
   reason it is not, held to the loader and to the assistant's schema by reflection; a *proposed* row names the cases
-  that wish for it, and the corpus gate holds that link both ways. All three cases run green and no proposed row is
+  that wish for it, and the corpus gate holds that link both ways. Every case runs fully green and no proposed row is
   open (2026-10-16). **The pattern for a new capability:** write the case red first, build until its steps pass, then
   put real metadata in a Workspace. A wished key is not admitted by being in a case (capability-lifecycle §2).
 - `TestCheckDocsMirrorMetadatasOwnKeys` — `internal/installer`'s strict-decode targets

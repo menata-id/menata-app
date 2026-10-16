@@ -262,7 +262,9 @@ func TestCheckBalance(t *testing.T) {
 func TestBalancedEdgesAreOnlyTheOnesTheWriteTakes(t *testing.T) {
 	m := &domain.Machine{ID: "mch_entry", Fields: []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"draft", "posted"}}},
 		Transitions: []domain.Transition{{ID: "trn_post", Field: "fld_status", From: "draft", To: "posted", Action: domain.ActionEdit,
-			Balanced: &domain.BalanceRule{Machine: "mch_line"}}}}
+			Balanced: &domain.BalanceRule{Machine: "mch_line"}},
+			{ID: "trn_void", Field: "fld_status", From: "posted", To: "void", Action: domain.ActionEdit}}}
+	m.Fields[0].Options = append(m.Fields[0].Options, "void")
 	if !HasBalanced(m) {
 		t.Fatal("HasBalanced missed a balanced edge")
 	}
@@ -271,6 +273,9 @@ func TestBalancedEdgesAreOnlyTheOnesTheWriteTakes(t *testing.T) {
 	}
 	if got := BalancedEdges(m, map[string]any{"fld_status": "draft"}, map[string]any{"fld_status": "draft"}); len(got) != 0 {
 		t.Errorf("an edit that leaves the status alone took %d balanced edges", len(got))
+	}
+	if got := BalancedEdges(m, map[string]any{"fld_status": "posted"}, map[string]any{"fld_status": "void"}); len(got) != 0 {
+		t.Errorf("an edge declaring no balance was listed as balanced: %d", len(got))
 	}
 	if HasBalanced(&domain.Machine{}) {
 		t.Error("a Machine with no edges reports a balanced one")

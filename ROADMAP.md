@@ -11,7 +11,7 @@ kept in a private companion repository.
 **Building applications from metadata**
 - **Data models from YAML**: a Machine (a kind of record) gets list, board and calendar views, create/edit/delete,
   relations, child collections, checklists, comments and file attachments, with no per-model code.
-- **Behaviour from YAML**: permissions per action and per role, status transitions (and who may take each), fields required under a condition, dates derived from a status or from another date, an edge that creates a schedule of records, limits on a total, records frozen by their parent, what an action writes,
+- **Behaviour from YAML**: permissions per action and per role, status transitions (and who may take each), fields required under a condition, dates derived from a status or from another date, an edge that creates a schedule of records, an edge that waits until its lines add up, limits on a total, records frozen by their parent, what an action writes,
   events (on change, on create, on a schedule) that log activity, notify a person, a role or a group, roll a status up to a parent record, or escalate an overdue record.
 - **Declared screens**: a navigation item can declare its whole screen as a tree of layouts, text and components,
   bound to declared data. Lists, metrics, forms that create and edit records, buttons that move, delete or change

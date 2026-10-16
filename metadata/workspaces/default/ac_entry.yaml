@@ -1,0 +1,40 @@
+id: mch_ac_entry
+name: Journal Entry
+fields:
+  - id: fld_description
+    name: Description
+    type: text
+    required: true
+  - id: fld_period
+    name: Period
+    type: relation
+    machine: mch_ac_period
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [draft, posted]
+    default: draft
+permissions:
+  - id: prm_create_entry
+    action: create
+    roles: [accountant]
+  - id: prm_edit_entry
+    action: edit
+    roles: [accountant, supervisor]
+# Only the supervisor posts, and only when the entry's debit and credit lines add up.
+transitions:
+  - id: trn_post_entry
+    name: Post
+    field: fld_status
+    from: draft
+    to: posted
+    action: edit
+    roles: [supervisor]
+    balanced: { of: mch_ac_line, via: fld_entry, debit: fld_debit, credit: fld_credit, reason: Debit and credit of this entry do not balance. }
+# A closed period freezes its entries.
+frozen_when:
+  via: fld_period
+  field: fld_status
+  equals: closed

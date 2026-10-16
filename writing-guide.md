@@ -278,6 +278,35 @@ default (the runtime could not fill it). Only an `action: edit` edge may declare
 no slot, with its reason in the catalogue. Stated limit: a crash between the move and the rows leaves a move with a partial
 schedule, and a missing row is visible; there is no transaction around the two.
 
+### 3.0d. An edge that waits until its lines add up: `balanced:` (2026-10-16)
+
+```yaml
+transitions:
+  - id: trn_post_entry
+    name: Post
+    field: fld_status
+    from: draft
+    to: posted
+    action: edit
+    roles: [supervisor]
+    balanced:
+      of: mch_line            # the Machine whose records are totalled
+      via: fld_entry          # a relation Field of that Machine pointing back at THIS record
+      debit: fld_debit        # two different number Fields of that Machine
+      credit: fld_credit
+      reason: Debit and credit of this entry do not balance.
+```
+
+Before the status moves, the records of `of` that point at this record are read and their debit and credit totals must be
+equal to the cent. Nothing to total (no lines, or only zeros) is refused too, since posting nothing is almost always a
+mistake, and the refusal names both totals ("debit 500.00, credit 400.00"). A blank or non-number counts as zero. The check
+sits with the other write guards, so the form, single-field and JSON routes all apply it, and only a write that takes this
+edge reads anything. The loader checks the edge is an `action: edit` one, the target Machine is a Workspace Machine written
+by the generic screens, `via` is a relation back to this Machine, and the two totals are different number Fields.
+Pair it with `frozen_when:` on the lines (`via` the entry, `equals` the posted status) and a posted entry stays as it was
+balanced. Hand-written only today: the assistant has no slot, with its reason in the catalogue. Stated limit: the lines are
+read and then the status is written, with no lock between them, so a line added at that very moment can slip past.
+
 ### 3.0b. A date from a date, and a Field an edge writes from the clock (2026-10-16)
 
 `compute:` gained a second operation. `op: add_days` is a **date** Field computed as a date Field plus a number Field of days:

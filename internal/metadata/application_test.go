@@ -1941,3 +1941,51 @@ fields:
 		t.Errorf("a link that is not a relation back to the loan = %v, want a refusal", err)
 	}
 }
+
+// The wiring half of TestValidateBalanced: through the real loader, the rule reaches the Machine's edge (a parse that drops
+// the key would leave a balanced edge that balances nothing), and a rule whose lines do not point back at the entry is refused.
+func TestLoadApplication_balancedReachesTheEdgeAndIsCheckedAgainstTheLines(t *testing.T) {
+	load := func(link string) (*App, error) {
+		dir := t.TempDir()
+		writeFile(t, dir, "entry.yaml", `id: mch_entry
+name: Entry
+fields:
+  - { id: fld_status, name: Status, type: status, options: [draft, posted] }
+transitions:
+  - id: trn_post
+    name: Post
+    field: fld_status
+    from: draft
+    to: posted
+    action: edit
+    balanced: { of: mch_line, via: `+link+`, debit: fld_debit, credit: fld_credit, reason: Not balanced. }
+`)
+		writeFile(t, dir, "line.yaml", `id: mch_line
+name: Line
+fields:
+  - { id: fld_entry, name: Entry, type: relation, machine: mch_entry }
+  - { id: fld_other, name: Other, type: text }
+  - { id: fld_debit, name: Debit, type: number }
+  - { id: fld_credit, name: Credit, type: number }
+`)
+		writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - entry.yaml\n  - line.yaml\napplications: []\n")
+		return LoadApplication(filepath.Join(dir, "app.yaml"))
+	}
+	app, err := load("fld_entry")
+	if err != nil {
+		t.Fatalf("a sound balance rule did not load: %v", err)
+	}
+	var rule *domain.BalanceRule
+	for _, m := range app.Machines {
+		if m.ID == "mch_entry" && len(m.Transitions) == 1 {
+			rule = m.Transitions[0].Balanced
+		}
+	}
+	want := domain.BalanceRule{Machine: "mch_line", Via: "fld_entry", Debit: "fld_debit", Credit: "fld_credit", Reason: "Not balanced."}
+	if rule == nil || *rule != want {
+		t.Errorf("the loaded rule = %+v, want %+v", rule, want)
+	}
+	if _, err := load("fld_other"); err == nil || !strings.Contains(err.Error(), "pointing back") {
+		t.Errorf("lines that do not point back at the entry = %v, want a refusal", err)
+	}
+}

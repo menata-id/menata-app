@@ -1,0 +1,23 @@
+id: mch_ac_period
+name: Accounting Period
+fields:
+  - id: fld_name
+    name: Period
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [open, closed]
+    default: open
+permissions:
+  - id: prm_create_period
+    action: create
+    roles: [supervisor]
+  - id: prm_edit_period
+    action: edit
+    roles: [supervisor]
+transitions:
+  - { id: trn_close_period, name: Close period, field: fld_status, from: open, to: closed, action: edit, roles: [supervisor] }
+completion: { field: fld_status, done: closed }

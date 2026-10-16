@@ -1,0 +1,32 @@
+id: mch_ac_line
+name: Journal Line
+fields:
+  - id: fld_entry
+    name: Entry
+    type: relation
+    machine: mch_ac_entry
+    required: true
+  - id: fld_account
+    name: Account
+    type: text
+    required: true
+  - id: fld_debit
+    name: Debit
+    type: number
+    default: "0"
+  - id: fld_credit
+    name: Credit
+    type: number
+    default: "0"
+permissions:
+  - id: prm_create_line
+    action: create
+    roles: [accountant, supervisor]
+  - id: prm_edit_line
+    action: edit
+    roles: [accountant, supervisor]
+# A posted entry's lines are frozen.
+frozen_when:
+  via: fld_entry
+  field: fld_status
+  equals: posted
