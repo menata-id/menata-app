@@ -1,0 +1,33 @@
+id: mch_ac_line
+name: Baris Jurnal
+fields:
+  - id: fld_entry
+    name: Entri
+    type: relation
+    machine: mch_ac_entry
+    required: true
+  - id: fld_account
+    name: Akun
+    type: text
+    required: true
+  - id: fld_debit
+    name: Debit
+    type: number
+    default: "0"
+  - id: fld_credit
+    name: Kredit
+    type: number
+    default: "0"
+permissions:
+  - id: prm_create_line
+    action: create
+    roles: [akuntan]
+  - id: prm_edit_line
+    action: edit
+    roles: [akuntan]
+
+# A posted entry's lines are frozen (built).
+frozen_when:
+  via: fld_entry
+  field: fld_status
+  equals: diposting

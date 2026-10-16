@@ -126,6 +126,9 @@ var Capabilities = []Capability{
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 
+	{ID: "transitionDoc.balanced", Struct: "transitionDoc", Keys: []string{"balanced"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
+		AIReason: "an edge that moves only when the debit and credit totals of the record's lines are equal; lands with its AI slot or a reason in the same slice", Cases: []string{"case09_accounting"}},
+
 	// Proposed rows (a key a case corpus wishes for and no loader reads) are none today: both corpora, Cases 1, 2, 17 and
 	// Cases 4, 5, 6, 14, are fully built (2026-10-16). A new wish arrives as a row here naming its cases, which the
 	// corpus gate holds both ways, and leaves as a supported row when it is built.

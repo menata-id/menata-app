@@ -1,0 +1,23 @@
+id: mch_ac_period
+name: Periode Pembukuan
+fields:
+  - id: fld_name
+    name: Periode
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [terbuka, ditutup]
+    default: terbuka
+permissions:
+  - id: prm_create_period
+    action: create
+    roles: [penyelia]
+  - id: prm_edit_period
+    action: edit
+    roles: [penyelia]
+transitions:
+  - { id: trn_close_period, name: Tutup periode, field: fld_status, from: terbuka, to: ditutup, action: edit, roles: [penyelia] }
+completion: { field: fld_status, done: ditutup }

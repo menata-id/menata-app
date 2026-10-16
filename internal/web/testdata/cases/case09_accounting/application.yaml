@@ -1,0 +1,35 @@
+id: app_accounting
+name: Pembukuan
+machines:
+  - mch_ac_period
+  - mch_ac_entry
+  - mch_ac_line
+roles:
+  - akuntan
+  - penyelia
+description: Jurnal umum organisasi kecil dengan penutupan bulanan.
+icon: board
+color: blue
+summary_machine: mch_ac_entry
+navigation:
+  - id: nav_ac_entry
+    label: Jurnal
+    title: Jurnal umum
+    description: Setiap entri jurnal dan statusnya.
+    route: /machines/mch_ac_entry
+    priority: 1
+    icon: board
+  - id: nav_ac_line
+    label: Baris jurnal
+    title: Baris jurnal
+    description: Debit dan kredit tiap entri.
+    route: /machines/mch_ac_line
+    priority: 2
+    icon: board
+  - id: nav_ac_period
+    label: Periode
+    title: Periode pembukuan
+    description: Periode yang dibuka dan ditutup penyelia.
+    route: /machines/mch_ac_period
+    priority: 3
+    icon: board

@@ -1,0 +1,43 @@
+id: mch_ac_entry
+name: Entri Jurnal
+fields:
+  - id: fld_description
+    name: Uraian
+    type: text
+    required: true
+  - id: fld_period
+    name: Periode
+    type: relation
+    machine: mch_ac_period
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [draf, diposting]
+    default: draf
+permissions:
+  - id: prm_create_entry
+    action: create
+    roles: [akuntan]
+  - id: prm_edit_entry
+    action: edit
+    roles: [akuntan, penyelia]
+
+# Only the Supervisor posts. WISHED (a balance rule on an edge): the entry's lines must have equal debit and credit totals
+# before it moves; red until built.
+transitions:
+  - id: trn_post_entry
+    name: Posting
+    field: fld_status
+    from: draf
+    to: diposting
+    action: edit
+    roles: [penyelia]
+    balanced: { of: mch_ac_line, via: fld_entry, debit: fld_debit, credit: fld_credit, reason: Debit dan kredit entri ini belum seimbang. }
+
+# A closed period freezes its entries (built).
+frozen_when:
+  via: fld_period
+  field: fld_status
+  equals: ditutup

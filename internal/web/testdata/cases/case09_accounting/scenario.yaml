@@ -1,0 +1,69 @@
+case: 9
+title: Accounting
+actors:
+  - { name: amel, role: akuntan }
+  - { name: pak_surya, role: penyelia }
+steps:
+  - id: open-period
+    as: pak_surya
+    create: { machine: mch_ac_period, values: { fld_name: Oktober 2026 } }
+    expect: ok
+
+  - id: entry
+    as: amel
+    create: { machine: mch_ac_entry, values: { fld_description: Penjualan tunai, fld_period: $open-period } }
+    expect: ok
+    record: { fld_status: draf }
+
+  - id: debit-line
+    as: amel
+    create: { machine: mch_ac_line, values: { fld_entry: $entry, fld_account: Kas, fld_debit: "500000" } }
+    expect: ok
+
+  - id: credit-line
+    as: amel
+    create: { machine: mch_ac_line, values: { fld_entry: $entry, fld_account: Pendapatan, fld_credit: "400000" } }
+    expect: ok
+
+  # 500.000 against 400.000 is not balanced. WISHED (balanced on an edge): red until built.
+  - id: unbalanced-entry-is-not-posted
+    as: pak_surya
+    update: { ref: entry, values: { fld_status: diposting } }
+    expect: refused
+
+  - id: fixing-the-credit
+    as: amel
+    update: { ref: credit-line, values: { fld_credit: "500000" } }
+    expect: ok
+
+  - id: accountant-does-not-post
+    as: amel
+    update: { ref: entry, values: { fld_status: diposting } }
+    expect: refused
+
+  - id: supervisor-posts-the-balanced-entry
+    as: pak_surya
+    update: { ref: entry, values: { fld_status: diposting } }
+    expect: ok
+    record: { fld_status: diposting }
+
+  # A posted entry is immutable: its lines are not edited or added to (frozen_when, built).
+  - id: posted-line-is-frozen
+    as: amel
+    update: { ref: debit-line, values: { fld_debit: "1" } }
+    expect: refused
+
+  - id: nor-a-line-added
+    as: amel
+    create: { machine: mch_ac_line, values: { fld_entry: $entry, fld_account: Kas, fld_debit: "5" } }
+    expect: refused
+
+  - id: supervisor-closes-the-period
+    as: pak_surya
+    update: { ref: open-period, values: { fld_status: ditutup } }
+    expect: ok
+
+  - id: closed-period-takes-no-new-entry
+    as: amel
+    create: { machine: mch_ac_entry, values: { fld_description: Terlambat, fld_period: $open-period } }
+    expect: refused
