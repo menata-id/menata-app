@@ -39,8 +39,8 @@ permissions:
 transitions:
   - { id: trn_approve, name: Setujui, field: fld_status, from: diajukan, to: disetujui, action: edit, roles: [petugas pinjaman] }
   - { id: trn_reject, name: Tolak, field: fld_status, from: diajukan, to: ditolak, action: edit, roles: [petugas pinjaman] }
-  # WISHED: `generates:`, an edge that creates records. Disbursement writes the whole repayment schedule: one
-  # installment per month of the tenor, each due 30 days after the previous, the amount split evenly.
+  # `generates:` makes an edge create records (was WISHED until built). Disbursement writes the whole repayment schedule:
+  # one installment per month of the tenor, each due 30 days after the previous, the amount split evenly.
   - id: trn_disburse
     name: Cairkan
     field: fld_status
@@ -55,6 +55,6 @@ transitions:
       due_field: fld_due_date
       due_every_days: 30
       amount_field: fld_amount
-      amount_from: { field: fld_amount, divided_by_field: fld_months }
+      amount_from: fld_amount
 
 completion: { field: fld_status, done: dicairkan }

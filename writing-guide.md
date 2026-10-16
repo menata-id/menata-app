@@ -248,6 +248,36 @@ write is refused, since they would skip the check. A `constraints:` block relate
 it cannot say. **Limit:** the check reads, then the write follows, so two simultaneous writes to one group can both pass; the
 runtime is one process and this is not a lock. The assistant writes new limits and cannot change or remove one.
 
+### 3.0c. An edge that creates a schedule of records: `generates:` (2026-10-16)
+
+```yaml
+transitions:
+  - id: trn_disburse
+    name: Disburse
+    field: fld_status
+    from: approved
+    to: disbursed
+    action: edit
+    roles: [loan officer]
+    generates:
+      machine: mch_installment     # the Machine whose records are created
+      count_field: fld_months      # a number Field of THIS record: how many (a whole number, 1 to 120)
+      link_field: fld_loan         # a relation Field of the new Machine pointing back at this record
+      due_field: fld_due_date      # a date Field: the i-th row is due i x due_every_days from the day the edge is taken
+      due_every_days: 30
+      amount_field: fld_amount     # a number Field of the new Machine
+      amount_from: fld_amount      # a number Field of THIS record, split evenly; the last row takes the rounding remainder
+```
+
+The edge writes the status move and, after it, the rows, each running its own create Events. The target Machine's create
+Permission is not asked: the edge is the authority. Everything that could make the schedule unwritable refuses the *move*
+before anything is written (a count that is not a whole number, an amount that is not a number, a row the target Machine would
+refuse), and an edge never generates twice for one record (409). The loader checks both Machines: the link must be a relation
+back to this one, the due Field a date, the amount a number, and the target may declare no other required Field without a
+default (the runtime could not fill it). Only an `action: edit` edge may declare it. Hand-written only today: the assistant has
+no slot, with its reason in the catalogue. Stated limit: a crash between the move and the rows leaves a move with a partial
+schedule, and a missing row is visible; there is no transaction around the two.
+
 ### 3.0b. A date from a date, and a Field an edge writes from the clock (2026-10-16)
 
 `compute:` gained a second operation. `op: add_days` is a **date** Field computed as a date Field plus a number Field of days:

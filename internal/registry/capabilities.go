@@ -81,6 +81,7 @@ var Capabilities = []Capability{
 	key("transitionDoc", "roles", "authorization", "behavior", true, ""),
 	key("transitionDoc", "actor_field", "authorization", "behavior", true, ""),
 	key("transitionDoc", "sets", "behaviour", "behavior", true, ""),
+	key("transitionDoc", "generates", "behaviour", "behavior", false, "a generated schedule needs its target Machine, the field that holds the count and the amount, and a conversation about period and splitting that the prompt does not have yet; hand-written only"),
 	// permissionDoc
 	key("permissionDoc", "id", "identity", "domain", true, ""),
 	key("permissionDoc", "action", "authorization", "behavior", true, ""),
@@ -125,12 +126,9 @@ var Capabilities = []Capability{
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 
-	// Proposed: wished for by the case corpus, read by no loader. Each is a candidate for the A1-A5 admission test,
-	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). The first
-	// corpus (Cases 1, 2, 17) was fully built on 2026-10-16; these are the second (KZ2: Cases 4, 5, 6, 14), written red
-	// on 2026-10-16. Their order is read from the failing steps (internal/web.TestCaseCorpusOnlyAdvances -v).
-	{ID: "record-generation", Struct: "transitionDoc", Keys: []string{"generates"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
-		AIReason: "multi-record Action: an edge that creates records (a repayment schedule); needs its own design before a slot", Cases: []string{"case14_lending"}},
+	// Proposed rows (a key a case corpus wishes for and no loader reads) are none today: both corpora, Cases 1, 2, 17 and
+	// Cases 4, 5, 6, 14, are fully built (2026-10-16). A new wish arrives as a row here naming its cases, which the
+	// corpus gate holds both ways, and leaves as a supported row when it is built.
 }
 
 // CapabilityProblems checks the catalogue's own rules (the loader and the assistant's schema are checked in

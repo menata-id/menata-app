@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"maps"
 	"mime/multipart"
 	"net/http"
@@ -257,6 +258,10 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 	}
 	// oldValues has to be read before the write replaces it, so any declared Event
 	// (domain.Machine.Events) can compare what changed once the write succeeds.
+	batch, ok := planGenerated(w, req, store, machines, machine, id, values)
+	if !ok {
+		return nil, false
+	}
 	oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 
 	record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
@@ -265,6 +270,7 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 		return nil, false
 	}
 	execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+	writeGenerated(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, batch, actor.ID)
 	return record, true
 }
 
@@ -548,6 +554,69 @@ func notFrozen(w http.ResponseWriter, req *http.Request, store *data.Store, mach
 		return false
 	}
 	return true
+}
+
+// planGenerated plans, validates and checks the schedule the edge this write takes generates (`generates:` on a
+// transition), before anything is written: a count or amount that is not a number, a schedule already generated for this
+// record, or a row the target Machine would refuse each refuse the move, so it never leaves the status moved and the
+// schedule missing. nil with ok is the common case, a write that takes no such edge.
+func planGenerated(w http.ResponseWriter, req *http.Request, store *data.Store, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any) (*behavior.GeneratedBatch, bool) {
+	if !behavior.HasGenerates(machine) {
+		return nil, true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return nil, false
+	}
+	batch, err := behavior.PlanGenerated(machine, id, existing.Values, values, time.Now())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return nil, false
+	}
+	if batch == nil {
+		return nil, true
+	}
+	target := machines[batch.Machine]
+	if target == nil {
+		serverError(w, fmt.Errorf("generates: machine %q is not loaded", batch.Machine))
+		return nil, false
+	}
+	have, err := store.ListRecordsBy(req.Context(), target.ID, batch.LinkField, id)
+	if err != nil {
+		serverError(w, err)
+		return nil, false
+	}
+	if len(have) > 0 {
+		http.Error(w, "the schedule was already generated for this record", http.StatusConflict)
+		return nil, false
+	}
+	for _, row := range batch.Rows {
+		data.ApplyDefaults(target, row)
+		if err := data.ValidateRecord(target, row); err != nil {
+			http.Error(w, "the schedule cannot be generated: "+err.Error(), http.StatusUnprocessableEntity)
+			return nil, false
+		}
+	}
+	return batch, true
+}
+
+// writeGenerated creates the planned records once the edge's own write has succeeded, running each one's create Events
+// as any create does. A failure part-way is logged and the rest are still attempted: the move has happened, and a missing
+// row is visible, where an aborted loop would hide how far it got.
+func writeGenerated(ctx context.Context, svc execution.Services, machines map[string]*domain.Machine, batch *behavior.GeneratedBatch, actorID string) {
+	if batch == nil {
+		return
+	}
+	target := machines[batch.Machine]
+	for i, row := range batch.Rows {
+		rec, err := svc.Store.CreateRecord(ctx, target.ID, row)
+		if err != nil {
+			log.Printf("generates: row %d of %s: %v", i+1, target.ID, err)
+			continue
+		}
+		execution.RunCreateEvents(ctx, svc, machines, target, rec, actorID)
+	}
 }
 
 // applyTransitionSets stamps the Fields the edge this write takes sets from the clock (`sets:` on a transition), before

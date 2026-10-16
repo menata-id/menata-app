@@ -1901,3 +1901,43 @@ frozen_when: { via: fld_period, field: fld_status, equals: `+equals+` }
 		t.Errorf("a freeze on a value the status cannot hold = %v, want a refusal", err)
 	}
 }
+
+// The wiring half of TestValidateGenerates: through the real loader, a generating edge whose target does not point back at
+// the Machine is refused (it needs both Machines, so only the application-level pass can see it).
+func TestLoadApplication_generatesIsCheckedAgainstTheTargetMachine(t *testing.T) {
+	load := func(link string) error {
+		dir := t.TempDir()
+		writeFile(t, dir, "loan.yaml", `id: mch_loan
+name: Loan
+fields:
+  - { id: fld_months, name: Months, type: number }
+  - { id: fld_total, name: Total, type: number }
+  - { id: fld_status, name: Status, type: status, options: [approved, paid_out] }
+transitions:
+  - id: trn_pay
+    name: Pay out
+    field: fld_status
+    from: approved
+    to: paid_out
+    action: edit
+    generates: { machine: mch_inst, count_field: fld_months, link_field: `+link+`, due_field: fld_due, due_every_days: 30, amount_field: fld_amount, amount_from: fld_total }
+`)
+		writeFile(t, dir, "inst.yaml", `id: mch_inst
+name: Installment
+fields:
+  - { id: fld_loan, name: Loan, type: relation, machine: mch_loan }
+  - { id: fld_other, name: Other, type: text }
+  - { id: fld_due, name: Due, type: date }
+  - { id: fld_amount, name: Amount, type: number }
+`)
+		writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - loan.yaml\n  - inst.yaml\napplications: []\n")
+		_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+		return err
+	}
+	if err := load("fld_loan"); err != nil {
+		t.Fatalf("a sound schedule did not load: %v", err)
+	}
+	if err := load("fld_other"); err == nil || !strings.Contains(err.Error(), "pointing back") {
+		t.Errorf("a link that is not a relation back to the loan = %v, want a refusal", err)
+	}
+}

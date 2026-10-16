@@ -2,6 +2,7 @@ package behavior
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"menata.app/internal/domain"
@@ -137,4 +138,62 @@ func displayValue(v any) string {
 		return ""
 	}
 	return fmt.Sprint(v)
+}
+
+// HasGenerates reports whether any edge of m generates records, so a caller can skip the read of the stored record.
+func HasGenerates(m *domain.Machine) bool {
+	for _, t := range m.Transitions {
+		if t.Generates != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// GeneratedBatch is the records an edge's `generates:` will create, planned but not written.
+type GeneratedBatch struct {
+	Machine   string
+	LinkField string
+	Rows      []map[string]any
+}
+
+// PlanGenerated plans the records the edge this write takes generates (domain.GenerateSchedule), or nil when the write
+// takes no such edge. recordID is the record taking the edge: each row points back at it. The i-th row (from 1) is due i
+// times DueEveryDays from now, and each carries an even share of the amount rounded to cents, the last taking the
+// remainder so the shares add up exactly. A count that is not a whole number from 1 to MaxGeneratedRecords, or an amount
+// that is not a number, is an error: refusing is better than writing a schedule nobody asked for.
+func PlanGenerated(m *domain.Machine, recordID string, current, next map[string]any, now time.Time) (*GeneratedBatch, error) {
+	for _, t := range MovedTransitions(m, current, next) {
+		g := t.Generates
+		if g == nil {
+			continue
+		}
+		count, ok := next[g.CountField].(float64)
+		if !ok || count != float64(int(count)) || count < 1 || count > domain.MaxGeneratedRecords {
+			return nil, fmt.Errorf("%s must be a whole number from 1 to %d to generate the schedule, got %v", g.CountField, domain.MaxGeneratedRecords, next[g.CountField])
+		}
+		total, ok := next[g.AmountFrom].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%s must be a number to split into the schedule, got %v", g.AmountFrom, next[g.AmountFrom])
+		}
+		n := int(count)
+		cents := int64(math.Round(total * 100))
+		share := cents / int64(n)
+		batch := &GeneratedBatch{Machine: g.Machine, LinkField: g.LinkField}
+		var given int64
+		for i := 1; i <= n; i++ {
+			c := share
+			if i == n {
+				c = cents - given
+			}
+			given += c
+			batch.Rows = append(batch.Rows, map[string]any{
+				g.LinkField:   recordID,
+				g.DueField:    now.AddDate(0, 0, i*g.DueEveryDays).Format(domain.DateLayout),
+				g.AmountField: float64(c) / 100,
+			})
+		}
+		return batch, nil
+	}
+	return nil, nil
 }

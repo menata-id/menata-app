@@ -646,6 +646,7 @@ func LoadApplication(path string) (*App, error) {
 		{"conditional and derived fields", func() error { return validateDerivedFieldsAreGenericallyWritten(machines) }},
 		{"aggregate bounds", func() error { return validateBoundsAreGenericallyWritten(machines) }},
 		{"frozen records", func() error { return validateFrozenWhen(machines) }},
+		{"generated schedules", func() error { return validateGenerates(machines) }},
 		{"dataset relations", func() error { return validateDatasetRelations(machines) }},
 		{"card tags", func() error { return validateCardTags(machines) }},
 		{"relation targets", func() error { return validateRelationTargets(machines) }},

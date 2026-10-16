@@ -57,6 +57,8 @@ machines:
   - default/pc_period.yaml
   - default/pc_voucher.yaml
   - default/mt_task.yaml
+  - default/ln_loan.yaml
+  - default/ln_installment.yaml
 
 # applications: which Applications are installed here. Paths are resolved relative to this file,
 # and these are this Workspace's own copies too -- metadata/applications/ holds the templates they
@@ -68,6 +70,7 @@ applications:
   - default/applications/warehouse.yaml
   - default/applications/petty_cash.yaml
   - default/applications/maintenance.yaml
+  - default/applications/lending.yaml
 
 # suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
 # re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared

@@ -114,6 +114,10 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 			return
 		}
 
+		batch, ok := planGenerated(w, req, store, machines, machine, id, values)
+		if !ok {
+			return
+		}
 		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
@@ -121,6 +125,7 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 			return
 		}
 		execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+		writeGenerated(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, batch, actor.ID)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)

@@ -56,6 +56,31 @@ type Transition struct {
 	// source. The write overrides whatever the form carried, so "the date the task was completed" is the day it was, not
 	// a day someone typed. Only an edge performed by the `edit` Action may declare it, like Roles.
 	Sets map[string]string
+	// Generates makes taking this edge create a schedule of records of another Machine: see GenerateSchedule. Only an
+	// edge performed by the `edit` Action may declare it.
+	Generates *GenerateSchedule
+}
+
+// MaxGeneratedRecords bounds how many records one edge may generate, so a mistyped tenor cannot write thousands of rows.
+const MaxGeneratedRecords = 120
+
+// GenerateSchedule is what an edge writes besides the status move: Count records of Machine, each pointing back at the
+// record that took the edge (LinkField, a relation Field of Machine), the i-th due i*DueEveryDays days from the day the
+// edge is taken (DueField, a date) and carrying an even share of AmountFrom (AmountField, a number; the last takes the
+// rounding remainder, so the shares add up exactly). Count is read from CountField, a number Field of this record. It
+// is the repayment schedule of a loan, the instalments of a subscription, the visits of a contract.
+//
+// The runtime writes the records, so the target Machine's create Permission is not asked: the edge is the authority. An
+// edge refuses to generate twice for one record (the schedule is not rewritten), and every row is validated before the
+// status moves, so a schedule that cannot be written refuses the move rather than leaving half of it.
+type GenerateSchedule struct {
+	Machine      string
+	CountField   string
+	LinkField    string
+	DueField     string
+	DueEveryDays int
+	AmountField  string
+	AmountFrom   string
 }
 
 // TransitionSourceToday is the day the edge is taken, as a date.

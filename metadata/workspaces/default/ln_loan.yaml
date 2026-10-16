@@ -1,0 +1,101 @@
+id: mch_ln_loan
+name: Loan
+fields:
+  - id: fld_purpose
+    name: Purpose
+    type: text
+    required: true
+  - id: fld_amount
+    name: Amount
+    type: number
+    required: true
+  - id: fld_months
+    name: Term (months)
+    type: number
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - applied
+      - approved
+      - rejected
+      - disbursed
+    default: applied
+  - id: fld_borrower
+    name: Borrower
+    type: person
+    stamp: current_user
+completion:
+  field: fld_status
+  done: disbursed
+card_fields:
+  - field: fld_purpose
+    role: title
+  - field: fld_status
+    role: status
+  - field: fld_borrower
+    role: person
+views:
+  - id: vw_board
+    name: Board
+    type: board
+    group_by: fld_status
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_loan_create
+    action: create
+    roles:
+      - borrower
+  - id: prm_loan_edit
+    action: edit
+    roles:
+      - borrower
+      - loan officer
+transitions:
+  - id: trn_loan_approve
+    name: Approve
+    field: fld_status
+    from: applied
+    to: approved
+    action: edit
+    roles:
+      - loan officer
+  - id: trn_loan_reject
+    name: Reject
+    field: fld_status
+    from: applied
+    to: rejected
+    action: edit
+    roles:
+      - loan officer
+  - id: trn_loan_disburse
+    name: Disburse
+    field: fld_status
+    from: approved
+    to: disbursed
+    action: edit
+    roles:
+      - loan officer
+    # Disbursing writes the whole repayment schedule: one installment per month of the term, due 30 days apart from the
+    # day it is disbursed, the amount split evenly (the last takes the rounding remainder). generates: has no assistant
+    # slot, so this block is by hand.
+    generates:
+      machine: mch_ln_installment
+      count_field: fld_months
+      link_field: fld_loan
+      due_field: fld_due_date
+      due_every_days: 30
+      amount_field: fld_amount
+      amount_from: fld_amount
+events:
+  - id: evt_loan_applied_notify
+    on_create: true
+    then:
+      service: send_notification
+      summary: 'New loan application: {fld_purpose}'
+      recipient_role: loan officer
+      preference_key: assigned

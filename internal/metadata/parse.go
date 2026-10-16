@@ -89,6 +89,18 @@ type transitionDoc struct {
 	ActorField string   `yaml:"actor_field"`
 	// Sets writes Fields from the clock when the edge is taken (domain.Transition.Sets).
 	Sets map[string]string `yaml:"sets"`
+	// Generates creates a schedule of records when the edge is taken (domain.GenerateSchedule).
+	Generates *generatesDoc `yaml:"generates"`
+}
+
+type generatesDoc struct {
+	Machine      string `yaml:"machine"`
+	CountField   string `yaml:"count_field"`
+	LinkField    string `yaml:"link_field"`
+	DueField     string `yaml:"due_field"`
+	DueEveryDays int    `yaml:"due_every_days"`
+	AmountField  string `yaml:"amount_field"`
+	AmountFrom   string `yaml:"amount_from"`
 }
 
 // actionEffectDoc/fieldWriteDoc are the YAML serialization of a domain.ActionEffect (Stage B,
@@ -576,6 +588,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Roles:      td.Roles,
 			ActorField: td.ActorField,
 			Sets:       td.Sets,
+			Generates:  generatesOf(td.Generates),
 		})
 	}
 	for _, ad := range doc.Actions {
@@ -719,4 +732,12 @@ func coerceDefault(fieldType domain.FieldType, raw string) (any, error) {
 	default:
 		return raw, nil
 	}
+}
+
+func generatesOf(d *generatesDoc) *domain.GenerateSchedule {
+	if d == nil {
+		return nil
+	}
+	return &domain.GenerateSchedule{Machine: d.Machine, CountField: d.CountField, LinkField: d.LinkField, DueField: d.DueField,
+		DueEveryDays: d.DueEveryDays, AmountField: d.AmountField, AmountFrom: d.AmountFrom}
 }

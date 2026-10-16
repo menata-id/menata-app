@@ -1,0 +1,19 @@
+id: app_lending
+name: Lending
+machines:
+  - mch_ln_loan
+  - mch_ln_installment
+roles:
+  - loan officer
+  - borrower
+icon: board
+color: blue
+navigation:
+  - id: nav_lending
+    label: Loans
+    route: /machines/mch_ln_loan
+    home_card: true
+  - id: nav_lending_ln_installment
+    label: Installments
+    route: /machines/mch_ln_installment
+    home_card: false

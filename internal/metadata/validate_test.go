@@ -1244,3 +1244,50 @@ func TestValidate_computeAddDaysAndTransitionSets(t *testing.T) {
 		t.Errorf("a sound sets was refused: %v", err)
 	}
 }
+
+func TestValidateGenerates(t *testing.T) {
+	mk := func(edit func(loan, inst *domain.Machine)) []*domain.Machine {
+		loan := &domain.Machine{ID: "mch_loan", Fields: []domain.Field{
+			{ID: "fld_months", Type: domain.FieldTypeNumber}, {ID: "fld_total", Type: domain.FieldTypeNumber},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"approved", "paid_out"}}},
+			Transitions: []domain.Transition{{ID: "trn_pay", Name: "Pay out", Field: "fld_status", From: "approved", To: "paid_out", Action: domain.ActionEdit,
+				Generates: &domain.GenerateSchedule{Machine: "mch_inst", CountField: "fld_months", LinkField: "fld_loan", DueField: "fld_due", DueEveryDays: 30, AmountField: "fld_amount", AmountFrom: "fld_total"}}}}
+		inst := &domain.Machine{ID: "mch_inst", Fields: []domain.Field{
+			{ID: "fld_loan", Type: domain.FieldTypeRelation, RelatedMachine: "mch_loan"},
+			{ID: "fld_due", Type: domain.FieldTypeDate}, {ID: "fld_amount", Type: domain.FieldTypeNumber},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"open", "paid"}, Required: true, Default: "open"}}}
+		if edit != nil {
+			edit(loan, inst)
+		}
+		return []*domain.Machine{loan, inst}
+	}
+	if err := validateGenerates(mk(nil)); err != nil {
+		t.Fatalf("a sound schedule was refused: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		edit func(loan, inst *domain.Machine)
+		want string
+	}{
+		"a decide edge":         {func(l, i *domain.Machine) { l.Transitions[0].Action = domain.ActionDecide }, "only an edge with action"},
+		"no spacing":            {func(l, i *domain.Machine) { l.Transitions[0].Generates.DueEveryDays = 0 }, "at least 1"},
+		"a text count":          {func(l, i *domain.Machine) { l.Fields[0].Type = domain.FieldTypeText }, "count_field"},
+		"a missing amount_from": {func(l, i *domain.Machine) { l.Transitions[0].Generates.AmountFrom = "fld_nope" }, "amount_from"},
+		"an unknown target":     {func(l, i *domain.Machine) { l.Transitions[0].Generates.Machine = "mch_nope" }, "not a machine of this workspace"},
+		"itself":                {func(l, i *domain.Machine) { l.Transitions[0].Generates.Machine = "mch_loan" }, "of itself"},
+		"a runtime machine": {func(l, i *domain.Machine) {
+			l.Transitions[0].Generates.Machine = domain.UserMachineID
+			i.ID = domain.UserMachineID
+		}, "written by the runtime"},
+		"a link to elsewhere":  {func(l, i *domain.Machine) { i.Fields[0].RelatedMachine = "mch_other" }, "pointing back"},
+		"a text due date":      {func(l, i *domain.Machine) { i.Fields[1].Type = domain.FieldTypeText }, "due_field"},
+		"a text amount":        {func(l, i *domain.Machine) { i.Fields[2].Type = domain.FieldTypeText }, "amount_field"},
+		"the same field twice": {func(l, i *domain.Machine) { l.Transitions[0].Generates.DueField = "fld_amount" }, "three different fields"},
+		"an unfillable field": {func(l, i *domain.Machine) {
+			i.Fields = append(i.Fields, domain.Field{ID: "fld_must", Type: domain.FieldTypeText, Required: true})
+		}, "cannot fill"},
+	} {
+		if err := validateGenerates(mk(tc.edit)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+}

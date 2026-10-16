@@ -1,0 +1,69 @@
+id: mch_ln_installment
+name: Installment
+fields:
+  - id: fld_loan
+    name: Loan
+    type: relation
+    required: true
+    machine: mch_ln_loan
+  - id: fld_due_date
+    name: Due
+    type: date
+    required: true
+  - id: fld_amount
+    name: Amount
+    type: number
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - open
+      - overdue
+      - paid
+    default: open
+views:
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_inst_create
+    action: create
+    roles:
+      - loan officer
+  - id: prm_inst_edit
+    action: edit
+    roles:
+      - loan officer
+transitions:
+  - id: trn_inst_overdue
+    name: Overdue
+    field: fld_status
+    from: open
+    to: overdue
+  - id: trn_inst_paid
+    name: Mark paid
+    field: fld_status
+    from: open
+    to: paid
+    action: edit
+    roles:
+      - loan officer
+  - id: trn_inst_paid_late
+    name: Mark paid (overdue)
+    field: fld_status
+    from: overdue
+    to: paid
+    action: edit
+    roles:
+      - loan officer
+events:
+  # An installment past its due date and still open is flagged overdue by the scheduler (set_field on a schedule; the
+  # assistant cannot write one). The first event is the scheduler's once-per-record marker.
+  - id: evt_inst_overdue_log
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_status, guard_equals: open }
+    then: { service: log_activity, summary: "Installment overdue: {fld_amount}" }
+  - id: evt_inst_overdue_flag
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_status, guard_equals: open }
+    then: { service: set_field, target_field: fld_status, value: overdue }

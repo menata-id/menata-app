@@ -1,6 +1,7 @@
 package behavior
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -163,5 +164,66 @@ func TestApplyTransitionSets(t *testing.T) {
 	}
 	if !HasTransitionSets(m) || HasTransitionSets(&domain.Machine{Transitions: []domain.Transition{{ID: "t"}}}) {
 		t.Error("HasTransitionSets misreads the edges")
+	}
+}
+
+func TestPlanGenerated(t *testing.T) {
+	g := &domain.GenerateSchedule{Machine: "mch_inst", CountField: "fld_months", LinkField: "fld_loan", DueField: "fld_due", DueEveryDays: 30, AmountField: "fld_amount", AmountFrom: "fld_total"}
+	m := &domain.Machine{
+		Fields: []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"approved", "paid_out"}}},
+		Transitions: []domain.Transition{
+			{ID: "trn_pay", Name: "Pay out", Field: "fld_status", From: "approved", To: "paid_out", Action: domain.ActionEdit, Generates: g},
+		},
+	}
+	now := time.Date(2026, 1, 31, 10, 0, 0, 0, time.UTC)
+	cur := map[string]any{"fld_status": "approved"}
+	take := func(months, total any) map[string]any {
+		return map[string]any{"fld_status": "paid_out", "fld_months": months, "fld_total": total}
+	}
+
+	b, err := PlanGenerated(m, "rec_loan", cur, take(3.0, 1000.0), now)
+	if err != nil || b == nil || b.Machine != "mch_inst" || b.LinkField != "fld_loan" || len(b.Rows) != 3 {
+		t.Fatalf("PlanGenerated = %+v, %v", b, err)
+	}
+	var sum float64
+	for i, row := range b.Rows {
+		if row["fld_loan"] != "rec_loan" {
+			t.Errorf("row %d points at %v, not the loan", i+1, row["fld_loan"])
+		}
+		sum += row["fld_amount"].(float64)
+	}
+	if b.Rows[0]["fld_amount"] != 333.33 || b.Rows[1]["fld_amount"] != 333.33 || b.Rows[2]["fld_amount"] != 333.34 {
+		t.Errorf("amounts = %v %v %v, want 333.33 333.33 333.34 (the last takes the remainder)", b.Rows[0]["fld_amount"], b.Rows[1]["fld_amount"], b.Rows[2]["fld_amount"])
+	}
+	if math.Abs(sum-1000) > 1e-9 {
+		t.Errorf("the shares add up to %v, want exactly 1000", sum)
+	}
+	if got := []any{b.Rows[0]["fld_due"], b.Rows[1]["fld_due"], b.Rows[2]["fld_due"]}; got[0] != "2026-03-02" || got[1] != "2026-04-01" || got[2] != "2026-05-01" {
+		t.Errorf("due dates = %v, want 30 days apart counted from the day the edge is taken, first one a period on", got)
+	}
+	if b, err := PlanGenerated(m, "r", cur, map[string]any{"fld_status": "approved"}, now); b != nil || err != nil {
+		t.Errorf("a write that takes no edge planned %+v, %v", b, err)
+	}
+	if b, err := PlanGenerated(m, "r", map[string]any{"fld_status": "paid_out"}, take(3.0, 9.0), now); b != nil || err != nil {
+		t.Errorf("a write that does not move the status planned %+v, %v", b, err)
+	}
+	for name, in := range map[string]map[string]any{
+		"no count":           take(nil, 10.0),
+		"a fractional count": take(2.5, 10.0),
+		"a zero count":       take(0.0, 10.0),
+		"too many":           take(float64(domain.MaxGeneratedRecords+1), 10.0),
+		"a text count":       take("3", 10.0),
+		"no amount":          take(3.0, nil),
+		"a text amount":      take(3.0, "10"),
+	} {
+		if b, err := PlanGenerated(m, "r", cur, in, now); err == nil || b != nil {
+			t.Errorf("%s: planned %+v, %v; want a refusal", name, b, err)
+		}
+	}
+	if b, err := PlanGenerated(m, "r", cur, take(float64(domain.MaxGeneratedRecords), 1200.0), now); err != nil || len(b.Rows) != domain.MaxGeneratedRecords {
+		t.Errorf("the maximum count was refused: %v", err)
+	}
+	if !HasGenerates(m) || HasGenerates(&domain.Machine{Transitions: []domain.Transition{{ID: "t"}}}) {
+		t.Error("HasGenerates misreads the edges")
 	}
 }

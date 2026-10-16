@@ -1760,6 +1760,74 @@ func validateBoundsAreGenericallyWritten(machines []*domain.Machine) error {
 	return nil
 }
 
+// validateGenerates holds an edge that generates a schedule of records to what the generation assumes, against both
+// Machines: the edge is performed by `edit` (the route that generates), this Machine holds the count and the amount,
+// the target Machine points back at it, carries a date and a number to fill, and has no other Field the runtime could not
+// fill (a required Field with no default would make every generated row fail, and the move with it).
+func validateGenerates(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		for _, t := range m.Transitions {
+			g := t.Generates
+			if g == nil {
+				continue
+			}
+			bad := func(format string, a ...any) {
+				issues = append(issues, fmt.Sprintf("machine %q: transition %q: generates: ", m.ID, t.ID)+fmt.Sprintf(format, a...))
+			}
+			if t.Action != domain.ActionEdit {
+				bad("only an edge with action %q may generate, not %q", domain.ActionEdit, t.Action)
+			}
+			if g.DueEveryDays < 1 {
+				bad("due_every_days is %d; it must be at least 1", g.DueEveryDays)
+			}
+			for key, id := range map[string]string{"count_field": g.CountField, "amount_from": g.AmountFrom} {
+				if f, ok := m.FieldByID(id); !ok || f.Type != domain.FieldTypeNumber {
+					bad("%s %q must be a number field of this machine", key, id)
+				}
+			}
+			target, ok := byID[g.Machine]
+			switch {
+			case !ok:
+				bad("machine %q is not a machine of this workspace", g.Machine)
+				continue
+			case g.Machine == m.ID:
+				bad("a machine cannot generate records of itself")
+				continue
+			case !target.GenericallyWritten():
+				bad("machine %q is written by the runtime or an engine's own screens", g.Machine)
+				continue
+			}
+			named := map[string]bool{g.LinkField: true, g.DueField: true, g.AmountField: true}
+			if len(named) != 3 {
+				bad("link_field, due_field and amount_field must be three different fields")
+			}
+			if f, ok := target.FieldByID(g.LinkField); !ok || f.Type != domain.FieldTypeRelation || f.RelatedMachine != m.ID {
+				bad("link_field %q must be a relation field of %s pointing back at %s", g.LinkField, target.ID, m.ID)
+			}
+			if f, ok := target.FieldByID(g.DueField); !ok || f.Type != domain.FieldTypeDate {
+				bad("due_field %q must be a date field of %s", g.DueField, target.ID)
+			}
+			if f, ok := target.FieldByID(g.AmountField); !ok || f.Type != domain.FieldTypeNumber {
+				bad("amount_field %q must be a number field of %s", g.AmountField, target.ID)
+			}
+			for _, f := range target.Fields {
+				if f.Required && !named[f.ID] && f.Default == nil && f.Compute == nil && f.Stamp == "" {
+					bad("%s requires field %q, which the runtime cannot fill for a generated row -- give it a default or make it optional", target.ID, f.ID)
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
 // validateFrozenWhen is the cross-Machine half of frozen_when: the Field it reads must exist on the Machine its `via`
 // points at, be a status Field, and the value be one of its options (a value it can never hold would freeze nothing).
 func validateFrozenWhen(machines []*domain.Machine) error {
