@@ -48,6 +48,7 @@ var Services = map[string]Service{
 	domain.ServiceRollupParentStatus:      {Name: domain.ServiceRollupParentStatus, Validate: validateRollup},
 	domain.ServiceSendNotification:        {Name: domain.ServiceSendNotification, Validate: validateNotify},
 	domain.ServiceCompositeSignedDocument: {Name: domain.ServiceCompositeSignedDocument, Validate: validateComposite},
+	domain.ServiceSetField:                {Name: domain.ServiceSetField, Validate: validateSetField},
 }
 
 // ValidateService is the one entry point a loader needs: it resolves the name and runs its contract, or

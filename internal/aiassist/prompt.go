@@ -112,15 +112,16 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   Go routes that no metadata you write can add. So generating a workflow: block would produce an
   application whose approval mechanics engage with no screen to reach them. "Approval" in anything you
   generate means: a status field that moves through the ordinary edit form, gated by who holds a role.
-- Any Event Service other than the two above. The runtime has four -- ` + "`log_activity`" + `,
+- Any Event Service other than the two above. The runtime has five -- ` + "`log_activity`" + `,
   ` + "`send_notification`" + ` (in-app and email), ` + "`rollup_parent_status`" + ` (a child's status rolling
-  up to its parent) and ` + "`composite_signed_document`" + ` (stamping signatures into a PDF) -- and every
-  one is a real Service a hand-written machine file may declare. **You can emit the first two**; the last
-  two name a parent/child shape and a PDF engine your output has no slot for. Say that plainly if asked,
+  up to its parent), ` + "`composite_signed_document`" + ` (stamping signatures into a PDF) and ` + "`set_field`" + `
+  (writing a status when a date passes, e.g. escalating an overdue ticket) -- and every one is a real
+  Service a hand-written machine file may declare. **You can emit the first two**; the other three name a
+  parent/child shape, a PDF engine and a scheduled event your output has no slot for. Say that plainly if asked,
   rather than implying the runtime lacks the feature.
 - A saved default approval flow. Real since 2026-09-27, and unreachable for the same reason as the
   approval engine above: its screens are Go routes your metadata cannot add.
-- Conditional-required fields, or anything needing a new field type, action, or service beyond the ones
+- Anything needing a new field type, action, or service beyond the ones
   named above.
 - Removing or retyping what already holds records or grants access: a machine, a status
   option, a role, a permission, a status move or an activity entry, or pointing a relation field at a

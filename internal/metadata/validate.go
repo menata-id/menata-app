@@ -471,14 +471,21 @@ func validateSchedule(m *domain.Machine, e domain.Event, fieldsByID map[string]d
 	if !domain.KnownScheduleWhens[s.When] {
 		issues = append(issues, fmt.Sprintf("event %q: schedule.when %q is not a comparison this runtime knows", e.ID, s.When))
 	}
-	if (s.GuardField == "") != (s.GuardEquals == "") {
-		issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field and schedule.guard_equals must be set together or not at all", e.ID))
-	} else if s.GuardField != "" {
+	guardValue, guardKey := s.GuardEquals, "guard_equals"
+	if s.GuardNotEquals != "" {
+		guardValue, guardKey = s.GuardNotEquals, "guard_not_equals"
+	}
+	switch {
+	case s.GuardEquals != "" && s.GuardNotEquals != "":
+		issues = append(issues, fmt.Sprintf("event %q: schedule.guard_equals and schedule.guard_not_equals are two polarities of one guard -- declare one", e.ID))
+	case (s.GuardField == "") != (guardValue == ""):
+		issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field and schedule.guard_equals (or guard_not_equals) must be set together or not at all", e.ID))
+	case s.GuardField != "":
 		guardField, ok := fieldsByID[s.GuardField]
 		if !ok {
 			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field %q is not a field of machine %q", e.ID, s.GuardField, m.ID))
-		} else if guardField.ViolatesOptions(s.GuardEquals) {
-			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_equals %q is not one of field %q's options %v", e.ID, s.GuardEquals, s.GuardField, guardField.Options))
+		} else if guardField.ViolatesOptions(guardValue) {
+			issues = append(issues, fmt.Sprintf("event %q: schedule.%s %q is not one of field %q's options %v", e.ID, guardKey, guardValue, s.GuardField, guardField.Options))
 		}
 	}
 

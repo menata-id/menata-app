@@ -215,6 +215,9 @@ func init() {
 		domain.ServiceRollupParentStatus: func(ctx context.Context, in serviceInput) {
 			rollUpParentStatus(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, in.event.On, *in.event.Then.Rollup)
 		},
+		domain.ServiceSetField: func(ctx context.Context, in serviceInput) {
+			setField(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, *in.event.Then.Set)
+		},
 		domain.ServiceCompositeSignedDocument: func(ctx context.Context, in serviceInput) {
 			compositeSignedDocument(ctx, in.svc, in.machines, in.machine, in.record, *in.event.Then.Composite, in.event.WhenEquals)
 		},
@@ -464,4 +467,29 @@ func relationTitles(ctx context.Context, store *data.Store, machines map[string]
 		}
 		return raw
 	}
+}
+
+// setField is ServiceSetField's I/O half: write one declared value into the record a schedule Event fired on, then
+// run that record's field-change Events, so a notification or activity declared on the Field fires as it would for a
+// person's write. A value already held is not a write. A move the Machine's state model refuses is skipped and logged:
+// the runtime performs it, so it must be an edge declared with no action (behavior.CheckTransitions with "").
+func setField(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string, s domain.SetField) {
+	if fmt.Sprint(record.Values[s.TargetField]) == s.Value {
+		return
+	}
+	next := make(map[string]any, len(record.Values))
+	for k, v := range record.Values {
+		next[k] = v
+	}
+	next[s.TargetField] = s.Value
+	if err := behavior.CheckTransitions(machine, "", record.Values, next); err != nil {
+		log.Printf("set_field %s %s: %v", machine.ID, record.ID, err)
+		return
+	}
+	updated, err := svc.Store.UpdateRecord(ctx, machine.ID, record.ID, next)
+	if err != nil {
+		log.Printf("set_field %s %s: %v", machine.ID, record.ID, err)
+		return
+	}
+	RunEvents(ctx, svc, machines, machine, updated, actorID, record.Values, true)
 }

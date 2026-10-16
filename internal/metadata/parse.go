@@ -308,6 +308,8 @@ type eventDoc struct {
 		When        string `yaml:"when"`
 		GuardField  string `yaml:"guard_field"`
 		GuardEquals string `yaml:"guard_equals"`
+		// GuardNotEquals: the guard's other polarity (domain.Schedule.GuardNotEquals).
+		GuardNotEquals string `yaml:"guard_not_equals"`
 	} `yaml:"schedule"`
 	Then struct {
 		Service             string `yaml:"service"`
@@ -329,6 +331,9 @@ type eventDoc struct {
 		// composite_signed_document's own one new key (domain.Composite) -- parent_field and
 		// target_field above are shared with a rollup, same question, same answer.
 		SourceField string `yaml:"source_field"`
+
+		// set_field's own key (domain.SetField); target_field above is shared.
+		Value string `yaml:"value"`
 	} `yaml:"then"`
 }
 
@@ -475,6 +480,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				PreferenceKey:  ed.Then.PreferenceKey,
 			}
 		}
+		if ed.Then.Service == domain.ServiceSetField {
+			then.Set = &domain.SetField{TargetField: ed.Then.TargetField, Value: ed.Then.Value}
+		}
 		if ed.Then.Service == domain.ServiceCompositeSignedDocument {
 			then.Composite = &domain.Composite{
 				ParentField: ed.Then.ParentField,
@@ -489,6 +497,8 @@ func Parse(data []byte) (*domain.Machine, error) {
 				When:        ed.Schedule.When,
 				GuardField:  ed.Schedule.GuardField,
 				GuardEquals: ed.Schedule.GuardEquals,
+
+				GuardNotEquals: ed.Schedule.GuardNotEquals,
 			}
 		}
 		m.Events = append(m.Events, domain.Event{

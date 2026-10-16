@@ -190,3 +190,15 @@ func TestMatchedScheduleEvents_skipsWhenDateFieldEmptyOrUnparseable(t *testing.T
 		t.Errorf("MatchedScheduleEvents(unparseable due date) = %v, want none", got)
 	}
 }
+
+func TestMatchedScheduleEvents_guardNotEquals(t *testing.T) {
+	m := &domain.Machine{Events: []domain.Event{{ID: "evt_escalate", Schedule: &domain.Schedule{
+		DateField: "fld_due", When: domain.ScheduleWhenOverdue, GuardField: "fld_status", GuardNotEquals: "resolved"}}}}
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+	for status, want := range map[string]int{"open": 1, "resolved": 0, "": 1} {
+		r := &data.Record{Values: map[string]any{"fld_due": "2026-09-01", "fld_status": status}}
+		if got := MatchedScheduleEvents(m, r, now); len(got) != want {
+			t.Errorf("status %q: matched %d, want %d", status, len(got), want)
+		}
+	}
+}

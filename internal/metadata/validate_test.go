@@ -361,7 +361,7 @@ func TestValidate_scheduleGuardFieldWithoutGuardEqualsFails(t *testing.T) {
 		Schedule: &domain.Schedule{DateField: "fld_due_date", When: domain.ScheduleWhenOverdue, GuardField: "fld_status"},
 		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
 	}}
-	assertIssue(t, m, "schedule.guard_field and schedule.guard_equals must be set together")
+	assertIssue(t, m, "schedule.guard_field and schedule.guard_equals (or guard_not_equals) must be set together")
 }
 
 func TestValidate_scheduleGuardEqualsNotAnOptionFails(t *testing.T) {
@@ -1050,6 +1050,31 @@ func TestValidate_conditionalAndDerivedFields(t *testing.T) {
 			t.Errorf("%s: Validate = %v, want nil", tc.name, err)
 		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
 			t.Errorf("%s: Validate = %v, want an error containing %q", tc.name, err, tc.want)
+		}
+	}
+}
+
+func TestValidate_scheduleGuardPolarities(t *testing.T) {
+	mk := func(s domain.Schedule) *domain.Machine {
+		m := validMachine()
+		m.Fields = append(m.Fields, domain.Field{ID: "fld_due", Name: "Due", Type: domain.FieldTypeDate})
+		s.DateField, s.When = "fld_due", domain.ScheduleWhenOverdue
+		m.Events = []domain.Event{{ID: "evt_x", Schedule: &s, Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "x"}}}
+		return m
+	}
+	if err := Validate(mk(domain.Schedule{GuardField: "fld_status", GuardNotEquals: "done"})); err != nil {
+		t.Errorf("guard_not_equals on an option was refused: %v", err)
+	}
+	for _, tc := range []struct {
+		s    domain.Schedule
+		want string
+	}{
+		{domain.Schedule{GuardField: "fld_status", GuardEquals: "todo", GuardNotEquals: "done"}, "two polarities"},
+		{domain.Schedule{GuardField: "fld_status", GuardNotEquals: "zzz"}, "schedule.guard_not_equals"},
+		{domain.Schedule{GuardNotEquals: "done"}, "must be set together"},
+	} {
+		if err := Validate(mk(tc.s)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%+v: Validate = %v, want an error containing %q", tc.s, err, tc.want)
 		}
 	}
 }

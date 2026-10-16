@@ -123,9 +123,8 @@ var Capabilities = []Capability{
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 
 	// Proposed: wished for by the case corpus, read by no loader. Each is a candidate for the A1-A5 admission test,
-	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1).
-	{ID: "escalation", Struct: "machineDoc", Keys: []string{"escalation"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
-		AIReason: "needs a Service that writes a Field and a clock; not designed yet", Cases: []string{"case17_helpdesk"}},
+	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). None is
+	// open today: the last, escalation, became the set_field Service and a schedule guard on 2026-10-16.
 }
 
 // CapabilityProblems checks the catalogue's own rules (the loader and the assistant's schema are checked in

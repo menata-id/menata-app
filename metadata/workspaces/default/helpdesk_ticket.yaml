@@ -149,6 +149,22 @@ events:
       summary: Your ticket "{fld_title}" was resolved
       recipient_field: fld_reporter
       preference_key: decided
+  # Escalation: once the due date has passed and the ticket is not resolved, its priority becomes urgent and the
+  # agent is told. The activity line is the scheduler's once-per-ticket marker, so it names no field set_field writes.
+  - id: evt_ticket_overdue_log
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: resolved }
+    then: { service: log_activity, summary: "Ticket \"{fld_title}\" passed its due date" }
+  - id: evt_ticket_escalate
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: resolved }
+    then: { service: set_field, target_field: fld_priority, value: urgent }
+  - id: evt_ticket_escalated_notify
+    "on": fld_priority
+    when_equals: urgent
+    then:
+      service: send_notification
+      summary: Ticket "{fld_title}" is now urgent
+      recipient_field: fld_agent
+      preference_key: sla_breach
 datasets:
   - id: ds_helpdesk_helpdesk_ticket_mine_list
     select: records

@@ -833,6 +833,27 @@ long-standing note that it was "the one deferred shape, waiting on their own sec
 (the SLA-breach reminder, replacing `internal/composition`'s own read-triggered
 `logSLABreaches`, 2026-09-27).
 
+**The other polarity, and writing a Field on a schedule (2026-10-16).** `guard_not_equals` is the guard
+turned round ("overdue and NOT resolved"); declare one of `guard_equals`/`guard_not_equals`. The
+`set_field` Service writes one option into a status Field of the record when a schedule fires —
+escalation:
+
+```yaml
+  - id: evt_ticket_overdue_log            # the scheduler fires once per record; this line is its marker
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: resolved }
+    then: { service: log_activity, summary: "Ticket past its SLA: {fld_title}" }
+  - id: evt_ticket_escalate
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: resolved }
+    then: { service: set_field, target_field: fld_priority, value: urgent }
+```
+
+`set_field` is valid only on a `schedule:` Event (on a write it would re-enter that write's own events),
+its `target_field` must be a status Field and `value` one of its options. A record already holding the
+value is left alone; a move the Machine's `transitions:` refuse is skipped (the runtime performs it, so
+it needs an edge declared with no `action:`). After the write, the record's field-change Events run, so a
+notification declared on that Field fires as for a person's edit. Keep `{fld_*}` placeholders in the
+marker's summary to Fields `set_field` does not write, or the marker changes and the Event fires again.
+
 ## 11. Field defaults
 
 `default:` fills a field when a new record leaves it empty — create only, never re-applied on
@@ -1921,8 +1942,8 @@ events:
     schedule:                # shape C: the passage of time, not a write. Never combined with on/on_create
       date_field: fld_*        # a real date Field
       when: overdue             # closed vocabulary; only value today
-      guard_field: fld_*          # optional, must be set together with guard_equals
-      guard_equals: <value>
+      guard_field: fld_*          # optional, must be set together with guard_equals or guard_not_equals
+      guard_equals: <value>       # or guard_not_equals: <value>, never both
     then: { service: send_notification, recipient_field: fld_*, preference_key: <value>, summary: "..." }
 ```
 

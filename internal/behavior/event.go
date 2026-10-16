@@ -69,7 +69,10 @@ func MatchedScheduleEvents(m *domain.Machine, record *data.Record, now time.Time
 		if s.When == domain.ScheduleWhenOverdue && status != experience.SLAOverdue {
 			continue
 		}
-		if s.GuardField != "" && fmt.Sprint(record.Values[s.GuardField]) != s.GuardEquals {
+		if s.GuardField != "" && s.GuardEquals != "" && fmt.Sprint(record.Values[s.GuardField]) != s.GuardEquals {
+			continue
+		}
+		if s.GuardField != "" && s.GuardNotEquals != "" && fmt.Sprint(record.Values[s.GuardField]) == s.GuardNotEquals {
 			continue
 		}
 		out = append(out, e)

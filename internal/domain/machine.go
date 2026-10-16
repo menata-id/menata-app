@@ -325,6 +325,9 @@ type Schedule struct {
 	// declarative rather than special-cased to one Machine.
 	GuardField  string
 	GuardEquals string
+	// GuardNotEquals is the other polarity of the same guard: the Field must NOT hold this value ("overdue and
+	// not yet resolved"). One of GuardEquals/GuardNotEquals with GuardField, never both.
+	GuardNotEquals string
 }
 
 // ScheduleWhenOverdue is the only value Schedule.When accepts today.
@@ -359,6 +362,16 @@ type Service struct {
 	Notify *Notify
 	// Composite is ServiceCompositeSignedDocument's own configuration, nil for every other Service.
 	Composite *Composite
+	// Set is ServiceSetField's own configuration, nil for every other Service.
+	Set *SetField
+}
+
+// SetField writes one value into one status Field of the record the Event fired on ("escalate: priority becomes
+// urgent"). Only a schedule Event may declare it: a field-change Event writing a field would re-enter the events of
+// its own write. A status Field governed by transitions moves only along an edge the runtime performs (no action).
+type SetField struct {
+	TargetField string
+	Value       string
 }
 
 // Composite tells ServiceCompositeSignedDocument which records to work on: declared on the *child*
@@ -413,6 +426,9 @@ type Rollup struct {
 const (
 	// ServiceLogActivity appends an mch_activity record (internal/web's logActivity).
 	ServiceLogActivity = "log_activity"
+	// ServiceSetField writes a declared value into a status Field of the record a schedule Event fired on
+	// (internal/execution's setField), then runs that record's field-change Events.
+	ServiceSetField = "set_field"
 	// ServiceRollupParentStatus writes a parent record's status from its children's own values
 	// (behavior.RollupValue decides, internal/web performs the read and write).
 	ServiceRollupParentStatus = "rollup_parent_status"

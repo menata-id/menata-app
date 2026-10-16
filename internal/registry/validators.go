@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"slices"
 
 	"menata.app/internal/domain"
 )
@@ -115,5 +116,30 @@ func validateNotify(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 		issues = append(issues, fmt.Sprintf("event %q: then.preference_key %q is not a preference this runtime knows", e.ID, n.PreferenceKey))
 	}
 
+	return issues
+}
+
+// validateSetField holds set_field to what its executor assumes: a schedule Event (a field-change Event writing a
+// field would re-enter its own write's events), a status Field of this Machine, and one of its options. Whether the
+// move is a declared edge is a runtime question (the current value varies per record), answered by the executor
+// skipping a move the state model refuses.
+func validateSetField(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
+	if e.Then.Set == nil {
+		return []string{fmt.Sprintf("event %q: then.service %q requires target_field and value", e.ID, e.Then.Name)}
+	}
+	var issues []string
+	if e.Schedule == nil {
+		issues = append(issues, fmt.Sprintf("event %q: set_field runs only on a schedule event -- on a write it would re-enter the events of its own write", e.ID))
+	}
+	s := *e.Then.Set
+	f, ok := fieldsByID[s.TargetField]
+	switch {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("event %q: then.target_field %q is not a field of machine %q", e.ID, s.TargetField, m.ID))
+	case f.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("event %q: then.target_field %q must be a status field, got %q", e.ID, s.TargetField, f.Type))
+	case !slices.Contains(f.Options, s.Value):
+		issues = append(issues, fmt.Sprintf("event %q: then.value %q is not one of %q's options %v", e.ID, s.Value, s.TargetField, f.Options))
+	}
 	return issues
 }

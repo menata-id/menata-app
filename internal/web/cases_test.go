@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -22,6 +23,8 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
+	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
 	"menata.app/internal/registry"
 	"menata.app/internal/storage"
@@ -52,6 +55,7 @@ type caseStep struct {
 	As       string            `yaml:"as"`
 	Create   *caseCreate       `yaml:"create"`
 	Update   *caseUpdate       `yaml:"update"`
+	Tick     *caseTick         `yaml:"tick"`
 	Expect   string            `yaml:"expect"`
 	Record   map[string]string `yaml:"record"`
 	Notified []caseNotified    `yaml:"notified"`
@@ -66,6 +70,13 @@ type caseCreate struct {
 type caseUpdate struct {
 	Ref    string            `yaml:"ref"`
 	Values map[string]string `yaml:"values"`
+}
+
+// caseTick moves the clock: the runtime's scheduler runs once as if Days had passed, and the step's record check
+// reads Ref's record afterwards. It is not a request, so it has no actor and no refusal.
+type caseTick struct {
+	Days int    `yaml:"days"`
+	Ref  string `yaml:"ref"`
 }
 
 type caseNotified struct {
@@ -94,7 +105,7 @@ var caseRatchet = map[string]struct {
 }{
 	"case01_design_request": {Rejected: 0, Passed: 12, Steps: 12},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
-	"case17_helpdesk":       {Rejected: 1, Passed: 9, Steps: 9},
+	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -237,16 +248,28 @@ func scenarioProblem(sc caseScenario) string {
 		switch {
 		case s.ID == "" || seen[s.ID]:
 			return fmt.Sprintf("step id %q is empty or repeated", s.ID)
-		case !actors[s.As]:
+		case s.Tick == nil && !actors[s.As]:
 			return fmt.Sprintf("step %s is taken by %q, who is not an actor", s.ID, s.As)
-		case (s.Create == nil) == (s.Update == nil):
-			return fmt.Sprintf("step %s must have exactly one of create and update", s.ID)
+		case s.Tick != nil && (s.As != "" || s.Expect != "ok"):
+			return fmt.Sprintf("step %s moves the clock; it takes no actor and expects ok", s.ID)
+		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil) != 1:
+			return fmt.Sprintf("step %s must have exactly one of create, update and tick", s.ID)
 		case s.Expect != "ok" && s.Expect != "refused":
 			return fmt.Sprintf("step %s expects %q; use ok or refused", s.ID, s.Expect)
 		}
 		seen[s.ID] = true
 	}
 	return ""
+}
+
+func countSet(flags ...bool) int {
+	n := 0
+	for _, f := range flags {
+		if f {
+			n++
+		}
+	}
+	return n
 }
 
 func readScenario(t *testing.T, dir string) caseScenario {
@@ -491,7 +514,18 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		var code int
 		var machine, id string
 		var snapshot map[string]any
-		if s.Create != nil {
+		if s.Tick != nil {
+			machine, id = machineOf[s.Tick.Ref], recordOf[s.Tick.Ref]
+			if id == "" {
+				fail("step %s created no record to watch", s.Tick.Ref)
+				continue
+			}
+			code = http.StatusOK
+			if err := execution.RunScheduledEvents(wsCtx, store, mail.LogMailer{}, installed.Machines, time.Now().AddDate(0, 0, s.Tick.Days)); err != nil {
+				fail("the scheduler failed: %v", err)
+				continue
+			}
+		} else if s.Create != nil {
 			machine = s.Create.Machine
 			before := recordIDs(t, store, wsCtx, machine)
 			code = send(http.MethodPost, "/machines/"+machine+"/records", s.As, s.Create.Values, s.Create.Files)
@@ -655,16 +689,22 @@ func TestCaseOutcomeAndRatchetJudgements(t *testing.T) {
 	}
 	good := caseStep{ID: "a", As: "x", Expect: "ok", Create: &caseCreate{}}
 	for name, sc := range map[string]caseScenario{
-		"repeated id":   {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good, good}},
-		"empty id":      {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{As: "x", Expect: "ok", Create: &caseCreate{}}}},
-		"stranger":      {Steps: []caseStep{good}},
-		"neither":       {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok"}}},
-		"both":          {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Create: &caseCreate{}, Update: &caseUpdate{}}}},
-		"unknown wants": {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "maybe", Create: &caseCreate{}}}},
+		"repeated id":            {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good, good}},
+		"empty id":               {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{As: "x", Expect: "ok", Create: &caseCreate{}}}},
+		"stranger":               {Steps: []caseStep{good}},
+		"neither":                {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok"}}},
+		"both":                   {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Create: &caseCreate{}, Update: &caseUpdate{}}}},
+		"unknown wants":          {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "maybe", Create: &caseCreate{}}}},
+		"tick with an actor":     {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Tick: &caseTick{}}}},
+		"tick expecting refusal": {Steps: []caseStep{{ID: "a", Expect: "refused", Tick: &caseTick{}}}},
+		"tick and create":        {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", Expect: "ok", Tick: &caseTick{}, Create: &caseCreate{}}}},
 	} {
 		if scenarioProblem(sc) == "" {
 			t.Errorf("a scenario with %s was accepted", name)
 		}
+	}
+	if why := scenarioProblem(caseScenario{Steps: []caseStep{{ID: "t", Expect: "ok", Tick: &caseTick{Days: 1, Ref: "a"}}}}); why != "" {
+		t.Errorf("a sound tick was refused: %s", why)
 	}
 	if why := scenarioProblem(caseScenario{Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good}}); why != "" {
 		t.Errorf("a sound scenario was refused: %s", why)

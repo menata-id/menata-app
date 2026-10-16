@@ -52,3 +52,35 @@ steps:
     as: oki
     update: { ref: report, values: { fld_status: selesai } }
     expect: refused
+
+  # Escalation: a low-priority ticket is due in 7 days; 8 days later the scheduler raises it. A resolved one is left.
+  - id: lamp-report
+    as: nia
+    create: { machine: mch_ticket, values: { fld_title: Lampu ruang rapat redup, fld_priority: rendah } }
+    expect: ok
+    record: { fld_priority: rendah }
+
+  - id: mouse-report
+    as: nia
+    create: { machine: mch_ticket, values: { fld_title: Mouse rusak, fld_priority: rendah } }
+    expect: ok
+
+  - id: mouse-taken
+    as: oki
+    update: { ref: mouse-report, values: { fld_agent: $oki, fld_status: ditangani } }
+    expect: ok
+
+  - id: mouse-resolved
+    as: oki
+    update: { ref: mouse-report, values: { fld_status: selesai } }
+    expect: ok
+
+  - id: overdue-ticket-escalates
+    tick: { days: 8, ref: lamp-report }
+    expect: ok
+    record: { fld_priority: tinggi }
+
+  - id: resolved-ticket-is-left
+    tick: { days: 8, ref: mouse-report }
+    expect: ok
+    record: { fld_priority: rendah }

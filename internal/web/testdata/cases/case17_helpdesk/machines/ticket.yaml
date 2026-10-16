@@ -55,14 +55,16 @@ transitions:
 
 completion: { field: fld_status, done: selesai }
 
-# WISHED: when fld_due passes and the ticket is not done, a Service writes a status (escalation). No scenario step can
-# play this yet: the harness has no clock and the runtime has no Service that writes a Field.
-escalation:
-  after: fld_due
-  unless_status: selesai
-  set: { field: fld_priority, value: tinggi }
-
 events:
+  # Escalation: once fld_due has passed and the ticket is not done, its priority becomes tinggi. Two Events on one
+  # condition, because the scheduler fires once per record and the activity line is its marker. (WISHED as an
+  # `escalation:` block until the runtime got a Service that writes a Field, set_field.)
+  - id: evt_ticket_overdue_log
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: selesai }
+    then: { service: log_activity, summary: "Tiket melewati SLA: {fld_title}" }
+  - id: evt_ticket_escalate
+    schedule: { date_field: fld_due, when: overdue, guard_field: fld_status, guard_not_equals: selesai }
+    then: { service: set_field, target_field: fld_priority, value: tinggi }
   - id: evt_ticket_taken_notify
     on: fld_status
     when_equals: ditangani
