@@ -245,8 +245,8 @@ an edit replaces the record's stored self, only the group the write touches is r
 every bound. `per` is a text, status, person or relation Field (never the summed one, never a date or a number), at least one
 bound is required and `at_least` may not exceed `at_most`. A Machine the runtime writes itself or a workflow engine's screens
 write is refused, since they would skip the check. A `constraints:` block relates two Machines; this is the one-Machine total
-it cannot say. **Limit:** the check reads, then the write follows, so two simultaneous writes to one group can both pass; the
-runtime is one process and this is not a lock. The assistant writes new limits and cannot change or remove one.
+it cannot say. **Atomic:** the check and the write run in one transaction holding a lock on each group the write touches, so two simultaneous
+writes to one group queue and the second reads what the first committed (2026-10-16). The assistant writes new limits and cannot change or remove one.
 
 ### 3.0c. An edge that creates a schedule of records: `generates:` (2026-10-16)
 
@@ -275,8 +275,8 @@ before anything is written (a count that is not a whole number, an amount that i
 refuse), and an edge never generates twice for one record (409). The loader checks both Machines: the link must be a relation
 back to this one, the due Field a date, the amount a number, and the target may declare no other required Field without a
 default (the runtime could not fill it). Only an `action: edit` edge may declare it. Hand-written only today: the assistant has
-no slot, with its reason in the catalogue. Stated limit: a crash between the move and the rows leaves a move with a partial
-schedule, and a missing row is visible; there is no transaction around the two.
+no slot, with its reason in the catalogue. The move and its rows are one transaction (2026-10-16): a row that cannot be written
+takes the move down with it, and two writers cannot both find no schedule and write one. The rows' create Events run after the commit.
 
 ### 3.0d. An edge that waits until its lines add up: `balanced:` (2026-10-16)
 
@@ -304,8 +304,9 @@ sits with the other write guards, so the form, single-field and JSON routes all 
 edge reads anything. The loader checks the edge is an `action: edit` one, the target Machine is a Workspace Machine written
 by the generic screens, `via` is a relation back to this Machine, and the two totals are different number Fields.
 Pair it with `frozen_when:` on the lines (`via` the entry, `equals` the posted status) and a posted entry stays as it was
-balanced. Hand-written only today: the assistant has no slot, with its reason in the catalogue. Stated limit: the lines are
-read and then the status is written, with no lock between them, so a line added at that very moment can slip past.
+balanced. Hand-written only today: the assistant has no slot, with its reason in the catalogue. The posting and any write to its lines
+(add, change, remove) take the same lock inside a transaction (2026-10-16), so a line added at that very moment waits for the
+posting or is read by it. Stated limit: the lock is per entry and per process database, not a row lock on the lines themselves.
 
 ### 3.0b. A date from a date, and a Field an edge writes from the clock (2026-10-16)
 

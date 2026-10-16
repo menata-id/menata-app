@@ -8,7 +8,6 @@ import (
 
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 	"menata.app/internal/storage"
 )
@@ -47,27 +46,12 @@ func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 			http.Error(w, "invalid JSON body", http.StatusBadRequest)
 			return
 		}
-		data.ApplyDefaults(machine, values)
-		data.ApplyComputed(machine, values)
-
-		actor := currentActor(req, store, cfg)
-		data.ApplyStamps(machine, values, actor.ID)
-		if !allowsRecordCreate(w, req, store, machine, values, actor) {
+		// The same pipeline the form route runs (defaults, stamps, the create Permission, the guards, the write inside its
+		// locks, then the create Events), so the two cannot drift: the JSON path had silently never logged Activity once.
+		record, _, ok := createFromValues(w, req, store, files, mailer, cfg, machine, values)
+		if !ok {
 			return
 		}
-		if !validRecord(w, req, store, machine, values) || !notFrozen(w, req, store, machine, "", values) || !withinBounds(w, req, store, machine, "", values) {
-			return
-		}
-
-		record, err := store.CreateRecord(req.Context(), machine.ID, values)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		// Parity with createRecordForm's own logging -- found while adding update/delete parity
-		// below: the JSON path had silently never logged Activity for a Document/Task/Project
-		// created through it, unlike its form-based sibling.
-		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(req.Context()), machine, record, actor.ID)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -103,29 +87,10 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 		if !carryForwardFixedFields(w, req, store, machine, id, nil, values) {
 			return
 		}
-		if !applyTransitionSets(w, req, store, machine, id, values) {
-			return
-		}
-		data.ApplyComputed(machine, values)
-		if !allowsTransition(w, req, store, machine, id, values, actor) {
-			return
-		}
-		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
-			return
-		}
-
-		batch, ok := planGenerated(w, req, store, machines, machine, id, values)
+		record, ok := commitRecordUpdate(w, req, store, files, mailer, machines, machine, id, values, actor)
 		if !ok {
 			return
 		}
-		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
-		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
-		if err != nil {
-			recordError(w, err)
-			return
-		}
-		execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
-		writeGenerated(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, batch, actor.ID)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)
@@ -143,15 +108,7 @@ func deleteRecordAPI(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		id := chi.URLParam(req, "id")
 		actor := currentActor(req, store, cfg)
-		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
-			serverError(w, err)
-			return
-		} else if !allowed {
-			http.Error(w, reason, status)
-			return
-		}
-		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
-			serverError(w, err)
+		if !deleteLocked(w, req, store, machine, id, actor) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

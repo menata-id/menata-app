@@ -31,11 +31,14 @@ var mutatingWriteGuards = map[string]map[string]string{
 	"record.go": {
 		"updateRecordForm": "allowsRecordEdit",
 		"patchRecordForm":  "allowsRecordEdit",
-		"deleteRecord":     "deleteAllowed",
+		"deleteRecord":     "deleteLocked",
+		// The delete moved into deleteLocked when it began running inside a transaction under the Machine's locks
+		// (2026-10-16); both delete routes are held to calling it, and it is held to the permission check.
+		"deleteLocked": "deleteAllowed",
 	},
 	"api.go": {
 		"updateRecord":    "allowsRecordEdit",
-		"deleteRecordAPI": "deleteAllowed",
+		"deleteRecordAPI": "deleteLocked",
 	},
 }
 
@@ -53,7 +56,8 @@ var transitionGuards = map[string]map[string]string{
 		"updateRecordForm":   "commitRecordUpdate",
 		"patchRecordForm":    "commitRecordUpdate",
 	},
-	"api.go":      {"updateRecord": "allowsTransition"},
+	// The JSON update ends in the same commitRecordUpdate as the form routes, so the guard is reached once, in one place.
+	"api.go":      {"updateRecord": "commitRecordUpdate"},
 	"approval.go": {"decideStep": "declaredDecision"},
 }
 

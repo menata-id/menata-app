@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"maps"
 	"mime/multipart"
 	"net/http"
@@ -74,15 +73,27 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 
 	actor := currentActor(req, store, cfg)
 	data.ApplyStamps(machine, values, actor.ID)
-	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) || !notFrozen(w, req, store, machine, "", values) || !withinBounds(w, req, store, machine, "", values) {
+	if !allowsRecordCreate(w, req, store, machine, values, actor) {
 		return nil, actor, false
 	}
-	record, err := store.CreateRecord(req.Context(), machine.ID, values)
-	if err != nil {
-		serverError(w, err)
+	machines := machinesFor(req.Context())
+	var record *data.Record
+	// The checks and the insert are one transaction under the locks a total over this Machine calls for (writelock.go).
+	ok := withWriteLock(w, req, store, machines, machine, "", values, func(req *http.Request) bool {
+		if !validRecord(w, req, store, machine, values) || !notFrozen(w, req, store, machine, "", values) || !withinBounds(w, req, store, machine, "", values) {
+			return false
+		}
+		var err error
+		if record, err = store.CreateRecord(req.Context(), machine.ID, values); err != nil {
+			serverError(w, err)
+			return false
+		}
+		return true
+	})
+	if !ok {
 		return nil, actor, false
 	}
-	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(req.Context()), machine, record, actor.ID)
+	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID)
 	return record, actor, true
 }
 
@@ -246,31 +257,47 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 // edit route and the single-Field one both end here, so a write that skips none of it cannot be written
 // by adding a route.
 func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) (*data.Record, bool) {
-	if !applyTransitionSets(w, req, store, machine, id, values) {
-		return nil, false
-	}
-	data.ApplyComputed(machine, values)
-	if !allowsTransition(w, req, store, machine, id, values, actor) {
-		return nil, false
-	}
-	if !passesWriteGuards(w, req, store, machines, machine, id, values) {
-		return nil, false
-	}
-	// oldValues has to be read before the write replaces it, so any declared Event
-	// (domain.Machine.Events) can compare what changed once the write succeeds.
-	batch, ok := planGenerated(w, req, store, machines, machine, id, values)
+	var (
+		record    *data.Record
+		oldValues map[string]any
+		oldOK     bool
+		created   []generatedRecord
+	)
+	// The guards, the write and the schedule it generates are one transaction holding the locks the Machine's totals
+	// call for (writelock.go): a rule that judges a total reads what the previous writer committed, and a move whose
+	// schedule cannot be written does not happen. Events run afterwards, on what committed.
+	ok := withWriteLock(w, req, store, machines, machine, id, values, func(req *http.Request) bool {
+		if !applyTransitionSets(w, req, store, machine, id, values) {
+			return false
+		}
+		data.ApplyComputed(machine, values)
+		if !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
+			return false
+		}
+		batch, ok := planGenerated(w, req, store, machines, machine, id, values)
+		if !ok {
+			return false
+		}
+		// oldValues has to be read before the write replaces it, so any declared Event
+		// (domain.Machine.Events) can compare what changed once the write succeeds.
+		oldValues, oldOK = eventOldValues(req, store, machine, id)
+		var err error
+		if record, err = store.UpdateRecord(req.Context(), machine.ID, id, values); err != nil {
+			recordError(w, err)
+			return false
+		}
+		if created, err = insertGenerated(req.Context(), store, machines, batch); err != nil {
+			serverError(w, err)
+			return false
+		}
+		return true
+	})
 	if !ok {
 		return nil, false
 	}
-	oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
-
-	record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
-	if err != nil {
-		recordError(w, err)
-		return nil, false
-	}
-	execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
-	writeGenerated(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, batch, actor.ID)
+	svc := execution.Services{Store: store, Mailer: mailer, Files: files}
+	execution.RunEvents(req.Context(), svc, machines, machine, record, actor.ID, oldValues, oldOK)
+	runGeneratedEvents(req.Context(), svc, machines, created, actor.ID)
 	return record, true
 }
 
@@ -601,21 +628,35 @@ func planGenerated(w http.ResponseWriter, req *http.Request, store *data.Store, 
 	return batch, true
 }
 
-// writeGenerated creates the planned records once the edge's own write has succeeded, running each one's create Events
-// as any create does. A failure part-way is logged and the rest are still attempted: the move has happened, and a missing
-// row is visible, where an aborted loop would hide how far it got.
-func writeGenerated(ctx context.Context, svc execution.Services, machines map[string]*domain.Machine, batch *behavior.GeneratedBatch, actorID string) {
+// generatedRecord is a row an edge's `generates:` wrote, with the Machine it belongs to, kept to run its create Events
+// once the transaction that wrote it has committed.
+type generatedRecord struct {
+	machine *domain.Machine
+	record  *data.Record
+}
+
+// insertGenerated writes the planned records inside the edge's own transaction: all of them or, if one fails, none and
+// not the move either. nil batch (an edge that generates nothing) writes nothing.
+func insertGenerated(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, batch *behavior.GeneratedBatch) ([]generatedRecord, error) {
 	if batch == nil {
-		return
+		return nil, nil
 	}
 	target := machines[batch.Machine]
+	out := make([]generatedRecord, 0, len(batch.Rows))
 	for i, row := range batch.Rows {
-		rec, err := svc.Store.CreateRecord(ctx, target.ID, row)
+		rec, err := store.CreateRecord(ctx, target.ID, row)
 		if err != nil {
-			log.Printf("generates: row %d of %s: %v", i+1, target.ID, err)
-			continue
+			return nil, fmt.Errorf("generates: row %d of %s: %w", i+1, target.ID, err)
 		}
-		execution.RunCreateEvents(ctx, svc, machines, target, rec, actorID)
+		out = append(out, generatedRecord{machine: target, record: rec})
+	}
+	return out, nil
+}
+
+// runGeneratedEvents runs each generated row's create Events, as any create does, after the commit.
+func runGeneratedEvents(ctx context.Context, svc execution.Services, machines map[string]*domain.Machine, rows []generatedRecord, actorID string) {
+	for _, g := range rows {
+		execution.RunCreateEvents(ctx, svc, machines, g.machine, g.record, actorID)
 	}
 }
 
@@ -751,6 +792,27 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor, time.Now()))
 }
 
+// deleteLocked is the delete both routes share: the permission and freeze check and the delete itself, in one transaction
+// under the locks a total over this Machine calls for (a line removed under an entry being posted waits for it).
+func deleteLocked(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, actor domain.Actor) bool {
+	return withWriteLock(w, req, store, machinesFor(req.Context()), machine, id, nil, func(req *http.Request) bool {
+		allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor)
+		if err != nil {
+			serverError(w, err)
+			return false
+		}
+		if !allowed {
+			http.Error(w, reason, status)
+			return false
+		}
+		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
+			serverError(w, err)
+			return false
+		}
+		return true
+	})
+}
+
 func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, req)
@@ -762,15 +824,7 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		id := chi.URLParam(req, "id")
 		actor := currentActor(req, store, cfg)
-		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
-			serverError(w, err)
-			return
-		} else if !allowed {
-			http.Error(w, reason, status)
-			return
-		}
-		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
-			serverError(w, err)
+		if !deleteLocked(w, req, store, machine, id, actor) {
 			return
 		}
 		if isDetailContext(req) {

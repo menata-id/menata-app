@@ -6,12 +6,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
-	"menata.app/internal/execution"
 )
 
-// planGenerated refuses a move whose schedule cannot be written and plans the ones that can; writeGenerated then writes
+// planGenerated refuses a move whose schedule cannot be written and plans the ones that can; insertGenerated then writes
 // the rows. Each refusal is a status the caller returns before the loan's own write, so the status never moves without
 // its schedule.
 func TestPlanAndWriteGenerated(t *testing.T) {
@@ -71,13 +71,49 @@ func TestPlanAndWriteGenerated(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	b, _ := planGenerated(rec, httptest.NewRequest(http.MethodPatch, "/", nil).WithContext(wsCtx), store, machines, loanM, loan.ID, take)
-	writeGenerated(wsCtx, execution.Services{Store: store}, machines, b, "")
+	made, err := insertGenerated(wsCtx, store, machines, b)
+	if err != nil || len(made) != 2 {
+		t.Fatalf("insertGenerated wrote %d rows (%v), want 2", len(made), err)
+	}
 	rows, err := store.ListRecordsBy(wsCtx, instM.ID, "fld_loan", loan.ID)
 	if err != nil || len(rows) != 2 {
-		t.Fatalf("writeGenerated wrote %d rows (%v), want 2", len(rows), err)
+		t.Fatalf("insertGenerated stored %d rows (%v), want 2", len(rows), err)
 	}
 	if code, _ := plan(take); code != http.StatusConflict {
 		t.Errorf("a second generation for the same loan = %d, want 409", code)
 	}
-	writeGenerated(wsCtx, execution.Services{Store: store}, machines, nil, "") // a nil batch writes nothing and does not panic
+	if none, err := insertGenerated(wsCtx, store, machines, nil); err != nil || none != nil { // a nil batch writes nothing
+		t.Errorf("a nil batch = %v, %v, want nothing", none, err)
+	}
+}
+
+// A schedule that fails part-way is not left half written: run inside the edge's transaction, a failing row takes the rows
+// before it down with it (and, in commitRecordUpdate, the status move).
+func TestInsertGeneratedFailsWholeAndRollsBack(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	ws, err := store.CreateWorkspace(ctx, "Insert Generated Test", "insert-generated-test-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, "insert_generated_test@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	inst := &domain.Machine{ID: "mch_inst_rollback"}
+	machines := map[string]*domain.Machine{inst.ID: inst}
+	batch := &behavior.GeneratedBatch{Machine: inst.ID, LinkField: "fld_loan", Rows: []map[string]any{
+		{"fld_loan": "ln1", "fld_n": 1},
+		{"fld_loan": "ln1", "fld_n": make(chan int)}, // cannot be stored
+		{"fld_loan": "ln1", "fld_n": 3},
+	}}
+	err = store.InTx(wsCtx, func(ctx context.Context) error {
+		_, err := insertGenerated(ctx, store, machines, batch)
+		return err
+	})
+	if err == nil {
+		t.Fatal("a schedule with an unstorable row was reported written")
+	}
+	if rows, _ := store.ListRecordsBy(wsCtx, inst.ID, "fld_loan", "ln1"); len(rows) != 0 {
+		t.Errorf("%d rows of a failed schedule survive", len(rows))
+	}
 }

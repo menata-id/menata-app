@@ -81,7 +81,7 @@ func (s *Store) CreateRecord(ctx context.Context, machineID string, values map[s
 	}
 
 	r := &Record{ID: newRecordID(), MachineID: machineID, WorkspaceID: workspaceID, Values: values}
-	row := s.pool.QueryRow(ctx, `
+	row := s.q(ctx).QueryRow(ctx, `
 		INSERT INTO records (id, machine_id, workspace_id, data, sort_order)
 		VALUES ($1, $2, $3, $4::jsonb, COALESCE((SELECT MAX(sort_order) FROM records WHERE machine_id = $2 AND workspace_id = $3), 0) + 1)
 		RETURNING sort_order, created_at, updated_at
@@ -374,7 +374,7 @@ func (s *Store) ListRecordsByIDs(ctx context.Context, machineID string, ids []st
 }
 
 func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]*Record, error) {
-	rows, err := s.pool.Query(ctx, query, args...)
+	rows, err := s.q(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list records: %w", err)
 	}
@@ -402,7 +402,7 @@ func (s *Store) GetRecord(ctx context.Context, machineID, id string) (*Record, e
 		return nil, errNotScoped
 	}
 	readLogFrom(ctx).record(machineID + " by id")
-	row := s.pool.QueryRow(ctx, `
+	row := s.q(ctx).QueryRow(ctx, `
 		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
 		FROM records
 		WHERE machine_id = $1 AND id = $2 AND workspace_id = $3
@@ -435,7 +435,7 @@ func (s *Store) UpdateRecord(ctx context.Context, machineID, id string, values m
 	}
 
 	r := &Record{ID: id, MachineID: machineID, WorkspaceID: workspaceID, Values: values}
-	row := s.pool.QueryRow(ctx, `
+	row := s.q(ctx).QueryRow(ctx, `
 		UPDATE records
 		SET data = $3::jsonb, updated_at = NOW()
 		WHERE machine_id = $1 AND id = $2 AND workspace_id = $4
@@ -537,7 +537,7 @@ func (s *Store) DeleteRecord(ctx context.Context, machineID, id string) error {
 	if !ok {
 		return errNotScoped
 	}
-	_, err := s.pool.Exec(ctx, `DELETE FROM records WHERE machine_id = $1 AND id = $2 AND workspace_id = $3`, machineID, id, workspaceID)
+	_, err := s.q(ctx).Exec(ctx, `DELETE FROM records WHERE machine_id = $1 AND id = $2 AND workspace_id = $3`, machineID, id, workspaceID)
 	if err != nil {
 		return fmt.Errorf("delete record: %w", err)
 	}
