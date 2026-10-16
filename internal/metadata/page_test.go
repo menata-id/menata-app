@@ -1251,3 +1251,67 @@ func TestWorkspacePage_isHeldToTheSameRulesAsAnApplicationsPage(t *testing.T) {
 		}
 	}
 }
+
+func TestPage_aViewerConditionIsReadAndHeldToItsRules(t *testing.T) {
+	var doc pageNodeDoc
+	if err := yaml.Unmarshal([]byte("static: paragraph\ntext: x\nwhen: { viewer: workspace_role, is: admin }\n"), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if w := doc.toDomain().When; w == nil || w.Viewer != "workspace_role" || w.Is != "admin" {
+		t.Errorf("the condition = %+v", w)
+	}
+	for name, src := range map[string]string{
+		"a viewer and a role":      "static: paragraph\nwhen: { viewer: workspace_role, role: status, is: admin }\n",
+		"a viewer and a parameter": "static: paragraph\nwhen: { viewer: workspace_role, parameter: week, is: admin }\n",
+		"no operand":               "static: paragraph\nwhen: { viewer: workspace_role }\n",
+		"both operands":            "static: paragraph\nwhen: { viewer: workspace_role, is: admin, is_not: member }\n",
+	} {
+		var d pageNodeDoc
+		if err := yaml.Unmarshal([]byte(src), &d); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// Through the loader: a negation and a role that is not a Workspace role are load errors, on an Application's page and
+	// on a Workspace's.
+	app := strings.Replace(validListPage, "static: paragraph\n                  from: { text: title }", "static: paragraph\n                  from: { text: title }\n                  when: { viewer: workspace_role, is_not: member }", 1)
+	if err := pageFixture(t, app); err == nil || !strings.Contains(err.Error(), "never is_not") {
+		t.Errorf("a negated viewer condition on an Application page: %v", err)
+	}
+	ws := strings.Replace(validWorkspacePage, "        - static: link\n          to: nav_docs", "        - static: link\n          to: nav_docs\n          when: { viewer: workspace_role, is: owner }", 1)
+	if err := workspacePageFixture(t, ws); err == nil || !strings.Contains(err.Error(), "not a Workspace role") {
+		t.Errorf("an unknown Workspace role on a Workspace page: %v", err)
+	}
+}
+
+func TestPage_aValidViewerConditionLoadsOnAnApplicationsPageAndOnAWorkspacesOwn(t *testing.T) {
+	app := strings.Replace(validListPage, "static: paragraph\n                  from: { text: title }", "static: paragraph\n                  from: { text: title }\n                  when: { viewer: workspace_role, is: admin }", 1)
+	if err := pageFixture(t, app); err != nil {
+		t.Errorf("a viewer condition on an Application page was refused: %v", err)
+	}
+	ws := strings.Replace(validWorkspacePage, "        - static: link\n          to: nav_docs", "        - static: link\n          to: nav_docs\n          when: { viewer: workspace_role, is: member }", 1)
+	if err := workspacePageFixture(t, ws); err != nil {
+		t.Errorf("a viewer condition on a Workspace page was refused: %v", err)
+	}
+}
+
+// An Application's page may link to the Workspace's own pages and to its own menu, and to nothing in another Application.
+func TestPage_anApplicationPageMayLinkToTheWorkspacesPagesButNotToAnotherApplication(t *testing.T) {
+	load := func(to string) error {
+		dir := t.TempDir()
+		writeFile(t, dir, "doc.yaml", "id: mch_doc\nname: Doc\nfields:\n  - id: fld_title\n    name: Title\n    type: text\n")
+		writeFile(t, dir, "other.yaml", "id: mch_other\nname: Other\nfields:\n  - id: fld_title\n    name: Title\n    type: text\n")
+		writeFile(t, dir, "app.yaml", "\nworkspace: default\nmachines:\n  - doc.yaml\n  - other.yaml\nnavigation:\n  - id: nav_ws_overview\n    label: Overview\n    route: /pages/nav_ws_overview\n    page:\n      layout: stack\n      children:\n        - static: paragraph\n          text: hi\napplications:\n  - app-main.yaml\n  - app-other.yaml\n")
+		writeFile(t, dir, "app-main.yaml", "\nid: app_docs\nname: Docs\nmachines:\n  - mch_doc\nnavigation:\n  - id: nav_docs\n    label: Docs\n    route: /pages/nav_docs\n    page:\n      layout: stack\n      children:\n        - static: link\n          to: "+to+"\n")
+		writeFile(t, dir, "app-other.yaml", "\nid: app_other\nname: Other\nmachines:\n  - mch_other\nnavigation:\n  - { id: nav_other, label: Other, route: /machines/mch_other }\n")
+		_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+		return err
+	}
+	for _, ok := range []string{"nav_docs", "nav_ws_overview"} {
+		if err := load(ok); err != nil {
+			t.Errorf("a link to %s was refused: %v", ok, err)
+		}
+	}
+	if err := load("nav_other"); err == nil || !strings.Contains(err.Error(), "nav_other") {
+		t.Errorf("a link into another Application: %v, want a refusal naming it", err)
+	}
+}

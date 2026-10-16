@@ -29,7 +29,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, app.ID), time.Now(), app.AllNavigation, *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, app.ID), time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

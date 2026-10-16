@@ -51,6 +51,10 @@ navigation:
       layout: stack
       gap: default
       children:
+        - static: link
+          to: nav_workspace_overview
+          text: Workspace overview
+          when: { viewer: workspace_role, is: admin }
         - component: Table
           label: All tickets
           empty: No tickets yet.

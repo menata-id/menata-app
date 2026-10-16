@@ -87,7 +87,7 @@ func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages
 				pages++
 				counted[slug] = true
 				walkWritten(*item.Page)
-				tree, err := ir.Lower(*item.Page, metadata.PlaceholderResolver(app.AllNavigation, datasets))
+				tree, err := ir.Lower(*item.Page, metadata.PlaceholderResolver(app.LinkTargets(ws.Navigation), datasets))
 				if err != nil {
 					t.Fatalf("%s/%s/%s does not lower: %v (TestEveryInstalledPageLowersAndValidates reports this too)", slug, app.ID, item.ID, err)
 				}

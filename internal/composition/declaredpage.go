@@ -63,6 +63,12 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
 		},
+		Viewer: func(name string) string {
+			if name == domain.PageViewerWorkspaceRole {
+				return viewer.WorkspaceRole
+			}
+			return ""
+		},
 		Parameter: func(name string) string {
 			if name == domain.PageParameterWeek {
 				return strconv.Itoa(expression.RequestWeek(params))

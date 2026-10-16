@@ -1201,8 +1201,9 @@ still comes from `title:`/`description:`, and the bindings may read any Dataset 
 figures from three Applications side by side (`default.yaml`'s Overview). Two things differ. A `to:` link on it resolves
 against the whole Workspace (its own pages, the runtime's screens and every installed Application's menu), where an
 Application's page resolves against its own menu. And **only Workspace admins open it**, and the Workspace menu offers it to
-admins only: no Application role gates it, and what it reads belongs to Applications, so until a page can say who sees it
-(`when:` per viewer, not built) a member with no admin role is refused with the 403 a Workspace screen gives. The loader checks
+admins only: no Application role gates it, and what it reads belongs to Applications, so a member with no admin role is
+refused with the 403 a Workspace screen gives. A node's `when: {viewer: ...}` (below) decides what a viewer sees inside a page they
+may open; it does not change who may open a Workspace page, which stays admin-only until a page-level gate is built. The loader checks
 a Workspace page by the same rules as an Application's, so a dataset nobody declares, a link to a missing item or a route that
 is not `/pages/<id>` is a load error.
 
@@ -1877,9 +1878,26 @@ everything under it, is drawn for the records the test holds for and not for the
 Refused at load: `when:` anywhere but inside a records Collection's item template, a role the Machine does not project, a
 literal that is not an option of the role's Field (when it has options), `$done`/`$reopen` over a Machine with no
 `completion:` or over a role other than the completion Field, and both `is` and `is_not` or neither. **What it is not:** one
-role and one comparison -- no `and`/`or`, no comparing two roles, and no test on the viewer or the Application (a node
-shown only to an admin is a different scope, 007 §15.2, and is not built). It hides a node; it is not a permission --
+role and one comparison -- no `and`/`or`, no comparing two roles. It hides a node; it is not a permission --
 a Button's own rule (Permission, `transitions:`) still decides whether it is drawn for that viewer.
+
+**A node drawn only for some viewers (P-b, 2026-10-16).** A node anywhere on a page, not only inside a template, may carry
+`when: {viewer: workspace_role, is: admin}` (or `is: member`): it, and everything under it, is drawn for a viewer whose
+Workspace role is that one. Three rules, all checked at load. It takes `is:` and **never `is_not:`**: a viewer the runtime
+cannot place (no membership row) holds no role, so a negation would show them what only a role should see; the condition
+fails closed. The only fact a page may ask is `workspace_role`, and the only values are `admin` and `member`: an Application
+role is not offered (a Workspace page has none to ask). And a node it hides is **not lowered at all**, so a Dataset it binds is
+never read for a viewer who would not see it. It is the same kind of condition as `when: {parameter: week, ...}` -- a statement
+about the request -- and, like it, it is not a permission: it decides what is drawn, not what a viewer may open or write.
+Used by the Helpdesk's All tickets page, which links to the Workspace overview for admins only.
+
+```yaml
+        - static: link
+          to: nav_workspace_overview
+          when: { viewer: workspace_role, is: admin }
+```
+
+An Application's page may link (`to:`) to its own menu and to the Workspace's own pages, never into another Application.
 
 **One node per tag of the record (`each: tags`, K15, 2026-10-10).** Inside a records Collection's item template,
 a node may carry `each: tags` and is then drawn once for every tag the current record owns -- the Machine's

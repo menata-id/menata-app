@@ -120,6 +120,13 @@ func (w Workspace) LinkTargets() []NavigationItem {
 	return out
 }
 
+// LinkTargets is what a link on one of this Application's own pages may name: its own menu and the Workspace's own pages
+// (an Application page may point at the Workspace's overview; it may not point into another Application, which would couple
+// two Applications that each install and remove on their own).
+func (a Application) LinkTargets(workspaceNav []NavigationItem) []NavigationItem {
+	return append(append([]NavigationItem(nil), a.AllNavigation...), workspaceNav...)
+}
+
 // ApplicationForRoute is the fallback half: the Application whose own navigation declares this
 // exact route. Used only when the route names no Machine (/calendar, ...).
 //

@@ -206,6 +206,27 @@ func parameterHolds(c domain.PageCondition, r Resolver, path string) (bool, erro
 	return (r.Parameter(c.Parameter) == operand) != negate, nil
 }
 
+// viewerHolds answers a `when: {viewer: workspace_role, is: admin}`. It is a statement about the request's viewer, so it
+// needs no record and is valid anywhere. A node it hides is not lowered at all, so the Dataset it binds is not read for a
+// viewer who would not see it. A viewer the resolver cannot place gets "", which equals no declared role: the condition
+// fails closed. Only `is:` exists, for that reason.
+func viewerHolds(c domain.PageCondition, r Resolver, path string) (bool, error) {
+	switch {
+	case c.Role != "" || c.Parameter != "":
+		return false, fmt.Errorf("%s: when: tests a record's role, a request parameter or the viewer, not more than one", path)
+	case c.Viewer != domain.PageViewerWorkspaceRole:
+		return false, fmt.Errorf("%s: when: viewer: %q is not a fact a page may test (%s)", path, c.Viewer, domain.PageViewerWorkspaceRole)
+	case c.IsNot != "" || c.Is == "":
+		return false, fmt.Errorf("%s: when: viewer: takes is: and never is_not: -- a viewer the runtime cannot place holds no role, so a negation would show them what only a role should", path)
+	case !domain.KnownPageViewerWorkspaceRoles[c.Is]:
+		return false, fmt.Errorf("%s: when: viewer: %s is %q, which is not a Workspace role (admin or member)", path, c.Viewer, c.Is)
+	}
+	if r.Viewer == nil {
+		return true, nil
+	}
+	return r.Viewer(c.Viewer) == c.Is, nil
+}
+
 // lowerWindow is `window:`: a static node whose text is the date window of a Dataset, in words. The text is the
 // resolver's, so a page that also wrote one (or took it from a record, or counted into it) would be saying it twice.
 func lowerWindow(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
@@ -289,6 +310,10 @@ type Resolver struct {
 	// placeholder, for which there is no request -- and every parameter condition then holds, so the nodes a real
 	// request would hide are still validated, as ShapeOnly does for a record's.
 	Parameter ParameterResolver
+	// Viewer answers a `when: {viewer: ...}`: the viewer's value for the named fact (their Workspace role), "" when the
+	// runtime cannot place them. Nil in the load-time placeholder, for which there is no viewer -- and every viewer
+	// condition then holds, so the nodes a real viewer would not see are still validated.
+	Viewer ViewerResolver
 	// Step answers a link's `step:`: the value of the parameter `by` steps on from the request's own, "" when that is
 	// the value a request without the parameter already means (so a step back to this week links to the plain
 	// route, not to `?week=0`).
@@ -301,6 +326,7 @@ type Resolver struct {
 // than of the database. They are injected for the reason RouteResolver is: `ir` reads nothing and may not import
 // the packages that do.
 type ParameterResolver func(name string) string
+type ViewerResolver func(name string) string
 type StepResolver func(name string, by int) string
 type WindowResolver func(datasetID string) (string, error)
 
@@ -345,7 +371,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.When != nil {
 		var show bool
 		var err error
-		if n.When.Parameter != "" {
+		if n.When.Viewer != "" {
+			show, err = viewerHolds(*n.When, r, path)
+		} else if n.When.Parameter != "" {
 			show, err = parameterHolds(*n.When, r, path)
 		} else {
 			show, err = conditionHolds(*n.When, record, writes, path)

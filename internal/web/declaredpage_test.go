@@ -2024,3 +2024,38 @@ func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 		t.Error("an unknown page id did not answer 404")
 	}
 }
+
+// TestAViewerConditionShowsALinkOnlyToAnAdmin: the Helpdesk's All tickets page links to the Workspace overview only for a
+// Workspace admin, though a member holding a Helpdesk role opens the same page and sees the rest of it.
+func TestAViewerConditionShowsALinkOnlyToAnAdmin(t *testing.T) {
+	h, adminCookie, ctx, store, _, _, _ := routerSetupFor(t, "viewercond", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "viewercond_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddMember(context.Background(), wsID, member.ID, "viewercond_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetMemberAppRole(context.Background(), wsID, member.ID, "app_helpdesk", "reporter"); err != nil {
+		t.Fatal(err)
+	}
+	memberCookie := sessionCookieValueForTest(t, config.Config{SessionSecret: "viewercond-secret"}, member.ID, 0)
+	rec, err := store.CreateRecord(ctx, "mch_helpdesk_ticket", map[string]any{"fld_title": "ViewerCond-probe", "fld_category": "software", "fld_priority": "normal", "fld_status": "new", "fld_due": "2031-01-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_helpdesk_ticket", rec.ID) })
+	const link = `href="/pages/nav_workspace_overview"`
+	admin := getPage(t, h, adminCookie, "/pages/nav_helpdesk_table")
+	if !strings.Contains(admin, link) || !strings.Contains(admin, "Workspace overview") {
+		t.Error("an admin was not offered the Workspace overview")
+	}
+	plain := getPage(t, h, memberCookie, "/pages/nav_helpdesk_table")
+	if strings.Contains(plain, link) || strings.Contains(plain, "Workspace overview") {
+		t.Error("a member was offered a link to a page that answers them 403")
+	}
+	if !strings.Contains(plain, `aria-label="All tickets"`) {
+		t.Error("the rest of the page was hidden from the member too")
+	}
+}

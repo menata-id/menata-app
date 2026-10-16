@@ -118,9 +118,22 @@ type PageCondition struct {
 	// The only parameter a page may test is PageParameterWeek, compared as the runtime reads it -- a whole number,
 	// "0" for this week whatever was sent -- so a page says "not this week" without caring how it was spelt.
 	Parameter string
-	Is        string
-	IsNot     string
+	// Viewer is the third kind: a statement about who is looking (`when: {viewer: workspace_role, is: admin}`), valid
+	// anywhere on a page. Exactly one of Role, Parameter and Viewer is set. The only thing a page may ask of a viewer is
+	// PageViewerWorkspaceRole, and only with Is, never IsNot: a viewer the runtime cannot place (no membership row) holds
+	// no role, and `is_not: member` would have shown such a viewer what only an admin should see. `is` fails closed.
+	Viewer string
+	Is     string
+	IsNot  string
 }
+
+// PageViewerWorkspaceRole is the one fact about the viewer a page may test: their role in the Workspace, "admin" or
+// "member". An Application role is not offered: a Workspace page has no Application to hold one in, and the first
+// consumer needs only this.
+const PageViewerWorkspaceRole = "workspace_role"
+
+// KnownPageViewerWorkspaceRoles is the closed set of values `is:` may take for PageViewerWorkspaceRole.
+var KnownPageViewerWorkspaceRoles = map[string]bool{WorkspaceRoleAdmin: true, WorkspaceRoleMember: true}
 
 // PageCount is a node's plural text over a Relation's child count. Of is a Relation id of the Dataset the
 // enclosing Collection is bound to; Other is required and is the text for every n but 1 (zero included, since

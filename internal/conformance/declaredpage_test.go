@@ -64,7 +64,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				if want := "/pages/" + item.ID; item.Route != want {
 					t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
 				}
-				res := metadata.PlaceholderResolver(app.AllNavigation, datasets)
+				res := metadata.PlaceholderResolver(app.LinkTargets(ws.Navigation), datasets)
 				rows, records, total := res.Rows, res.Records, res.Total
 				declared := func(b domain.PageBinding) {
 					if _, ok := datasets[b.Dataset]; !ok {
@@ -431,7 +431,7 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 		for _, app := range wss[slug].Workspace.Applications {
 			declared := map[string]bool{}
 			pageOf := map[string]*domain.PageNode{}
-			for _, it := range app.AllNavigation {
+			for _, it := range app.LinkTargets(wss[slug].Workspace.Navigation) {
 				declared[it.ID] = true
 				pageOf[it.ID] = it.Page
 			}
@@ -1134,5 +1134,49 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 func TestPageParameterWeekIsTheExpressionOne(t *testing.T) {
 	if domain.PageParameterWeek != expression.WeekParameter {
 		t.Errorf("domain.PageParameterWeek = %q, expression.WeekParameter = %q; they must be one name", domain.PageParameterWeek, expression.WeekParameter)
+	}
+}
+
+// TestEveryInstalledWorkspacePageLowersAndValidates is the sweep above for the pages a Workspace declares itself
+// (`navigation:` on its manifest): each lowers against the Workspace's whole link list, validates as a UI tree, binds only
+// Datasets the Workspace declares, and sits at /pages/<id>. It fails if no Workspace declares one, so it cannot pass by
+// measuring nothing.
+func TestEveryInstalledWorkspacePageLowersAndValidates(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	ir.RegisterComponentTypes(registry.ComponentTypeNames())
+	ir.RegisterSlottedComponentTypes(registry.SlottedComponentTypeNames())
+	checked := 0
+	for _, slug := range sortedKeys(wss) {
+		ws := wss[slug].Workspace
+		datasets := map[string]domain.Dataset{}
+		for _, m := range ws.Machines {
+			for _, ds := range m.Datasets {
+				datasets[ds.ID] = ds
+			}
+		}
+		for _, item := range ws.Navigation {
+			if item.Page == nil {
+				continue
+			}
+			checked++
+			where := slug + "/" + item.ID
+			if want := "/pages/" + item.ID; item.Route != want {
+				t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
+			}
+			tree, err := ir.Lower(*item.Page, metadata.PlaceholderResolver(ws.LinkTargets(), datasets))
+			if err != nil {
+				t.Errorf("%s: does not lower: %v", where, err)
+				continue
+			}
+			if issues := ir.Validate(tree); len(issues) != 0 {
+				t.Errorf("%s: lowers to an invalid tree: %v", where, issues)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no installed Workspace declares a page of its own: this gate measured nothing")
 	}
 }

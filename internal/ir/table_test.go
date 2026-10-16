@@ -114,3 +114,59 @@ func TestLowerTableWithNoRecordsHasHeadersAndNoCells(t *testing.T) {
 		t.Errorf("an empty table = %+v", got)
 	}
 }
+
+func viewerNode(c domain.PageCondition) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "always"}},
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "gated"}, When: &c},
+	}}
+}
+
+func TestLowerViewerConditionShowsANodeOnlyToTheRoleItNames(t *testing.T) {
+	adminOnly := domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, Is: domain.WorkspaceRoleAdmin}
+	for name, tc := range map[string]struct {
+		role string
+		want int
+	}{"an admin": {"admin", 2}, "a member": {"member", 1}, "a viewer the runtime cannot place": {"", 1}} {
+		tree, err := Lower(viewerNode(adminOnly), Resolver{Viewer: func(string) string { return tc.role }})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(tree.Children) != tc.want {
+			t.Errorf("%s sees %d nodes, want %d", name, len(tree.Children), tc.want)
+		}
+	}
+	// With no viewer at all (the load-time placeholder) the node is kept, so a hidden node is still validated.
+	if tree, err := Lower(viewerNode(adminOnly), Resolver{}); err != nil || len(tree.Children) != 2 {
+		t.Errorf("the placeholder lowered to %d nodes, %v, want both", len(tree.Children), err)
+	}
+	// A node the condition hides is never lowered, so what it binds is never read for that viewer.
+	reads := 0
+	bound := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+		Kind: "component", Type: "Metric", Props: map[string]string{"label": "N"}, When: &adminOnly,
+		Binding: &domain.PageBinding{Dataset: "ds_x", Measure: "m", Rows: domain.PageRowsTotal}}}}
+	_, _ = Lower(bound, Resolver{Viewer: func(string) string { return "member" }, Total: func(domain.PageBinding) (string, error) { reads++; return "1", nil }})
+	if reads != 0 {
+		t.Errorf("a hidden Metric still read its Dataset %d time(s)", reads)
+	}
+}
+
+func TestLowerViewerConditionRefusesEachMisuseForItsOwnReason(t *testing.T) {
+	for name, tc := range map[string]struct {
+		c    domain.PageCondition
+		want string
+	}{
+		"an unknown fact":          {domain.PageCondition{Viewer: "age", Is: "admin"}, "not a fact a page may test"},
+		"a negation":               {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, IsNot: "member"}, "never is_not"},
+		"no operand":               {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole}, "never is_not"},
+		"both operands":            {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, Is: "admin", IsNot: "member"}, "never is_not"},
+		"a role that is not one":   {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, Is: "owner"}, "not a Workspace role"},
+		"a viewer and a role":      {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, Role: "status", Is: "admin"}, "not more than one"},
+		"a viewer and a parameter": {domain.PageCondition{Viewer: domain.PageViewerWorkspaceRole, Parameter: "week", Is: "admin"}, "not more than one"},
+	} {
+		_, err := Lower(viewerNode(tc.c), Resolver{Viewer: func(string) string { return "admin" }})
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+}

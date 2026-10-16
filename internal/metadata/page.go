@@ -303,16 +303,24 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 			c.Role = val.Value
 		case "parameter":
 			c.Parameter = val.Value
+		case "viewer":
+			c.Viewer = val.Value
 		case "is":
 			c.Is = val.Value
 		case "is_not":
 			c.IsNot = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key when declares (role or parameter, is, is_not)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key when declares (role, parameter or viewer, is, is_not)", key.Line, key.Value)
 		}
 	}
-	if (c.Role == "") == (c.Parameter == "") || (c.Is == "") == (c.IsNot == "") {
-		return nil, fmt.Errorf("line %d: when: names a role or a parameter (not both) and exactly one of is: and is_not:", n.Line)
+	named := 0
+	for _, v := range []string{c.Role, c.Parameter, c.Viewer} {
+		if v != "" {
+			named++
+		}
+	}
+	if named != 1 || (c.Is == "") == (c.IsNot == "") {
+		return nil, fmt.Errorf("line %d: when: names a role, a parameter or a viewer fact (not both of any two) and exactly one of is: and is_not:", n.Line)
 	}
 	if c.Parameter != "" {
 		operand := c.Is + c.IsNot
@@ -507,9 +515,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				continue
 			}
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
-			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, datasets, where)...)
-			issues = append(issues, paramLinkIssues(*item.Page, app.AllNavigation, datasets, where)...)
-			issues = append(issues, stepIssues(*item.Page, app.AllNavigation, datasets, where)...)
+			issues = append(issues, shapeIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
+			issues = append(issues, paramLinkIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
+			issues = append(issues, stepIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
 		}
 	}
 	// The Workspace's own pages (`navigation:` on the manifest) are checked the same way. What differs is what a link on
@@ -583,7 +591,7 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			}
 		}
 	}
-	if n.When != nil && n.When.Parameter == "" {
+	if n.When != nil && n.When.Parameter == "" && n.When.Viewer == "" {
 		issues = append(issues, conditionIssues(*n.When, item, where)...)
 	}
 	if n.Window != "" {
