@@ -98,6 +98,9 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Roles: slices.Clone(t.Roles), ActorField: t.ActorField})
 		}
 	}
+	if m.Frozen != nil {
+		g.FrozenWhen = &GeneratedFrozenWhen{Via: m.Frozen.Via, Field: m.Frozen.Field, Equals: m.Frozen.Equals}
+	}
 	for _, b := range m.Bounds {
 		g.Ensure = append(g.Ensure, GeneratedEnsure{ID: b.ID, SumOf: b.SumOf, Per: b.Per, AtLeast: cloneFloat(b.AtLeast), AtMost: cloneFloat(b.AtMost), Reason: b.Reason})
 	}
@@ -327,6 +330,12 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		}
 	}
 
+	switch {
+	case old.FrozenWhen == nil && m.FrozenWhen != nil:
+		p.add("freeze records of %q while %s is %s", m.Name, m.FrozenWhen.Field, m.FrozenWhen.Equals)
+	case old.FrozenWhen != nil && (m.FrozenWhen == nil || *m.FrozenWhen != *old.FrozenWhen):
+		p.refuse("the freeze rule of %s cannot be changed or removed, only added -- the file edit only appends and removing it would unfreeze records", m.ID)
+	}
 	oldEnsure := map[string]GeneratedEnsure{}
 	for _, x := range old.Ensure {
 		oldEnsure[x.ID] = x
@@ -596,6 +605,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		if _, installed := current.Machines[m.ID]; !installed && existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
 		}
+		issues = append(issues, frozenIssues(m, desired.Machines)...)
 		for _, ev := range m.Events {
 			if ev.RecipientRole != "" && !roles[ev.RecipientRole] {
 				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which the application does not declare in %v", m.ID, ev.ID, ev.RecipientRole, desired.Roles))

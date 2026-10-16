@@ -158,6 +158,16 @@ type Field struct {
 	DefaultFrom *FieldDefaultFrom
 }
 
+// FrozenWhen freezes a record of this Machine while the record one of its relation Fields points at (Via) holds Equals in
+// the status Field Field of that record: a voucher of a closed period, a line of a posted invoice. A frozen record is
+// not edited and not deleted, and no record is created under a frozen one; moving a record into a frozen parent is an
+// edit of the record and is refused too. Enforced by the generic create, update and delete routes.
+type FrozenWhen struct {
+	Via    string
+	Field  string
+	Equals string
+}
+
 // AggregateBound is a limit on a total over this Machine's own records ("stock may not go below zero", "the vouchers of
 // a period may not exceed the fund"): the sum of SumOf across every record sharing one value of Per, kept at or above
 // AtLeast and/or at or below AtMost. Checked by every generic write of a record of this Machine, with the record as it
@@ -552,6 +562,8 @@ type Machine struct {
 	WorkflowRole   string
 	Fields         []Field
 	Constraints    []Constraint
+	// Frozen makes a record read-only while the record it points at holds a value (`frozen_when:`): see FrozenWhen.
+	Frozen *FrozenWhen
 	// Bounds are aggregate constraints over this Machine's own records (`ensure:`): see AggregateBound.
 	Bounds []AggregateBound
 	Events []Event

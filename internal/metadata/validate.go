@@ -152,6 +152,18 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
 
+	if m.Frozen != nil {
+		via, ok := fieldsByID[m.Frozen.Via]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when.via %q is not a field of this machine", m.ID, m.Frozen.Via))
+		case via.Type != domain.FieldTypeRelation:
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when.via %q must be a relation field (the record this one sits under), got %q", m.ID, m.Frozen.Via, via.Type))
+		}
+		if m.Frozen.Field == "" || m.Frozen.Equals == "" {
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when needs field and equals -- what the related record must hold", m.ID))
+		}
+	}
 	seenBound := map[string]bool{}
 	for _, b := range m.Bounds {
 		issues = append(issues, validateBound(m, b, fieldsByID, seenBound)...)
@@ -1706,6 +1718,46 @@ func validateBoundsAreGenericallyWritten(machines []*domain.Machine) error {
 			continue
 		}
 		issues = append(issues, fmt.Sprintf("machine %q declares ensure: but is written by the runtime or a workflow engine's own screens, which do not check it", m.ID))
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// validateFrozenWhen is the cross-Machine half of frozen_when: the Field it reads must exist on the Machine its `via`
+// points at, be a status Field, and the value be one of its options (a value it can never hold would freeze nothing).
+func validateFrozenWhen(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		if m.Frozen == nil {
+			continue
+		}
+		if !m.GenericallyWritten() {
+			issues = append(issues, fmt.Sprintf("machine %q declares frozen_when but is written by the runtime or a workflow engine's own screens, which do not check it", m.ID))
+			continue
+		}
+		via, ok := m.FieldByID(m.Frozen.Via)
+		if !ok || via.Type != domain.FieldTypeRelation {
+			continue // reported per Machine
+		}
+		parent, ok := byID[via.RelatedMachine]
+		if !ok {
+			continue // reported by validateRelationTargets
+		}
+		f, ok := parent.FieldByID(m.Frozen.Field)
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when.field %q is not a field of %q, which %q points at", m.ID, m.Frozen.Field, parent.ID, m.Frozen.Via))
+		case f.Type != domain.FieldTypeStatus:
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when.field %q on %q must be a status field, got %q", m.ID, m.Frozen.Field, parent.ID, f.Type))
+		case !slices.Contains(f.Options, m.Frozen.Equals):
+			issues = append(issues, fmt.Sprintf("machine %q: frozen_when.equals %q is not one of %q's options %v -- it would freeze nothing", m.ID, m.Frozen.Equals, m.Frozen.Field, f.Options))
+		}
 	}
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

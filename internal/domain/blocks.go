@@ -31,6 +31,7 @@ func (m *Machine) DeclaredBlocks() []string {
 	add(len(m.Fields) > 0, "fields")
 	add(len(m.Constraints) > 0, "constraints")
 	add(len(m.Bounds) > 0, "ensure")
+	add(m.Frozen != nil, "frozen_when")
 	add(len(m.Events) > 0, "events")
 	add(len(m.Permissions) > 0, "permissions")
 	add(len(m.Transitions) > 0, "transitions")
@@ -60,7 +61,7 @@ func (m *Machine) DeclaredBlocks() []string {
 // manifest. Structure and presentation are where a reduction is legitimate; rules are where it is a
 // silent false pass.
 var ruleBlocks = map[string]bool{
-	"constraints": true, "ensure": true, "events": true, "permissions": true, "transitions": true,
+	"constraints": true, "ensure": true, "frozen_when": true, "events": true, "permissions": true, "transitions": true,
 	"actions": true, "sequencing": true, "signature_placement": true, "signature_store": true,
 	"blocks_member_removal": true, "append_only": true,
 }

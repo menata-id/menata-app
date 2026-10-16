@@ -218,7 +218,9 @@ type FullMachineCheckDoc struct {
 	Fields      []any  `yaml:"fields"`
 	Constraints []any  `yaml:"constraints"`
 	// Ensure is the aggregate bounds block (domain.AggregateBound, 2026-10-16), added the moment the mirror gate asked.
-	Ensure      []any `yaml:"ensure"`
+	Ensure []any `yaml:"ensure"`
+	// FrozenWhen is the freeze block (domain.FrozenWhen, 2026-10-16).
+	FrozenWhen  any   `yaml:"frozen_when"`
 	Events      []any `yaml:"events"`
 	Permissions []any `yaml:"permissions"`
 	Transitions []any `yaml:"transitions"`

@@ -1,0 +1,19 @@
+id: app_petty_cash
+name: Petty Cash
+machines:
+  - mch_pc_period
+  - mch_pc_voucher
+roles:
+  - cashier
+  - auditor
+icon: board
+color: blue
+navigation:
+  - id: nav_petty_cash
+    label: Vouchers
+    route: /machines/mch_pc_voucher
+    home_card: true
+  - id: nav_petty_cash_pc_period
+    label: Periods
+    route: /machines/mch_pc_period
+    home_card: false

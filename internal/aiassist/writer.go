@@ -133,6 +133,7 @@ type machineDoc struct {
 	Permissions []permissionDoc `yaml:"permissions,omitempty"`
 	Transitions []transitionDoc `yaml:"transitions,omitempty"`
 	Ensure      []ensureDoc     `yaml:"ensure,omitempty"`
+	FrozenWhen  *frozenWhenDoc  `yaml:"frozen_when,omitempty"`
 	Events      []eventDoc      `yaml:"events,omitempty"`
 	Datasets    []datasetDoc    `yaml:"datasets,omitempty"`
 }
@@ -160,6 +161,12 @@ type requiredWhenDoc struct {
 type defaultFromDoc struct {
 	Field string         `yaml:"field"`
 	Days  map[string]int `yaml:"days"`
+}
+
+type frozenWhenDoc struct {
+	Via    string `yaml:"via"`
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
 }
 
 type ensureDoc struct {
@@ -442,6 +449,9 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	}
 	for _, t := range m.Transitions {
 		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField})
+	}
+	if m.FrozenWhen != nil {
+		doc.FrozenWhen = &frozenWhenDoc{Via: m.FrozenWhen.Via, Field: m.FrozenWhen.Field, Equals: m.FrozenWhen.Equals}
 	}
 	for _, e := range m.Ensure {
 		doc.Ensure = append(doc.Ensure, ensureDoc{ID: e.ID, SumOf: e.SumOf, Per: e.Per, AtLeast: e.AtLeast, AtMost: e.AtMost, Reason: e.Reason})

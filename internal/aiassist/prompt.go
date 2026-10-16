@@ -93,6 +93,9 @@ func composableSurface() string {
   field that groups records, at_least and/or at_most, reason}): stock may not go below zero per item
   (at_least 0), the vouchers of a period may not exceed the fund (at_most). It is checked on every create and
   edit of that machine, so a write that would break it is refused with the reason.
+- A record frozen while the record it belongs to holds a status ("frozen_when": {via: a relation field, field: a
+  status field of the related machine, equals: one of its options}): a voucher of a closed period is not edited,
+  not deleted, and none is added to it. Only on a new machine or added to an existing one, never changed.
 - Events, when a record is created or when a field reaches one value: an activity-feed entry
   ("service": "log_activity", the default), or a notification ("service": "send_notification") to the
   person named in one of the record's own PERSON fields ("recipient_field"; the in-app notice is always

@@ -155,6 +155,17 @@ type GeneratedMachine struct {
 	Events      []GeneratedEvent      `json:"events"`
 	// Ensure bounds a total over this Machine's own records ("stock may not go below zero"): see GeneratedEnsure.
 	Ensure []GeneratedEnsure `json:"ensure,omitempty"`
+	// FrozenWhen makes a record read-only while the record one of its relation Fields points at holds a status
+	// ("a voucher of a closed period"); see GeneratedFrozenWhen.
+	FrozenWhen *GeneratedFrozenWhen `json:"frozen_when,omitempty"`
+}
+
+// GeneratedFrozenWhen mirrors domain.FrozenWhen: while the record Via (a relation Field of this Machine) points at holds
+// Equals in its status Field Field, a record of this Machine is not edited or deleted and none is created under it.
+type GeneratedFrozenWhen struct {
+	Via    string `json:"via"`
+	Field  string `json:"field"`
+	Equals string `json:"equals"`
 }
 
 // GeneratedEnsure mirrors domain.AggregateBound: the sum of SumOf (a number Field) over the records sharing one value

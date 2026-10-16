@@ -256,7 +256,7 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events", "ensure"},
+	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events", "ensure", "frozen_when"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
@@ -278,7 +278,10 @@ var generatedMachineSchema = geminiSchema{
 		"permissions": {Type: "ARRAY", Items: &generatedPermissionSchema},
 		"transitions": {Type: "ARRAY", Items: &generatedTransitionSchema},
 		"ensure":      {Type: "ARRAY", Items: &generatedEnsureSchema},
-		"events":      {Type: "ARRAY", Items: &generatedEventSchema},
+		"frozen_when": {Type: "OBJECT", Required: []string{"via", "field", "equals"}, PropertyOrdering: []string{"via", "field", "equals"},
+			Description: "Freezes a record while the record it belongs to holds a status (e.g. a voucher of a closed period: not edited, not deleted, none added). via: a RELATION field of this machine; field: a STATUS field of the machine via points at; equals: one of its options.",
+			Properties:  map[string]geminiSchema{"via": stringSchema, "field": stringSchema, "equals": stringSchema}},
+		"events": {Type: "ARRAY", Items: &generatedEventSchema},
 	},
 }
 

@@ -56,6 +56,7 @@ type caseStep struct {
 	Create   *caseCreate       `yaml:"create"`
 	Update   *caseUpdate       `yaml:"update"`
 	Tick     *caseTick         `yaml:"tick"`
+	Delete   *caseDelete       `yaml:"delete"`
 	Expect   string            `yaml:"expect"`
 	Record   map[string]string `yaml:"record"`
 	Notified []caseNotified    `yaml:"notified"`
@@ -86,6 +87,11 @@ type caseUpdate struct {
 type caseTick struct {
 	Days int    `yaml:"days"`
 	Ref  string `yaml:"ref"`
+}
+
+// caseDelete deletes the record an earlier step created.
+type caseDelete struct {
+	Ref string `yaml:"ref"`
 }
 
 type caseNotified struct {
@@ -123,7 +129,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
 	"case04_maintenance":    {Rejected: 3, Passed: 3, Steps: 4, Red: []string{"technician-completes"}},
 	"case05_inventory":      {Rejected: 0, Passed: 6, Steps: 6},
-	"case06_petty_cash":     {Rejected: 1, Passed: 7, Steps: 8, Red: []string{"voucher-of-a-closed-period-is-frozen"}},
+	"case06_petty_cash":     {Rejected: 0, Passed: 10, Steps: 10},
 	"case14_lending":        {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"first-installment-is-flagged", "officer-disburses"}},
 }
 
@@ -308,8 +314,8 @@ func scenarioProblem(sc caseScenario) string {
 			return fmt.Sprintf("step %s is taken by %q, who is not an actor", s.ID, s.As)
 		case s.Tick != nil && (s.As != "" || s.Expect != "ok"):
 			return fmt.Sprintf("step %s moves the clock; it takes no actor and expects ok", s.ID)
-		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil) != 1:
-			return fmt.Sprintf("step %s must have exactly one of create, update and tick", s.ID)
+		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil, s.Delete != nil) != 1:
+			return fmt.Sprintf("step %s must have exactly one of create, update, delete and tick", s.ID)
 		case s.Expect != "ok" && s.Expect != "refused":
 			return fmt.Sprintf("step %s expects %q; use ok or refused", s.ID, s.Expect)
 		}
@@ -576,6 +582,25 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 				fail("the scheduler failed: %v", err)
 				continue
 			}
+		} else if s.Delete != nil {
+			machine, id = machineOf[s.Delete.Ref], recordOf[s.Delete.Ref]
+			if id == "" {
+				fail("step %s created no record to delete", s.Delete.Ref)
+				continue
+			}
+			if rec, err := store.GetRecord(wsCtx, machine, id); err == nil {
+				snapshot = map[string]any{}
+				for k, v := range rec.Values {
+					snapshot[k] = v
+				}
+			}
+			code = send(http.MethodDelete, "/machines/"+machine+"/records/"+id, s.As, nil, nil)
+			if s.Expect == "refused" && !(code >= 400 && code < 500) && snapshot != nil {
+				// The runtime deleted what the case says it must keep: put it back so later steps stay meaningful.
+				if _, err := store.CreateRecord(wsCtx, machine, snapshot); err != nil {
+					t.Fatalf("restoring after %s: %v", s.ID, err)
+				}
+			}
 		} else if s.Create != nil {
 			machine = s.Create.Machine
 			before := recordIDs(t, store, wsCtx, machine)
@@ -814,6 +839,7 @@ func TestCaseOutcomeAndRatchetJudgements(t *testing.T) {
 		"unknown wants":          {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "maybe", Create: &caseCreate{}}}},
 		"tick with an actor":     {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Tick: &caseTick{}}}},
 		"tick expecting refusal": {Steps: []caseStep{{ID: "a", Expect: "refused", Tick: &caseTick{}}}},
+		"delete and update":      {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", As: "x", Expect: "ok", Delete: &caseDelete{}, Update: &caseUpdate{}}}},
 		"tick and create":        {Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{{ID: "a", Expect: "ok", Tick: &caseTick{}, Create: &caseCreate{}}}},
 	} {
 		if scenarioProblem(sc) == "" {

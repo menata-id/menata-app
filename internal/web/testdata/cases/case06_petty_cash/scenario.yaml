@@ -49,3 +49,13 @@ steps:
     as: dina
     update: { ref: first-voucher, values: { fld_amount: "100000" } }
     expect: refused
+
+  - id: nor-deleted
+    as: dina
+    delete: { ref: first-voucher }
+    expect: refused
+
+  - id: nor-added-to-a-closed-period
+    as: dina
+    create: { machine: mch_pc_voucher, values: { fld_description: Parkir, fld_amount: "10000", fld_period: $open-period } }
+    expect: refused

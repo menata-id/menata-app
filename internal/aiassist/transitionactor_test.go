@@ -310,3 +310,89 @@ func TestNewApplicationWritesItsLimits(t *testing.T) {
 	}
 	t.Fatal("the new Machine was not loaded")
 }
+
+func frozenApp(equals string) *GeneratedApplication {
+	return &GeneratedApplication{
+		ID: "app_kas", Name: "Kas", Roles: []string{"kasir"}, PublisherRole: "kasir",
+		Navigation: []GeneratedMenuItem{{Label: "Voucher", MachineID: "mch_kas_voucher"}},
+		Machines: []GeneratedMachine{
+			{ID: "mch_kas_periode", Name: "Periode", Fields: []GeneratedField{
+				{ID: "fld_nama", Name: "Nama", Type: "text", Required: true},
+				{ID: "fld_status", Name: "Status", Type: "status", Required: true, Options: []string{"terbuka", "ditutup"}}}},
+			{ID: "mch_kas_voucher", Name: "Voucher", Fields: []GeneratedField{
+				{ID: "fld_ket", Name: "Keterangan", Type: "text", Required: true},
+				{ID: "fld_periode", Name: "Periode", Type: "relation", RelatedMachine: "mch_kas_periode", Required: true}},
+				FrozenWhen: &GeneratedFrozenWhen{Via: "fld_periode", Field: "fld_status", Equals: equals}},
+		},
+	}
+}
+
+func TestFrozenWhenIsWrittenLoadedDescribedBackAndNotChangeable(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	loaded := publish(t, manifestPath, GeneratedChange{Kind: KindNewApplication, Application: frozenApp("ditutup")})
+	var f *domain.FrozenWhen
+	for _, m := range loaded.Machines {
+		if m.ID == "mch_kas_voucher" {
+			f = m.Frozen
+		}
+	}
+	if f == nil || f.Via != "fld_periode" || f.Field != "fld_status" || f.Equals != "ditutup" {
+		t.Fatalf("the loaded freeze = %+v", f)
+	}
+	st, _ := stateOf(t, manifestPath)
+	cur := DescribeApplication("app_kas", st.Applications["app_kas"])
+	var v GeneratedMachine
+	for _, m := range cur.Machines {
+		if m.ID == "mch_kas_voucher" {
+			v = m
+		}
+	}
+	if v.FrozenWhen == nil || v.FrozenWhen.Equals != "ditutup" {
+		t.Fatalf("described back: %+v", v.FrozenWhen)
+	}
+	if plan := PlanUpdate(cur, cur); len(plan.Items) != 0 || len(plan.Refusals) != 0 {
+		t.Errorf("an unchanged application planned something: %+v", plan)
+	}
+	for name, edit := range map[string]func(*GeneratedMachine){
+		"changed": func(m *GeneratedMachine) {
+			m.FrozenWhen = &GeneratedFrozenWhen{Via: "fld_periode", Field: "fld_status", Equals: "terbuka"}
+		},
+		"removed": func(m *GeneratedMachine) { m.FrozenWhen = nil },
+	} {
+		desired := DescribeApplication("app_kas", st.Applications["app_kas"])
+		for i := range desired.Machines {
+			if desired.Machines[i].ID == "mch_kas_voucher" {
+				edit(&desired.Machines[i])
+			}
+		}
+		if plan := PlanUpdate(cur, desired); len(plan.Refusals) != 1 {
+			t.Errorf("%s: refusals = %v", name, plan.Refusals)
+		}
+	}
+}
+
+func TestFrozenWhenIsHeldToItsTargetInTheSameChange(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	state, _ := stateOf(t, manifestPath)
+	if err := Validate(GeneratedChange{Kind: KindNewApplication, Application: frozenApp("ditutup")}, state); err != nil {
+		t.Fatalf("a sound freeze was refused: %v", err)
+	}
+	if err := Validate(GeneratedChange{Kind: KindNewApplication, Application: frozenApp("tutup")}, state); err == nil || !strings.Contains(err.Error(), "tutup") {
+		t.Errorf("an equals that is no option = %v, want an error naming it", err)
+	}
+	bad := frozenApp("ditutup")
+	bad.Machines[1].FrozenWhen.Field = "fld_nama"
+	if err := Validate(GeneratedChange{Kind: KindNewApplication, Application: bad}, state); err == nil || !strings.Contains(err.Error(), "must be a status field") {
+		t.Errorf("a text field = %v", err)
+	}
+	bad = frozenApp("ditutup")
+	bad.Machines[1].FrozenWhen.Field = "fld_nope"
+	if err := Validate(GeneratedChange{Kind: KindNewApplication, Application: bad}, state); err == nil || !strings.Contains(err.Error(), "not a field of") {
+		t.Errorf("a missing field = %v", err)
+	}
+	bad = frozenApp("ditutup")
+	bad.Machines[1].FrozenWhen.Via = "fld_ket"
+	if err := Validate(GeneratedChange{Kind: KindNewApplication, Application: bad}, state); err == nil || !strings.Contains(err.Error(), "relation") {
+		t.Errorf("a via that is not a relation = %v", err)
+	}
+}

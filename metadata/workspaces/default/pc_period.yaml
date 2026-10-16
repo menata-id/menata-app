@@ -1,0 +1,46 @@
+id: mch_pc_period
+name: Period
+fields:
+  - id: fld_name
+    name: Period
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - open
+      - closed
+    default: open
+completion:
+  field: fld_status
+  done: closed
+card_fields:
+  - field: fld_name
+    role: title
+  - field: fld_status
+    role: status
+views:
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_period_create
+    action: create
+    roles:
+      - auditor
+  - id: prm_period_edit
+    action: edit
+    roles:
+      - auditor
+      - cashier
+transitions:
+  - id: trn_period_close
+    name: Close the period
+    field: fld_status
+    from: open
+    to: closed
+    action: edit
+    roles:
+      - auditor

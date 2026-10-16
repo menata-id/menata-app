@@ -31,7 +31,8 @@ ensure:
     at_most: 1000000
     reason: Voucher melebihi dana kas kecil periode ini.
 
-# WISHED: a record is frozen while a related record holds a value -- a voucher of a closed period is not edited.
+# A record is frozen while a related record holds a value (frozen_when:, was WISHED until built) -- a voucher of a closed
+# period is not edited or deleted, and none is created under it.
 frozen_when:
   via: fld_period
   field: fld_status

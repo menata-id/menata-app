@@ -17,7 +17,9 @@ type machineDoc struct {
 	Fields      []fieldDoc      `yaml:"fields"`
 	Constraints []constraintDoc `yaml:"constraints"`
 	// Ensure declares aggregate bounds over this Machine's own records (domain.AggregateBound).
-	Ensure      []ensureDoc     `yaml:"ensure"`
+	Ensure []ensureDoc `yaml:"ensure"`
+	// FrozenWhen freezes a record while a related record holds a value (domain.FrozenWhen).
+	FrozenWhen  *frozenWhenDoc  `yaml:"frozen_when"`
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
 	Transitions []transitionDoc `yaml:"transitions"`
@@ -282,6 +284,12 @@ type computeDoc struct {
 	Fields []string `yaml:"fields"`
 }
 
+type frozenWhenDoc struct {
+	Via    string `yaml:"via"`
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
+}
+
 type ensureDoc struct {
 	ID      string   `yaml:"id"`
 	SumOf   string   `yaml:"sum_of"`
@@ -454,6 +462,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				},
 			},
 		})
+	}
+	if doc.FrozenWhen != nil {
+		m.Frozen = &domain.FrozenWhen{Via: doc.FrozenWhen.Via, Field: doc.FrozenWhen.Field, Equals: doc.FrozenWhen.Equals}
 	}
 	for _, ed := range doc.Ensure {
 		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: ed.ID, SumOf: ed.SumOf, Per: ed.Per, AtLeast: ed.AtLeast, AtMost: ed.AtMost, Reason: ed.Reason})

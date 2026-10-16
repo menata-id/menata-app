@@ -73,7 +73,7 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 
 	actor := currentActor(req, store, cfg)
 	data.ApplyStamps(machine, values, actor.ID)
-	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) || !withinBounds(w, req, store, machine, "", values) {
+	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) || !notFrozen(w, req, store, machine, "", values) || !withinBounds(w, req, store, machine, "", values) {
 		return nil, actor, false
 	}
 	record, err := store.CreateRecord(req.Context(), machine.ID, values)
@@ -485,6 +485,68 @@ func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Stor
 	return true
 }
 
+// frozenReason says why a write is refused when the Machine freezes records under a related record that holds a value
+// (`frozen_when:`, domain.FrozenWhen), or "" when it is not. existing is the stored values of the record being edited
+// or deleted (nil for a create) and next the values it would hold (nil for a delete): a record is frozen by where it
+// sits now, and moving it into a frozen parent is refused too. A Machine declaring none reads nothing.
+func frozenReason(ctx context.Context, store *data.Store, machine *domain.Machine, existing, next map[string]any) (string, error) {
+	if machine.Frozen == nil {
+		return "", nil
+	}
+	via, ok := machine.FieldByID(machine.Frozen.Via)
+	if !ok {
+		return "", nil
+	}
+	seen := map[string]bool{}
+	for _, values := range []map[string]any{existing, next} {
+		if values == nil {
+			continue
+		}
+		parentID := fmt.Sprint(values[machine.Frozen.Via])
+		if parentID == "" || parentID == "<nil>" || seen[parentID] {
+			continue
+		}
+		seen[parentID] = true
+		parent, err := store.GetRecord(ctx, via.RelatedMachine, parentID)
+		if err != nil {
+			if errors.Is(err, data.ErrRecordNotFound) {
+				continue // a dangling reference is ValidateRelations' to refuse, not a freeze
+			}
+			return "", err
+		}
+		if fmt.Sprint(parent.Values[machine.Frozen.Field]) == machine.Frozen.Equals {
+			return fmt.Sprintf("this %s is frozen: its %s is %s", machine.Name, via.Name, machine.Frozen.Equals), nil
+		}
+	}
+	return "", nil
+}
+
+// notFrozen answers a refused write with 409 when frozenReason says the record is frozen.
+func notFrozen(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, next map[string]any) bool {
+	if machine.Frozen == nil {
+		return true
+	}
+	var existing map[string]any
+	if id != "" {
+		rec, err := store.GetRecord(req.Context(), machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return false
+		}
+		existing = rec.Values
+	}
+	reason, err := frozenReason(req.Context(), store, machine, existing, next)
+	if err != nil {
+		serverError(w, err)
+		return false
+	}
+	if reason != "" {
+		http.Error(w, reason, http.StatusConflict)
+		return false
+	}
+	return true
+}
+
 // withinBounds holds a write against the Machine's aggregate bounds (`ensure:`, domain.AggregateBound): the records
 // sharing each bound's group are read, and the write is judged as the total it would leave. id is "" for a create. Only
 // the groups the write touches are read, one query per bound. A Machine declaring none costs nothing.
@@ -524,7 +586,7 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 	if !validRecord(w, req, store, machine, values) {
 		return false
 	}
-	if !withinBounds(w, req, store, machine, id, values) {
+	if !notFrozen(w, req, store, machine, id, values) || !withinBounds(w, req, store, machine, id, values) {
 		return false
 	}
 	relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)
@@ -690,13 +752,18 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	// always was.
 	stateGoverned := action.IsStep(machine) || action.IsDocument(machine)
 	permissionGoverned := len(machine.PermissionsFor(domain.ActionDelete)) > 0
-	if !stateGoverned && !permissionGoverned {
+	if !stateGoverned && !permissionGoverned && machine.Frozen == nil {
 		return true, 0, "", nil
 	}
 
 	existing, err := store.GetRecord(ctx, machine.ID, id)
 	if err != nil {
 		return false, 0, "", err
+	}
+	if reason, err := frozenReason(ctx, store, machine, existing.Values, nil); err != nil {
+		return false, 0, "", err
+	} else if reason != "" {
+		return false, http.StatusConflict, reason, nil
 	}
 
 	if stateGoverned {

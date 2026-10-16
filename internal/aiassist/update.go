@@ -268,6 +268,11 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			}
 		}
 	}
+	if old.FrozenWhen == nil && m.FrozenWhen != nil {
+		if err := setEncoded(doc, "frozen_when", frozenWhenDoc{Via: m.FrozenWhen.Via, Field: m.FrozenWhen.Field, Equals: m.FrozenWhen.Equals}); err != nil {
+			return err
+		}
+	}
 	oldEnsure := map[string]bool{}
 	for _, x := range old.Ensure {
 		oldEnsure[x.ID] = true

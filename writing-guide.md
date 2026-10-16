@@ -248,6 +248,22 @@ write is refused, since they would skip the check. A `constraints:` block relate
 it cannot say. **Limit:** the check reads, then the write follows, so two simultaneous writes to one group can both pass; the
 runtime is one process and this is not a lock. The assistant writes new limits and cannot change or remove one.
 
+### 3.0a. A record frozen by its parent: `frozen_when:` (2026-10-16)
+
+```yaml
+frozen_when:
+  via: fld_period        # a relation Field of this Machine: the record this one sits under
+  field: fld_status      # a status Field of the Machine via points at
+  equals: closed         # one of its options
+```
+
+While the record `via` points at holds that value, a record of this Machine is not edited, not deleted, and none is created
+under it (HTTP 409). Moving a record into a frozen parent is an edit and is refused too, and so is moving one out of it (it is
+frozen by where it sits now). A parent that no longer exists freezes nothing. It is checked by the generic create, update and
+delete routes, so a Machine a workflow engine or the runtime writes itself is refused at load, and `equals` must be one of the
+related status Field's own options (a value it can never hold would freeze nothing). The assistant adds it to a new Machine
+and to an existing one without it, and never changes or removes one.
+
 ### 3.1. Required only under a condition, and a date derived from a status (2026-10-15)
 
 ```yaml

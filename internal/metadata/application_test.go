@@ -1874,3 +1874,30 @@ ensure:
 		t.Errorf("the user Machine with a bound = %v, want a refusal naming ensure", err)
 	}
 }
+
+// The wiring half of TestValidateFrozenWhen: through the real loader, a freeze naming a value its related Machine's
+// status Field cannot hold is refused (it needs both Machines, so only the application-level pass can see it).
+func TestLoadApplication_frozenWhenIsCheckedAgainstTheRelatedMachine(t *testing.T) {
+	load := func(equals string) error {
+		dir := t.TempDir()
+		writeFile(t, dir, "period.yaml", "id: mch_period\nname: Period\nfields:\n  - id: fld_status\n    name: Status\n    type: status\n    options: [open, closed]\n")
+		writeFile(t, dir, "voucher.yaml", `id: mch_voucher
+name: Voucher
+fields:
+  - id: fld_period
+    name: Period
+    type: relation
+    machine: mch_period
+frozen_when: { via: fld_period, field: fld_status, equals: `+equals+` }
+`)
+		writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - period.yaml\n  - voucher.yaml\napplications: []\n")
+		_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+		return err
+	}
+	if err := load("closed"); err != nil {
+		t.Fatalf("a sound freeze did not load: %v", err)
+	}
+	if err := load("sealed"); err == nil || !strings.Contains(err.Error(), "freeze nothing") {
+		t.Errorf("a freeze on a value the status cannot hold = %v, want a refusal", err)
+	}
+}

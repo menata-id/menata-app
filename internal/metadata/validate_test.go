@@ -1156,3 +1156,47 @@ func TestValidateBoundsAreGenericallyWritten(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateFrozenWhen(t *testing.T) {
+	period := &domain.Machine{ID: "mch_period", Fields: []domain.Field{
+		{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"open", "closed"}},
+		{ID: "fld_name", Type: domain.FieldTypeText}}}
+	mk := func(f domain.FrozenWhen) []*domain.Machine {
+		return []*domain.Machine{period, {ID: "mch_voucher", Fields: []domain.Field{{ID: "fld_period", Type: domain.FieldTypeRelation, RelatedMachine: "mch_period"}}, Frozen: &f}}
+	}
+	if err := validateFrozenWhen(mk(domain.FrozenWhen{Via: "fld_period", Field: "fld_status", Equals: "closed"})); err != nil {
+		t.Fatalf("a sound freeze was refused: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		f    domain.FrozenWhen
+		want string
+	}{
+		"a missing field": {domain.FrozenWhen{Via: "fld_period", Field: "fld_nope", Equals: "closed"}, "is not a field of"},
+		"a text field":    {domain.FrozenWhen{Via: "fld_period", Field: "fld_name", Equals: "closed"}, "must be a status field"},
+		"a non-option":    {domain.FrozenWhen{Via: "fld_period", Field: "fld_status", Equals: "sealed"}, "freeze nothing"},
+	} {
+		if err := validateFrozenWhen(mk(tc.f)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want %q", name, err, tc.want)
+		}
+	}
+	if err := validateFrozenWhen([]*domain.Machine{{ID: domain.UserMachineID, Frozen: &domain.FrozenWhen{Via: "x", Field: "y", Equals: "z"}}}); err == nil {
+		t.Error("frozen_when was accepted on a Machine the runtime writes itself")
+	}
+	// The per-Machine half, through Validate.
+	m := validMachine()
+	m.Frozen = &domain.FrozenWhen{Via: "fld_nope", Field: "f", Equals: "e"}
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "frozen_when.via") {
+		t.Errorf("a missing via = %v", err)
+	}
+	m = validMachine()
+	m.Frozen = &domain.FrozenWhen{Via: "fld_title", Field: "f", Equals: "e"}
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "must be a relation field") {
+		t.Errorf("a text via = %v", err)
+	}
+	m = validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_rel", Name: "R", Type: domain.FieldTypeRelation, RelatedMachine: "mch_other"})
+	m.Frozen = &domain.FrozenWhen{Via: "fld_rel"}
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "needs field and equals") {
+		t.Errorf("a freeze naming nothing = %v", err)
+	}
+}

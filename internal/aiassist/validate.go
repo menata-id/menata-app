@@ -191,6 +191,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 				}
 			}
 		}
+		issues = append(issues, frozenIssues(m, app.Machines)...)
 		for _, ev := range m.Events {
 			if ev.RecipientRole != "" && !seenRole[ev.RecipientRole] {
 				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which this application does not declare in its roles %v -- nobody holds it, so no one would be told", m.ID, ev.ID, ev.RecipientRole, app.Roles))
@@ -302,6 +303,9 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			Roles:  slices.Clone(gt.Roles), ActorField: gt.ActorField,
 		})
 	}
+	if gm.FrozenWhen != nil {
+		m.Frozen = &domain.FrozenWhen{Via: gm.FrozenWhen.Via, Field: gm.FrozenWhen.Field, Equals: gm.FrozenWhen.Equals}
+	}
 	for _, e := range gm.Ensure {
 		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: e.ID, SumOf: e.SumOf, Per: e.Per, AtLeast: e.AtLeast, AtMost: e.AtMost, Reason: e.Reason})
 	}
@@ -404,6 +408,44 @@ func notificationIssues(gm GeneratedMachine, existing ExistingState) []string {
 		if e.EventService() == EventServiceSendNotification {
 			return []string{fmt.Sprintf("machine %q event %q sends a notification, but this workspace has no %s to hold it", gm.ID, e.ID, notificationMachineID)}
 		}
+	}
+	return nil
+}
+
+// frozenIssues is the cross-Machine half of frozen_when for a target in the same change: the loader checks it only at
+// load, after publishing, so the model is told here, while it can still fix it. A target already installed is left to
+// the writer's load-verify.
+func frozenIssues(gm GeneratedMachine, all []GeneratedMachine) []string {
+	f := gm.FrozenWhen
+	if f == nil {
+		return nil
+	}
+	var via *GeneratedField
+	for i := range gm.Fields {
+		if gm.Fields[i].ID == f.Via {
+			via = &gm.Fields[i]
+		}
+	}
+	if via == nil || via.Type != "relation" {
+		return nil // metadata.Validate reports it per Machine
+	}
+	for _, other := range all {
+		if other.ID != via.RelatedMachine {
+			continue
+		}
+		for _, of := range other.Fields {
+			if of.ID != f.Field {
+				continue
+			}
+			switch {
+			case of.Type != "status":
+				return []string{fmt.Sprintf("machine %q: frozen_when.field %q on %q must be a status field, got %q", gm.ID, f.Field, other.ID, of.Type)}
+			case !contains(of.Options, f.Equals):
+				return []string{fmt.Sprintf("machine %q: frozen_when.equals %q is not one of %q's options %v -- it would freeze nothing", gm.ID, f.Equals, f.Field, of.Options)}
+			}
+			return nil
+		}
+		return []string{fmt.Sprintf("machine %q: frozen_when.field %q is not a field of %q, which %q points at", gm.ID, f.Field, other.ID, f.Via)}
 	}
 	return nil
 }

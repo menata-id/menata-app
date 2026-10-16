@@ -70,6 +70,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "card_tags", "presentation", "experience", false, "board card tags; no generated board"),
 	key("machineDoc", "append_only", "behaviour", "behavior", false, "no generated Machine is a log"),
 	key("machineDoc", "ensure", "behaviour", "behavior", true, ""),
+	key("machineDoc", "frozen_when", "behaviour", "behavior", true, ""),
 	// transitionDoc
 	key("transitionDoc", "id", "identity", "domain", true, ""),
 	key("transitionDoc", "name", "identity", "domain", true, ""),
@@ -127,8 +128,6 @@ var Capabilities = []Capability{
 	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). The first
 	// corpus (Cases 1, 2, 17) was fully built on 2026-10-16; these are the second (KZ2: Cases 4, 5, 6, 14), written red
 	// on 2026-10-16. Their order is read from the failing steps (internal/web.TestCaseCorpusOnlyAdvances -v).
-	{ID: "frozen-when", Struct: "machineDoc", Keys: []string{"frozen_when"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
-		AIReason: "lands with its assistant slot; a record read-only while a related record holds a value", Cases: []string{"case06_petty_cash"}},
 	{ID: "date-arithmetic", Struct: "fieldDoc", Keys: []string{"add_days"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
 		AIReason: "lands with its assistant slot; a date Field computed as another date plus a number of days", Cases: []string{"case04_maintenance"}},
 	{ID: "transition-sets", Struct: "transitionDoc", Keys: []string{"sets"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,

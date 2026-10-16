@@ -1,0 +1,43 @@
+id: mch_pc_voucher
+name: Voucher
+fields:
+  - id: fld_description
+    name: Purpose
+    type: text
+    required: true
+  - id: fld_amount
+    name: Amount
+    type: number
+    required: true
+  - id: fld_period
+    name: Period
+    type: relation
+    required: true
+    machine: mch_pc_period
+card_fields:
+  - field: fld_description
+    role: title
+views:
+  - id: vw_table
+    name: Table
+    type: table
+permissions:
+  - id: prm_voucher_create
+    action: create
+    roles:
+      - cashier
+  - id: prm_voucher_edit
+    action: edit
+    roles:
+      - cashier
+      - auditor
+ensure:
+  - id: ens_within_fund
+    sum_of: fld_amount
+    per: fld_period
+    at_most: 1e+06
+    reason: Vouchers of this period would exceed the fund (1,000,000).
+frozen_when:
+  via: fld_period
+  field: fld_status
+  equals: closed
