@@ -438,3 +438,75 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 	}
 	return groups, direct, workspaceRole, nil
 }
+
+// UsersHoldingAppRole is every active member of workspaceID who holds role in applicationID, directly or through a
+// Group that grants it -- the same union EffectiveRoles computes for one person, answered for everyone at once so a
+// notification to a role is one query rather than one per member. A deactivated member holds the role on paper and
+// is not an audience. The result is sorted so a run is reproducible.
+func (s *Store) UsersHoldingAppRole(ctx context.Context, workspaceID, applicationID, role string) ([]string, error) {
+	if workspaceID == "" || applicationID == "" || role == "" {
+		return nil, nil
+	}
+	readLogFrom(ctx).record("users holding an application role")
+	rows, err := s.pool.Query(ctx, `
+		SELECT user_record_id FROM (
+			SELECT r.user_record_id
+			FROM workspace_member_app_roles r
+			WHERE r.workspace_id = $1 AND r.application_id = $2 AND r.role = $3
+			UNION
+			SELECT gm.user_record_id
+			FROM workspace_group_members gm
+			JOIN workspace_groups g ON g.id = gm.group_id
+			JOIN workspace_group_app_roles gr ON gr.group_id = g.id
+			WHERE g.workspace_id = $1 AND gr.application_id = $2 AND gr.role = $3
+		) holders
+		WHERE EXISTS (
+			SELECT 1 FROM workspace_members wm
+			WHERE wm.workspace_id = $1 AND wm.user_record_id = holders.user_record_id AND wm.deactivated_at IS NULL
+		)
+		ORDER BY user_record_id
+	`, workspaceID, applicationID, role)
+	if err != nil {
+		return nil, fmt.Errorf("users holding app role: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan role holder: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ActiveGroupMemberIDs is every active member of one Group of workspaceID. A Group id from another Workspace resolves to
+// nobody, because the Workspace is in the statement.
+func (s *Store) ActiveGroupMemberIDs(ctx context.Context, workspaceID, groupID string) ([]string, error) {
+	if workspaceID == "" || groupID == "" {
+		return nil, nil
+	}
+	readLogFrom(ctx).record("group member ids")
+	rows, err := s.pool.Query(ctx, `
+		SELECT gm.user_record_id
+		FROM workspace_group_members gm
+		JOIN workspace_groups g ON g.id = gm.group_id
+		JOIN workspace_members wm ON wm.workspace_id = g.workspace_id AND wm.user_record_id = gm.user_record_id
+		WHERE gm.group_id = $2 AND g.workspace_id = $1 AND wm.deactivated_at IS NULL
+		ORDER BY gm.user_record_id
+	`, workspaceID, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("group member ids: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan group member: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

@@ -1449,6 +1449,19 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 		}
 	}
 	for _, m := range machines {
+		for _, e := range m.Events {
+			role := ""
+			if e.Then.Notify != nil {
+				role = e.Then.Notify.RecipientRole
+			}
+			switch {
+			case role == "":
+			case m.ApplicationID == "":
+				issues = append(issues, fmt.Sprintf("machine %q: event %q tells role %q, but no application claims this machine -- a role word only means something inside one application's own vocabulary", m.ID, e.ID, role))
+			case !vocabulary[m.ApplicationID][role]:
+				issues = append(issues, fmt.Sprintf("machine %q: event %q tells role %q, which application %q does not declare in its roles: vocabulary -- nobody holds it, so no one would be told", m.ID, e.ID, role, m.ApplicationID))
+			}
+		}
 		for _, t := range m.Transitions {
 			for _, role := range t.Roles {
 				switch {

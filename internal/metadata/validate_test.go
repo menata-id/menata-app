@@ -1078,3 +1078,22 @@ func TestValidate_scheduleGuardPolarities(t *testing.T) {
 		}
 	}
 }
+
+func TestValidatePermissionRoles_coversNotifiedRoles(t *testing.T) {
+	apps := []domain.Application{{ID: "app_x", Roles: []string{"koordinator"}}}
+	mk := func(appID, role string) []*domain.Machine {
+		return []*domain.Machine{{ID: "mch_x", ApplicationID: appID, Events: []domain.Event{{ID: "evt_x", Then: domain.Service{Name: domain.ServiceSendNotification, Notify: &domain.Notify{RecipientRole: role}}}}}}
+	}
+	if err := validatePermissionRoles(apps, mk("app_x", "koordinator")); err != nil {
+		t.Errorf("a declared role was refused: %v", err)
+	}
+	if err := validatePermissionRoles(apps, mk("app_x", "bos")); err == nil || !strings.Contains(err.Error(), "bos") {
+		t.Errorf("an undeclared notified role = %v, want an error naming it", err)
+	}
+	if err := validatePermissionRoles(apps, mk("", "koordinator")); err == nil || !strings.Contains(err.Error(), "no application claims") {
+		t.Errorf("a notified role on an unclaimed Machine = %v, want a refusal", err)
+	}
+	if err := validatePermissionRoles(apps, []*domain.Machine{{ID: "mch_y", ApplicationID: "app_x", Events: []domain.Event{{ID: "evt_y", Then: domain.Service{Name: domain.ServiceSendNotification, Notify: &domain.Notify{RecipientField: "fld_p"}}}}}}); err != nil {
+		t.Errorf("a person recipient was judged by the role vocabulary: %v", err)
+	}
+}

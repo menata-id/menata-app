@@ -287,6 +287,11 @@ type GeneratedEvent struct {
 	// whose person is told, and which of that person's notification settings also gates the email.
 	RecipientField string `json:"recipient_field,omitempty"`
 	PreferenceKey  string `json:"preference_key,omitempty"`
+	// RecipientRole tells everyone holding one of this Application's roles instead of one person ("every
+	// coordinator is told"); RecipientGroupField tells the members of the Group a group Field of the record holds.
+	// Exactly one of the three recipients is named.
+	RecipientRole       string `json:"recipient_role,omitempty"`
+	RecipientGroupField string `json:"recipient_group_field,omitempty"`
 }
 
 // The Services a generated Event may name.

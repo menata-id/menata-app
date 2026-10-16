@@ -484,7 +484,14 @@ func (f Field) ViolatesOptions(value string) bool {
 // A case that needs a parent lookup is the trigger to add that indirection here, mirroring
 // Rollup, not before.
 type Notify struct {
+	// Exactly one of RecipientField, RecipientRole and RecipientGroupField names who is told.
 	RecipientField string
+	// RecipientRole tells everyone who holds this Application role in the Workspace (directly or through a Group),
+	// whoever the record names ("every coordinator is told of a new request"). A role word of the Application that
+	// claims the Machine. Deactivated members are not told.
+	RecipientRole string
+	// RecipientGroupField is a group Field of the record: every member of the Group it holds is told.
+	RecipientGroupField string
 	// PreferenceKey selects which of the recipient's own notify_* preferences (credentials table)
 	// gates whether this ALSO sends an email -- the in-app mch_notification row is written
 	// unconditionally either way. One of KnownNotificationPreferenceKeys.

@@ -41,7 +41,8 @@ fields:
     type: person
     stamp: current_user
   # Who is emailed about a new request. Not required, so records created before this Field existed stay
-  # editable. The runtime cannot email "everyone holding the coordinator role" yet, so it is a person per request.
+  # editable. A new request now tells everyone holding the coordinator role (evt_request_created_notify); this Field still says who
+  # is told when a design is handed in.
   - id: fld_coordinator
     name: Koordinator
     type: person
@@ -134,12 +135,13 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" pindah dari {old} ke {new}"
 
-  # A new request: the coordinator. No preference key means "new request", so `assigned` is the nearest.
+  # A new request: everyone holding the coordinator role (recipient_role, since 2026-10-16), whoever the request names.
+  # No preference key means "new request", so `assigned` is the nearest.
   - id: evt_request_created_notify
     on_create: true
     then:
       service: send_notification
-      recipient_field: fld_coordinator
+      recipient_role: koordinator desain
       preference_key: assigned
       summary: "Request desain baru: {fld_title}"
   # Assigned: the designer.

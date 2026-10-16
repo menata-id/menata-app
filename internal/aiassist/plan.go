@@ -108,7 +108,8 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		case domain.ServiceSendNotification:
 			if e.Then.Notify != nil {
 				g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Service: EventServiceSendNotification,
-					Summary: e.Then.Summary, RecipientField: e.Then.Notify.RecipientField, PreferenceKey: e.Then.Notify.PreferenceKey})
+					Summary: e.Then.Summary, RecipientField: e.Then.Notify.RecipientField, RecipientRole: e.Then.Notify.RecipientRole,
+					RecipientGroupField: e.Then.Notify.RecipientGroupField, PreferenceKey: e.Then.Notify.PreferenceKey})
 			}
 		}
 	}
@@ -570,6 +571,11 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		own[m.ID] = true
 		if _, installed := current.Machines[m.ID]; !installed && existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
+		}
+		for _, ev := range m.Events {
+			if ev.RecipientRole != "" && !roles[ev.RecipientRole] {
+				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which the application does not declare in %v", m.ID, ev.ID, ev.RecipientRole, desired.Roles))
+			}
 		}
 		for _, perm := range m.Permissions {
 			for _, r := range perm.Roles {

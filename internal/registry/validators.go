@@ -109,8 +109,27 @@ func validateNotify(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 	}
 	n := *e.Then.Notify
 
-	if _, ok := fieldsByID[n.RecipientField]; !ok {
-		issues = append(issues, fmt.Sprintf("event %q: then.recipient_field %q is not a field of machine %q", e.ID, n.RecipientField, m.ID))
+	named := 0
+	for _, v := range []string{n.RecipientField, n.RecipientRole, n.RecipientGroupField} {
+		if v != "" {
+			named++
+		}
+	}
+	switch {
+	case named != 1:
+		issues = append(issues, fmt.Sprintf("event %q: name exactly one of then.recipient_field, then.recipient_role and then.recipient_group_field -- who is told must be one question with one answer", e.ID))
+	case n.RecipientField != "":
+		if _, ok := fieldsByID[n.RecipientField]; !ok {
+			issues = append(issues, fmt.Sprintf("event %q: then.recipient_field %q is not a field of machine %q", e.ID, n.RecipientField, m.ID))
+		}
+	case n.RecipientGroupField != "":
+		f, ok := fieldsByID[n.RecipientGroupField]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("event %q: then.recipient_group_field %q is not a field of machine %q", e.ID, n.RecipientGroupField, m.ID))
+		case f.Type != domain.FieldTypeGroup:
+			issues = append(issues, fmt.Sprintf("event %q: then.recipient_group_field %q must be a group field, got %q", e.ID, n.RecipientGroupField, f.Type))
+		}
 	}
 	if !domain.KnownNotificationPreferenceKeys[n.PreferenceKey] {
 		issues = append(issues, fmt.Sprintf("event %q: then.preference_key %q is not a preference this runtime knows", e.ID, n.PreferenceKey))

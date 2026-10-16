@@ -141,6 +141,14 @@ events:
     then:
       service: log_activity
       summary: Ticket "{fld_title}" opened
+  # A new ticket tells every agent, not one person: the Application's `agent` role is the audience.
+  - id: evt_ticket_opened_notify_agents
+    on_create: true
+    then:
+      service: send_notification
+      recipient_role: agent
+      preference_key: assigned
+      summary: New ticket "{fld_title}"
   - id: evt_ticket_resolved_notify
     "on": fld_status
     when_equals: resolved

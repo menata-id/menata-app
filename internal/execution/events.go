@@ -88,11 +88,44 @@ func logActivity(ctx context.Context, store *data.Store, machines map[string]*do
 // -- a Group-held Approval Step (CAP-F24) has no single person to notify, named and skipped here
 // rather than solved.
 func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, notify domain.Notify, message string) {
+	for _, recipientID := range notificationRecipients(ctx, store, machine, record, notify) {
+		notifyOne(ctx, store, mailer, machines, machine, record, notify, message, recipientID)
+	}
+}
+
+// notificationRecipients answers who an Event tells: the person a Field names, everyone holding a role, or the members
+// of the Group a Field holds. An empty answer is a normal outcome, not an error. A read failure is logged and tells
+// no one, the same best-effort posture the rest of this file has: a notification never fails the write it describes.
+func notificationRecipients(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, notify domain.Notify) []string {
+	switch {
+	case notify.RecipientRole != "":
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		ids, err := store.UsersHoldingAppRole(ctx, workspaceID, machine.ApplicationID, notify.RecipientRole)
+		if err != nil {
+			log.Printf("notify %s: listing holders of role %q: %v", notify.PreferenceKey, notify.RecipientRole, err)
+		}
+		return ids
+	case notify.RecipientGroupField != "":
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		groupID := fmt.Sprint(record.Values[notify.RecipientGroupField])
+		if groupID == "" || groupID == "<nil>" {
+			return nil
+		}
+		ids, err := store.ActiveGroupMemberIDs(ctx, workspaceID, groupID)
+		if err != nil {
+			log.Printf("notify %s: listing members of group %s: %v", notify.PreferenceKey, groupID, err)
+		}
+		return ids
+	}
 	recipientID := fmt.Sprint(record.Values[notify.RecipientField])
 	if recipientID == "" || recipientID == "<nil>" {
-		return
+		return nil
 	}
+	return []string{recipientID}
+}
 
+// notifyOne writes one person's in-app notification and, when their own preference allows it, sends the email.
+func notifyOne(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, notify domain.Notify, message, recipientID string) {
 	values := map[string]any{
 		"fld_recipient": recipientID,
 		"fld_message":   message,

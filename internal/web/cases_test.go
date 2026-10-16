@@ -118,7 +118,7 @@ type ratchetEntry struct {
 }
 
 var caseRatchet = map[string]ratchetEntry{
-	"case01_design_request": {Rejected: 0, Passed: 12, Steps: 12, Red: nil},
+	"case01_design_request": {Rejected: 0, Passed: 13, Steps: 13, Red: nil},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
 	"case04_maintenance":    {Rejected: 3, Passed: 3, Steps: 4, Red: []string{"technician-completes"}},
@@ -176,7 +176,7 @@ func redSteps(results []string) []string {
 		}
 	}
 	sort.Strings(out)
-	return out
+	return slices.Compact(out)
 }
 
 // redProblem compares the failing steps with the recorded ones, exactly.
@@ -196,7 +196,7 @@ func TestRedProblemSeesASwap(t *testing.T) {
 			t.Errorf("%s was accepted", name)
 		}
 	}
-	if got := redSteps([]string{"ok   z", "FAIL b: expected ok", "FAIL a: x: y", "NOT RUN: the case does not load"}); !slices.Equal(got, []string{"a", "b"}) {
+	if got := redSteps([]string{"ok   z", "FAIL b: expected ok", "FAIL a: x: y", "FAIL a: another line of the same step", "NOT RUN: the case does not load"}); !slices.Equal(got, []string{"a", "b"}) {
 		t.Errorf("redSteps = %v", got)
 	}
 }

@@ -1966,6 +1966,20 @@ then:
   summary: "..."
 ```
 
+**Telling a role or a Group (2026-10-16).** Name exactly one recipient: `recipient_field` (the person a person Field
+holds), `recipient_role` (everyone who holds that role of the Application that claims the Machine), or
+`recipient_group_field` (every member of the Group a `group` Field of the record holds):
+
+```yaml
+then: { service: send_notification, recipient_role: koordinator desain, preference_key: assigned, summary: "Request baru: {fld_title}" }
+```
+
+A role holder is anyone who has it directly or through a Group, counted once; a deactivated member and a member of another
+Workspace are not told. The role must be one the Application declares in `roles:` (a load error otherwise, as for a
+Permission's), and a Group Field must be of type `group`. Each person's own preference still decides whether the email follows;
+the in-app notice is always written. To tell two different audiences, write two Events. The assistant writes all three
+recipient shapes.
+
 **The other Service, `rollup_parent_status`** — a child's own field change decides its parent's
 status. Declared on the child, because that is where the relation to the parent already is:
 

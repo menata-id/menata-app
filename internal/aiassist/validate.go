@@ -191,6 +191,11 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 				}
 			}
 		}
+		for _, ev := range m.Events {
+			if ev.RecipientRole != "" && !seenRole[ev.RecipientRole] {
+				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which this application does not declare in its roles %v -- nobody holds it, so no one would be told", m.ID, ev.ID, ev.RecipientRole, app.Roles))
+			}
+		}
 		if existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
 		}
@@ -301,11 +306,11 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		svc := domain.Service{Name: ge.EventService(), Summary: ge.Summary}
 		switch ge.EventService() {
 		case EventServiceLogActivity:
-			if ge.RecipientField != "" || ge.PreferenceKey != "" {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: recipient_field and preference_key belong to send_notification, not log_activity", gm.ID, ge.ID))
+			if ge.RecipientField != "" || ge.RecipientRole != "" || ge.RecipientGroupField != "" || ge.PreferenceKey != "" {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: the recipient and preference_key belong to send_notification, not log_activity", gm.ID, ge.ID))
 			}
 		case EventServiceSendNotification:
-			svc.Notify = &domain.Notify{RecipientField: ge.RecipientField, PreferenceKey: ge.PreferenceKey}
+			svc.Notify = &domain.Notify{RecipientField: ge.RecipientField, RecipientRole: ge.RecipientRole, RecipientGroupField: ge.RecipientGroupField, PreferenceKey: ge.PreferenceKey}
 			// The loader only asks that the recipient be a field; a notification to anything but a person
 			// reaches nobody and says nothing, so the assistant asks for more than the loader does.
 			if f := fieldOf(m, ge.RecipientField); f != nil && f.Type != domain.FieldTypePerson {

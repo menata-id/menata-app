@@ -93,9 +93,10 @@ func composableSurface() string {
   ("service": "log_activity", the default), or a notification ("service": "send_notification") to the
   person named in one of the record's own PERSON fields ("recipient_field"; the in-app notice is always
   written and the email follows that person's own setting, selected by "preference_key": "assigned" for
-  being given something to do, "decided" for an outcome, "sla_breach" for lateness). It tells one person
-  per event: to tell two, write two events. It cannot tell "everyone holding a role" or a group, and when
-  asked to, say so and record a capability gap of kind "runtime".
+  being given something to do, "decided" for an outcome, "sla_breach" for lateness). Name exactly one
+  recipient: that person field, or "recipient_role" (one of this application's roles: everyone holding it is
+  told, whoever the record names, e.g. every coordinator), or "recipient_group_field" (a GROUP field of the
+  record: every member of that group is told). To tell two different audiences, write two events.
 - A change to an application that already exists (kind "update_application"): return the whole
   application as it should be afterwards, starting from its current definition below. You may add
   anything (roles, machines, fields, options, permissions, status moves, activity entries, menu items),

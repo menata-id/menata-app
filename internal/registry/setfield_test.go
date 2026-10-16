@@ -36,3 +36,36 @@ func TestValidateSetField(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateNotifyRecipients(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x"}
+	fields := map[string]domain.Field{
+		"fld_person": {ID: "fld_person", Type: domain.FieldTypePerson},
+		"fld_group":  {ID: "fld_group", Type: domain.FieldTypeGroup},
+		"fld_text":   {ID: "fld_text", Type: domain.FieldTypeText},
+	}
+	ev := func(n domain.Notify) domain.Event {
+		n.PreferenceKey = "assigned"
+		return domain.Event{ID: "evt_x", Then: domain.Service{Name: domain.ServiceSendNotification, Notify: &n}}
+	}
+	for _, ok := range []domain.Notify{{RecipientField: "fld_person"}, {RecipientRole: "koordinator"}, {RecipientGroupField: "fld_group"}} {
+		if p := validateNotify(m, ev(ok), fields); len(p) != 0 {
+			t.Errorf("%+v was refused: %v", ok, p)
+		}
+	}
+	for name, tc := range map[string]struct {
+		n    domain.Notify
+		want string
+	}{
+		"nobody":             {domain.Notify{}, "exactly one"},
+		"two at once":        {domain.Notify{RecipientField: "fld_person", RecipientRole: "koordinator"}, "exactly one"},
+		"three at once":      {domain.Notify{RecipientField: "fld_person", RecipientRole: "r", RecipientGroupField: "fld_group"}, "exactly one"},
+		"a missing field":    {domain.Notify{RecipientField: "fld_nope"}, "not a field"},
+		"a missing group":    {domain.Notify{RecipientGroupField: "fld_nope"}, "not a field"},
+		"a text group field": {domain.Notify{RecipientGroupField: "fld_text"}, "must be a group field"},
+	} {
+		if got := strings.Join(validateNotify(m, ev(tc.n), fields), "; "); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: got %q, want it to contain %q", name, got, tc.want)
+		}
+	}
+}

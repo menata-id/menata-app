@@ -67,6 +67,15 @@ transitions:
 completion: { field: fld_status, done: selesai }
 
 events:
+  # A new request tells everyone who holds the coordinator role, whoever the request names (was WISHED as a person per
+  # request until the runtime could tell a role: recipient_role).
+  - id: evt_request_created_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_role: koordinator desain
+      preference_key: assigned
+      summary: "Request desain baru: {fld_title}"
   - id: evt_request_assigned_notify
     on: fld_status
     when_equals: ditugaskan
