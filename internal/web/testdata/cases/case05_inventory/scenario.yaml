@@ -1,0 +1,38 @@
+case: 5
+title: Inventory / Stock Movement
+actors:
+  - { name: gita, role: petugas gudang }
+  - { name: pak_ari, role: pengawas }
+steps:
+  - id: receive
+    as: gita
+    create: { machine: mch_stock_movement, values: { fld_item: Beras 25kg, fld_delta: "100" } }
+    expect: ok
+
+  - id: issue
+    as: gita
+    create: { machine: mch_stock_movement, values: { fld_item: Beras 25kg, fld_delta: "-30" } }
+    expect: ok
+
+  # 70 are left; taking 80 would make the stock negative. WISHED (aggregate constraint): red until built.
+  - id: cannot-issue-more-than-on-hand
+    as: gita
+    create: { machine: mch_stock_movement, values: { fld_item: Beras 25kg, fld_delta: "-80" } }
+    expect: refused
+
+  # Another item has its own balance: nothing was received, so any issue is refused.
+  - id: another-item-has-its-own-balance
+    as: gita
+    create: { machine: mch_stock_movement, values: { fld_item: Gula 1kg, fld_delta: "-1" } }
+    expect: refused
+
+  # The ledger is immutable (append_only, built).
+  - id: ledger-entries-are-never-edited
+    as: gita
+    update: { ref: receive, values: { fld_delta: "500" } }
+    expect: refused
+
+  - id: a-supervisor-does-not-write-the-ledger
+    as: pak_ari
+    create: { machine: mch_stock_movement, values: { fld_item: Beras 25kg, fld_delta: "10" } }
+    expect: refused

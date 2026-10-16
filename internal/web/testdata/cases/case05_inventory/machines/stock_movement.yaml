@@ -1,0 +1,34 @@
+# Case 5, Inventory / Stock Movement (case-portfolio.md): goods move in and out of a warehouse. A movement is an
+# immutable ledger entry and stock on hand may never go negative. Written fresh for the corpus. "WISHED:" marks a key
+# the runtime does not read yet; the harness strips those and plays the scenario against what is left.
+id: mch_stock_movement
+name: Mutasi Stok
+# The ledger is immutable: a movement is never edited or deleted (built).
+append_only: true
+fields:
+  - id: fld_item
+    name: Barang
+    type: text
+    required: true
+  # Signed: positive in, negative out.
+  - id: fld_delta
+    name: Jumlah (+ masuk, - keluar)
+    type: number
+    required: true
+  - id: fld_note
+    name: Catatan
+    type: text
+
+permissions:
+  - id: prm_create_movement
+    action: create
+    roles: [petugas gudang]
+
+# WISHED: an aggregate constraint over the records of this Machine -- for one item, the sum of the signed quantities
+# may not go below zero. Today a constraint relates two Machines; none can say "the total of all of these".
+ensure:
+  - id: ens_no_negative_stock
+    sum_of: fld_delta
+    per: fld_item
+    at_least: 0
+    reason: Stok tidak boleh negatif.

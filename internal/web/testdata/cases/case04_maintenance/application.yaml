@@ -1,0 +1,19 @@
+id: app_maintenance
+name: Perawatan Peralatan
+machines:
+  - mch_maintenance_task
+roles:
+  - koordinator
+  - teknisi
+description: Jadwal perawatan peralatan yang berulang.
+icon: board
+color: blue
+summary_machine: mch_maintenance_task
+navigation:
+  - id: nav_maintenance
+    label: Perawatan
+    title: Jadwal perawatan
+    description: Perawatan yang akan datang, terlambat, dan selesai.
+    route: /machines/mch_maintenance_task
+    priority: 1
+    icon: board

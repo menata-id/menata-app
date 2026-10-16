@@ -123,8 +123,19 @@ var Capabilities = []Capability{
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 
 	// Proposed: wished for by the case corpus, read by no loader. Each is a candidate for the A1-A5 admission test,
-	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). None is
-	// open today: the last, escalation, became the set_field Service and a schedule guard on 2026-10-16.
+	// not an admitted capability; the corpus decides the order, not the acceptance (kajian strategi §4.1). The first
+	// corpus (Cases 1, 2, 17) was fully built on 2026-10-16; these are the second (KZ2: Cases 4, 5, 6, 14), written red
+	// on 2026-10-16. Their order is read from the failing steps (internal/web.TestCaseCorpusOnlyAdvances -v).
+	{ID: "aggregate-constraint", Struct: "machineDoc", Keys: []string{"ensure"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
+		AIReason: "lands with its assistant slot; a total over one Machine's records, per a Field, bounded", Cases: []string{"case05_inventory", "case06_petty_cash"}},
+	{ID: "frozen-when", Struct: "machineDoc", Keys: []string{"frozen_when"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
+		AIReason: "lands with its assistant slot; a record read-only while a related record holds a value", Cases: []string{"case06_petty_cash"}},
+	{ID: "date-arithmetic", Struct: "fieldDoc", Keys: []string{"add_days"}, Kind: "structure", Plane: "domain", Stage: StageProposed,
+		AIReason: "lands with its assistant slot; a date Field computed as another date plus a number of days", Cases: []string{"case04_maintenance"}},
+	{ID: "transition-sets", Struct: "transitionDoc", Keys: []string{"sets"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
+		AIReason: "lands with its assistant slot; a Field an edge writes from the clock when taken", Cases: []string{"case04_maintenance"}},
+	{ID: "record-generation", Struct: "transitionDoc", Keys: []string{"generates"}, Kind: "behaviour", Plane: "behavior", Stage: StageProposed,
+		AIReason: "multi-record Action: an edge that creates records (a repayment schedule); needs its own design before a slot", Cases: []string{"case14_lending"}},
 }
 
 // CapabilityProblems checks the catalogue's own rules (the loader and the assistant's schema are checked in

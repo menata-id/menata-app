@@ -59,6 +59,15 @@ type caseStep struct {
 	Expect   string            `yaml:"expect"`
 	Record   map[string]string `yaml:"record"`
 	Notified []caseNotified    `yaml:"notified"`
+	// Count checks how many records a Machine holds (optionally only those whose Fields hold given values) after
+	// the step, for a rule that creates records rather than changing one.
+	Count *caseCount `yaml:"count"`
+}
+
+type caseCount struct {
+	Machine string            `yaml:"machine"`
+	Where   map[string]string `yaml:"where"`
+	Equals  int               `yaml:"equals"`
 }
 
 type caseCreate struct {
@@ -98,14 +107,24 @@ type caseReport struct {
 // caseRatchet records each case's measurement. Both numbers move on purpose: Passed may only rise and Rejected may
 // only fall, and an improvement fails until the entry is updated, so progress is locked in rather than left as room
 // to regress (the shape of every ratchet in internal/conformance).
-var caseRatchet = map[string]struct {
+type ratchetEntry struct {
 	Rejected int
 	Passed   int
 	Steps    int
-}{
-	"case01_design_request": {Rejected: 0, Passed: 12, Steps: 12},
+	// Red names the steps that do not pass, exactly. The counts alone cannot see two steps swap (one starts failing
+	// as another starts passing), which a mutation that broke a step the case needs and let a wished one pass by
+	// accident did, so the names are the ratchet and the counts are what a person reads.
+	Red []string
+}
+
+var caseRatchet = map[string]ratchetEntry{
+	"case01_design_request": {Rejected: 0, Passed: 12, Steps: 12, Red: nil},
 	"case02_leave_request":  {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":       {Rejected: 0, Passed: 15, Steps: 15},
+	"case04_maintenance":    {Rejected: 3, Passed: 3, Steps: 4, Red: []string{"technician-completes"}},
+	"case05_inventory":      {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"another-item-has-its-own-balance", "cannot-issue-more-than-on-hand"}},
+	"case06_petty_cash":     {Rejected: 2, Passed: 4, Steps: 6, Red: []string{"voucher-beyond-the-fund", "voucher-of-a-closed-period-is-frozen"}},
+	"case14_lending":        {Rejected: 1, Passed: 4, Steps: 6, Red: []string{"first-installment-is-flagged", "officer-disburses"}},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -137,11 +156,48 @@ func TestCaseCorpusOnlyAdvances(t *testing.T) {
 		if msg := ratchetProblem(name, len(rep.Rejected), rep.Passed, rep.Steps, want); msg != "" {
 			t.Error(msg)
 		}
+		if msg := redProblem(name, redSteps(rep.Results), want.Red); msg != "" {
+			t.Error(msg)
+		}
 	}
 	for name := range caseRatchet {
 		if _, err := os.Stat(filepath.Join("testdata", "cases", name)); err != nil {
 			t.Errorf("caseRatchet names %s, which has no directory", name)
 		}
+	}
+}
+
+// redSteps lists the ids of the steps a run reported as failing or not run, sorted.
+func redSteps(results []string) []string {
+	var out []string
+	for _, r := range results {
+		if rest, ok := strings.CutPrefix(r, "FAIL "); ok {
+			out = append(out, rest[:strings.Index(rest, ":")])
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// redProblem compares the failing steps with the recorded ones, exactly.
+func redProblem(name string, got, want []string) string {
+	if slices.Equal(got, want) {
+		return ""
+	}
+	return fmt.Sprintf("%s: the steps that do not pass are %v, recorded %v; update caseRatchet.Red only for a step that now passes, and a step that starts failing is a regression", name, got, want)
+}
+
+func TestRedProblemSeesASwap(t *testing.T) {
+	if redProblem("c", []string{"a", "b"}, []string{"a", "b"}) != "" {
+		t.Error("equal lists were refused")
+	}
+	for name, got := range map[string][]string{"a swap": {"a", "c"}, "fewer": {"a"}, "more": {"a", "b", "c"}} {
+		if redProblem("c", got, []string{"a", "b"}) == "" {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+	if got := redSteps([]string{"ok   z", "FAIL b: expected ok", "FAIL a: x: y", "NOT RUN: the case does not load"}); !slices.Equal(got, []string{"a", "b"}) {
+		t.Errorf("redSteps = %v", got)
 	}
 }
 
@@ -196,7 +252,7 @@ func outcomeProblem(code int, expect string) string {
 }
 
 // ratchetProblem compares one case's measurement with its recorded entry and says what moved, or "" when nothing did.
-func ratchetProblem(name string, rejected, passed, steps int, want struct{ Rejected, Passed, Steps int }) string {
+func ratchetProblem(name string, rejected, passed, steps int, want ratchetEntry) string {
 	if rejected == want.Rejected && passed == want.Passed && steps == want.Steps {
 		return ""
 	}
@@ -471,12 +527,9 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 	h := Routes(Deps{UserMachine: userMachineOf(t, app), Store: store, Files: files, Cfg: cfg,
 		Workspaces: map[string]domain.Workspace{slug: installed}, DefaultWorkspaceID: ws.ID})
 
-	subst := func(v string) string {
-		for name, id := range ids {
-			v = strings.ReplaceAll(v, "$"+name, id)
-		}
-		return v
-	}
+	machineOf := map[string]string{} // step id -> machine
+	recordOf := map[string]string{}  // step id -> record id
+	subst := func(v string) string { return substituteRefs(v, ids, recordOf) }
 	send := func(method, path, actor string, values, fileFields map[string]string) int {
 		tok := csrfTokenFor(t, h, path)
 		var body bytes.Buffer
@@ -503,8 +556,6 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		return rec.Code
 	}
 
-	machineOf := map[string]string{} // step id -> machine
-	recordOf := map[string]string{}  // step id -> record id
 	var lines []string
 	passed := 0
 	for _, s := range sc.Steps {
@@ -573,10 +624,19 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 				if want == "*" && got != "" && got != "<nil>" {
 					continue
 				}
+				if pre, isPrefix := strings.CutPrefix(want, "prefix:"); isPrefix && strings.HasPrefix(got, pre) {
+					continue
+				}
 				if got != subst(want) {
 					fail("%s is %q, want %q", f, got, subst(want))
 					ok = false
 				}
+			}
+		}
+		if s.Count != nil {
+			if n := countRecords(t, store, wsCtx, s.Count.Machine, s.Count.Where); n != s.Count.Equals {
+				fail("%s holds %d matching records, want %d", s.Count.Machine, n, s.Count.Equals)
+				ok = false
 			}
 		}
 		for _, n := range s.Notified {
@@ -595,6 +655,61 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		}
 	}
 	return passed, lines
+}
+
+// substituteRefs fills `$<actor>` with that actor's user record id and `$<step id>` with the record that step created,
+// so a later step can point a relation at it. The longest step id goes first, so `$open-period` is not read as `$open`.
+func substituteRefs(v string, actors, steps map[string]string) string {
+	for name, id := range actors {
+		v = strings.ReplaceAll(v, "$"+name, id)
+	}
+	stepIDs := make([]string, 0, len(steps))
+	for sid := range steps {
+		stepIDs = append(stepIDs, sid)
+	}
+	sort.Slice(stepIDs, func(i, j int) bool { return len(stepIDs[i]) > len(stepIDs[j]) })
+	for _, sid := range stepIDs {
+		v = strings.ReplaceAll(v, "$"+sid, steps[sid])
+	}
+	return v
+}
+
+func TestSubstituteRefs(t *testing.T) {
+	actors := map[string]string{"rina": "usr_rina"}
+	steps := map[string]string{"open": "rec_1", "open-period": "rec_2"}
+	for in, want := range map[string]string{
+		"$rina":            "usr_rina",
+		"$open":            "rec_1",
+		"$open-period":     "rec_2",
+		"x $open-period y": "x rec_2 y",
+		"$nobody":          "$nobody",
+		"plain":            "plain",
+	} {
+		if got := substituteRefs(in, actors, steps); got != want {
+			t.Errorf("substituteRefs(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func countRecords(t *testing.T, store *data.Store, ctx context.Context, machine string, where map[string]string) int {
+	t.Helper()
+	recs, err := store.ListRecords(ctx, machine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, r := range recs {
+		match := true
+		for f, want := range where {
+			if fmt.Sprint(r.Values[f]) != want {
+				match = false
+			}
+		}
+		if match {
+			n++
+		}
+	}
+	return n
 }
 
 func recordIDs(t *testing.T, store *data.Store, ctx context.Context, machine string) map[string]bool {
@@ -647,6 +762,7 @@ func TestCaseHarnessReportsEachKindOfMismatch(t *testing.T) {
 		{ID: "assigned", As: "kiki", Expect: "ok", Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_designer": "$dedi", "fld_status": "ditugaskan"}}},
 		{ID: "unwanted-notification", As: "kiki", Expect: "ok", Notified: []caseNotified{{Actor: "dedi", Contains: "Poster", Not: true}}, Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_description": "x"}}},
 		{ID: "wrong-recipient", As: "kiki", Expect: "ok", Notified: []caseNotified{{Actor: "rina", Contains: "Kamu ditugaskan"}}, Update: &caseUpdate{Ref: "right", Values: map[string]string{"fld_description": "y"}}},
+		{ID: "count-right", As: "rina", Expect: "ok", Count: &caseCount{Machine: "mch_design_request", Where: map[string]string{"fld_title": "Poster"}, Equals: 99}, Create: &caseCreate{Machine: "mch_design_request", Values: good}},
 		{ID: "unknown-ref", As: "kiki", Expect: "ok", Update: &caseUpdate{Ref: "nowhere", Values: map[string]string{"fld_description": "x"}}},
 	}
 	sc := caseScenario{Case: 9001, Title: "harness self-test", Steps: steps, Actors: []caseActor{
@@ -662,6 +778,7 @@ func TestCaseHarnessReportsEachKindOfMismatch(t *testing.T) {
 		"ok   assigned",
 		"FAIL unwanted-notification: dedi was notified",
 		"FAIL wrong-recipient: rina was not notified",
+		"FAIL count-right: mch_design_request holds",
 		"FAIL unknown-ref: step nowhere created no record",
 	} {
 		if !strings.Contains(out, want) {
@@ -709,7 +826,7 @@ func TestCaseOutcomeAndRatchetJudgements(t *testing.T) {
 	if why := scenarioProblem(caseScenario{Actors: []caseActor{{Name: "x"}}, Steps: []caseStep{good}}); why != "" {
 		t.Errorf("a sound scenario was refused: %s", why)
 	}
-	rec := struct{ Rejected, Passed, Steps int }{6, 9, 12}
+	rec := ratchetEntry{Rejected: 6, Passed: 9, Steps: 12}
 	for _, c := range []struct {
 		rejected, passed, steps int
 		want                    string

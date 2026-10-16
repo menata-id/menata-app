@@ -1,0 +1,60 @@
+# Case 14, Lending Services (case-portfolio.md): a borrower applies for a loan, a Loan Officer approves it,
+# disbursement generates the whole monthly repayment schedule, and overdue installments are flagged. Written fresh for
+# the corpus. "WISHED:" marks a key the runtime does not read yet; the harness strips those and plays the scenario
+# against what is left.
+id: mch_loan
+name: Pinjaman
+fields:
+  - id: fld_purpose
+    name: Keperluan
+    type: text
+    required: true
+  - id: fld_amount
+    name: Jumlah
+    type: number
+    required: true
+  - id: fld_months
+    name: Tenor (bulan)
+    type: number
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [diajukan, disetujui, ditolak, dicairkan]
+    default: diajukan
+  - id: fld_borrower
+    name: Peminjam
+    type: person
+    stamp: current_user
+
+permissions:
+  - id: prm_create_loan
+    action: create
+    roles: [peminjam]
+  - id: prm_edit_loan
+    action: edit
+    roles: [peminjam, petugas pinjaman]
+
+transitions:
+  - { id: trn_approve, name: Setujui, field: fld_status, from: diajukan, to: disetujui, action: edit, roles: [petugas pinjaman] }
+  - { id: trn_reject, name: Tolak, field: fld_status, from: diajukan, to: ditolak, action: edit, roles: [petugas pinjaman] }
+  # WISHED: `generates:`, an edge that creates records. Disbursement writes the whole repayment schedule: one
+  # installment per month of the tenor, each due 30 days after the previous, the amount split evenly.
+  - id: trn_disburse
+    name: Cairkan
+    field: fld_status
+    from: disetujui
+    to: dicairkan
+    action: edit
+    roles: [petugas pinjaman]
+    generates:
+      machine: mch_installment
+      count_field: fld_months
+      link_field: fld_loan
+      due_field: fld_due_date
+      due_every_days: 30
+      amount_field: fld_amount
+      amount_from: { field: fld_amount, divided_by_field: fld_months }
+
+completion: { field: fld_status, done: dicairkan }

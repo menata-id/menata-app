@@ -1,0 +1,44 @@
+id: mch_installment
+name: Angsuran
+fields:
+  - id: fld_loan
+    name: Pinjaman
+    type: relation
+    machine: mch_loan
+    required: true
+  - id: fld_due_date
+    name: Jatuh tempo
+    type: date
+    required: true
+  - id: fld_amount
+    name: Jumlah
+    type: number
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [belum, terlambat, lunas]
+    default: belum
+
+permissions:
+  - id: prm_create_installment
+    action: create
+    roles: [petugas pinjaman]
+  - id: prm_edit_installment
+    action: edit
+    roles: [petugas pinjaman]
+
+transitions:
+  - { id: trn_installment_late, name: Terlambat, field: fld_status, from: belum, to: terlambat }
+  - { id: trn_installment_paid, name: Lunas, field: fld_status, from: belum, to: lunas, action: edit, roles: [petugas pinjaman] }
+  - { id: trn_installment_paid_late, name: Lunas (terlambat), field: fld_status, from: terlambat, to: lunas, action: edit, roles: [petugas pinjaman] }
+
+# An installment past its due date and still unpaid is flagged (set_field on a schedule, built).
+events:
+  - id: evt_installment_overdue_log
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_status, guard_equals: belum }
+    then: { service: log_activity, summary: "Angsuran terlambat: {fld_amount}" }
+  - id: evt_installment_overdue_flag
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_status, guard_equals: belum }
+    then: { service: set_field, target_field: fld_status, value: terlambat }

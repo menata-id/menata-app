@@ -1,0 +1,29 @@
+case: 4
+title: Maintenance Reminder
+actors:
+  - { name: kana, role: koordinator }
+  - { name: tomo, role: teknisi }
+steps:
+  - id: schedule
+    as: kana
+    create: { machine: mch_maintenance_task, values: { fld_equipment: Genset gedung A, fld_frequency_days: "30", fld_next_due: "2020-01-15" } }
+    expect: ok
+    record: { fld_status: terjadwal }
+
+  # Past its due date, an untouched task escalates by itself (set_field on a schedule, built).
+  - id: becomes-overdue
+    tick: { days: 1, ref: schedule }
+    expect: ok
+    record: { fld_status: terlambat }
+
+  - id: coordinator-cannot-complete
+    as: kana
+    update: { ref: schedule, values: { fld_status: selesai } }
+    expect: refused
+
+  # Completing records the date and advances the next due date: both are WISHED and red until built.
+  - id: technician-completes
+    as: tomo
+    update: { ref: schedule, values: { fld_status: selesai, fld_last_done: "2020-02-01" } }
+    expect: ok
+    record: { fld_status: selesai, fld_following_due: "2020-03-02" }

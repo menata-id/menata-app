@@ -1,0 +1,27 @@
+id: app_lending
+name: Pinjaman
+machines:
+  - mch_loan
+  - mch_installment
+roles:
+  - peminjam
+  - petugas pinjaman
+description: Pengajuan pinjaman dan jadwal angsurannya.
+icon: board
+color: blue
+summary_machine: mch_loan
+navigation:
+  - id: nav_loan
+    label: Pinjaman
+    title: Pengajuan pinjaman
+    description: Ajukan pinjaman, atau putuskan pengajuan yang masuk.
+    route: /machines/mch_loan
+    priority: 1
+    icon: board
+  - id: nav_installment
+    label: Angsuran
+    title: Jadwal angsuran
+    description: Angsuran setiap pinjaman yang sudah dicairkan.
+    route: /machines/mch_installment
+    priority: 2
+    icon: board

@@ -1,0 +1,31 @@
+# Case 6, Petty Cash Ledger (case-portfolio.md): a fixed imprest fund held by one Custodian, every voucher reducing
+# the available cash, an independent Auditor who reconciles and closes the period, and a closed period that is frozen.
+# Written fresh for the corpus. "WISHED:" marks a key the runtime does not read yet; the harness strips those and
+# plays the scenario against what is left.
+id: mch_pc_period
+name: Periode Kas Kecil
+fields:
+  - id: fld_name
+    name: Periode
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [terbuka, ditutup]
+    default: terbuka
+
+permissions:
+  - id: prm_create_period
+    action: create
+    roles: [auditor]
+  - id: prm_edit_period
+    action: edit
+    roles: [auditor]
+
+# Only the independent Auditor closes a period, and a closed one is not reopened (built: per-edge roles).
+transitions:
+  - { id: trn_close_period, name: Tutup periode, field: fld_status, from: terbuka, to: ditutup, action: edit, roles: [auditor] }
+
+completion: { field: fld_status, done: ditutup }

@@ -1,0 +1,40 @@
+case: 6
+title: Petty Cash Ledger
+actors:
+  - { name: dina, role: kasir }
+  - { name: edo, role: auditor }
+steps:
+  - id: open-period
+    as: edo
+    create: { machine: mch_pc_period, values: { fld_name: Oktober 2026 } }
+    expect: ok
+    record: { fld_status: terbuka }
+
+  - id: first-voucher
+    as: dina
+    create: { machine: mch_pc_voucher, values: { fld_description: ATK kantor, fld_amount: "600000", fld_period: $open-period } }
+    expect: ok
+    record: { fld_period: "prefix:rec_" }
+
+  # 600.000 are spent; another 500.000 would exceed the fund. WISHED (aggregate constraint): red until built.
+  - id: voucher-beyond-the-fund
+    as: dina
+    create: { machine: mch_pc_voucher, values: { fld_description: Konsumsi rapat, fld_amount: "500000", fld_period: $open-period } }
+    expect: refused
+
+  - id: custodian-cannot-close-the-period
+    as: dina
+    update: { ref: open-period, values: { fld_status: ditutup } }
+    expect: refused
+
+  - id: auditor-closes-the-period
+    as: edo
+    update: { ref: open-period, values: { fld_status: ditutup } }
+    expect: ok
+    record: { fld_status: ditutup }
+
+  # A closed period is frozen. WISHED (frozen_when): red until built.
+  - id: voucher-of-a-closed-period-is-frozen
+    as: dina
+    update: { ref: first-voucher, values: { fld_amount: "100000" } }
+    expect: refused

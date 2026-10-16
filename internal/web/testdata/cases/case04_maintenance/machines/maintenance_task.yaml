@@ -1,0 +1,59 @@
+# Case 4, Maintenance Reminder (case-portfolio.md): equipment maintenance recurs on a schedule. A task becomes due,
+# escalates when overdue, and on completion records the completion date and advances the next due date by the
+# frequency. Written fresh for the corpus. "WISHED:" marks a key the runtime does not read yet; the harness strips
+# those and plays the scenario against what is left.
+id: mch_maintenance_task
+name: Perawatan
+fields:
+  - id: fld_equipment
+    name: Peralatan
+    type: text
+    required: true
+  - id: fld_frequency_days
+    name: Frekuensi (hari)
+    type: number
+    required: true
+  - id: fld_next_due
+    name: Jatuh tempo
+    type: date
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [terjadwal, terlambat, selesai]
+    default: terjadwal
+  - id: fld_last_done
+    name: Terakhir dikerjakan
+    type: date
+    # WISHED: written from the clock by the transition that completes the task (see `sets:` below).
+  # WISHED: a date computed from other Fields: the completion date plus the frequency, which is the next due date.
+  - id: fld_following_due
+    name: Jatuh tempo berikutnya
+    type: date
+    add_days: { from: fld_last_done, days_field: fld_frequency_days }
+
+permissions:
+  - id: prm_create_task
+    action: create
+    roles: [koordinator, teknisi]
+  - id: prm_edit_task
+    action: edit
+    roles: [koordinator, teknisi]
+
+transitions:
+  # Escalation is the runtime's own move (no action), written by the schedule below.
+  - { id: trn_overdue, name: Terlambat, field: fld_status, from: terjadwal, to: terlambat }
+  # WISHED: `sets:`, a Field the edge writes from the clock when it is taken.
+  - { id: trn_complete, name: Selesaikan, field: fld_status, from: terjadwal, to: selesai, action: edit, roles: [teknisi], sets: { fld_last_done: today } }
+  - { id: trn_complete_late, name: Selesaikan (terlambat), field: fld_status, from: terlambat, to: selesai, action: edit, roles: [teknisi], sets: { fld_last_done: today } }
+
+completion: { field: fld_status, done: selesai }
+
+events:
+  - id: evt_task_overdue_log
+    schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: terjadwal }
+    then: { service: log_activity, summary: "Perawatan terlambat: {fld_equipment}" }
+  - id: evt_task_overdue_escalate
+    schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: terjadwal }
+    then: { service: set_field, target_field: fld_status, value: terlambat }

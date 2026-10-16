@@ -1,0 +1,38 @@
+id: mch_pc_voucher
+name: Voucher
+fields:
+  - id: fld_description
+    name: Keperluan
+    type: text
+    required: true
+  - id: fld_amount
+    name: Jumlah
+    type: number
+    required: true
+  - id: fld_period
+    name: Periode
+    type: relation
+    machine: mch_pc_period
+    required: true
+
+permissions:
+  - id: prm_create_voucher
+    action: create
+    roles: [kasir]
+  - id: prm_edit_voucher
+    action: edit
+    roles: [kasir]
+
+# WISHED: an aggregate constraint -- the vouchers of one period may not total more than the fund (Rp 1.000.000).
+ensure:
+  - id: ens_within_fund
+    sum_of: fld_amount
+    per: fld_period
+    at_most: 1000000
+    reason: Voucher melebihi dana kas kecil periode ini.
+
+# WISHED: a record is frozen while a related record holds a value -- a voucher of a closed period is not edited.
+frozen_when:
+  via: fld_period
+  field: fld_status
+  equals: ditutup

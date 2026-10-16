@@ -1,0 +1,19 @@
+id: app_inventory
+name: Gudang
+machines:
+  - mch_stock_movement
+roles:
+  - petugas gudang
+  - pengawas
+description: Mutasi stok masuk dan keluar.
+icon: board
+color: blue
+summary_machine: mch_stock_movement
+navigation:
+  - id: nav_stock
+    label: Mutasi stok
+    title: Buku mutasi stok
+    description: Setiap barang masuk dan keluar tercatat dan tidak bisa diubah.
+    route: /machines/mch_stock_movement
+    priority: 1
+    icon: board

@@ -1,0 +1,27 @@
+id: app_petty_cash
+name: Kas Kecil
+machines:
+  - mch_pc_period
+  - mch_pc_voucher
+roles:
+  - kasir
+  - auditor
+description: Dana kas kecil yang dipegang satu kasir dan direkonsiliasi auditor.
+icon: board
+color: blue
+summary_machine: mch_pc_voucher
+navigation:
+  - id: nav_pc_voucher
+    label: Voucher
+    title: Voucher kas kecil
+    description: Setiap pengeluaran kas kecil.
+    route: /machines/mch_pc_voucher
+    priority: 1
+    icon: board
+  - id: nav_pc_period
+    label: Periode
+    title: Periode kas kecil
+    description: Periode yang dibuka dan ditutup auditor.
+    route: /machines/mch_pc_period
+    priority: 2
+    icon: board

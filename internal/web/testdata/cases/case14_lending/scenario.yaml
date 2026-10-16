@@ -1,0 +1,42 @@
+case: 14
+title: Lending Services
+actors:
+  - { name: rani, role: peminjam }
+  - { name: yoga, role: petugas pinjaman }
+steps:
+  - id: apply
+    as: rani
+    create: { machine: mch_loan, values: { fld_purpose: Modal usaha, fld_amount: "3000000", fld_months: "3" } }
+    expect: ok
+    record: { fld_status: diajukan }
+
+  - id: borrower-cannot-approve
+    as: rani
+    update: { ref: apply, values: { fld_status: disetujui } }
+    expect: refused
+
+  - id: officer-approves
+    as: yoga
+    update: { ref: apply, values: { fld_status: disetujui } }
+    expect: ok
+    record: { fld_status: disetujui }
+
+  - id: no-schedule-before-disbursement
+    as: yoga
+    update: { ref: apply, values: { fld_purpose: Modal usaha toko } }
+    expect: ok
+    count: { machine: mch_installment, equals: 0 }
+
+  # Disbursement writes the schedule: three monthly installments. WISHED (`generates:`): red until built.
+  - id: officer-disburses
+    as: yoga
+    update: { ref: apply, values: { fld_status: dicairkan } }
+    expect: ok
+    record: { fld_status: dicairkan }
+    count: { machine: mch_installment, equals: 3 }
+
+  # Forty days later the first installment (due after 30) is overdue and flagged by the schedule.
+  - id: first-installment-is-flagged
+    tick: { days: 40, ref: apply }
+    expect: ok
+    count: { machine: mch_installment, where: { fld_status: terlambat }, equals: 1 }
