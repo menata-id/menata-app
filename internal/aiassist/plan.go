@@ -2,6 +2,7 @@ package aiassist
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -95,7 +96,7 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 	}
 	for _, t := range m.Transitions {
 		if t.Action == domain.ActionEdit {
-			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Roles: slices.Clone(t.Roles), ActorField: t.ActorField, Sets: setsList(t.Sets)})
+			g.Transitions = append(g.Transitions, GeneratedTransition{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Roles: slices.Clone(t.Roles), ActorField: t.ActorField, Sets: setsList(t.Sets), Balanced: balancedSpec(t.Balanced), Generates: generatesSpec(t.Generates)})
 		}
 	}
 	if m.Frozen != nil {
@@ -320,7 +321,7 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		switch {
 		case !exists:
 			p.add("status move %q on %q: %s -> %s", x.Name, m.Name, x.From, x.To)
-		case x.Name != ox.Name || x.Field != ox.Field || x.From != ox.From || x.To != ox.To || x.ActorField != ox.ActorField || !sameSet(x.Roles, ox.Roles) || !sameSets(x.Sets, ox.Sets):
+		case x.Name != ox.Name || x.Field != ox.Field || x.From != ox.From || x.To != ox.To || x.ActorField != ox.ActorField || !sameSet(x.Roles, ox.Roles) || !sameSets(x.Sets, ox.Sets) || !reflect.DeepEqual(x.Balanced, ox.Balanced) || !reflect.DeepEqual(x.Generates, ox.Generates):
 			p.refuse("status move %s cannot be changed, only added -- who may take it included, because the file edit only appends", x.ID)
 		}
 	}
@@ -701,6 +702,20 @@ func sameFloat(a, b *float64) bool {
 
 func sameEnsure(a, b GeneratedEnsure) bool {
 	return a.SumOf == b.SumOf && a.Per == b.Per && a.Reason == b.Reason && sameFloat(a.AtLeast, b.AtLeast) && sameFloat(a.AtMost, b.AtMost)
+}
+
+func balancedSpec(b *domain.BalanceRule) *GeneratedBalanced {
+	if b == nil {
+		return nil
+	}
+	return &GeneratedBalanced{Of: b.Machine, Via: b.Via, Debit: b.Debit, Credit: b.Credit, Reason: b.Reason}
+}
+
+func generatesSpec(g *domain.GenerateSchedule) *GeneratedGenerates {
+	if g == nil {
+		return nil
+	}
+	return &GeneratedGenerates{Machine: g.Machine, CountField: g.CountField, LinkField: g.LinkField, DueField: g.DueField, DueEveryDays: g.DueEveryDays, AmountField: g.AmountField, AmountFrom: g.AmountFrom}
 }
 
 func setsList(m map[string]string) []GeneratedSet {

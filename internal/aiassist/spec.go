@@ -294,6 +294,35 @@ type GeneratedTransition struct {
 	// Sets are Fields this step writes from the clock when taken ("the completion date is the day it was completed"):
 	// each names a date Field and a source, today.
 	Sets []GeneratedSet `json:"sets,omitempty"`
+	// Balanced holds the step until the records of another machine that point at this one add up (a journal entry is
+	// posted only when its lines' debit and credit are equal). Generates makes taking the step create a schedule of
+	// records of another machine (disbursing a loan writes its instalments). Both are only on a new machine or added
+	// to an existing one, never changed.
+	Balanced  *GeneratedBalanced  `json:"balanced,omitempty"`
+	Generates *GeneratedGenerates `json:"generates,omitempty"`
+}
+
+// GeneratedBalanced mirrors domain.BalanceRule: Of is the machine whose records are totalled, Via a relation field of
+// it pointing back at this machine, Debit and Credit two different number fields of it.
+type GeneratedBalanced struct {
+	Of     string `json:"of"`
+	Via    string `json:"via"`
+	Debit  string `json:"debit"`
+	Credit string `json:"credit"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// GeneratedGenerates mirrors domain.GenerateSchedule: Count records of Machine, each pointing back through LinkField,
+// the i-th due i x DueEveryDays days from the day the step is taken (DueField, a date), each carrying an even share of
+// this record's AmountFrom (AmountField, a number); CountField is a number field of this record.
+type GeneratedGenerates struct {
+	Machine      string `json:"machine"`
+	CountField   string `json:"count_field"`
+	LinkField    string `json:"link_field"`
+	DueField     string `json:"due_field"`
+	DueEveryDays int    `json:"due_every_days"`
+	AmountField  string `json:"amount_field"`
+	AmountFrom   string `json:"amount_from"`
 }
 
 // GeneratedSet is one Transition.Sets entry as a list item, because a response schema cannot name free map keys.

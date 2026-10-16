@@ -219,7 +219,7 @@ var generatedPermissionSchema = geminiSchema{
 }
 
 var generatedTransitionSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "field", "from", "to", "roles", "actor_field", "sets"},
+	PropertyOrdering: []string{"id", "name", "field", "from", "to", "roles", "actor_field", "sets", "balanced", "generates"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "field", "from", "to"},
 	Properties: map[string]geminiSchema{
@@ -233,6 +233,27 @@ var generatedTransitionSchema = geminiSchema{
 		"sets": {Type: "ARRAY", Description: "Optional: date fields of this machine this step writes with the day it is taken (e.g. the completion date when completing). The clock wins over anything typed.",
 			Items: &geminiSchema{Type: "OBJECT", Required: []string{"field", "source"}, PropertyOrdering: []string{"field", "source"},
 				Properties: map[string]geminiSchema{"field": stringSchema, "source": {Type: "STRING", Enum: transitionSourceEnum()}}}},
+		"balanced": {Type: "OBJECT", Description: "Optional: this step moves only when the records of another machine that point at this one have equal debit and credit totals (posting a journal entry whose lines balance). Nothing to total is refused too.",
+			Required: []string{"of", "via", "debit", "credit"}, PropertyOrdering: []string{"of", "via", "debit", "credit", "reason"},
+			Properties: map[string]geminiSchema{
+				"of":     {Type: "STRING", Description: "The machine whose records are totalled (the lines)."},
+				"via":    {Type: "STRING", Description: "A relation field of that machine pointing back at THIS machine."},
+				"debit":  {Type: "STRING", Description: "A number field of that machine."},
+				"credit": {Type: "STRING", Description: "A different number field of that machine."},
+				"reason": {Type: "STRING", Description: "What a refused step is told."},
+			}},
+		"generates": {Type: "OBJECT", Description: "Optional: taking this step creates a schedule of records of another machine (disbursing a loan writes its instalments), at most 120, never twice for one record.",
+			Required:         []string{"machine", "count_field", "link_field", "due_field", "due_every_days", "amount_field", "amount_from"},
+			PropertyOrdering: []string{"machine", "count_field", "link_field", "due_field", "due_every_days", "amount_field", "amount_from"},
+			Properties: map[string]geminiSchema{
+				"machine":        {Type: "STRING", Description: "The machine whose records are created."},
+				"count_field":    {Type: "STRING", Description: "A number field of THIS machine: how many records (a whole number, 1 to 120)."},
+				"link_field":     {Type: "STRING", Description: "A relation field of the created machine pointing back at THIS machine."},
+				"due_field":      {Type: "STRING", Description: "A date field of the created machine: the i-th record is due i x due_every_days days from the day the step is taken."},
+				"due_every_days": {Type: "INTEGER", Description: "Days between records, at least 1."},
+				"amount_field":   {Type: "STRING", Description: "A number field of the created machine."},
+				"amount_from":    {Type: "STRING", Description: "A number field of THIS machine, split evenly across the records."},
+			}},
 	},
 }
 

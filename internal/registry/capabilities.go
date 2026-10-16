@@ -81,8 +81,8 @@ var Capabilities = []Capability{
 	key("transitionDoc", "roles", "authorization", "behavior", true, ""),
 	key("transitionDoc", "actor_field", "authorization", "behavior", true, ""),
 	key("transitionDoc", "sets", "behaviour", "behavior", true, ""),
-	key("transitionDoc", "balanced", "behaviour", "behavior", false, "a posting rule totals the lines of another Machine; the assistant has no related-record vocabulary for lines yet, so it is hand-written only"),
-	key("transitionDoc", "generates", "behaviour", "behavior", false, "a generated schedule needs its target Machine, the field that holds the count and the amount, and a conversation about period and splitting that the prompt does not have yet; hand-written only"),
+	key("transitionDoc", "balanced", "behaviour", "behavior", true, ""),
+	key("transitionDoc", "generates", "behaviour", "behavior", true, ""),
 	// permissionDoc
 	key("permissionDoc", "id", "identity", "domain", true, ""),
 	key("permissionDoc", "action", "authorization", "behavior", true, ""),

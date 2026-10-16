@@ -274,8 +274,9 @@ Permission is not asked: the edge is the authority. Everything that could make t
 before anything is written (a count that is not a whole number, an amount that is not a number, a row the target Machine would
 refuse), and an edge never generates twice for one record (409). The loader checks both Machines: the link must be a relation
 back to this one, the due Field a date, the amount a number, and the target may declare no other required Field without a
-default (the runtime could not fill it). Only an `action: edit` edge may declare it. Hand-written only today: the assistant has
-no slot, with its reason in the catalogue. The move and its rows are one transaction (2026-10-16): a row that cannot be written
+default (the runtime could not fill it). Only an `action: edit` edge may declare it. The assistant writes it too (2026-10-16): on a new machine or added to
+an installed one, never changed, and a rule naming another machine is checked against the machines of the change and the ones
+already installed before anything is published. The move and its rows are one transaction (2026-10-16): a row that cannot be written
 takes the move down with it, and two writers cannot both find no schedule and write one. The rows' create Events run after the commit.
 
 ### 3.0d. An edge that waits until its lines add up: `balanced:` (2026-10-16)
@@ -304,7 +305,7 @@ sits with the other write guards, so the form, single-field and JSON routes all 
 edge reads anything. The loader checks the edge is an `action: edit` one, the target Machine is a Workspace Machine written
 by the generic screens, `via` is a relation back to this Machine, and the two totals are different number Fields.
 Pair it with `frozen_when:` on the lines (`via` the entry, `equals` the posted status) and a posted entry stays as it was
-balanced. Hand-written only today: the assistant has no slot, with its reason in the catalogue. The posting and any write to its lines
+balanced. The assistant writes it too (2026-10-16), checked the same way, never changed once written. The posting and any write to its lines
 (add, change, remove) take the same lock inside a transaction (2026-10-16), so a line added at that very moment waits for the
 posting or is read by it. Stated limit: the lock is per entry and per process database, not a row lock on the lines themselves.
 

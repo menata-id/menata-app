@@ -223,6 +223,39 @@ type transitionDoc struct {
 	Roles      []string          `yaml:"roles,omitempty"`
 	ActorField string            `yaml:"actor_field,omitempty"`
 	Sets       map[string]string `yaml:"sets,omitempty"`
+	Balanced   *balancedDoc      `yaml:"balanced,omitempty"`
+	Generates  *generatesDoc     `yaml:"generates,omitempty"`
+}
+
+type balancedDoc struct {
+	Of     string `yaml:"of"`
+	Via    string `yaml:"via"`
+	Debit  string `yaml:"debit"`
+	Credit string `yaml:"credit"`
+	Reason string `yaml:"reason,omitempty"`
+}
+
+type generatesDoc struct {
+	Machine      string `yaml:"machine"`
+	CountField   string `yaml:"count_field"`
+	LinkField    string `yaml:"link_field"`
+	DueField     string `yaml:"due_field"`
+	DueEveryDays int    `yaml:"due_every_days"`
+	AmountField  string `yaml:"amount_field"`
+	AmountFrom   string `yaml:"amount_from"`
+}
+
+// transitionDocOf is the one place a generated step becomes the file's shape, for a new Application and for a step added
+// to an existing one.
+func transitionDocOf(t GeneratedTransition) transitionDoc {
+	d := transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField, Sets: setsOf(t.Sets)}
+	if b := t.Balanced; b != nil {
+		d.Balanced = &balancedDoc{Of: b.Of, Via: b.Via, Debit: b.Debit, Credit: b.Credit, Reason: b.Reason}
+	}
+	if g := t.Generates; g != nil {
+		d.Generates = &generatesDoc{Machine: g.Machine, CountField: g.CountField, LinkField: g.LinkField, DueField: g.DueField, DueEveryDays: g.DueEveryDays, AmountField: g.AmountField, AmountFrom: g.AmountFrom}
+	}
+	return d
 }
 
 type eventDoc struct {
@@ -449,7 +482,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.Permissions = append(doc.Permissions, pd)
 	}
 	for _, t := range m.Transitions {
-		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit", Roles: t.Roles, ActorField: t.ActorField, Sets: setsOf(t.Sets)})
+		doc.Transitions = append(doc.Transitions, transitionDocOf(t))
 	}
 	if m.FrozenWhen != nil {
 		doc.FrozenWhen = &frozenWhenDoc{Via: m.FrozenWhen.Via, Field: m.FrozenWhen.Field, Equals: m.FrozenWhen.Equals}

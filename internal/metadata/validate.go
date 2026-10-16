@@ -1828,6 +1828,16 @@ func validateGenerates(machines []*domain.Machine) error {
 	return nil
 }
 
+// ValidateEdgeRules runs the two cross-Machine checks on edges that name another Machine (`generates:`, `balanced:`)
+// over machines, the way the loader does at load. The assistant calls it on the Machines it just built together with the
+// ones already installed, so it is told while it can still fix the answer instead of after a publish is rolled back.
+func ValidateEdgeRules(machines []*domain.Machine) error {
+	if err := validateGenerates(machines); err != nil {
+		return err
+	}
+	return validateBalanced(machines)
+}
+
 // validateBalanced holds an edge that must balance to what the check reads: the edge is performed by `edit`, the Machine
 // it totals is another Machine of this Workspace written by the generic screens, `via` is a relation on it pointing back
 // at this Machine, and the debit and credit are two different number Fields of it.

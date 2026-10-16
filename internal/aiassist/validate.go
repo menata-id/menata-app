@@ -167,6 +167,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 	// Machine ids must be new workspace-wide (Machines are workspace-level and unique by id, per
 	// domain.Workspace's own doc comment) and unique within this change too.
 	seenMachine := map[string]bool{}
+	var built []*domain.Machine
 	knownFieldTargets := relationTargets(existing) // a relation may point at a sibling, or at any Machine already here
 	for _, m := range app.Machines {
 		knownFieldTargets[m.ID] = true
@@ -213,6 +214,19 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		}
 		if err := metadata.Validate(domainMachine); err != nil {
 			issues = append(issues, fmt.Sprintf("machine %q: %v", m.ID, err))
+		}
+		built = append(built, domainMachine)
+	}
+	// An edge that names another machine (generates, balanced) is judged against every machine it can reach: the ones
+	// just built and the ones already installed.
+	if len(issues) == 0 {
+		for _, a := range existing.Applications {
+			for _, em := range a.Machines {
+				built = append(built, em)
+			}
+		}
+		if err := metadata.ValidateEdgeRules(built); err != nil {
+			issues = append(issues, err.Error())
 		}
 	}
 
@@ -308,7 +322,8 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			ID: gt.ID, Name: gt.Name, Field: gt.Field, From: gt.From, To: gt.To,
 			Action: domain.ActionEdit,
 			Roles:  slices.Clone(gt.Roles), ActorField: gt.ActorField,
-			Sets: setsOf(gt.Sets),
+			Sets:     setsOf(gt.Sets),
+			Balanced: balancedRule(gt.Balanced), Generates: generateSchedule(gt.Generates),
 		})
 	}
 	if gm.FrozenWhen != nil {
@@ -469,6 +484,20 @@ func setsOf(list []GeneratedSet) map[string]string {
 		out[s.Field] = s.Source
 	}
 	return out
+}
+
+func balancedRule(b *GeneratedBalanced) *domain.BalanceRule {
+	if b == nil {
+		return nil
+	}
+	return &domain.BalanceRule{Machine: b.Of, Via: b.Via, Debit: b.Debit, Credit: b.Credit, Reason: b.Reason}
+}
+
+func generateSchedule(g *GeneratedGenerates) *domain.GenerateSchedule {
+	if g == nil {
+		return nil
+	}
+	return &domain.GenerateSchedule{Machine: g.Machine, CountField: g.CountField, LinkField: g.LinkField, DueField: g.DueField, DueEveryDays: g.DueEveryDays, AmountField: g.AmountField, AmountFrom: g.AmountFrom}
 }
 
 func fieldOf(m *domain.Machine, id string) *domain.Field {
