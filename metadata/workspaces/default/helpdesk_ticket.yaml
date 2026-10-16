@@ -192,3 +192,9 @@ datasets:
       - field: fld_due
         direction: asc
     limit: 100
+  # The ticket figures behind the Workspace overview: how many are still open (not resolved).
+  - id: ds_helpdesk_figures
+    measures:
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }

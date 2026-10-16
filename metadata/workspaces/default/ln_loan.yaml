@@ -99,3 +99,13 @@ events:
       summary: 'New loan application: {fld_purpose}'
       recipient_role: loan officer
       preference_key: assigned
+datasets:
+  # Loans waiting for an officer and loans out, for the Workspace overview.
+  - id: ds_lending_figures
+    measures:
+      - id: msr_applied
+        aggregate: count
+        where: { field: fld_status, op: equals, value: applied }
+      - id: msr_disbursed
+        aggregate: count
+        where: { field: fld_status, op: equals, value: disbursed }

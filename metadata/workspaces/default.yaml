@@ -76,6 +76,56 @@ applications:
   - default/applications/lending.yaml
   - default/applications/accounting.yaml
 
+# navigation: the pages this Workspace declares itself, the ones no Application owns. Each item carries a `page:` (the
+# same block an Application's navigation item takes), is drawn at /pages/<id> and is reached from the Workspace menu.
+# Admins only, until a page can say who sees it.
+navigation:
+  - id: nav_workspace_overview
+    label: Overview
+    title: Overview
+    description: Where each application in this workspace stands, in one place.
+    route: /pages/nav_workspace_overview
+    icon: dashboard
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              label: Open tickets
+              hint: Not resolved yet
+              binding: { dataset: ds_helpdesk_figures, measure: msr_open, rows: total }
+            - component: Metric
+              label: Overdue maintenance
+              hint: Past its due date
+              tone: bad
+              binding: { dataset: ds_maintenance_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Loans waiting
+              hint: Applied and not yet decided
+              binding: { dataset: ds_lending_figures, measure: msr_applied, rows: total }
+            - component: Metric
+              label: Loans out
+              hint: Disbursed
+              binding: { dataset: ds_lending_figures, measure: msr_disbursed, rows: total }
+        - static: link
+          to: nav_helpdesk_table
+          text: Open the Helpdesk's table
+        - component: Table
+          label: Tickets, soonest due first
+          empty: No tickets yet.
+          columns:
+            - { header: Ticket, from: title, href: record }
+            - { header: Status, from: status }
+            - { header: Due, from: date, align: end }
+          binding:
+            dataset: ds_helpdesk_tickets_table
+            rows: records
+
 # suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
 # re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
 # per-Workspace rather than as literals in internal/rendering (owner instruction, 2026-09-27):

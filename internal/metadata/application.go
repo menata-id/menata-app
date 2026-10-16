@@ -336,9 +336,10 @@ type workspaceDoc struct {
 	// id: an Application *selects* from this set by id rather than owning files, because several
 	// Applications genuinely share one (mch_user, mch_activity).
 	Machines []string `yaml:"machines"`
-	// Navigation is the Workspace's own menu. Empty in every manifest today -- the owner removed
-	// it on 2026-09-21, since a Workspace's menu is derived from the Applications it contains --
-	// but the runtime still reads it first, so an installation that does declare one still wins.
+	// Navigation is the Workspace's own items. It stopped being a menu on 2026-09-21 (a Workspace's menu is derived from
+	// the Applications it contains), and since 2026-10-16 it is where a Workspace declares pages no Application owns: an
+	// item with a `page:` is drawn at /pages/<id> for Workspace admins and offered in the Workspace menu. The runtime still
+	// reads it first when it resolves an id, so an installation that declares one wins.
 	Navigation []navItemDoc `yaml:"navigation"`
 	// Applications are file paths, resolved relative to this manifest. One file per Application:
 	// a navigation block alone runs to ~40 lines, so inlining several would bury the manifest's
@@ -638,7 +639,7 @@ func LoadApplication(path string) (*App, error) {
 	if err := runStages([]stage{
 		{"workflow datasets", func() error { return validateWorkflowDatasets(apps, machines) }},
 		{"permission roles", func() error { return validatePermissionRoles(apps, machines) }},
-		{"pages", func() error { return validatePages(apps, machines) }},
+		{"pages", func() error { return validatePages(apps, machines, app.Workspace.Navigation) }},
 		{"navigation ids", func() error { return validateNavigationIDsAreUnique(app.Workspace) }},
 		// After stampWorkflowRoles, because it asks which Machines an engine casts.
 		{"computed fields", func() error { return validateComputedFieldsAreGenericallyWritten(machines) }},

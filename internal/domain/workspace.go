@@ -107,6 +107,19 @@ func (w Workspace) ApplicationForMachine(machineID string) (Application, bool) {
 	return Application{}, false
 }
 
+// LinkTargets is what a link on a Workspace-level page may name: the Workspace's own navigation, the screens the runtime
+// owns and every installed Application's navigation, unfiltered (the list `routeByID` reads). No Application owns such a
+// page, so its `to:` resolves against the whole Workspace; the loader checks a page's links against this list and the
+// request handler resolves them against it, so the two cannot disagree.
+func (w Workspace) LinkTargets() []NavigationItem {
+	out := append([]NavigationItem(nil), w.Navigation...)
+	out = append(out, RuntimeScreens...)
+	for _, app := range w.Applications {
+		out = append(out, app.AllNavigation...)
+	}
+	return out
+}
+
 // ApplicationForRoute is the fallback half: the Application whose own navigation declares this
 // exact route. Used only when the route names no Machine (/calendar, ...).
 //

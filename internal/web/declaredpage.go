@@ -19,12 +19,12 @@ import (
 func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		navID := chi.URLParam(req, "navID")
 		app, ok := rendering.CurrentApplication(ctx)
 		if !ok {
-			http.NotFound(w, req)
+			showWorkspacePage(store, cfg, navID).ServeHTTP(w, req)
 			return
 		}
-		navID := chi.URLParam(req, "navID")
 		for _, item := range app.AllNavigation {
 			if item.ID != navID || item.Page == nil {
 				continue
@@ -44,6 +44,39 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		http.NotFound(w, req)
 	}
+}
+
+// showWorkspacePage draws a page the Workspace itself declares (`navigation:` on its manifest, `page:` on an item), the
+// one that no Application owns: an overview across Applications, say. It is found by id in the Workspace and answers
+// 404 for anything else, which includes an Application's page named with no Application in the request.
+//
+// **Workspace admins only, for now.** An Application's pages are gated by its roles (`requireApplicationAccess`); this
+// page belongs to none, and what it reads is the Datasets of Machines that do. Until a page can say who sees it
+// (`when:` per viewer) the only honest gate is the one the Workspace already has for its own screens, so a member with no
+// admin role gets the 403 a settings screen gives, rather than figures from an Application they hold no role in.
+func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.Handler {
+	return requireWorkspaceAdmin(store, cfg)(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
+		for _, item := range ws.Navigation {
+			if item.ID != navID || item.Page == nil {
+				continue
+			}
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, ""), time.Now(), ws.LinkTargets(), *item.Page)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			render(ctx, w, rendering.DeclaredScreen(navID, body, workspaceName, viewer, switchHref))
+			return
+		}
+		http.NotFound(w, req)
+	}))
 }
 
 // queryParams is the request's query string as one value per name (the first, as net/http's Get does).

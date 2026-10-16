@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
@@ -1955,5 +1956,71 @@ func TestDeclaredPageDrawsAnInstalledTable(t *testing.T) {
 	}
 	if strings.Contains(body, "<b>x</b>") {
 		t.Error("a ticket title reached the page unescaped")
+	}
+}
+
+// TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember: the Workspace's own page (`navigation:` on the manifest) shows
+// figures from three Applications and a table, is offered in the Workspace menu to an admin, and answers a plain member with
+// the refusal a Workspace screen gives, because no Application role gates it.
+func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "workspacepage", "default")
+	var ticket *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_helpdesk_ticket" {
+			ticket = m
+		}
+	}
+	if ticket == nil {
+		t.Fatal("default installs no Helpdesk ticket Machine")
+	}
+	for _, status := range []string{"new", "resolved"} {
+		rec, err := store.CreateRecord(ctx, ticket.ID, map[string]any{"fld_title": "WsPage-probe-" + status, "fld_category": "software", "fld_priority": "normal", "fld_status": status, "fld_due": "2031-01-01"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, ticket.ID, rec.ID) })
+	}
+	body := getPage(t, h, cookie, "/pages/nav_workspace_overview")
+	for _, want := range []string{"Open tickets", "Overdue maintenance", "Loans waiting", "Loans out", `aria-label="Tickets, soonest due first"`, "WsPage-probe-new", "WsPage-probe-resolved"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the overview does not contain %q", want)
+		}
+	}
+	// A link on the page reaches an Application's own page: the page resolves `to:` against the whole Workspace.
+	if !strings.Contains(body, `href="/pages/nav_helpdesk_table"`) {
+		t.Error("the overview's link to the Helpdesk's table did not resolve to its route")
+	}
+	// The menu offers it to an admin, with the label the manifest declares and the route it declares.
+	if home := getPage(t, h, cookie, "/home"); !strings.Contains(home, `href="/pages/nav_workspace_overview"`) || !strings.Contains(home, "Overview") {
+		t.Error("the Workspace menu does not offer the declared page to an admin")
+	}
+	// A plain member is refused the page and is not offered it.
+	wsID, _ := data.WorkspaceScope(ctx)
+	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "workspacepage_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddMember(context.Background(), wsID, member.ID, "workspacepage_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	memberCookie := sessionCookieValueForTest(t, config.Config{SessionSecret: "workspacepage-secret"}, member.ID, 0)
+	mreq := httptest.NewRequest(http.MethodGet, "/pages/nav_workspace_overview", nil)
+	mreq.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: memberCookie})
+	mrec := httptest.NewRecorder()
+	h.ServeHTTP(mrec, mreq)
+	if mrec.Code != http.StatusForbidden {
+		t.Errorf("a member opening the Workspace page = %d, want 403", mrec.Code)
+	}
+	if strings.Contains(mrec.Body.String(), "Open tickets") {
+		t.Error("a member was shown the figures that the 403 refuses")
+	}
+	if home := getPage(t, h, memberCookie, "/home"); strings.Contains(home, `href="/pages/nav_workspace_overview"`) {
+		t.Error("the Workspace menu offers a plain member a page that answers 403")
+	}
+	// A page that is no Workspace's and no Application's is a 404, not an empty shell.
+	req := httptest.NewRequest(http.MethodGet, "/pages/nav_nothing", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	if rec := httptest.NewRecorder(); func() int { h.ServeHTTP(rec, req); return rec.Code }() != http.StatusNotFound {
+		t.Error("an unknown page id did not answer 404")
 	}
 }

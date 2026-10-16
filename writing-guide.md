@@ -1195,6 +1195,32 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 `columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_dashboard`' two open-card groups, a `columns` of two `section`s.
 
+**A Workspace's own pages (2026-10-16).** A page does not have to belong to an Application. The Workspace manifest's own
+`navigation:` takes items with a `page:` exactly as an Application's does: the route is still `/pages/<id>`, the heading
+still comes from `title:`/`description:`, and the bindings may read any Dataset of the Workspace, so one page can put
+figures from three Applications side by side (`default.yaml`'s Overview). Two things differ. A `to:` link on it resolves
+against the whole Workspace (its own pages, the runtime's screens and every installed Application's menu), where an
+Application's page resolves against its own menu. And **only Workspace admins open it**, and the Workspace menu offers it to
+admins only: no Application role gates it, and what it reads belongs to Applications, so until a page can say who sees it
+(`when:` per viewer, not built) a member with no admin role is refused with the 403 a Workspace screen gives. The loader checks
+a Workspace page by the same rules as an Application's, so a dataset nobody declares, a link to a missing item or a route that
+is not `/pages/<id>` is a load error.
+
+```yaml
+# metadata/workspaces/<slug>.yaml
+navigation:
+  - id: nav_workspace_overview
+    label: Overview
+    route: /pages/nav_workspace_overview
+    icon: dashboard
+    page:
+      layout: stack
+      children:
+        - component: Metric
+          label: Open tickets
+          binding: { dataset: ds_helpdesk_figures, measure: msr_open, rows: total }
+```
+
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
 **load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
 deeper than `ir.MaxDepth`, and a Component input its own validator rejects.

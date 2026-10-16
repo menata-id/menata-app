@@ -1177,3 +1177,77 @@ func TestPage_eachTableMisuseIsALoadError(t *testing.T) {
 		t.Error("a Table with no binding was accepted")
 	}
 }
+
+// workspacePageFixture loads a Workspace whose manifest declares `wsNav` as its own navigation, over one Machine with
+// a records Dataset and an aggregate one, and one Application whose menu has an item a Workspace page may link to.
+func workspacePageFixture(t *testing.T, wsNav string) error {
+	t.Helper()
+	dir := t.TempDir()
+	writeFile(t, dir, "doc.yaml", `
+id: mch_doc
+name: Doc
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+  - id: fld_status
+    name: Status
+    type: status
+    options: [draft, approved]
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+datasets:
+  - id: ds_rows
+    select: records
+    limit: 10
+  - id: ds_figures
+    measures:
+      - id: msr_total
+        aggregate: count
+`)
+	writeFile(t, dir, "app.yaml", "\nworkspace: default\nmachines:\n  - doc.yaml\nnavigation:\n"+wsNav+"applications:\n  - app-main.yaml\n")
+	writeFile(t, dir, "app-main.yaml", "\nid: app_docs\nname: Docs\nmachines:\n  - mch_doc\nnavigation:\n  - { id: nav_docs, label: Docs, route: /machines/mch_doc }\n")
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	return err
+}
+
+const validWorkspacePage = `  - id: nav_ws_overview
+    label: Overview
+    route: /pages/nav_ws_overview
+    page:
+      layout: stack
+      children:
+        - component: Metric
+          label: Docs
+          binding: { dataset: ds_figures, measure: msr_total, rows: total }
+        - static: link
+          to: nav_docs
+        - component: Table
+          label: Docs
+          columns:
+            - { header: Title, from: title }
+          binding: { dataset: ds_rows, rows: records }
+`
+
+func TestWorkspacePage_aDeclaredWorkspacePageLoadsAndItsLinksReachAnApplication(t *testing.T) {
+	if err := workspacePageFixture(t, validWorkspacePage); err != nil {
+		t.Fatalf("a valid Workspace page was refused: %v", err)
+	}
+}
+
+func TestWorkspacePage_isHeldToTheSameRulesAsAnApplicationsPage(t *testing.T) {
+	for name, tc := range map[string]struct{ from, to, want string }{
+		"a dataset nobody declares":           {"dataset: ds_figures", "dataset: ds_nobody", "no machine in this workspace declares"},
+		"a link to an item nobody declares":   {"to: nav_docs", "to: nav_nobody", "nav_nobody"},
+		"a route that is not /pages/<id>":     {"route: /pages/nav_ws_overview", "route: /overview", "rendered at"},
+		"a root that is not a layout":         {"      layout: stack\n      children:\n", "      component: Metric\n      children:\n", "root must be a layout"},
+		"a role the machine does not project": {"{ header: Title, from: title }", "{ header: Title, from: owner }", "does not project"},
+		"a Table over an aggregate dataset":   {"dataset: ds_rows", "dataset: ds_figures", "aggregate"},
+	} {
+		err := workspacePageFixture(t, strings.Replace(validWorkspacePage, tc.from, tc.to, 1))
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+}

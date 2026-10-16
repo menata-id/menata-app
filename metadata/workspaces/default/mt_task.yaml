@@ -100,3 +100,10 @@ events:
   - id: evt_task_overdue_flag
     schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: scheduled }
     then: { service: set_field, target_field: fld_status, value: overdue }
+datasets:
+  # How many tasks are overdue, for the Workspace overview.
+  - id: ds_maintenance_figures
+    measures:
+      - id: msr_overdue
+        aggregate: count
+        where: { field: fld_status, op: equals, value: overdue }

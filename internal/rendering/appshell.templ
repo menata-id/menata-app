@@ -635,12 +635,23 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			// fully reachable -- one hop further, through the hub's own People section -- and
 			// Workspace Home's own "Manage members" link (workspacehome.templ) is untouched.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ workspaceMenuRowClasses(ctx) }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("settings", "size-4")
 					</span>
 					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
+				// The pages this Workspace declares itself (`navigation:` on its manifest, with a `page:`): admins only,
+				// like the screen they open (showWorkspacePage). Declared, never typed: the row is the item's own label,
+				// route and icon.
+				for _, p := range workspacePages(ctx) {
+					<a href={ templ.SafeURL(p.Route) } class={ workspaceMenuRowClasses(ctx) }>
+						<span class={ inkClass(ctx, domain.InkSecondary) }>
+							@icon(workspacePageIcon(p), "size-4")
+						</span>
+						{ p.Label }
+					</a>
+				}
 				// New application (Flow 2 gap study Tahap 8, 2026-09-26): the mockup's own
 				// M03b-WorkspaceMenu.dc.html panel is a whole describe-it box inline in this menu;
 				// this is a scoped-down link to the same destination (/new-application) rather than
@@ -657,7 +668,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				// §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own
 				// "What comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href="/new-application" class={ workspaceMenuRowClasses(ctx) }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("sparkle", "size-4")
 					</span>
@@ -665,7 +676,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5" }>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ workspaceMenuRowClasses(ctx) }>
 					<span class={ inkClass(ctx, domain.InkSecondary) }>
 						@icon("switch", "size-4")
 					</span>
@@ -674,6 +685,32 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			}
 		}
 	</div>
+}
+
+// workspaceMenuRowClasses is one row of the Workspace menu: an icon and a label that wash on hover. Four rows drew it as
+// the same hand-written class list; the fifth (a declared Workspace page) is what made it a function.
+func workspaceMenuRowClasses(ctx context.Context) string {
+	return strings.Join([]string{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3",
+		textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}, " ")
+}
+
+// workspacePages are the Workspace's own declared pages, in the order its manifest lists them.
+func workspacePages(ctx context.Context) []domain.NavigationItem {
+	var out []domain.NavigationItem
+	for _, item := range CurrentWorkspace(ctx).Navigation {
+		if item.Page != nil {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// workspacePageIcon is the icon a declared Workspace page asks for, or the dashboard glyph when it names none.
+func workspacePageIcon(item domain.NavigationItem) string {
+	if item.Icon != "" {
+		return item.Icon
+	}
+	return "dashboard"
 }
 
 // sheetPanel is the one shape all three of appShell's menus share: a `popover` that is a bottom

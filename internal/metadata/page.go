@@ -483,7 +483,7 @@ func ensureIRVocabulary() {
 // The tree is checked with a **placeholder row** standing in for each Binding, so shape, properties and
 // Component inputs are verified without a database: a bound Metric is validated as a Metric with a label and
 // a value.
-func validatePages(applications []domain.Application, machines []*domain.Machine) error {
+func validatePages(applications []domain.Application, machines []*domain.Machine, workspaceNav []domain.NavigationItem) error {
 	datasets := map[string]domain.Dataset{}
 	byID := map[string]*domain.Machine{}
 	for _, m := range machines {
@@ -511,6 +511,27 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			issues = append(issues, paramLinkIssues(*item.Page, app.AllNavigation, datasets, where)...)
 			issues = append(issues, stepIssues(*item.Page, app.AllNavigation, datasets, where)...)
 		}
+	}
+	// The Workspace's own pages (`navigation:` on the manifest) are checked the same way. What differs is what a link on
+	// one may name: no Application owns the page, so `to:` resolves against the whole Workspace -- its own pages, the
+	// runtime's screens and every installed Application's navigation.
+	links := domain.Workspace{Navigation: workspaceNav, Applications: applications}.LinkTargets()
+	for _, item := range workspaceNav {
+		if item.Page == nil {
+			continue
+		}
+		where := fmt.Sprintf("workspace navigation item %q", item.ID)
+		if want := "/pages/" + item.ID; item.Route != want {
+			issues = append(issues, fmt.Sprintf("%s: page: route is %q but a page is rendered at %q", where, item.Route, want))
+		}
+		if item.Page.Kind != "layout" {
+			issues = append(issues, fmt.Sprintf("%s: page: the root must be a layout, not %s %q", where, item.Page.Kind, item.Page.Type))
+			continue
+		}
+		issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
+		issues = append(issues, shapeIssues(*item.Page, links, datasets, where)...)
+		issues = append(issues, paramLinkIssues(*item.Page, links, datasets, where)...)
+		issues = append(issues, stepIssues(*item.Page, links, datasets, where)...)
 	}
 	if len(issues) > 0 {
 		sort.Strings(issues)
