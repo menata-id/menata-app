@@ -234,13 +234,13 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					// oddly-blank card sitting among real submissions.
 					if len(drafts) > 0 {
 						@staticText(domain.StaticOverline, "Drafts")
-						@pendingApprovalCardGrid(drafts)
+						@myDocumentsList(drafts, true)
 					}
 					if len(mine) > 0 {
 						if len(drafts) > 0 {
 							@staticText(domain.StaticOverline, "Submitted")
 						}
-						@pendingApprovalCardGrid(mine)
+						@myDocumentsList(mine, false)
 					}
 				}
 			case TabAssigned:
@@ -520,16 +520,103 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 		// see internal/web.reviseDocument's own doc comment for why that's a deliberate, documented
 		// exception to action.CanDeleteApprovalStep's rule rather than an oversight.
 		if c.Status == "rejected" {
-			<form
-				hx-post={ fmt.Sprintf("/machines/%s/records/%s/revise", approvalMachineID(ctx, domain.WorkflowRoleDocument), c.ID) }
-				hx-confirm="Move this document back to Draft? Its approval steps will be cleared."
-				class="self-start"
-			>
-				@csrfHiddenInput()
-				<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Revise →</button>
-			</form>
+			@reviseForm(c.ID, "self-start")
 		}
 	</div>
+}
+
+// reviseForm is the Revise button of a Rejected document, shared by the card and the desktop table row. class is the
+// form's own placement (the card pins it to the start of its column; a table cell needs none).
+templ reviseForm(id, class string) {
+	<form
+		hx-post={ fmt.Sprintf("/machines/%s/records/%s/revise", approvalMachineID(ctx, domain.WorkflowRoleDocument), id) }
+		hx-confirm="Move this document back to Draft? Its approval steps will be cleared."
+		class={ class }
+	>
+		@csrfHiddenInput()
+		<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Revise →</button>
+	</form>
+}
+
+// myDocumentsList draws one section of My Documents as the board's two shapes: a table from the small breakpoint up
+// and the card grid below it (owner decision M-D7, 2026-10-16: table on a desktop, cards on a phone). Both are in the
+// page and CSS shows one, so no script is involved and each is complete on its own; `hidden` takes the other out of
+// the accessibility tree, so a screen reader reads the list once.
+templ myDocumentsList(cards []PendingApprovalCard, draft bool) {
+	<div class="hidden sm:block">
+		@myDocumentsTable(cards, draft)
+	</div>
+	<div class="sm:hidden">
+		@pendingApprovalCardGrid(cards)
+	</div>
+}
+
+// myDocumentsTable is My Documents' desktop shape (mockup 07a). Submitted: DOCUMENT, SUBMITTED, STATUS, PROGRESS and
+// the row's one action. Drafts have no progress to show, so theirs is LAST EDITED in its place and the column goes.
+templ myDocumentsTable(cards []PendingApprovalCard, draft bool) {
+	{{ label := "Submitted documents" }}
+	{{ cols := []TableColumn{{Header: "Document"}, {Header: "Submitted"}, {Header: "Status"}, {Header: "Progress"}, {Header: "Action"}} }}
+	if draft {
+		{{ label = "Draft documents" }}
+		{{ cols = []TableColumn{{Header: "Document"}, {Header: "Last edited"}, {Header: "Status"}, {Header: "Action"}} }}
+	}
+	@dataTable(label, cols) {
+		for _, c := range cards {
+			<tr>
+				<td class={ tableCellClasses(ctx) }>
+					<a href={ templ.SafeURL(c.Href) } class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), inkClass(ctx, domain.InkStrong) }>
+						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ c.Title }</span>
+						@staticText(domain.StaticCaption, c.Reference+" · "+c.DocumentType)
+					</a>
+				</td>
+				<td class={ tableCellClasses(ctx), textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>
+					if c.SubmittedAt != "" {
+						{ c.SubmittedAt }
+					} else {
+						Not submitted
+					}
+				</td>
+				<td class={ tableCellClasses(ctx) }>
+					@myDocumentStatusBadge(c.Status)
+				</td>
+				if !draft {
+					<td class={ tableCellClasses(ctx) }>
+						if c.TotalSteps > 0 {
+							@approvalProgress(c.Status, rejectedBy(c.Approvers), c.Approved, c.TotalSteps)
+						}
+					</td>
+				}
+				<td class={ tableCellClasses(ctx) }>
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+						if c.Action != "" {
+							<a href={ templ.SafeURL(c.Href) } class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ c.Action }</a>
+						}
+						if c.Status == "rejected" {
+							@reviseForm(c.ID, "")
+						}
+					}
+				</td>
+			</tr>
+		}
+	}
+}
+
+// myDocumentStatusBadge words a Document's own status and gives it the tone the Inbox's other screens give it. A status
+// this does not know is shown as it is, in the neutral tone (the muted one draws faint ink, which is not for text a person
+// must read), rather than guessed at.
+templ myDocumentStatusBadge(status string) {
+	switch status {
+		case "draft":
+			@statusBadge("Draft", domain.ToneNeutral, domain.BadgeRegular)
+		case "in_review":
+			@statusBadge("In review", domain.ToneInfo, domain.BadgeRegular)
+		case "approved":
+			@statusBadge("Approved", domain.ToneGood, domain.BadgeRegular)
+		case "rejected":
+			@statusBadge("Rejected", domain.ToneBad, domain.BadgeRegular)
+		default:
+			@statusBadge(status, domain.ToneNeutral, domain.BadgeRegular)
+	}
 }
 
 // approverChipTone is the chip's colour for its state, chosen in Go rather than as one `templ.KV` per state. The

@@ -77,7 +77,7 @@ In order. Each stage is broken into small, finished steps.
 - Editing a document limited to its submitter; deleting a field without leaving orphaned data.
 
 **4. Remaining mockup screens**
-- A mobile bottom bar, an account menu and page, a My Documents table, touch drag on the board.
+- A mobile bottom bar, an account menu and page, touch drag on the board.
 - Account deletion with a grace period, deactivating an application, notification settings per application,
   card actions.
 
