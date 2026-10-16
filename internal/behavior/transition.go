@@ -197,3 +197,50 @@ func PlanGenerated(m *domain.Machine, recordID string, current, next map[string]
 	}
 	return nil, nil
 }
+
+// HasBalanced reports whether any edge of m must balance, so a caller can skip the read of the stored record.
+func HasBalanced(m *domain.Machine) bool {
+	for _, t := range m.Transitions {
+		if t.Balanced != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// BalancedEdges lists the edges a write takes that must balance before they are taken.
+func BalancedEdges(m *domain.Machine, current, next map[string]any) []domain.Transition {
+	var out []domain.Transition
+	for _, t := range MovedTransitions(m, current, next) {
+		if t.Balanced != nil {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// CheckBalance judges lines against a rule: the debit and credit totals must be equal, to the cent, and not both nothing.
+// A line whose number is blank counts as zero. The error is the rule's Reason, with the two totals appended so the actor
+// sees how far apart they are.
+func CheckBalance(rule *domain.BalanceRule, lines []map[string]any) error {
+	var debit, credit float64
+	for _, l := range lines {
+		if n, ok := numberOf(l[rule.Debit]); ok {
+			debit += n
+		}
+		if n, ok := numberOf(l[rule.Credit]); ok {
+			credit += n
+		}
+	}
+	reason := rule.Reason
+	if reason == "" {
+		reason = "the lines do not balance"
+	}
+	if len(lines) == 0 || (debit == 0 && credit == 0) {
+		return fmt.Errorf("%s (there is nothing to post)", reason)
+	}
+	if math.Abs(debit-credit) >= 0.005 {
+		return fmt.Errorf("%s (debit %.2f, credit %.2f)", reason, debit, credit)
+	}
+	return nil
+}

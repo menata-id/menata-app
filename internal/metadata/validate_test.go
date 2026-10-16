@@ -1291,3 +1291,38 @@ func TestValidateGenerates(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateBalanced(t *testing.T) {
+	mk := func(edit func(entry, line *domain.Machine)) []*domain.Machine {
+		entry := &domain.Machine{ID: "mch_entry", Fields: []domain.Field{
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"draft", "posted"}}},
+			Transitions: []domain.Transition{{ID: "trn_post", Name: "Post", Field: "fld_status", From: "draft", To: "posted", Action: domain.ActionEdit,
+				Balanced: &domain.BalanceRule{Machine: "mch_line", Via: "fld_entry", Debit: "fld_debit", Credit: "fld_credit"}}}}
+		line := &domain.Machine{ID: "mch_line", Fields: []domain.Field{
+			{ID: "fld_entry", Type: domain.FieldTypeRelation, RelatedMachine: "mch_entry"},
+			{ID: "fld_debit", Type: domain.FieldTypeNumber}, {ID: "fld_credit", Type: domain.FieldTypeNumber}}}
+		if edit != nil {
+			edit(entry, line)
+		}
+		return []*domain.Machine{entry, line}
+	}
+	if err := validateBalanced(mk(nil)); err != nil {
+		t.Fatalf("a sound balance rule was refused: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		edit func(entry, line *domain.Machine)
+		want string
+	}{
+		"a decide edge":       {func(e, l *domain.Machine) { e.Transitions[0].Action = domain.ActionDecide }, "only an edge with action"},
+		"an unknown target":   {func(e, l *domain.Machine) { e.Transitions[0].Balanced.Machine = "mch_nope" }, "not a machine of this workspace"},
+		"itself":              {func(e, l *domain.Machine) { e.Transitions[0].Balanced.Machine = "mch_entry" }, "against itself"},
+		"a link to elsewhere": {func(e, l *domain.Machine) { l.Fields[0].RelatedMachine = "mch_other" }, "pointing back"},
+		"a text debit":        {func(e, l *domain.Machine) { l.Fields[1].Type = domain.FieldTypeText }, "debit"},
+		"a missing credit":    {func(e, l *domain.Machine) { e.Transitions[0].Balanced.Credit = "fld_nope" }, "credit"},
+		"one field twice":     {func(e, l *domain.Machine) { e.Transitions[0].Balanced.Credit = "fld_debit" }, "two different fields"},
+	} {
+		if err := validateBalanced(mk(tc.edit)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+}

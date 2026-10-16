@@ -91,6 +91,16 @@ type transitionDoc struct {
 	Sets map[string]string `yaml:"sets"`
 	// Generates creates a schedule of records when the edge is taken (domain.GenerateSchedule).
 	Generates *generatesDoc `yaml:"generates"`
+	// Balanced holds the edge until the lines pointing at the record add up (domain.BalanceRule).
+	Balanced *balancedDoc `yaml:"balanced"`
+}
+
+type balancedDoc struct {
+	Of     string `yaml:"of"`
+	Via    string `yaml:"via"`
+	Debit  string `yaml:"debit"`
+	Credit string `yaml:"credit"`
+	Reason string `yaml:"reason"`
 }
 
 type generatesDoc struct {
@@ -589,6 +599,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ActorField: td.ActorField,
 			Sets:       td.Sets,
 			Generates:  generatesOf(td.Generates),
+			Balanced:   balancedOf(td.Balanced),
 		})
 	}
 	for _, ad := range doc.Actions {
@@ -732,6 +743,13 @@ func coerceDefault(fieldType domain.FieldType, raw string) (any, error) {
 	default:
 		return raw, nil
 	}
+}
+
+func balancedOf(d *balancedDoc) *domain.BalanceRule {
+	if d == nil {
+		return nil
+	}
+	return &domain.BalanceRule{Machine: d.Of, Via: d.Via, Debit: d.Debit, Credit: d.Credit, Reason: d.Reason}
 }
 
 func generatesOf(d *generatesDoc) *domain.GenerateSchedule {

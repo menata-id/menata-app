@@ -635,6 +635,36 @@ func applyTransitionSets(w http.ResponseWriter, req *http.Request, store *data.S
 	return true
 }
 
+// isBalanced holds an edge that must balance (`balanced:` on a transition, domain.BalanceRule): the lines pointing at the
+// record are read and their debit and credit totals must be equal before the status moves. A write that takes no such
+// edge, and a Machine declaring none, read nothing.
+func isBalanced(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	if id == "" || !behavior.HasBalanced(machine) {
+		return true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return false
+	}
+	for _, t := range behavior.BalancedEdges(machine, existing.Values, values) {
+		recs, err := store.ListRecordsBy(req.Context(), t.Balanced.Machine, t.Balanced.Via, id)
+		if err != nil {
+			serverError(w, err)
+			return false
+		}
+		lines := make([]map[string]any, len(recs))
+		for i, r := range recs {
+			lines[i] = r.Values
+		}
+		if err := behavior.CheckBalance(t.Balanced, lines); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return false
+		}
+	}
+	return true
+}
+
 // withinBounds holds a write against the Machine's aggregate bounds (`ensure:`, domain.AggregateBound): the records
 // sharing each bound's group are read, and the write is judged as the total it would leave. id is "" for a create. Only
 // the groups the write touches are read, one query per bound. A Machine declaring none costs nothing.
@@ -674,7 +704,7 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 	if !validRecord(w, req, store, machine, values) {
 		return false
 	}
-	if !notFrozen(w, req, store, machine, id, values) || !withinBounds(w, req, store, machine, id, values) {
+	if !notFrozen(w, req, store, machine, id, values) || !withinBounds(w, req, store, machine, id, values) || !isBalanced(w, req, store, machine, id, values) {
 		return false
 	}
 	relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)

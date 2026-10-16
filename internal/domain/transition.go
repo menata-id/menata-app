@@ -59,6 +59,22 @@ type Transition struct {
 	// Generates makes taking this edge create a schedule of records of another Machine: see GenerateSchedule. Only an
 	// edge performed by the `edit` Action may declare it.
 	Generates *GenerateSchedule
+	// Balanced holds the edge shut until the records pointing at this one add up: see BalanceRule. Only an edge
+	// performed by the `edit` Action may declare it, like Roles.
+	Balanced *BalanceRule
+}
+
+// BalanceRule is a double-entry check on an edge: the records of Machine that point at the record taking the edge
+// (through Via, a relation Field of Machine) must hold equal totals in Debit and Credit, both number Fields of Machine.
+// It is a journal entry's posting rule, an invoice whose payments must cover it, a transfer whose legs must cancel. An
+// entry with no lines at all balances trivially at zero and is refused, because posting nothing is almost always a
+// mistake; Reason is what the actor is told.
+type BalanceRule struct {
+	Machine string
+	Via     string
+	Debit   string
+	Credit  string
+	Reason  string
 }
 
 // MaxGeneratedRecords bounds how many records one edge may generate, so a mistyped tenor cannot write thousands of rows.

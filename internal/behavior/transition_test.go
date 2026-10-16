@@ -2,6 +2,7 @@ package behavior
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,5 +226,53 @@ func TestPlanGenerated(t *testing.T) {
 	}
 	if !HasGenerates(m) || HasGenerates(&domain.Machine{Transitions: []domain.Transition{{ID: "t"}}}) {
 		t.Error("HasGenerates misreads the edges")
+	}
+}
+
+func TestCheckBalance(t *testing.T) {
+	rule := &domain.BalanceRule{Machine: "mch_line", Via: "fld_entry", Debit: "fld_debit", Credit: "fld_credit", Reason: "Not balanced."}
+	line := func(d, c any) map[string]any { return map[string]any{"fld_debit": d, "fld_credit": c} }
+	for name, tc := range map[string]struct {
+		lines []map[string]any
+		want  string // "" means balanced
+	}{
+		"equal totals":           {[]map[string]any{line(500000.0, 0.0), line(0.0, 500000.0)}, ""},
+		"several lines a side":   {[]map[string]any{line(300.0, nil), line(200.0, nil), line(nil, 500.0)}, ""},
+		"cents rounding":         {[]map[string]any{line(0.1, nil), line(0.2, nil), line(nil, 0.3)}, ""},
+		"debit larger":           {[]map[string]any{line(500.0, 0.0), line(0.0, 400.0)}, "debit 500.00, credit 400.00"},
+		"credit larger":          {[]map[string]any{line(400.0, 0.0), line(0.0, 500.0)}, "debit 400.00, credit 500.00"},
+		"a cent apart":           {[]map[string]any{line(10.01, nil), line(nil, 10.0)}, "Not balanced."},
+		"no lines at all":        {nil, "nothing to post"},
+		"lines of zero":          {[]map[string]any{line(0.0, 0.0)}, "nothing to post"},
+		"a non-number is a zero": {[]map[string]any{line("x", nil), line(nil, 5.0)}, "debit 0.00, credit 5.00"},
+	} {
+		err := CheckBalance(rule, tc.lines)
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: refused: %v", name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+	if err := CheckBalance(&domain.BalanceRule{Debit: "fld_debit", Credit: "fld_credit"}, []map[string]any{line(1.0, nil)}); err == nil || !strings.Contains(err.Error(), "do not balance") {
+		t.Errorf("a rule with no reason must still say why: %v", err)
+	}
+}
+
+func TestBalancedEdgesAreOnlyTheOnesTheWriteTakes(t *testing.T) {
+	m := &domain.Machine{ID: "mch_entry", Fields: []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"draft", "posted"}}},
+		Transitions: []domain.Transition{{ID: "trn_post", Field: "fld_status", From: "draft", To: "posted", Action: domain.ActionEdit,
+			Balanced: &domain.BalanceRule{Machine: "mch_line"}}}}
+	if !HasBalanced(m) {
+		t.Fatal("HasBalanced missed a balanced edge")
+	}
+	if got := BalancedEdges(m, map[string]any{"fld_status": "draft"}, map[string]any{"fld_status": "posted"}); len(got) != 1 {
+		t.Errorf("taking the edge: %d balanced edges, want 1", len(got))
+	}
+	if got := BalancedEdges(m, map[string]any{"fld_status": "draft"}, map[string]any{"fld_status": "draft"}); len(got) != 0 {
+		t.Errorf("an edit that leaves the status alone took %d balanced edges", len(got))
+	}
+	if HasBalanced(&domain.Machine{}) {
+		t.Error("a Machine with no edges reports a balanced one")
 	}
 }

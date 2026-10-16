@@ -1828,6 +1828,58 @@ func validateGenerates(machines []*domain.Machine) error {
 	return nil
 }
 
+// validateBalanced holds an edge that must balance to what the check reads: the edge is performed by `edit`, the Machine
+// it totals is another Machine of this Workspace written by the generic screens, `via` is a relation on it pointing back
+// at this Machine, and the debit and credit are two different number Fields of it.
+func validateBalanced(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		for _, t := range m.Transitions {
+			b := t.Balanced
+			if b == nil {
+				continue
+			}
+			bad := func(format string, a ...any) {
+				issues = append(issues, fmt.Sprintf("machine %q: transition %q: balanced: ", m.ID, t.ID)+fmt.Sprintf(format, a...))
+			}
+			if t.Action != domain.ActionEdit {
+				bad("only an edge with action %q may balance, not %q", domain.ActionEdit, t.Action)
+			}
+			target, ok := byID[b.Machine]
+			switch {
+			case !ok:
+				bad("machine %q is not a machine of this workspace", b.Machine)
+				continue
+			case b.Machine == m.ID:
+				bad("a machine cannot balance against itself")
+				continue
+			case !target.GenericallyWritten():
+				bad("machine %q is written by the runtime or an engine's own screens", b.Machine)
+				continue
+			}
+			if f, ok := target.FieldByID(b.Via); !ok || f.Type != domain.FieldTypeRelation || f.RelatedMachine != m.ID {
+				bad("via %q must be a relation field of %s pointing back at %s", b.Via, target.ID, m.ID)
+			}
+			if b.Debit == b.Credit {
+				bad("debit and credit must be two different fields")
+			}
+			for key, id := range map[string]string{"debit": b.Debit, "credit": b.Credit} {
+				if f, ok := target.FieldByID(id); !ok || f.Type != domain.FieldTypeNumber {
+					bad("%s %q must be a number field of %s", key, id, target.ID)
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
 // validateFrozenWhen is the cross-Machine half of frozen_when: the Field it reads must exist on the Machine its `via`
 // points at, be a status Field, and the value be one of its options (a value it can never hold would freeze nothing).
 func validateFrozenWhen(machines []*domain.Machine) error {
