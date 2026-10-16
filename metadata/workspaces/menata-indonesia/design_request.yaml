@@ -8,6 +8,16 @@ fields:
   - id: fld_description
     name: Deskripsi
     type: long_text
+  # Not required, so the requests created before it existed stay editable. A banner 2:1 needs a reference file
+  # (fld_reference_file's required_when).
+  - id: fld_format
+    name: Format
+    type: status
+    options:
+      - poster
+      - banner_2_1
+      - media_sosial
+      - lainnya
   - id: fld_status
     name: Status
     type: status
@@ -41,12 +51,14 @@ fields:
   - id: fld_reference_file
     name: File Referensi
     type: file
+    required_when: { field: fld_format, equals: banner_2_1 }
   - id: fld_result_file
     name: Hasil Desain
     type: file
 
-# A Permission governs the edit Action on the whole Machine, not one transition: anyone below may move the status
-# along any edge declared under transitions:. "Only the requester approves" cannot be said yet.
+# A Permission governs the edit Action on the whole Machine; each edge under transitions: then says which role may
+# take it (roles:). The requester's two edges are limited by role, not to the record's own requester (actor_field),
+# because a request created before fld_requester was stamped holds nobody there and would be stuck.
 permissions:
   - id: prm_create_request
     action: create
@@ -71,36 +83,42 @@ transitions:
     from: diajukan
     to: ditugaskan
     action: edit
+    roles: [koordinator desain]
   - id: trn_start
     name: Mulai Kerjakan
     field: fld_status
     from: ditugaskan
     to: sedang_dikerjakan
     action: edit
+    roles: [desainer]
   - id: trn_submit
     name: Serahkan Desain
     field: fld_status
     from: sedang_dikerjakan
     to: diserahkan
     action: edit
+    roles: [desainer]
   - id: trn_revise
     name: Minta Revisi
     field: fld_status
     from: diserahkan
     to: revisi
     action: edit
+    roles: [requester]
   - id: trn_resubmit
     name: Serahkan Ulang
     field: fld_status
     from: revisi
     to: diserahkan
     action: edit
+    roles: [desainer]
   - id: trn_finish
     name: Setujui
     field: fld_status
     from: diserahkan
     to: selesai
     action: edit
+    roles: [requester]
 
 completion: { field: fld_status, done: selesai }
 
