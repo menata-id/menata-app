@@ -148,11 +148,14 @@ type GeneratedMachine struct {
 	Completion *GeneratedCompletion `json:"completion,omitempty"`
 	// CardFields is what a card shows (domain.CardField): which Field plays which role on a board or cards
 	// view. Views is how the Machine's records are arranged; the first is the default (W4).
-	CardFields  []GeneratedCardField  `json:"card_fields,omitempty"`
-	Views       []GeneratedView       `json:"views,omitempty"`
-	Permissions []GeneratedPermission `json:"permissions"`
-	Transitions []GeneratedTransition `json:"transitions"`
-	Events      []GeneratedEvent      `json:"events"`
+	CardFields []GeneratedCardField `json:"card_fields,omitempty"`
+	// StatusCategories assigns one of five closed categories to each option of one status Field
+	// (domain.StatusCategories): a status badge is then drawn in its category's tone.
+	StatusCategories *GeneratedStatusCategories `json:"status_categories,omitempty"`
+	Views            []GeneratedView            `json:"views,omitempty"`
+	Permissions      []GeneratedPermission      `json:"permissions"`
+	Transitions      []GeneratedTransition      `json:"transitions"`
+	Events           []GeneratedEvent           `json:"events"`
 	// Ensure bounds a total over this Machine's own records ("stock may not go below zero"): see GeneratedEnsure.
 	Ensure []GeneratedEnsure `json:"ensure,omitempty"`
 	// FrozenWhen makes a record read-only while the record one of its relation Fields points at holds a status
@@ -227,6 +230,22 @@ type GeneratedView struct {
 	Type string `json:"type"`
 	// GroupBy is a status Field of this Machine; only for a board.
 	GroupBy string `json:"group_by,omitempty"`
+}
+
+// The categories a status option may be given (domain.KnownStatusCategories).
+var GeneratableStatusCategories = []string{"start", "active", "attention", "done", "stopped"}
+
+// GeneratedStatusCategories mirrors domain.StatusCategories. Values is a list and not a map because the
+// output schema has no free-keyed object.
+type GeneratedStatusCategories struct {
+	Field  string                    `json:"field"`
+	Values []GeneratedStatusCategory `json:"values"`
+}
+
+// GeneratedStatusCategory is one option and its category.
+type GeneratedStatusCategory struct {
+	Option   string `json:"option"`
+	Category string `json:"category"`
 }
 
 // GeneratedCardField mirrors domain.CardField for the five roles that describe a record on a card.

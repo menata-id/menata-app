@@ -124,18 +124,19 @@ func (r FileMachineResolver) MachineFile(machineID string) (string, error) {
 // exists anywhere in that package today) -- this is the reverse direction hot-reload-safety.md
 // §9.1 already anticipated and internal/metadata never needed until now.
 type machineDoc struct {
-	ID          string          `yaml:"id"`
-	Name        string          `yaml:"name"`
-	Fields      []fieldDoc      `yaml:"fields"`
-	Completion  *completionDoc  `yaml:"completion,omitempty"`
-	CardFields  []cardFieldDoc  `yaml:"card_fields,omitempty"`
-	Views       []viewDoc       `yaml:"views,omitempty"`
-	Permissions []permissionDoc `yaml:"permissions,omitempty"`
-	Transitions []transitionDoc `yaml:"transitions,omitempty"`
-	Ensure      []ensureDoc     `yaml:"ensure,omitempty"`
-	FrozenWhen  *frozenWhenDoc  `yaml:"frozen_when,omitempty"`
-	Events      []eventDoc      `yaml:"events,omitempty"`
-	Datasets    []datasetDoc    `yaml:"datasets,omitempty"`
+	ID               string               `yaml:"id"`
+	Name             string               `yaml:"name"`
+	Fields           []fieldDoc           `yaml:"fields"`
+	Completion       *completionDoc       `yaml:"completion,omitempty"`
+	CardFields       []cardFieldDoc       `yaml:"card_fields,omitempty"`
+	StatusCategories *statusCategoriesDoc `yaml:"status_categories,omitempty"`
+	Views            []viewDoc            `yaml:"views,omitempty"`
+	Permissions      []permissionDoc      `yaml:"permissions,omitempty"`
+	Transitions      []transitionDoc      `yaml:"transitions,omitempty"`
+	Ensure           []ensureDoc          `yaml:"ensure,omitempty"`
+	FrozenWhen       *frozenWhenDoc       `yaml:"frozen_when,omitempty"`
+	Events           []eventDoc           `yaml:"events,omitempty"`
+	Datasets         []datasetDoc         `yaml:"datasets,omitempty"`
 }
 
 type fieldDoc struct {
@@ -188,6 +189,11 @@ type viewDoc struct {
 	Name    string `yaml:"name"`
 	Type    string `yaml:"type"`
 	GroupBy string `yaml:"group_by,omitempty"`
+}
+
+type statusCategoriesDoc struct {
+	Field  string            `yaml:"field"`
+	Values map[string]string `yaml:"values"`
 }
 
 type completionDoc struct {
@@ -470,6 +476,13 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	}
 	for _, cf := range m.CardFields {
 		doc.CardFields = append(doc.CardFields, cardFieldDoc{Field: cf.Field, Role: cf.Role})
+	}
+	if sc := m.StatusCategories; sc != nil {
+		vals := map[string]string{}
+		for _, v := range sc.Values {
+			vals[v.Option] = v.Category
+		}
+		doc.StatusCategories = &statusCategoriesDoc{Field: sc.Field, Values: vals}
 	}
 	for _, v := range m.Views {
 		doc.Views = append(doc.Views, viewDoc{ID: v.ID, Name: v.Name, Type: v.Type, GroupBy: v.GroupBy})

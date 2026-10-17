@@ -290,7 +290,7 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "views", "permissions", "transitions", "events", "ensure", "frozen_when"},
+	PropertyOrdering: []string{"id", "name", "fields", "completion", "card_fields", "status_categories", "views", "permissions", "transitions", "events", "ensure", "frozen_when"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
@@ -305,6 +305,24 @@ var generatedMachineSchema = geminiSchema{
 			Properties: map[string]geminiSchema{
 				"field": {Type: "STRING", Description: "A status field of this machine."},
 				"done":  {Type: "STRING", Description: "One of that field's options."},
+			},
+		},
+		"status_categories": {
+			Type:             "OBJECT",
+			Description:      "Optional but recommended for any machine with a status: which category each status option belongs to, so a status shows in the right colour (done is green, attention amber, stopped red, active blue). Every option a transition starts or ends in must be listed. If completion is set, only its done option may be categorised done.",
+			Required:         []string{"field", "values"},
+			PropertyOrdering: []string{"field", "values"},
+			Properties: map[string]geminiSchema{
+				"field": {Type: "STRING", Description: "A status field of this machine."},
+				"values": {Type: "ARRAY", Items: &geminiSchema{
+					Type:             "OBJECT",
+					Required:         []string{"option", "category"},
+					PropertyOrdering: []string{"option", "category"},
+					Properties: map[string]geminiSchema{
+						"option":   {Type: "STRING", Description: "One of that field's options."},
+						"category": {Type: "STRING", Enum: GeneratableStatusCategories, Description: "start: new, not worked on. active: in progress. attention: late, blocked or waiting on someone. done: finished well. stopped: ended without finishing (rejected, cancelled)."},
+					},
+				}},
 			},
 		},
 		"card_fields": {Type: "ARRAY", Items: &generatedCardFieldSchema, Description: "What a card shows on a board or cards view. Required (with a title entry) before any board or cards view."},

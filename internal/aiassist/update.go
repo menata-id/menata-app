@@ -209,6 +209,15 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			}
 		}
 	}
+	if m.StatusCategories != nil && old.StatusCategories == nil {
+		vals := map[string]string{}
+		for _, v := range m.StatusCategories.Values {
+			vals[v.Option] = v.Category
+		}
+		if err := setEncoded(doc, "status_categories", statusCategoriesDoc{Field: m.StatusCategories.Field, Values: vals}); err != nil {
+			return err
+		}
+	}
 	oldViews := map[string]GeneratedView{}
 	for _, v := range old.Views {
 		oldViews[v.ID] = v

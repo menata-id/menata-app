@@ -303,6 +303,16 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 	for _, cf := range gm.CardFields {
 		m.CardFields = append(m.CardFields, domain.CardField{Field: cf.Field, Role: domain.CardFieldRole(cf.Role)})
 	}
+	if sc := gm.StatusCategories; sc != nil {
+		d := &domain.StatusCategories{Field: sc.Field, Values: map[string]domain.StatusCategory{}}
+		for _, v := range sc.Values {
+			if _, dup := d.Values[v.Option]; dup {
+				issues = append(issues, fmt.Sprintf("machine %q status_categories lists option %q more than once", gm.ID, v.Option))
+			}
+			d.Values[v.Option] = domain.StatusCategory(v.Category)
+		}
+		m.StatusCategories = d
+	}
 	for _, gv := range gm.Views {
 		m.Views = append(m.Views, domain.View{ID: gv.ID, Name: gv.Name, Type: domain.ViewKind(gv.Type), GroupBy: gv.GroupBy})
 	}

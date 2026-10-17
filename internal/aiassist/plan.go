@@ -2,6 +2,7 @@ package aiassist
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"sort"
@@ -74,6 +75,14 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 	}
 	if m.Completion != nil {
 		g.Completion = &GeneratedCompletion{Field: m.Completion.Field, Done: m.Completion.Done}
+	}
+	if sc := m.StatusCategories; sc != nil {
+		gs := &GeneratedStatusCategories{Field: sc.Field}
+		for option, c := range sc.Values {
+			gs.Values = append(gs.Values, GeneratedStatusCategory{Option: option, Category: string(c)})
+		}
+		sort.Slice(gs.Values, func(i, j int) bool { return gs.Values[i].Option < gs.Values[j].Option })
+		g.StatusCategories = gs
 	}
 	for _, cf := range m.CardFields {
 		if slices.Contains(GeneratableCardRoles, string(cf.Role)) {
@@ -280,6 +289,13 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		p.add("completion on %q: %q in %s means done", m.Name, m.Completion.Done, m.Completion.Field)
 	case !sameCompletion(old.Completion, m.Completion):
 		p.refuse("completion on %s cannot be changed or removed: records already finished by it would change meaning", m.ID)
+	}
+
+	switch {
+	case m.StatusCategories != nil && old.StatusCategories == nil:
+		p.add("status colours on %q: each option of %s is given a category", m.Name, m.StatusCategories.Field)
+	case !sameStatusCategories(old.StatusCategories, m.StatusCategories):
+		p.refuse("status_categories on %s cannot be changed or removed once declared: a status the person has learned to read would change colour", m.ID)
 	}
 
 	planCards(p, old, m)
@@ -536,6 +552,20 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 	if !slices.Equal(oldOrder, newOrder) {
 		p.refuse("the order of existing views on %s cannot change: the first is what opens by default", m.ID)
 	}
+}
+
+func sameStatusCategories(a, b *GeneratedStatusCategories) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	norm := func(s *GeneratedStatusCategories) map[string]string {
+		m := map[string]string{}
+		for _, v := range s.Values {
+			m[v.Option] = v.Category
+		}
+		return m
+	}
+	return a.Field == b.Field && maps.Equal(norm(a), norm(b))
 }
 
 func sameCompletion(a, b *GeneratedCompletion) bool {

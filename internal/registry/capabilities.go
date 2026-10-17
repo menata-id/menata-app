@@ -66,7 +66,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "flow_template_step", "engine", "behavior", false, "approval-engine role; not generatable"),
 	key("machineDoc", "blocks_member_removal", "behaviour", "behavior", false, "no generated Machine is a member-removal blocker yet"),
 	key("machineDoc", "sla_field", "presentation", "experience", false, "SLA badge; no forcing case in a generated Application"),
-	key("machineDoc", "status_categories", "presentation", "experience", false, "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet"),
+	key("machineDoc", "status_categories", "presentation", "experience", true, ""),
 	key("machineDoc", "card_tags", "presentation", "experience", false, "board card tags; no generated board"),
 	key("machineDoc", "append_only", "behaviour", "behavior", false, "no generated Machine is a log"),
 	key("machineDoc", "runtime", "data", "data", false, "a runtime-provided Machine belongs to the runtime (W2); a generated Application declares only stored Machines"),

@@ -64,6 +64,11 @@ func composableSurface() string {
   money field). Ask what a card should show; do not guess.
 - "completion" on a machine: which status field and which of its options mean a record is finished; each
   record then has a mark-done and reopen action.
+- "status_categories" on a machine with a status: which category each option belongs to (start, active,
+  attention, done, stopped), so the status is drawn in the right colour everywhere. Always give it for a
+  status that moves along transitions: list every option, mark the finished one "done" (it must agree with
+  "completion"), what is late or blocked "attention", and what ended without finishing (rejected,
+  cancelled) "stopped".
 - Role-based Permissions on the create/edit/delete actions of a machine. A permission may also be limited
   to one person: "actor_field" names a person field of the record itself, and only the person named in it
   may use the permission on that record ("only the requester edits"; roles may then be empty); or
