@@ -52,6 +52,7 @@ type pageBindingDoc struct {
 	Rows    string
 	Write   string
 	Group   string
+	All     bool
 }
 
 var pageDiscriminators = []string{"layout", "static", "component"}
@@ -352,8 +353,13 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Write = val.Value
 		case "group":
 			b.Group = val.Value
+		case "all":
+			if val.Value != "true" && val.Value != "false" {
+				return nil, fmt.Errorf("line %d: binding.all: %q is not true or false", key.Line, val.Value)
+			}
+			b.All = val.Value == "true"
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all)", key.Line, key.Value)
 		}
 	}
 	return b, nil
@@ -365,7 +371,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -413,6 +419,11 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 				Inputs: []domain.FormInput{{FieldID: "x", Label: "x", Kind: domain.InputText}},
 			}, nil
 		},
+		// A bulk transition is drawn when there is something to move, so the placeholder says there is, which keeps the
+		// Button and its properties validated.
+		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
+			return ir.AllTransition{Route: domain.TransitionAllRoute("machine", b.Dataset, "x"), Count: 1}, nil
+		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
 			rec := map[string]string{domain.PageRecordRole: "/x"}
 			for role := range domain.KnownCardFieldRoles {
@@ -425,6 +436,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// The derived date roles: a label, and a tone out of the closed set a StatusBadge validates against.
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
 			rec[domain.PageGroupLabelRole] = "x"
+			rec[domain.PageCreatedLabelRole] = "x"
+			rec[string(domain.CardFieldRoleLink)] = "/x" // a destination the runtime would hand a page, so a link taking its href from it validates
 			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
 			// naming any other fails to lower -- the same way a mistyped role does.
 			for _, rel := range datasets[b.Dataset].Relations {
@@ -491,7 +504,7 @@ func ensureIRVocabulary() {
 // The tree is checked with a **placeholder row** standing in for each Binding, so shape, properties and
 // Component inputs are verified without a database: a bound Metric is validated as a Metric with a label and
 // a value.
-func validatePages(applications []domain.Application, machines []*domain.Machine, workspaceNav []domain.NavigationItem) error {
+func validatePages(applications []domain.Application, machines []*domain.Machine, workspaceNav, runtimePages []domain.NavigationItem) error {
 	datasets := map[string]domain.Dataset{}
 	byID := map[string]*domain.Machine{}
 	for _, m := range machines {
@@ -527,7 +540,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	// one may name: no Application owns the page, so `to:` resolves against the whole Workspace -- its own pages, the
 	// runtime's screens and every installed Application's navigation.
 	links := domain.Workspace{Navigation: workspaceNav, Applications: applications}.LinkTargets()
-	for _, item := range workspaceNav {
+	// The runtime's own pages are checked as the Workspace's are, against this Workspace's Datasets: a Workspace that
+	// cannot supply what a runtime page binds is refused at load, like any other. Their route is the screen's own.
+	for _, item := range append(slices.Clone(workspaceNav), runtimePages...) {
 		if item.OpenTo != "" && (item.Page == nil || !domain.KnownOpenTo[item.OpenTo]) {
 			issues = append(issues, fmt.Sprintf("workspace navigation item %q: open_to: %q must be admin or member, on an item that declares a page", item.ID, item.OpenTo))
 		}
@@ -535,7 +550,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			continue
 		}
 		where := fmt.Sprintf("workspace navigation item %q", item.ID)
-		if want := "/pages/" + item.ID; item.Route != want {
+		if want := "/pages/" + item.ID; item.Route != want && !domain.IsRuntimeScreenID(item.ID) {
 			issues = append(issues, fmt.Sprintf("%s: page: route is %q but a page is rendered at %q", where, item.Route, want))
 		}
 		if item.Page.Kind != "layout" {
@@ -567,6 +582,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteMove {
 		issues = append(issues, moveBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWriteTransition && b.All {
+		issues = append(issues, transitionAllIssues(n, datasets, machines, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteTransition {
 		issues = append(issues, transitionBindingIssues(n, item, where)...)
 	} else if b != nil {
@@ -791,12 +808,39 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 	case item.AppendOnly:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be changed", where, domain.PageWriteTransition, item.ID)}
 	}
+	return transitionTargetIssues(item, n.Props["becomes"], where)
+}
+
+// transitionAllIssues is what a `write: transition` Button with `all: true` asks: a Dataset of records to act on, found
+// in this Workspace, outside the item template of any Collection (inside one the Button already means "this record"),
+// over a Machine that can be changed, and a target the status Field can hold.
+func transitionAllIssues(n domain.PageNode, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, item *domain.Machine, where string) []string {
+	b := *n.Binding
+	ds, ok := datasets[b.Dataset]
+	switch {
+	case item != nil:
+		return []string{fmt.Sprintf("%s: page: write: %s with all: true acts on a Dataset, so it sits outside a Collection's item template (inside one, leave all: out and it means that record)", where, domain.PageWriteTransition)}
+	case b.Dataset == "" || !ok:
+		return []string{fmt.Sprintf("%s: page: write: %s with all: true names a dataset of this workspace, and %q is not one", where, domain.PageWriteTransition, b.Dataset)}
+	case ds.Select != domain.SelectRecords:
+		return []string{fmt.Sprintf("%s: page: write: %s with all: true needs a dataset that selects records, and %q is an aggregate", where, domain.PageWriteTransition, ds.ID)}
+	case machines[ds.Source] == nil:
+		return []string{fmt.Sprintf("%s: page: write: %s: dataset %q reads machine %q, which this workspace does not install", where, domain.PageWriteTransition, ds.ID, ds.Source)}
+	case machines[ds.Source].AppendOnly:
+		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be changed", where, domain.PageWriteTransition, ds.Source)}
+	}
+	return transitionTargetIssues(machines[ds.Source], n.Props["becomes"], where)
+}
+
+// transitionTargetIssues is the part both transition Buttons share: the Machine has a status Field to move and `becomes:`
+// names one of its options or a sentinel its `completion:` answers.
+func transitionTargetIssues(item *domain.Machine, becomesProp, where string) []string {
 	fieldID := item.CardFieldFor(domain.CardFieldRoleStatus)
 	field, ok := item.FieldByID(fieldID)
 	if fieldID == "" || !ok || len(field.Options) == 0 {
 		return []string{fmt.Sprintf("%s: page: write: %s needs machine %q to declare a `card_fields` entry with role %s over a Field that has options", where, domain.PageWriteTransition, item.ID, domain.CardFieldRoleStatus)}
 	}
-	becomes, target := n.Props["becomes"], n.Props["becomes"]
+	becomes, target := becomesProp, becomesProp
 	switch becomes {
 	case domain.PageTransitionDone:
 		if item.Completion == nil {

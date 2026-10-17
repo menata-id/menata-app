@@ -1356,7 +1356,12 @@ templ staticText(kind domain.StaticKind, text string) {
 // it; for internal routes the output is identical, and the byte-diff is what proved that rather than the
 // assumption.
 templ staticLink(href, text string) {
-	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ text }</a>
+	if href == "" {
+		// A link whose destination came to nothing (a record's `link` role the runtime refused to hand over) is its words.
+		<span>{ text }</span>
+	} else {
+		<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ text }</a>
+	}
 }
 
 // pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**

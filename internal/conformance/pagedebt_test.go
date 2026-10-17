@@ -59,7 +59,6 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"GroupsPage":               {"workspace", "Workspace groups, registered as a fixed literal"},
 	"ApplicationMembersPage":   {"workspace", "S2.2: Workspace membership scoped to one Application's roles; identity data (project_identity-model) and a write form per row, neither of which a page: block can bind"},
 	"GroupDetailPage":          {"workspace", "Workspace groups, registered as a fixed literal"},
-	"NotificationsPage":        {"workspace", "the person's inbox across Applications"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
 	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens. Re-read 2026-10-15: a page's write binding (create/update/delete/move/transition) writes a Machine's records, and this form writes a metadata file, which no binding names"},
 	"InstallApplicationPage":   {"workspace", "installs into the Workspace; re-read 2026-10-15: the write binding writes records, and an install writes the Workspace's metadata, which no binding names"},

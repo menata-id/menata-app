@@ -305,6 +305,10 @@ type Resolver struct {
 	Source  SourceResolver
 	Form    FormResolver
 	Total   TotalResolver
+	// TransitionAll answers a `write: transition` Button with `all: true`: where the request goes and how many records
+	// of the Dataset the viewer could move to the status `becomes` names (the Machine's `completion:` already applied
+	// to `$done`/`$reopen`). A count of none is the Button not being drawn.
+	TransitionAll TransitionAllResolver
 	// Parameter answers a `when: {parameter: ...}`: the value of a request parameter in the form the runtime reads
 	// it (the week one is a whole number, "0" for this week). Nil is a shape-only lowering -- the load-time
 	// placeholder, for which there is no request -- and every parameter condition then holds, so the nodes a real
@@ -329,6 +333,16 @@ type ParameterResolver func(name string) string
 type ViewerResolver func(name string) string
 type StepResolver func(name string, by int) string
 type WindowResolver func(datasetID string) (string, error)
+
+// AllTransition is the answer to a bulk transition: the route, and how many records it would move for this viewer.
+// Like the other record-level answers it is courtesy; the route selects and judges every record again.
+type AllTransition struct {
+	Route string
+	Count int
+}
+
+// TransitionAllResolver is the injected question behind a bulk transition Button.
+type TransitionAllResolver func(b domain.PageBinding, becomes string) (AllTransition, error)
 
 // TotalResolver answers a `rows: total` Binding: the Measure's figure over the whole Dataset, already formatted.
 type TotalResolver func(b domain.PageBinding) (string, error)
@@ -408,6 +422,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteMove {
 		return lowerMoveButton(n, path, record, writes)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition && n.Binding.All {
+		return lowerTransitionAll(n, r, path, record)
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition {
 		return lowerTransitionButton(n, path, record, writes)
@@ -678,8 +695,8 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: a link has one destination, and this one names both to: %s and from: href", path, n.To)
 		}
-		if role != domain.PageRecordRole {
-			return nil, fmt.Errorf("%s: a link's href may be taken from %q only, not from a Projection role %q", path, domain.PageRecordRole, role)
+		if role != domain.PageRecordRole && role != string(domain.CardFieldRoleLink) {
+			return nil, fmt.Errorf("%s: a link's href may be taken from %q (the record's own page) or %q (the route the record leads to) only, not from the role %q", path, domain.PageRecordRole, domain.CardFieldRoleLink, role)
 		}
 		if _, hasText := props["text"]; !hasText {
 			return nil, fmt.Errorf("%s: a link to a record has no menu label to default its text to, so it takes text from a role (from: {text: title})", path)
@@ -1478,6 +1495,53 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	props[formMethodProp] = domain.ButtonMethodPatch
 	props["name"] = t.Field
 	props["value"] = target
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// lowerTransitionAll turns a `Button` bound with `write: transition, all: true` into a Button that posts to the bulk
+// route, which moves every record of the Dataset the viewer may move to the status `becomes:` names. It sits outside a
+// template (inside one a transition already means that record), names the Dataset, asks nothing, and is not drawn when
+// there is nothing for this viewer to move.
+func lowerTransitionAll(n domain.PageNode, r Resolver, path string, record map[string]string) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record != nil {
+		return nil, fmt.Errorf("%s: write: %s with all: true acts on a Dataset, so it sits outside a Collection's item template", path, domain.PageWriteTransition)
+	}
+	if n.Binding.Dataset == "" {
+		return nil, fmt.Errorf("%s: write: %s with all: true names the dataset whose records it moves", path, domain.PageWriteTransition)
+	}
+	becomes := n.Props[buttonBecomesProp]
+	if becomes == "" {
+		return nil, fmt.Errorf("%s: a transition Button names the status it moves to in %s: -- a status option, %s or %s", path, buttonBecomesProp, domain.PageTransitionDone, domain.PageTransitionReopen)
+	}
+	for _, p := range []string{"name", "value", "confirm", "action", "method"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a bulk transition Button sends a request and asks nothing, and its route comes from the Dataset and %s:, so it takes no %s", path, buttonBecomesProp, p)
+		}
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if r.TransitionAll == nil {
+		return nil, fmt.Errorf("%s: no resolver for a bulk transition", path)
+	}
+	t, err := r.TransitionAll(*n.Binding, becomes)
+	if err != nil {
+		return nil, err
+	}
+	if t.Count == 0 {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+2)
+	for k, v := range n.Props {
+		if k != buttonBecomesProp {
+			props[k] = v
+		}
+	}
+	props[formActionProp] = t.Route
+	props[formMethodProp] = domain.ButtonMethodPost
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 

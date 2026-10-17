@@ -54,6 +54,11 @@ type Workspace struct {
 	// (Home, All Machines, Workspace Members). They stay reachable however many Applications
 	// exist, and they are what the launcher shows above the Application list.
 	Navigation []NavigationItem
+	// RuntimePages are the pages the runtime declares for the screens it owns (RuntimeScreens): the same `page:` an
+	// Application or a Workspace writes, shipped with the runtime and the same in every Workspace, served at the screen's
+	// own route. Each item is the RuntimeScreens entry (identity, route, heading: declared once, in Go, 001 #8) with its
+	// Page and OpenTo. A screen of RuntimeScreens with no entry here is still a bespoke Go screen.
+	RuntimePages []NavigationItem
 	// SuggestedApplications are Workspace Home's own "Add an application" chips (Flow 2 canvas
 	// re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
 	// here rather than as literals in internal/rendering so a Workspace whose business the

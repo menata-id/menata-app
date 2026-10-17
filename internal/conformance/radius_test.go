@@ -54,7 +54,6 @@ var handWrittenRadii = map[string]struct {
 	"segmentedcontrol.templ":   {2, "rounded (4px) knob and option link inside the control's rounded-md track (DS-D17, the view switch's own call); the track reads the Theme"},
 	"machine.templ":            {4, "rounded (4px) edit summary and tag-ish label (DS-D17); the tag dot and completion circle (geometry); the lane left this list on 2026-10-15 (gap plan K-01: it reads radius.surface now)"},
 	"newapplication.templ":     {2, "the assistant chat bubbles (their own shape)"},
-	"notifications.templ":      {2, "the unread dot and its placeholder (geometry)"},
 	"progress.templ":           {2, "the progress bar's track and fill (geometry)"},
 	"reviewdocument.templ":     {6, "rounded (4px) reference code and signature box (DS-D17); four signature-marker and timeline circles (geometry)"},
 	"signatureplacement.templ": {5, "rounded (4px) signature markers and width input (DS-D17); two marker circles (geometry)"},

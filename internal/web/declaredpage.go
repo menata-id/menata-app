@@ -57,10 +57,23 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 // administer the Workspace, as it was before the key existed. An id naming no page is judged by the admin gate before the
 // 404, so a non-admin cannot tell a missing page from a page that is not theirs.
 func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.Handler {
+	return gatedPage(store, cfg, navID, func(ws domain.Workspace) []domain.NavigationItem { return ws.Navigation })
+}
+
+// showRuntimePage draws the page the runtime declares for one of the screens it owns (domain.Workspace.RuntimePages),
+// at that screen's own route: the same drawing and the same `open_to:` gate as a Workspace's page, with the page
+// found among the runtime's. A Workspace that lacks what the page reads has no such page, and answers 404.
+func showRuntimePage(store *data.Store, cfg config.Config, navID string) http.Handler {
+	return gatedPage(store, cfg, navID, func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
+}
+
+// gatedPage is what showWorkspacePage and showRuntimePage share: find the item among those `items` names, gate by its
+// `open_to:`, lower its page for this viewer and draw it.
+func gatedPage(store *data.Store, cfg config.Config, navID string, items func(domain.Workspace) []domain.NavigationItem) http.Handler {
 	draw := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		ws := rendering.CurrentWorkspace(ctx)
-		for _, item := range ws.Navigation {
+		for _, item := range items(ws) {
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
@@ -82,7 +95,7 @@ func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.
 	admin := requireWorkspaceAdmin(store, cfg)(draw)
 	member := requireWorkspaceMember(store, cfg)(draw)
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		for _, item := range rendering.CurrentWorkspace(req.Context()).Navigation {
+		for _, item := range items(rendering.CurrentWorkspace(req.Context())) {
 			if item.ID == navID && item.Page != nil && item.OpenTo == domain.OpenToMember {
 				member.ServeHTTP(w, req)
 				return

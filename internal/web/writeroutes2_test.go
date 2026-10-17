@@ -107,7 +107,7 @@ func TestSubmitSignOutOtherDevices_invalidatesEveryOtherSession(t *testing.T) {
 	}
 }
 
-func TestSubmitMarkAllNotificationsRead_marksOnlyThisViewers(t *testing.T) {
+func TestTransitionAll_marksOnlyThisViewersNotifications(t *testing.T) {
 	s := newAccountRouteSetup(t, "markread")
 
 	other, err := s.store.CreateRecord(s.ctx, domain.UserMachineID, map[string]any{})
@@ -119,8 +119,8 @@ func TestSubmitMarkAllNotificationsRead_marksOnlyThisViewers(t *testing.T) {
 	mine := s.notification(t, s.userRecordID)
 	theirs := s.notification(t, other.ID)
 
-	if rec := s.post(t, "/notifications/mark-all-read", submitMarkAllNotificationsRead(s.store, s.cfg), url.Values{}); rec.Code != http.StatusSeeOther {
-		t.Fatalf("mark all read = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
+	if rec := s.postBulk(t, "ds_my_notifications", "read"); rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("mark all read = %d (HX-Refresh %q), want 200 and a refresh; body=%s", rec.Code, rec.Header().Get("HX-Refresh"), firstChars(rec.Body.String()))
 	}
 	if got := s.readState(t, mine); got != "read" {
 		t.Errorf("my notification is %q, want read", got)
@@ -291,6 +291,20 @@ func (s *accountRouteSetup) post(t *testing.T, path string, h http.HandlerFunc, 
 
 	r := chi.NewRouter()
 	r.Post(path, h)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
+
+// postBulk posts the bulk transition route the way the Mark all as read Button does, as this setup's viewer.
+func (s *accountRouteSetup) postBulk(t *testing.T, dataset, to string) *httptest.ResponseRecorder {
+	t.Helper()
+	target := domain.TransitionAllRoute("mch_notification", dataset, to)
+	req := httptest.NewRequest(http.MethodPost, target, nil)
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), s.installed, "Test Workspace", false))
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.userRecordID, 0)})
+	r := chi.NewRouter()
+	r.Post("/machines/{machineID}/transition-all", transitionAll(s.store, nil, nil, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

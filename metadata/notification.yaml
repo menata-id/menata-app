@@ -31,6 +31,22 @@ fields:
     required: true
     default: unread
 
+# What a page may show of a notification (card_fields, 007 §7.6), and the one list a page draws it from: the viewer's
+# own, newest first. `viewer_scoped` is a statement about what the list shows -- the Permission below is what guards
+# editing and deleting.
+card_fields:
+  - { field: fld_message, role: title }
+  - { field: fld_read, role: status }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_my_notifications
+    select: records
+    viewer_scoped: true
+    where: { field: fld_recipient, op: equals, value: $current_user }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 100
+
 # Mark-as-read is the *generic* PUT /machines/mch_notification/records/{id} route -- no bespoke
 # route needed, only this Permission, the exact shape prm_edit_own_step already established: the
 # acting identity must be the value fld_recipient names. Delete gets the identical gate, so a

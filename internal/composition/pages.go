@@ -2,11 +2,9 @@ package composition
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"menata.app/internal/domain"
-	"menata.app/internal/rendering"
 )
 
 // Machine ids these screens compose over. Named once here for the same reason internal/action
@@ -48,30 +46,6 @@ const (
 	// and "status == active" in another. A qualifier must not collide with a real option value.
 	measureTotal = "msr_total"
 )
-
-// MyNotifications lists the viewer's own mch_notification records, newest first (Flow 2 gap study
-// Tahap 6) -- the same "filter by identity in Go" shape PendingApprovalCount already
-// is (007 §20's named, accepted pattern for this class of per-viewer worklist), keyed by the
-// already-declared prm_edit_own_notification's own actor_field, fld_recipient.
-func MyNotifications(ctx context.Context, l *Loader, viewerID string) ([]rendering.NotificationRow, error) {
-	records, err := l.ListRecordsBy(ctx, notificationMachineID, "fld_recipient", viewerID)
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(records, func(i, j int) bool { return records[i].CreatedAt.After(records[j].CreatedAt) })
-
-	rows := make([]rendering.NotificationRow, 0, len(records))
-	for _, r := range records {
-		rows = append(rows, rendering.NotificationRow{
-			ID:        r.ID,
-			Message:   DisplayString(r.Values["fld_message"]),
-			Link:      DisplayString(r.Values["fld_link"]),
-			Unread:    DisplayString(r.Values["fld_read"]) == "unread",
-			CreatedAt: r.CreatedAt.Format("2 Jan 2006 15:04"),
-		})
-	}
-	return rows, nil
-}
 
 // UnreadNotificationCount is the bell badge's own count -- the same shape PendingApprovalCount
 // already is (list the viewer's own rows, count in Go; no dedicated COUNT query exists anywhere in

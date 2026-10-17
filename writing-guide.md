@@ -1886,6 +1886,12 @@ literal that is not an option of the role's Field (when it has options), `$done`
 role and one comparison -- no `and`/`or`, no comparing two roles. It hides a node; it is not a permission --
 a Button's own rule (Permission, `transitions:`) still decides whether it is drawn for that viewer.
 
+**A page the runtime owns (2026-10-17).** The screens in `domain.RuntimeScreens` (Home, Members, Groups, Notifications...) exist in every Workspace and belong to the runtime, so no manifest lists them. A screen can still have its body declared: a file in `internal/metadata/runtimepages/<nav id>.yaml` names the screen and gives `open_to:` and `page:` (nothing else: its route, label and heading are the screen's, declared once in Go). It is written exactly like any other page, and a Workspace gets it when it declares every Dataset the page binds (the shared notification Machine brings `ds_my_notifications`; a manifest without it has no such page and the route is 404). You do not write one for an Application. Three things it uses that any page may:
+
+- **`from: {href: link}`** on a link in a records template takes the destination from the Machine's `card_fields` role `link` (a text Field holding a route). The runtime hands over only a route inside the app; anything else (`https://...`, `//host`) makes the link plain words.
+- **`from: {text: "created:label"}`** is when the record was created, for any Machine.
+- **`binding: {dataset: ds_x, write: transition, all: true}`** on a `Button` with `becomes: <option>` moves every record of the Dataset the viewer may move, outside any template. It is drawn only while something would move, and the route applies the same rules as moving each record alone.
+
 **A node drawn only for some viewers (P-b, 2026-10-16).** A node anywhere on a page, not only inside a template, may carry
 `when: {viewer: workspace_role, is: admin}` (or `is: member`): it, and everything under it, is drawn for a viewer whose
 Workspace role is that one. Three rules, all checked at load. It takes `is:` and **never `is_not:`**: a viewer the runtime

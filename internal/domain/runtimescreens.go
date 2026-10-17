@@ -46,6 +46,16 @@ var RuntimeScreens = []NavigationItem{
 		Description: "Everyone in this workspace, their workspace role and the applications they can open.",
 	},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
+	// nav_notifications (2026-10-17): the viewer's own notifications, across Applications. A runtime screen for the
+	// reason the rest are: it exists identically in a Workspace with any number of Applications. Its body is a runtime
+	// page (metadata/runtimepages), and its Dataset sits on mch_notification, which every Workspace shares.
+	{
+		ID:          "nav_notifications",
+		Label:       "Notifications",
+		Route:       "/notifications",
+		Title:       "Notifications",
+		Description: "Approval requests and decisions that concern you.",
+	},
 	// nav_role_matrix ("Authorization Matrix", /authorization-matrix) lived here until 2026-09-27,
 	// when it was deleted rather than merely left unlinked: Q1 of the Flow 2 canvas re-audit
 	// (ROADMAP.md) confirmed board-06-new (the plain-language Permissions page,

@@ -173,7 +173,7 @@ func TestSVGColoursAreNotHexLiterals(t *testing.T) {
 // 42px mobile fields on the account and sign-in screens, and the 44px reveal buttons. A new control height is a new entry.
 var handWrittenControlHeights = map[string]int{
 	"account.templ": 8, "authshell.templ": 4, "chooseworkspace.templ": 1, "controls.templ": 2, "layout.templ": 1,
-	"login.templ": 2, "newapplication.templ": 1, "notifications.templ": 1, "reviewdocument.templ": 1, "workspacemembers.templ": 3,
+	"login.templ": 2, "newapplication.templ": 1, "reviewdocument.templ": 1, "workspacemembers.templ": 3,
 }
 
 func TestHandWrittenControlHeightsOnlyShrink(t *testing.T) {

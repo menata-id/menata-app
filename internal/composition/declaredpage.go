@@ -63,6 +63,9 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
 		},
+		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
+			return bindingTransitionAll(ctx, l, viewer, params, now, b, becomes)
+		},
 		Viewer: func(name string) string {
 			if name == domain.PageViewerWorkspaceRole {
 				return viewer.WorkspaceRole
@@ -166,6 +169,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		fillDerivedDate(item, src, r, now)
+		fillCreatedAndLink(item, src, r)
 		fillDerivedGroup(item, src, r, people)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
@@ -587,6 +591,17 @@ func formatMeasure(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
+// fillCreatedAndLink puts two things every record can say in its map. The creation time is a column, not a Field, so a
+// page reads it as the derived role domain.PageCreatedLabelRole. A Machine's `link` role holds a route as plain text, and
+// what a page may be handed is only a route inside the app (domain.SafeInAppPath): anything else is cut to "" here, so a
+// stored value can never become a link that leaves the app, whatever wrote it.
+func fillCreatedAndLink(item map[string]string, src *domain.Machine, r *data.Record) {
+	item[domain.PageCreatedLabelRole] = r.CreatedAt.Format("2 Jan 2006 15:04")
+	if _, has := item[string(domain.CardFieldRoleLink)]; has && !domain.SafeInAppPath(item[string(domain.CardFieldRoleLink)]) {
+		item[string(domain.CardFieldRoleLink)] = ""
+	}
+}
+
 // fillDerivedDate puts the two derived date roles (domain.PageDerivedRole) in a record's map, for a Machine that
 // declares a `date` card_fields role. experience.ResolveCardDate does the rule -- the short date, bad once past,
 // good once the record is complete -- with the request's `now` and not the clock (007 §4.6). A record with no date
@@ -601,4 +616,66 @@ func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record
 	if !d.Present {
 		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
 	}
+}
+
+// bindingTransitionAll is one bulk transition Binding: the route, and how many of the Dataset's records this viewer
+// could move to the status `becomes:` names. The count is courtesy (the route judges each record again), and it is what
+// keeps a "mark all as read" from being drawn when everything already is.
+func bindingTransitionAll(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, b domain.PageBinding, becomes string) (ir.AllTransition, error) {
+	src, target, records, err := AllTransitionRecords(ctx, l, viewer, params, now, b.Dataset, becomes)
+	if err != nil {
+		return ir.AllTransition{}, err
+	}
+	n := 0
+	for _, r := range records {
+		if allowed, _ := recordTransition(src, r, viewer).Allows(target); allowed {
+			n++
+		}
+	}
+	return ir.AllTransition{Route: domain.TransitionAllRoute(src.ID, b.Dataset, target), Count: n}, nil
+}
+
+// AllTransitionRecords is what a bulk transition acts on: the Machine, the status `becomes` stands for (a `$done`
+// or `$reopen` is read from the Machine's `completion:`), and the records the Dataset selects for this viewer, in the
+// Dataset's own order. The page's Button and the route that serves it both call this, so what is drawn and what is
+// moved are selected by one function. A Dataset filtering on a parameter the request did not send selects nothing.
+func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, datasetID, becomes string) (*domain.Machine, string, []*data.Record, error) {
+	ds, ok := l.Dataset(datasetID)
+	if !ok {
+		return nil, "", nil, fmt.Errorf("composition: bulk transition names dataset %q, which no machine declares", datasetID)
+	}
+	src := l.Machine(ds.Source)
+	if src == nil {
+		return nil, "", nil, fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", datasetID, ds.Source)
+	}
+	if ds.Select != domain.SelectRecords {
+		return nil, "", nil, fmt.Errorf("composition: dataset %q selects no records", datasetID)
+	}
+	target := becomes
+	switch becomes {
+	case domain.PageTransitionDone:
+		if src.Completion == nil {
+			return nil, "", nil, fmt.Errorf("composition: %s needs machine %q to declare a `completion:`", becomes, src.ID)
+		}
+		target = src.Completion.Done
+	case domain.PageTransitionReopen:
+		target = src.ReopenValue()
+	}
+	field, ok := src.FieldByID(src.CardFieldFor(domain.CardFieldRoleStatus))
+	if !ok || !slices.Contains(field.Options, target) {
+		return nil, "", nil, fmt.Errorf("composition: %q is not an option of machine %q's status Field", target, src.ID)
+	}
+	where := expression.Context{CurrentUser: viewer.ID, Parameters: params, Today: now.Format("2006-01-02")}
+	for _, c := range ds.Where.Comparisons() {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
+			if _, ok := where.Resolve(c.Value); !ok {
+				return src, target, nil, nil
+			}
+		}
+	}
+	records, err := l.SelectDataset(ctx, datasetID, where)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	return src, target, records, nil
 }

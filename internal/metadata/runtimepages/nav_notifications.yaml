@@ -1,0 +1,32 @@
+# The page behind /notifications (domain.RuntimeScreens: nav_notifications). Identity, route and heading are the
+# runtime screen's own and are not repeated here. Open to every member: the Dataset lists only the viewer's own.
+id: nav_notifications
+open_to: member
+page:
+  layout: stack
+  gap: default
+  children:
+    - component: Button
+      label: Mark all as read
+      variant: secondary
+      becomes: read
+      binding: { dataset: ds_my_notifications, write: transition, all: true }
+    - component: Collection
+      gap: tight
+      empty: No notifications yet.
+      divided: true
+      binding: { dataset: ds_my_notifications, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - static: link
+              from: { text: title, href: link }
+            - static: caption
+              from: { text: "created:label" }
+            - component: StatusBadge
+              when: { role: status, is: unread }
+              label: New
+              tone: info

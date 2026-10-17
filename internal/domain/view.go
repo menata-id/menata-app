@@ -65,7 +65,26 @@ const (
 	// resolved for only the records the page lists. A person Field is not a container: people are the `person`
 	// role, labelled through the Workspace's members.
 	CardFieldRoleContainer CardFieldRole = "container"
+	// CardFieldRoleLink is a text Field holding the in-app route a record leads to when it is opened (a notification's
+	// destination). A page takes it as a link's address with `from: {href: link}`; the runtime hands the page the value
+	// only when it is a path inside the app (`SafeInAppPath`), so a stored value can never send a viewer elsewhere.
+	CardFieldRoleLink CardFieldRole = "link"
 )
+
+// SafeInAppPath reports whether s is a route inside this app: one slash then something that is not a second slash or
+// a backslash (both read by a browser as a host), no scheme, no control characters. A link role's value that fails
+// this is treated as no destination at all.
+func SafeInAppPath(s string) bool {
+	if len(s) < 2 || s[0] != '/' || s[1] == '/' || s[1] == '\\' {
+		return false
+	}
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
 
 // TagColor is one entry of the closed palette a tag may be drawn in. A Workspace picks a name, never a
 // colour value: the palette is shared so a tag reads the same on every board and stays legible on a
@@ -120,6 +139,7 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleFile:      true,
 	CardFieldRoleComment:   true,
 	CardFieldRoleContainer: true,
+	CardFieldRoleLink:      true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

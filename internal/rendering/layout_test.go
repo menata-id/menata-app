@@ -1352,9 +1352,8 @@ func TestRadii_followTheThemeAtMigratedSites(t *testing.T) {
 		c          templ.Component
 		want, gone string
 	}{
-		"control: the overflow menu's row":   {applicationMenuRow([]navMenuItem{{Label: "A", Href: "/a"}}, domain.Application{}), "rounded-full px-2.5", "rounded-md px-2.5"},
-		"surface: a notification row's card": {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), "gap-3 rounded-full border", "gap-3 rounded-lg border"},
-		"pill: the approver chip":            {approverChip(StepApprover{Name: "Ana", State: "done"}), "rounded-md py-0.5", "rounded-full py-0.5"},
+		"control: the overflow menu's row": {applicationMenuRow([]navMenuItem{{Label: "A", Href: "/a"}}, domain.Application{}), "rounded-full px-2.5", "rounded-md px-2.5"},
+		"pill: the approver chip":          {approverChip(StepApprover{Name: "Ana", State: "done"}), "rounded-md py-0.5", "rounded-full py-0.5"},
 	} {
 		got := render(tc.c)
 		if !strings.Contains(got, tc.want) || strings.Contains(got, tc.gone) {
@@ -1364,7 +1363,8 @@ func TestRadii_followTheThemeAtMigratedSites(t *testing.T) {
 }
 
 // Rencana 0.2a: the 137 hand-written ladder gaps read layoutGap, so theme.gap moves them (R9). Two sites, under a
-// theme that moves `default` and also puts `comfortable` on the same amount (L12's shape).
+// theme that moves `default` and also puts `comfortable` on the same amount (L12's shape). The notification row that was the
+// first of the two is a declared page now (metadata/runtimepages), so the shell is the one site left here.
 func TestLadderGaps_followTheThemeAtMigratedSites(t *testing.T) {
 	th := domain.Theme{Gap: map[domain.Gap]domain.GapAmount{
 		domain.GapDefault:     domain.GapAmountSix,
@@ -1372,13 +1372,6 @@ func TestLadderGaps_followTheThemeAtMigratedSites(t *testing.T) {
 	}}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
 	var buf strings.Builder
-	if err := notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}).Render(ctx, &buf); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(buf.String(), "flex items-center gap-6") || strings.Contains(buf.String(), "gap-3") {
-		t.Errorf("a moved theme.gap must move the notification row's gap: %s", buf.String())
-	}
-	buf.Reset()
 	if err := appShell("T", "WS", Viewer{}, "/s").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
@@ -1429,7 +1422,6 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 		want string
 	}{
 		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-600/40 border-slate-200"`},
-		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-600/40 border-slate-200"`},
 		"signature dialog":     {signatureModal("s1"), `class="sig-modal m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"`},
 		"signature frame":      {reviewSignaturePanel(ReviewView{SignaturePage: 1, SignaturePreviewHref: "/p", SignatureStepCount: 1}), `class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50"`},
 		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-47.5 shrink-0 flex-col gap-2 rounded-lg border border-slate-200 bg-slate-100 p-2`},

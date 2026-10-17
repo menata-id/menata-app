@@ -588,10 +588,15 @@ func LoadApplication(path string) (*App, error) {
 	if len(themeIssues) > 0 {
 		return nil, fmt.Errorf("%s: %s", path, strings.Join(themeIssues, "; "))
 	}
+	runtimePages, err := loadRuntimePages()
+	if err != nil {
+		return nil, err
+	}
 	app := &App{
 		Workspace: domain.Workspace{
 			Slug:                  doc.Workspace,
 			Navigation:            workspaceNav,
+			RuntimePages:          runtimePages,
 			SuggestedApplications: suggestions,
 			Theme:                 theme,
 		},
@@ -610,6 +615,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateMachineIDsAreUnique(app.Machines); err != nil {
 		return nil, err
 	}
+	// A runtime page is offered to a Workspace that has what it reads, the way an Application's route is absent from a
+	// Workspace that did not install it. Everything else about it is still checked below.
+	app.Workspace.RuntimePages = runtimePagesThisWorkspaceCanDraw(app.Workspace.RuntimePages, app.Machines)
 
 	for _, rel := range doc.Applications {
 		application, err := loadApplicationFile(filepath.Join(dir, rel), doc.Workspace)
@@ -641,7 +649,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := runStages([]stage{
 		{"workflow datasets", func() error { return validateWorkflowDatasets(apps, machines) }},
 		{"permission roles", func() error { return validatePermissionRoles(apps, machines) }},
-		{"pages", func() error { return validatePages(apps, machines, app.Workspace.Navigation) }},
+		{"pages", func() error {
+			return validatePages(apps, machines, app.Workspace.Navigation, app.Workspace.RuntimePages)
+		}},
 		{"navigation ids", func() error { return validateNavigationIDsAreUnique(app.Workspace) }},
 		// After stampWorkflowRoles, because it asks which Machines an engine casts.
 		{"computed fields", func() error { return validateComputedFieldsAreGenericallyWritten(machines) }},

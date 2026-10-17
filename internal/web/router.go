@@ -270,8 +270,7 @@ func Routes(d Deps) http.Handler {
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
 		// as /home and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
-		pr.Get("/notifications", showNotifications(d.Store, d.Cfg))
-		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Store, d.Cfg))
+		pr.Handle("/notifications", showRuntimePage(d.Store, d.Cfg, "nav_notifications"))
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
 		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg))
@@ -296,6 +295,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Store, d.Cfg))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Patch("/machines/{machineID}/records/{id}", patchRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Post("/machines/{machineID}/transition-all", transitionAll(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/copy", copyRecord(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/move", moveRecord(d.Store, d.Cfg))

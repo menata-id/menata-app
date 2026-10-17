@@ -1,5 +1,7 @@
 package domain
 
+import "net/url"
+
 // PageNode is one node of a `page:` declaration: what an Application writes in a navigation item to say what
 // a screen's body is made of (007 §12.4, §15.1's first stage).
 //
@@ -191,6 +193,11 @@ type PageBinding struct {
 	// what the Data Plane hands back -- which buckets exist, and which record is in which -- and not how the
 	// Collection looks; the page declares what a bucket and a record look like as its two child templates.
 	Group string
+	// All, with `write: transition`, makes the Button act on every record of Dataset the viewer may move rather than on
+	// the record of the Collection it sits in: a "mark all as read". It is the one transition binding that names a
+	// Dataset and sits outside a template. Nothing is written except through the same guards as moving each record
+	// alone (`edit` Permission, declared edges, write guards, Events); a record the viewer may not move is left as it is.
+	All bool
 }
 
 // PageGroupDate buckets a records binding by the Machine's `date` card_fields role, one bucket per day of the
@@ -296,8 +303,13 @@ const PageGroupLabelRole = "group:label"
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole
+	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole || role == PageCreatedLabelRole
 }
+
+// PageCreatedLabelRole is the derived role that says when a record was created ("2 Jan 2006 15:04"), which every record
+// has and no Machine declares as a Field. It needs nothing of the Machine, so it is valid on any records Collection or
+// Table.
+const PageCreatedLabelRole = "created:label"
 
 // BindableComponents maps each registered Component a Binding may supply to the Rows modes it takes. A
 // Binding on any other node, or in a mode not listed, is a load error rather than a property the renderer
@@ -312,4 +324,11 @@ var BindableComponents = map[ComponentType][]string{
 	ComponentMetric:     {PageRowsDimension, PageRowsTotal},
 	ComponentCollection: {PageRowsRecords, PageRowsDimension},
 	ComponentTable:      {PageRowsRecords},
+}
+
+// TransitionAllRoute is the runtime's route for a `write: transition` Binding with `all: true`: the Machine, the Dataset
+// whose records it acts on, and the status they move to. The target is already resolved (`$done` is not sent): the route
+// checks it is an option of the Machine's status Field and re-selects the Dataset itself, so the page names no record.
+func TransitionAllRoute(machineID, datasetID, to string) string {
+	return "/machines/" + machineID + "/transition-all?" + url.Values{"dataset": {datasetID}, "to": {to}}.Encode()
 }

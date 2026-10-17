@@ -43,3 +43,15 @@ func TestMachine_ViewByID(t *testing.T) {
 		t.Error("ViewByID(vw_nope) = ok; want not found for an undeclared id")
 	}
 }
+
+func TestSafeInAppPath(t *testing.T) {
+	for in, want := range map[string]bool{
+		"/home": true, "/machines/mch_x/records/rec_1/review": true, "/a?b=c": true,
+		"": false, "/": false, "home": false, "//evil.example": false, "/\\evil.example": false,
+		"https://evil.example": false, "javascript:alert(1)": false, "/ok\nbad": false, "/ok\x00": false,
+	} {
+		if got := SafeInAppPath(in); got != want {
+			t.Errorf("SafeInAppPath(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
