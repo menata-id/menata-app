@@ -244,6 +244,15 @@ templ formInput(id, name, kind, options, value string, required bool) {
 					<option value={ opt } selected?={ opt == value }>{ opt }</option>
 				}
 			</select>
+		case domain.InputMultiSelect:
+			<div id={ id } role="group" class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
+				for _, opt := range multiSelectOptions(options, value) {
+					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" }>
+						<input type="checkbox" name={ name } value={ opt.Value } checked?={ opt.Ticked } class={ "size-4", controlAccentClass(ctx) }/>
+						<span class={ "truncate", textClass(ctx, domain.RoleBody) }>{ opt.Label }</span>
+					</label>
+				}
+			</div>
 		case domain.InputBoolean:
 			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class={ "size-4", controlAccentClass(ctx) }/>
 		case domain.InputDate:
@@ -255,6 +264,36 @@ templ formInput(id, name, kind, options, value string, required bool) {
 		default:
 			<input id={ id } type="text" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
 	}
+}
+
+// multiSelectOption is one choice of a multiselect Input: the value the request carries, the words beside the box,
+// and whether it starts ticked.
+type multiSelectOption struct {
+	Value, Label string
+	Ticked       bool
+}
+
+// multiSelectOptions decodes a multiselect's `options` (`value=Label` lines; a line with no `=` is its own label) and the
+// ticked values (joined by InputOptionsSep).
+func multiSelectOptions(options, ticked string) []multiSelectOption {
+	on := map[string]bool{}
+	for _, v := range strings.Split(ticked, domain.InputOptionsSep) {
+		if v != "" {
+			on[v] = true
+		}
+	}
+	var out []multiSelectOption
+	for _, line := range strings.Split(options, domain.InputOptionsSep) {
+		if line == "" {
+			continue
+		}
+		value, label, found := strings.Cut(line, "=")
+		if !found {
+			label = value
+		}
+		out = append(out, multiSelectOption{Value: value, Label: label, Ticked: on[value]})
+	}
+	return out
 }
 
 // searchBox is a plain GET form posting `q` back to path -- Enter submits it natively in every

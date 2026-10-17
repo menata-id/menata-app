@@ -115,12 +115,13 @@ func TestSelectRuntime_sortsDescendingAndByText(t *testing.T) {
 func TestBindingAction_isOfferedToAnAdminAndNotToAMember(t *testing.T) {
 	b := domain.PageBinding{Write: domain.PageWriteAction, Action: "create_group"}
 	for role, want := range map[string]bool{domain.WorkspaceRoleAdmin: true, domain.WorkspaceRoleMember: false, "": true} {
-		spec, err := bindingAction(domain.Actor{WorkspaceRole: role}, b)
-		if err != nil || spec.Permitted != want || len(spec.Inputs) != 1 {
-			t.Errorf("role %q: permitted=%v err=%v inputs=%d, want permitted=%v and one input", role, spec.Permitted, err, len(spec.Inputs), want)
+		spec, err := bindingAction(context.Background(), nil, domain.Actor{WorkspaceRole: role}, b, "")
+		// A viewer who may not perform it is told no before anything is read for the form's controls.
+		if wantInputs := map[bool]int{true: 1, false: 0}[want]; err != nil || spec.Permitted != want || len(spec.Inputs) != wantInputs {
+			t.Errorf("role %q: permitted=%v err=%v inputs=%d, want permitted=%v and %d input(s)", role, spec.Permitted, err, len(spec.Inputs), want, wantInputs)
 		}
 	}
-	if _, err := bindingAction(domain.Actor{}, domain.PageBinding{Action: "nothing"}); err == nil {
+	if _, err := bindingAction(context.Background(), nil, domain.Actor{}, domain.PageBinding{Action: "nothing"}, ""); err == nil {
 		t.Error("an unknown action resolved")
 	}
 }

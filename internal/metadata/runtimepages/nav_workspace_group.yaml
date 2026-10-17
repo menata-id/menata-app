@@ -1,0 +1,60 @@
+# One Group's own screen: who is in it, what it grants in each Application, and removing it. The page is drawn for the
+# record the route names ($parameters.id), so every action below is about that Group. Admin only (the default).
+id: nav_workspace_group
+page:
+  layout: split
+  side: start
+  aside: compact
+  gap: loose
+  children:
+    - component: NavList
+      section: workspace_settings
+      variant: sidebar
+    - layout: stack
+      gap: comfortable
+      children:
+        - static: link
+          to: nav_workspace_groups
+          text: "← Groups"
+        - component: Collection
+          gap: comfortable
+          block: true
+          binding: { dataset: ds_runtime_group, rows: records }
+          children:
+            - layout: stack
+              gap: comfortable
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: heading
+                      from: { text: title }
+                    - static: caption
+                      from: { text: subtitle }
+                - layout: section
+                  gap: comfortable
+                  children:
+                    - static: panel-heading
+                      text: Members
+                    - static: caption
+                      text: Everyone ticked here holds this Group's roles.
+                    - component: Form
+                      submit: Save members
+                      binding: { write: action, action: set_group_members }
+                - layout: section
+                  gap: comfortable
+                  children:
+                    - static: panel-heading
+                      text: Application roles
+                    - static: caption
+                      text: The same role vocabulary each Application declares for a direct assignment.
+                    - component: Form
+                      submit: Save roles
+                      binding: { write: action, action: set_group_roles }
+                - component: Button
+                  label: Delete this group
+                  variant: danger
+                  confirm: Delete this group? Its members keep their own roles, and what it granted is removed.
+                  binding: { write: action, action: delete_group }

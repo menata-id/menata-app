@@ -145,8 +145,8 @@ func TestSubmitGroupMembers_membershipLandsAndEffectiveRolesSeeIt(t *testing.T) 
 	}
 
 	form := url.Values{"member": {actorID}}
-	rec := postAdminForm(t, store, ctx, installed, actorID, "/workspace-groups/{groupID}/members",
-		"/workspace-groups/"+group.ID+"/members", submitGroupMembers(store), form)
+	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
+		"/runtime-actions/set_group_members?record="+group.ID, runtimeAction(store, config.Config{}), form)
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("set group members = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -190,8 +190,8 @@ func TestSubmitDeleteGroup_removesTheGroupAndItsGrants(t *testing.T) {
 		t.Fatalf("SetGroupAppRole: %v", err)
 	}
 
-	rec := postAdminForm(t, store, ctx, installed, actorID, "/workspace-groups/{groupID}/delete",
-		"/workspace-groups/"+group.ID+"/delete", submitDeleteGroup(store), url.Values{})
+	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
+		"/runtime-actions/delete_group?record="+group.ID, runtimeAction(store, config.Config{}), url.Values{})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("delete group = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}

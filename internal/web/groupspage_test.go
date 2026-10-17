@@ -75,3 +75,70 @@ func TestGroupsIsARuntimePage(t *testing.T) {
 		t.Errorf("a member opening the Groups page = %d, want 403 and no group names", rec.Code)
 	}
 }
+
+// TestGroupDetailIsARuntimePageForOneRecord: /workspace-groups/<id> draws that Group's own screen -- its name and count,
+// every member as a checkbox ticked for those in it, a role select per Application starting as the Group's grant, and a
+// delete that asks first -- inside the settings frame with Groups marked current; an id the source does not hold is a 404.
+func TestGroupDetailIsARuntimePageForOneRecord(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "groupdetail", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	g, err := store.CreateGroup(ctx, wsID, "GD-finance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteGroup(ctx, wsID, g.ID) })
+	other, err := store.CreateGroup(ctx, wsID, "GD-other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteGroup(ctx, wsID, other.ID) })
+	var ids []string
+	for _, email := range []string{"groupdetail_in@example.com", "groupdetail_out@example.com"} {
+		u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": email})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+		if err := store.AddMember(ctx, wsID, u.ID, email, "member", ""); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, u.ID)
+	}
+	if err := store.SetGroupMembers(ctx, g.ID, ids[:1]); err != nil {
+		t.Fatal(err)
+	}
+	app := applicationWithRoles(t, ws)
+	if err := store.SetGroupAppRole(ctx, g.ID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	body := getPage(t, h, cookie, "/workspace-groups/"+g.ID)
+	for _, want := range []string{
+		"GD-finance", "1 member<", `href="/workspace-groups"`, "Members", "Application roles",
+		`name="member" value="` + ids[0] + `" checked`, `name="member" value="` + ids[1] + `" class`,
+		`hx-post="/runtime-actions/set_group_members?record=` + g.ID + `"`, `hx-post="/runtime-actions/set_group_roles?record=` + g.ID + `"`,
+		`hx-post="/runtime-actions/delete_group?record=` + g.ID + `"`, "hx-confirm=", `name="app_role[` + app.ID + `]"`, `<option value="` + app.Roles[0] + `" selected`,
+		"Save members", "Save roles", "Delete this group",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Group page does not contain %q", want)
+		}
+	}
+	if strings.Contains(body, "GD-other") {
+		t.Error("the page shows another Group")
+	}
+	if n := strings.Count(body, `aria-current="page"`); n != 1 || !strings.Contains(body, `href="/workspace-groups" aria-current="page"`) {
+		t.Errorf("%d current settings rows, want exactly Groups", n)
+	}
+	if strings.Count(body, "<h1") != 1 {
+		t.Errorf("%d headings, want the Group's own and not a second generic one", strings.Count(body, "<h1"))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/workspace-groups/grp_does_not_exist", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("an unknown group = %d, want 404", rec.Code)
+	}
+}

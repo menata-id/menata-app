@@ -96,13 +96,13 @@ func postGroupRoles(t *testing.T, store *data.Store, ctx context.Context, ws dom
 	}
 	workspaceID, _ := data.WorkspaceScope(ctx)
 	cfg := config.Config{SessionSecret: "grouproles-secret"}
-	req := httptest.NewRequest(http.MethodPost, "/workspace-groups/"+groupID+"/roles", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/set_group_roles?record="+groupID, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), workspaceID), ws, "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(store))
+	r.Post("/runtime-actions/{action}", runtimeAction(store, cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

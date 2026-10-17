@@ -29,12 +29,27 @@ type ActionInput struct {
 	Name     string
 	Label    string
 	Required bool
+	// Kind says what the input is when it is more than a line of text. "members" is the Workspace's members as a set of
+	// ticked choices, starting as the record's own (a Group's members); "app_roles" expands to one select per Application
+	// that declares roles, each starting as the record's role there. Both are decided per request by the runtime, so the page
+	// writes neither an option nor a name.
+	Kind string
 }
+
+// The two dynamic input kinds an action may ask.
+const (
+	ActionInputMembers  = "members"
+	ActionInputAppRoles = "app_roles"
+)
 
 // RuntimeActions is the closed set a binding's `action:` may name.
 var RuntimeActions = map[string]RuntimeAction{
 	"create_group": {ID: "create_group", Inputs: []ActionInput{{Name: "name", Label: "Group name", Required: true}}, Admin: true, Doc: "adds a Group to the Workspace"},
 	"delete_group": {ID: "delete_group", Source: "groups", Admin: true, Doc: "removes a Group and what it granted"},
+	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
+		Doc: "replaces a Group's membership with exactly the members ticked"},
+	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
+		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }
 
 // RuntimeActionIDs lists the set, sorted, for messages.

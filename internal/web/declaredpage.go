@@ -57,19 +57,25 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 // administer the Workspace, as it was before the key existed. An id naming no page is judged by the admin gate before the
 // 404, so a non-admin cannot tell a missing page from a page that is not theirs.
 func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.Handler {
-	return gatedPage(store, cfg, navID, false, func(ws domain.Workspace) []domain.NavigationItem { return ws.Navigation })
+	return gatedPage(store, cfg, navID, false, "", func(ws domain.Workspace) []domain.NavigationItem { return ws.Navigation })
 }
 
 // showRuntimePage draws the page the runtime declares for one of the screens it owns (domain.Workspace.RuntimePages),
 // at that screen's own route: the same drawing and the same `open_to:` gate as a Workspace's page, with the page
 // found among the runtime's. A Workspace that lacks what the page reads has no such page, and answers 404.
 func showRuntimePage(store *data.Store, cfg config.Config, navID string) http.Handler {
-	return gatedPage(store, cfg, navID, true, func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
+	return gatedPage(store, cfg, navID, true, "", func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
+}
+
+// showRuntimeRecordPage is showRuntimePage for a screen that is one record's page: the route's `recordParam` names the
+// record, the page reads it as `$parameters.id`, and an id the screen's RecordSource does not provide is a 404.
+func showRuntimeRecordPage(store *data.Store, cfg config.Config, navID, recordParam string) http.Handler {
+	return gatedPage(store, cfg, navID, true, recordParam, func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
 }
 
 // gatedPage is what showWorkspacePage and showRuntimePage share: find the item among those `items` names, gate by its
 // `open_to:`, lower its page for this viewer and draw it.
-func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool, items func(domain.Workspace) []domain.NavigationItem) http.Handler {
+func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool, recordParam string, items func(domain.Workspace) []domain.NavigationItem) http.Handler {
 	draw := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		ws := rendering.CurrentWorkspace(ctx)
@@ -82,7 +88,26 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 			if runtime {
 				loader = loader.WithRuntime(ws.RuntimeMachines, actor)
 			}
-			body, err := composition.DeclaredPageFor(ctx, loader, actor, pageParams(req, ""), time.Now(), ws.LinkTargets(), navID, *item.Page)
+			params := pageParams(req, "")
+			if recordParam != "" {
+				// One record's page: the route names the record, and one the source does not hold is a 404.
+				id := chi.URLParam(req, recordParam)
+				found, err := composition.RuntimeRecordExists(ctx, loader, actor, item.RecordSource, id)
+				if err != nil {
+					serverError(w, err)
+					return
+				}
+				if !found {
+					http.NotFound(w, req)
+					return
+				}
+				params["id"] = id
+			}
+			current := navID
+			if item.SettingsCurrent != "" {
+				current = item.SettingsCurrent
+			}
+			body, err := composition.DeclaredPageFor(ctx, loader, actor, params, time.Now(), ws.LinkTargets(), current, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

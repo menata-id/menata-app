@@ -8,7 +8,7 @@ import (
 
 func actionResolver(permitted bool) Resolver {
 	return Resolver{
-		Action: func(b domain.PageBinding) (FormSpec, error) {
+		Action: func(b domain.PageBinding, recordID string) (FormSpec, error) {
 			return FormSpec{Permitted: permitted, Inputs: []domain.FormInput{{FieldID: "name", Label: "Group name", Kind: domain.InputText, Required: true}}}, nil
 		},
 		Records: func(domain.PageBinding) (RecordSet, error) {
@@ -76,5 +76,20 @@ func TestLower_anActionButtonIsNotDrawnForAViewerWhoMayNotPerformIt(t *testing.T
 	got, err := Lower(root, actionResolver(false))
 	if err != nil || len(got.Children[0].Children) != 0 {
 		t.Errorf("err=%v items=%d, want a Collection of no buttons", err, len(got.Children[0].Children))
+	}
+}
+
+func TestLower_anActionFormMayAskForASetOfChoicesStartingTicked(t *testing.T) {
+	res := Resolver{Action: func(domain.PageBinding, string) (FormSpec, error) {
+		return FormSpec{Permitted: true, Inputs: []domain.FormInput{{FieldID: "member", Label: "Members", Kind: domain.InputMultiSelect,
+			Options: []string{"u1=ann@example.com", "u2=bob@example.com"}, Default: "u2"}}}, nil
+	}}
+	got, err := Lower(actionForm(), res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := got.Children[0].Children[0].Children[0]
+	if in.Props["kind"] != "multiselect" || in.Props["options"] != "u1=ann@example.com\nu2=bob@example.com" || in.Props["value"] != "u2" {
+		t.Errorf("input = %v", in.Props)
 	}
 }

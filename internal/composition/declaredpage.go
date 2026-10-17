@@ -72,8 +72,8 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
 		},
-		Action: func(b domain.PageBinding) (ir.FormSpec, error) {
-			return bindingAction(viewer, b)
+		Action: func(b domain.PageBinding, recordID string) (ir.FormSpec, error) {
+			return bindingAction(ctx, l, viewer, b, recordID)
 		},
 		Navigation: navigationSection,
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
@@ -696,16 +696,58 @@ func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, p
 
 // bindingAction is one runtime-action Binding: what a Form for it asks, and whether this viewer may perform it. The
 // permission is courtesy (the route asks again): an admin-only action is not drawn for a member, so a page does not
-// offer what the route would refuse. The same split `Workspace menu` makes: anyone who is not a plain member counts as an
+// offer what the route would refuse. The same split the Workspace menu makes: anyone who is not a plain member counts as an
 // admin here, because the shared admin credential has no role and is let through the gate.
-func bindingAction(viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
+//
+// The dynamic inputs (registry.ActionInputMembers, ActionInputAppRoles) are decided here, for the record the Form sits
+// beside: the Workspace's members with the record's own ticked, and a select per Application that declares roles with the
+// record's role there chosen. The page writes neither an option nor a name.
+func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain.PageBinding, recordID string) (ir.FormSpec, error) {
 	a, ok := registry.RuntimeActions[b.Action]
 	if !ok {
 		return ir.FormSpec{}, fmt.Errorf("composition: page binding names action %q, which is not an operation the runtime performs", b.Action)
 	}
 	spec := ir.FormSpec{Permitted: !a.Admin || viewer.WorkspaceRole != domain.WorkspaceRoleMember}
+	if !spec.Permitted {
+		return spec, nil
+	}
 	for _, in := range a.Inputs {
-		spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputText, Required: in.Required})
+		switch in.Kind {
+		case registry.ActionInputMembers:
+			members, err := l.Members(ctx)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			workspaceID, _ := data.WorkspaceScope(ctx)
+			ticked, err := l.store.GroupMemberIDs(ctx, workspaceID, recordID)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			var options []string
+			for _, m := range members {
+				options = append(options, m.UserRecordID+"="+m.Email)
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: options, Default: strings.Join(ticked, domain.InputOptionsSep)})
+		case registry.ActionInputAppRoles:
+			groups, err := l.Groups(ctx)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			var grants map[string]string
+			for _, g := range groups {
+				if g.ID == recordID {
+					grants = g.Grants
+				}
+			}
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if len(app.Roles) == 0 {
+					continue
+				}
+				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: domain.AppRoleField(app.ID), Label: app.Name, Kind: domain.InputSelect, Options: app.Roles, Default: grants[app.ID]})
+			}
+		default:
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputText, Required: in.Required})
+		}
 	}
 	return spec, nil
 }

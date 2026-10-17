@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/registry"
+	"menata.app/internal/rendering"
 )
 
 // actionRunner performs one registry.RuntimeActions entry. It reports a refusal itself, to w, and returns ok=false; on
@@ -20,6 +21,10 @@ type actionRunner func(w http.ResponseWriter, req *http.Request, store *data.Sto
 var runtimeActionRunners = map[string]actionRunner{
 	"create_group": runCreateGroup,
 	"delete_group": runDeleteGroup,
+	// A Group's membership is the whole set ticked: unticking everyone is a meaningful submission, which is why
+	// data.SetGroupMembers takes a list and not a sequence of adds and removes.
+	"set_group_members": runSetGroupMembers,
+	"set_group_roles":   runSetGroupRoles,
 }
 
 // runtimeAction is `POST /runtime-actions/{action}[?record=<id>]`, the one route a runtime page's Form or Button for a
@@ -87,4 +92,41 @@ func runDeleteGroup(w http.ResponseWriter, req *http.Request, store *data.Store,
 		return "", false
 	}
 	return domain.RuntimeScreenRoute("nav_workspace_groups"), true
+}
+
+func runSetGroupMembers(w http.ResponseWriter, req *http.Request, store *data.Store, record string) (string, bool) {
+	ctx := req.Context()
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if _, err := store.GetGroup(ctx, workspaceID, record); err != nil {
+		recordError(w, err)
+		return "", false
+	}
+	if err := store.SetGroupMembers(ctx, record, req.Form["member"]); err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	return "", true
+}
+
+// runSetGroupRoles sets the Group's role in each Application, validated against that Application's own declared roles
+// (submittedAppRoles, the reader the member screens use), so an undeclared role is refused here as there.
+func runSetGroupRoles(w http.ResponseWriter, req *http.Request, store *data.Store, record string) (string, bool) {
+	ctx := req.Context()
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if _, err := store.GetGroup(ctx, workspaceID, record); err != nil {
+		recordError(w, err)
+		return "", false
+	}
+	roles, err := submittedAppRoles(req, rendering.CurrentWorkspace(ctx).Applications)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	for appID, role := range roles {
+		if err := store.SetGroupAppRole(ctx, record, appID, role); err != nil {
+			serverError(w, err)
+			return "", false
+		}
+	}
+	return "", true
 }

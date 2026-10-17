@@ -141,6 +141,14 @@ type NavigationItem struct {
 	// SidebarOnly keeps a row out of the page-wide variant: the sidebar's "Danger zone" jumps to a section the hub itself
 	// already draws.
 	SidebarOnly bool
+	// SettingsCurrent names the settings row this screen sits under, when it is not itself a row: a Group's own screen
+	// marks "Groups" as where the viewer is. Empty means the screen's own id.
+	SettingsCurrent string
+	// OwnsHeading says the page draws its own heading (a record's name), so the generic header is not drawn above it.
+	OwnsHeading bool
+	// RecordSource, on a runtime screen that is one record's page, names the registry.RuntimeSources entry the record
+	// comes from; the route's id is that record's, and an id the source does not provide is a 404.
+	RecordSource string
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

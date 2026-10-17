@@ -264,3 +264,10 @@ func (w Workspace) HasMachine(machineID string) bool {
 	}
 	return false
 }
+
+// AppRoleField is the form field carrying one Application's role, namespaced by Application id so a single form can carry
+// several. A member's screens and a runtime page's Form for a Group's roles name it the same way, so one reader
+// (internal/web.submittedAppRoles) takes both.
+func AppRoleField(applicationID string) string {
+	return "app_role[" + applicationID + "]"
+}

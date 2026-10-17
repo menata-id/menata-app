@@ -10,9 +10,7 @@ import (
 
 // appRoleField is the form field carrying one Application's role, namespaced by Application id so
 // a single form can carry several without positional guessing.
-func appRoleField(applicationID string) string {
-	return "app_role[" + applicationID + "]"
-}
+func appRoleField(applicationID string) string { return domain.AppRoleField(applicationID) }
 
 // submittedAppRoles reads one role per Application out of a submitted form and checks each against
 // that Application's own declared vocabulary (domain.Application.Roles).

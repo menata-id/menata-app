@@ -1173,15 +1173,15 @@ func truncationFromProp(limit string) Truncation {
 	return Truncation{Limit: n, Hit: true}
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, divided bool, truncated Truncation, heading string, hint string, items []templ.Component) {
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, truncated Truncation, heading string, hint string, items []templ.Component) {
 	if heading != "" {
 		@stackLayout(domain.GapTight) {
 			@collectionHeading(heading, hint, len(items))
-			@collectionBody(gap, empty, ordered, divided, items)
+			@collectionBody(gap, empty, ordered, divided, block, items)
 			@truncationNotice(truncated)
 		}
 	} else {
-		@collectionBody(gap, empty, ordered, divided, items)
+		@collectionBody(gap, empty, ordered, divided, block, items)
 		@truncationNotice(truncated)
 	}
 }
@@ -1199,7 +1199,7 @@ templ collectionHeading(heading string, hint string, count int) {
 	}
 }
 
-templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, items []templ.Component) {
+templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if divided && ordered {
@@ -1231,7 +1231,9 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, i
 	} else {
 		<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
 			for _, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), textClass(ctx, domain.RoleBody) }>
+				// `block` is an item that is one block filling the width (a record's whole screen), not a run of inline
+				// parts that wrap: a column, so what it holds stretches instead of shrinking to its content.
+				<li class={ templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), textClass(ctx, domain.RoleBody) }>
 					@it
 				</li>
 			}
@@ -1476,7 +1478,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

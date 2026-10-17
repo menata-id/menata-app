@@ -490,7 +490,7 @@ func validateFormInput(inputs map[string]string) []string {
 	if inputs["kind"] != "" && !domain.KnownInputKinds[kind] {
 		issues = append(issues, fmt.Sprintf("Input kind %q is not one of the declared kinds", inputs["kind"]))
 	}
-	if inputs["options"] != "" && kind != domain.InputSelect {
+	if inputs["options"] != "" && kind != domain.InputSelect && kind != domain.InputMultiSelect {
 		issues = append(issues, fmt.Sprintf("Input options belong to a select, not to a %q control", inputs["kind"]))
 	}
 	if v := inputs["required"]; v != "" && v != "true" && v != "false" {
@@ -670,6 +670,7 @@ var collectionContract = domain.ComponentContract{
 		{Name: "empty", Kind: "string"},
 		{Name: "ordered", Kind: "bool"},
 		{Name: "divided", Kind: "bool"},
+		{Name: "block", Kind: "bool"},
 		{Name: "truncated", Kind: "int"},
 		{Name: "heading", Kind: "string"},
 		{Name: "hint", Kind: "string"},
@@ -677,7 +678,7 @@ var collectionContract = domain.ComponentContract{
 	DataRequirements: nil,
 	Slots:            []string{"item"},
 	Actions:          nil,
-	Accessibility:    "renders a real <ul>/<li>, or an <ol>/<li> when `ordered` is true, so the list and its length (and, ordered, each item's position) are announced without an explicit role (`divided` changes the look only: the same list element, the rule between rows is a border and not an element) -- the drawn ordinal is aria-hidden for that reason, never the only carrier of the position; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list; with a `heading` it first draws that title as a real heading element followed by the number of items as a count badge and the optional `hint`, in that reading order, so a section's size is read out next to its name and a section with no items and no `empty` text is not drawn at all (lowering decides that, `hide_empty`, so a heading never stands over nothing); with `truncated` (the bound that cut the list short) it adds a paragraph after the list naming that bound, in words, so a reader who cannot see the list's end is told it is not the end",
+	Accessibility:    "renders a real <ul>/<li>, or an <ol>/<li> when `ordered` is true, so the list and its length (and, ordered, each item's position) are announced without an explicit role (`block` makes each item one full-width block, still a <li>; `divided` changes the look only: the same list element, the rule between rows is a border and not an element) -- the drawn ordinal is aria-hidden for that reason, never the only carrier of the position; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list; with a `heading` it first draws that title as a real heading element followed by the number of items as a count badge and the optional `hint`, in that reading order, so a section's size is read out next to its name and a section with no items and no `empty` text is not drawn at all (lowering decides that, `hide_empty`, so a heading never stands over nothing); with `truncated` (the bound that cut the list short) it adds a paragraph after the list naming that bound, in words, so a reader who cannot see the list's end is told it is not the end",
 	Renderer:         "collection",
 }
 
@@ -688,6 +689,12 @@ func validateCollection(inputs map[string]string) []string {
 	}
 	if v := inputs["divided"]; v != "" && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Collection divided %q is not true or false", v))
+	}
+	if v := inputs["block"]; v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Collection block %q is not true or false", v))
+	}
+	if inputs["block"] == "true" && (inputs["divided"] == "true" || inputs["ordered"] == "true") {
+		issues = append(issues, "Collection block draws each item as one full-width block, so it is not also divided or ordered")
 	}
 	if v := inputs["truncated"]; v != "" {
 		if n, err := strconv.Atoi(v); err != nil || n <= 0 {

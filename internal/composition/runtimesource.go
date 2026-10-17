@@ -149,7 +149,9 @@ func sortValue(r *data.Record, field string) string {
 // on the request, so a grant to an Application since uninstalled is not shown.
 func groupsProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Record, error) {
 	workspaceID, _ := data.WorkspaceScope(ctx)
-	groups, err := l.store.ListGroups(ctx, workspaceID)
+	// Through the Loader's memo: a page asks several things of the Groups (this source, the roles a Form starts as, the
+	// members' own Groups), and each listing re-reads every grant.
+	groups, err := l.Groups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +170,7 @@ func groupsProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Rec
 		}
 		out = append(out, &data.Record{
 			ID: g.ID, MachineID: "mch_group", WorkspaceID: workspaceID,
-			Values: map[string]any{"fld_name": g.Name, "fld_member_count": count, "fld_grants": grantsLine(grants)},
+			Values: map[string]any{"fld_id": g.ID, "fld_name": g.Name, "fld_member_count": count, "fld_grants": grantsLine(grants)},
 		})
 	}
 	return out, nil
@@ -179,4 +181,23 @@ func grantsLine(grants []string) string {
 		return "Grants no role yet"
 	}
 	return strings.Join(grants, ", ")
+}
+
+// RuntimeRecordExists reports whether the runtime source provides a record with this id for this viewer. A runtime
+// screen that is one record's page asks it before drawing, so an id the source does not hold is a 404 and not an empty page.
+func RuntimeRecordExists(ctx context.Context, l *Loader, viewer domain.Actor, source, id string) (bool, error) {
+	provider, ok := runtimeProviders[source]
+	if !ok {
+		return false, fmt.Errorf("composition: runtime source %q has no provider", source)
+	}
+	rows, err := provider(ctx, l, viewer)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range rows {
+		if r.ID == id {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -69,7 +69,6 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"controls.templ":           {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
 	"detail.templ":             {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
 	"documentsubmit.templ":     {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 1 glyph box (size paired with a fixed circle)
-	"groups.templ":             {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
 	"login.templ":              {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L)
 	"newapplication.templ":     {size: 4, ink: 0, weight: 0, fill: 0}, // floors: 4 link look (T-L)
 	"reviewdocument.templ":     {size: 9, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 3 glyph box (size paired with a fixed circle), 4 10px marker legend (no role)

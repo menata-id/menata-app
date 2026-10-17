@@ -11,7 +11,9 @@ import "menata.app/internal/ir"
 // screens somebody wrote by hand, and this is the opposite of one.
 templ DeclaredScreen(navID string, body ir.UINode, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, navID), workspaceName, viewer, switchWorkspaceHref) {
-		@pageHeader(navID)
+		if !ownsHeadingByID(ctx, navID) {
+			@pageHeader(navID)
+		}
 		@uiNode(body)
 	}
 }

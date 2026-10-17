@@ -33,3 +33,19 @@ func TestValidateNavList(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateCollection_blockIsBooleanAndNotAlsoDividedOrOrdered(t *testing.T) {
+	with := func(k, v string) map[string]string {
+		m := map[string]string{"gap": "tight", "block": "true"}
+		m[k] = v
+		return m
+	}
+	if issues := validateCollection(map[string]string{"gap": "tight", "block": "true"}); len(issues) != 0 {
+		t.Errorf("a block list: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{"yes": with("block", "yes"), "divided": with("divided", "true"), "ordered": with("ordered", "true")} {
+		if issues := validateCollection(in); len(issues) == 0 {
+			t.Errorf("block with %s was accepted", name)
+		}
+	}
+}

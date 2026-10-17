@@ -214,7 +214,6 @@ var handWrittenCaptions = map[string]int{
 	"chooseworkspace.templ":    1, // the archived-workspaces note: `px-0.5 leading-4` (seen since rencana 3.2d joined class expressions)
 	"account.templ":            3, // :78 `mb-2` spacing; :127 apostrophe escapes to &#39;; :161 inline <span>
 	"documentsubmit.templ":     2, // :102 multi-line with an expression run; :190 multi-line text
-	"groups.templ":             1, // apostrophe ("Group's")
 	"reviewdocument.templ":     1, // `leading-5` plus an inline staticLink
 	"signatureplacement.templ": 2, // :157 multi-line text; :168 bordered well (`rounded-md bg-slate-50 p-3 leading-5`)
 	"workspacemembers.templ":   2, // :271 conditional branches; :337 apostrophe, multi-line
@@ -386,7 +385,6 @@ var handWrittenRawButtons = map[string]struct {
 	"chooseworkspace.templ":    {1, "a workspace card that submits: the whole tile is the button; pre-auth, no Workspace on ctx"},
 	"detail.templ":             {1, "the Share row of the record menu: an `onclick` that copies the link and rewrites its own hint"},
 	"documentsubmit.templ":     {4, "'+ Add approver' (`hx-get`, the link look) and the step's ▲ ▼ ✕ icon buttons, each a hyperscript `_=` that moves or removes its row"},
-	"groups.templ":             {1, "'Delete this group': a quiet destructive text action, grey at rest and red on hover (T-D)"},
 	"machine.templ":            {1, "the completion circle: an `aria-pressed` toggle drawn as a glyph"},
 	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same resting ink and hover as workspacemembers' Revoke (groups' is red at rest)"},
 	"reviewdocument.templ":     {1, "'Clear': the link look with a `sig-modal-clear` hook class a script finds"},

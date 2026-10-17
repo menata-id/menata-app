@@ -203,6 +203,17 @@ func titleByID(ctx context.Context, id string) string {
 	panic("rendering: no navigation item with id " + id)
 }
 
+// ownsHeadingByID says whether the page for navigation item id draws its own heading (a record's name), so the generic
+// header is left out. An unknown id is no one's, so it draws the header (and fails loudly there).
+func ownsHeadingByID(ctx context.Context, id string) bool {
+	for _, item := range declaredNavigation(ctx) {
+		if item.ID == id {
+			return item.OwnsHeading
+		}
+	}
+	return false
+}
+
 // descriptionByID is the sentence under that heading, or "" when the item declares none -- in
 // which case the Page renders no subtitle at all rather than inventing one.
 //

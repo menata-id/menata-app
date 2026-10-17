@@ -293,6 +293,10 @@ type FormSpec struct {
 	Inputs    []domain.FormInput
 }
 
+// ActionResolver answers a `write: action` binding for the record it sits beside ("" outside a template): the viewer's
+// permission and what a Form for it asks, which for the dynamic inputs depends on that record.
+type ActionResolver func(b domain.PageBinding, recordID string) (FormSpec, error)
+
 // FormResolver answers a write Binding (`write: create`).
 type FormResolver func(b domain.PageBinding) (FormSpec, error)
 
@@ -307,7 +311,7 @@ type Resolver struct {
 	Total   TotalResolver
 	// Action answers a `write: action` binding: the operation's route, whether this viewer may perform it, and what a
 	// Form for it asks. Only the runtime's own pages bind one.
-	Action FormResolver
+	Action ActionResolver
 	// Navigation answers a NavList's `section:`: the label of the list, the route the sidebar leads back to, and the
 	// destinations the navigation declares as part of it, in order. PageID is the navigation item the page being lowered
 	// belongs to, which is how the row for the screen the viewer is on is marked.
@@ -1592,16 +1596,16 @@ func lowerAction(n domain.PageNode, r Resolver, path string, record map[string]s
 			return nil, fmt.Errorf("%s: a runtime action's route comes from its name, so the node takes no %s", path, p)
 		}
 	}
-	spec, err := r.Action(*n.Binding)
+	recordID := ""
+	if record != nil {
+		recordID = record[domain.PageRecordIDRole]
+	}
+	spec, err := r.Action(*n.Binding, recordID)
 	if err != nil {
 		return nil, err
 	}
 	if !spec.Permitted {
 		return nil, nil
-	}
-	recordID := ""
-	if record != nil {
-		recordID = record[domain.PageRecordIDRole]
 	}
 	route := domain.RuntimeActionRoute(n.Binding.Action, recordID)
 	if n.Type == string(domain.ComponentButton) {
@@ -1693,7 +1697,7 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		if in.Default != "" {
 			ctl["value"] = in.Default
 		}
-		if in.Kind == domain.InputSelect {
+		if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
 			ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)
 		}
 		form.Children = append(form.Children, UINode{

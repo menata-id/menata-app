@@ -5,6 +5,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/a-h/templ"
+
+	"menata.app/internal/domain"
 )
 
 func renderNavList(t *testing.T, variant string) string {
@@ -52,5 +56,39 @@ func TestNavList_pageVariantShowsDescriptionsAndIsAlwaysDrawn(t *testing.T) {
 	}
 	if !strings.Contains(html, "Everyone here") || !strings.Contains(html, "Who holds what") {
 		t.Error("the page variant omits the descriptions")
+	}
+}
+
+func TestMultiSelectInput_drawsOneCheckboxPerOptionUnderOneNameTickedFromTheValue(t *testing.T) {
+	var buf bytes.Buffer
+	if err := formInput("ctl", "member", "multiselect", "u1=ann@example.com\nu2=bob@example.com\nplain", "u2\nplain", false).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	if n := strings.Count(html, `type="checkbox" name="member"`); n != 3 {
+		t.Errorf("%d checkboxes, want one per option: %s", n, html)
+	}
+	if !strings.Contains(html, `value="u2" checked`) || strings.Contains(html, `value="u1" checked`) || !strings.Contains(html, `value="plain" checked`) {
+		t.Errorf("ticked state wrong: %s", html)
+	}
+	if !strings.Contains(html, ">ann@example.com<") || !strings.Contains(html, ">plain<") {
+		t.Errorf("an option's label is not drawn (value=Label, or the value when there is no =): %s", html)
+	}
+}
+
+func TestCollection_blockDrawsEachItemAsOneColumnAndAPlainListStillWrapsInline(t *testing.T) {
+	item := []templ.Component{templ.Raw("<p>x</p>")}
+	var plain, block bytes.Buffer
+	if err := collection(domain.GapTight, "", false, false, false, Truncation{}, "", "", item).Render(context.Background(), &plain); err != nil {
+		t.Fatal(err)
+	}
+	if err := collection(domain.GapTight, "", false, false, true, Truncation{}, "", "", item).Render(context.Background(), &block); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(plain.String(), `<li class="flex flex-wrap items-center`) || strings.Contains(plain.String(), "flex-col\"><p>") {
+		t.Errorf("a plain list's item changed: %s", plain.String())
+	}
+	if !strings.Contains(block.String(), `<li class="flex flex-col`) || strings.Contains(block.String(), "flex-wrap") {
+		t.Errorf("a block list's item is not one column: %s", block.String())
 	}
 }

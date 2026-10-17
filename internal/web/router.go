@@ -332,10 +332,7 @@ func Routes(d Deps) http.Handler {
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
 			// gate as the member routes above.
 			ar.Get("/workspace-groups", showRuntimePage(d.Store, d.Cfg, "nav_workspace_groups").ServeHTTP)
-			ar.Get("/workspace-groups/{groupID}", showGroupDetail(d.Store, d.Cfg))
-			ar.Post("/workspace-groups/{groupID}/members", submitGroupMembers(d.Store))
-			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store))
-			ar.Post("/workspace-groups/{groupID}/delete", submitDeleteGroup(d.Store))
+			ar.Get("/workspace-groups/{groupID}", showRuntimeRecordPage(d.Store, d.Cfg, "nav_workspace_group", "groupID").ServeHTTP)
 
 			// AI Metadata Assistant (Flow 2 gap study Tahap 8) -- "Only workspace admins can add
 			// applications" (the mockup's own words, M03b-WorkspaceMenu.dc.html), same gate as

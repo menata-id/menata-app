@@ -218,16 +218,21 @@ const (
 	InputDate     InputKind = "date"
 	InputBoolean  InputKind = "boolean"
 	InputSelect   InputKind = "select"
+	// InputMultiSelect is a set of choices each ticked or not: a checkbox per option, all under one name, so the request
+	// carries the ticked values. Its options are `value=Label` lines and its value the ticked values joined by
+	// InputOptionsSep. Unticking everything is a meaningful answer (an empty set), which a lone checkbox is not.
+	InputMultiSelect InputKind = "multiselect"
 )
 
 // KnownInputKinds is the closed set.
 var KnownInputKinds = map[InputKind]bool{
-	InputText:     true,
-	InputLongText: true,
-	InputNumber:   true,
-	InputDate:     true,
-	InputBoolean:  true,
-	InputSelect:   true,
+	InputText:        true,
+	InputLongText:    true,
+	InputNumber:      true,
+	InputDate:        true,
+	InputBoolean:     true,
+	InputSelect:      true,
+	InputMultiSelect: true,
 }
 
 // InputOptionsSep joins a select's options into the one string property an `Input` carries them in. A newline,

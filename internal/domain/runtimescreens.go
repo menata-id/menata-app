@@ -55,6 +55,12 @@ var RuntimeScreens = []NavigationItem{
 		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 1,
 	},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups", Description: "Assign a role to a Group once, then add or remove members instead of editing every person's own row. A member's effective role in an Application is their direct assignment plus every role their Groups hold there.", SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 2},
+	// One Group's own screen: members, roles and delete, drawn for the record the route names. Not a settings row; it sits under
+	// Groups.
+	{
+		ID: "nav_workspace_group", Label: "Group", Route: "/workspace-groups", Title: "Group",
+		SettingsCurrent: "nav_workspace_groups", OwnsHeading: true, RecordSource: "groups",
+	},
 	// Invitations share Members' route: one page lists both (an invitation is not a membership, but it is drawn beside one).
 	{
 		ID: "nav_workspace_invitations", Label: "Invitations", Route: "/workspace-members", Description: "Pending and expired invitations.",

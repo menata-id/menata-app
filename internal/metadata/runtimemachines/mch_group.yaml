@@ -4,6 +4,7 @@ id: mch_group
 name: Group
 runtime: groups
 fields:
+  - { id: fld_id, name: Id, type: text }
   - { id: fld_name, name: Name, type: text, required: true }
   - { id: fld_member_count, name: Members, type: text }
   - { id: fld_grants, name: Grants, type: text }
@@ -17,3 +18,8 @@ datasets:
     sort:
       - { field: fld_name, direction: asc }
     limit: 200
+  # One Group, by the id a record page's route carries ($parameters.id).
+  - id: ds_runtime_group
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.id }
+    limit: 1

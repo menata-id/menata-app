@@ -427,7 +427,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		Navigation: func(section string) (ir.NavSection, error) {
 			return ir.NavSection{Label: "x", Home: "/x", Entries: []ir.NavEntry{{ID: "x", Group: "x", Label: "x", Href: "/x"}}}, nil
 		},
-		Action: func(b domain.PageBinding) (ir.FormSpec, error) {
+		Action: func(b domain.PageBinding, _ string) (ir.FormSpec, error) {
 			a := registry.RuntimeActions[b.Action]
 			spec := ir.FormSpec{Route: domain.RuntimeActionRoute(b.Action, ""), Permitted: true}
 			for _, in := range a.Inputs {
