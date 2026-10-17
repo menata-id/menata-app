@@ -20,8 +20,18 @@ machines:
   - dokter-kecil/approval_flow_template.yaml
   - dokter-kecil/approval_flow_template_step.yaml
   - ../notification.yaml
+  - dokter-kecil/category.yaml
+  - dokter-kecil/contract.yaml
+  - dokter-kecil/contract_term.yaml
+  - dokter-kecil/payment_plan.yaml
+  - dokter-kecil/purchase_order.yaml
 
 applications:
   - dokter-kecil/applications/document_tracking.yaml
   - dokter-kecil/applications/document_review.yaml
   - dokter-kecil/applications/document-approval.yaml
+  # Production Contracts and Instalments & Payments (2026-10-17): written into this Workspace rather than installed
+  # from the template library, because the second relates to the first's Machines and an install cannot yet declare
+  # that dependency (K-6, menata-app-document audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md).
+  - dokter-kecil/applications/production-contracts.yaml
+  - dokter-kecil/applications/instalments-payments.yaml

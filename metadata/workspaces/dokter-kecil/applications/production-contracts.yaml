@@ -1,0 +1,150 @@
+# Production Contracts -- the first of Dokter Kecil's two Applications (canvas page "Dokter Kecil · Aplikasi A", boards
+# K01a-K01g; plan menata-app-document audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md). Contracts with cast,
+# crew and vendors, grouped by Category, each with its instalments. Instalments & Payments watches the instalments
+# from every contract and pays them.
+id: app_production_contracts
+name: Production Contracts
+description: Contracts with cast, crew and vendors, and the instalments each one owes.
+icon: file-text
+color: blue
+summary_machine: mch_contract
+roles:
+  - admin
+  - production_manager
+  - member
+machines:
+  - mch_category
+  - mch_contract
+  - mch_contract_term
+navigation:
+  # Overview (K01a): four figures, overdue instalments, value by category, and every contract.
+  - id: nav_contracts_overview
+    label: Overview
+    title: Overview
+    description: Contract value, instalments falling due, and every contract by category.
+    route: /pages/nav_contracts_overview
+    priority: 1
+    icon: dashboard
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Active contract value
+              binding: { dataset: ds_contract_figures, measure: msr_active_value, rows: total }
+            - component: Metric
+              label: Active contracts
+              binding: { dataset: ds_contract_figures, measure: msr_active_count, rows: total }
+            - component: Metric
+              label: Due within 7 days
+              hint: unpaid, not yet overdue
+              tone: warn
+              binding: { dataset: ds_instalment_figures, measure: msr_due_soon_count, rows: total }
+            - component: Metric
+              label: Overdue instalments
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_count, rows: total }
+        - component: Collection
+          heading: Overdue instalments
+          hint: flagged by the schedule, not by whoever opens this page
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_instalments_overdue, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: money }
+                    - component: StatusBadge
+                      from: { label: "date:label", tone: "date:tone" }
+        - component: Collection
+          heading: Contracts by category
+          hint: contract value, cancelled contracts left out
+          gap: tight
+          divided: true
+          empty: No contracts yet. Add a category under Settings, then a contract.
+          binding: { dataset: ds_contracts_by_category, rows: dimension }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: paragraph
+                  from: { text: row:label }
+                - layout: row
+                  gap: default
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: measure:msr_category_count }
+                    - static: paragraph
+                      from: { text: measure:msr_category_value }
+        - component: Table
+          label: Contracts
+          empty: No contracts yet.
+          columns:
+            - { header: Contract no., from: title, href: record }
+            - { header: Contracted party, from: subtitle }
+            - { header: Type, from: detail }
+            - { header: Category, from: container }
+            - { header: Contract value, from: money, align: end }
+            - { header: Payment, from: status }
+          binding: { dataset: ds_contracts_table, rows: records }
+        - static: link
+          list_of: ds_contracts_table
+          text: All contracts, to add or edit one
+  # Contracts (K01b): the generic list, where a contract is created and edited. Its detail page lists the
+  # instalments (FindChildCollections).
+  - id: nav_contracts
+    label: Contracts
+    title: Contracts
+    description: Every contract. Open one to see and edit its instalments.
+    route: /machines/mch_contract
+    priority: 2
+    icon: file-text
+  # Instalments are entered here, one row per instalment, naming their contract (adding one from the contract page is
+  # plan direction B2).
+  - id: nav_contract_instalments
+    label: Instalments
+    title: Instalments
+    description: One row per instalment of every contract.
+    route: /machines/mch_contract_term
+    priority: 3
+    icon: calendar
+  # Settings (K01e): the runtime's own hub; Categories is master data, so it sits here rather than in the menu.
+  - id: nav_contracts_settings
+    label: Settings
+    title: Production Contracts settings
+    description: Applies to this application only.
+    route: /settings/nav_contracts_settings
+    icon: settings
+    settings_hub: true
+  - id: nav_contract_categories
+    label: Categories
+    description: Departments, cost accounts, cast groups -- whatever contracts are grouped by.
+    route: /machines/mch_category
+    icon: settings
+    settings_hub_member: true

@@ -1,0 +1,77 @@
+# Payment Plan -- Instalments & Payments' working record (canvas K02b-K02d): production plans one instalment's payment,
+# finance approves it, and only when the proof is uploaded is it Paid -- and only then the instalment. So "paid" means
+# the money moved and the evidence is in the system. One plan, one instalment; paying one instalment in stages needs a
+# figure written across records (K-3, plan direction A1).
+id: mch_payment_plan
+name: Payment Plan
+fields:
+  - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true }
+  - { id: fld_plan_no, name: Plan no., type: text, required: true }
+  - { id: fld_plan_amount, name: Planned amount (net), type: money, required: true }
+  - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
+  - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }
+  - { id: fld_requested_by, name: Requested by, type: person, stamp: current_user }
+  - { id: fld_plan_status, name: Status, type: status, default: Submitted, options: [Submitted, Awaiting proof, Paid, Rejected] }
+  - { id: fld_approved_on, name: Approved on, type: date }
+  - { id: fld_paid_date, name: Payment date, type: date }
+  # Required only when the plan becomes Paid: the plan form does not ask for it; the confirmation does.
+  - { id: fld_proof, name: Proof of payment, type: file, required_when: { field: fld_plan_status, equals: Paid } }
+
+card_fields:
+  - { field: fld_plan_no, role: title }
+  - { field: fld_term, role: container }
+  - { field: fld_plan_amount, role: money }
+  - { field: fld_plan_status, role: status }
+  - { field: fld_plan_date, role: date }
+  - { field: fld_requested_by, role: person }
+
+completion: { field: fld_plan_status, done: Paid }
+status_categories:
+  field: fld_plan_status
+  values: { Submitted: start, Awaiting proof: active, Paid: done, Rejected: stopped }
+
+transitions:
+  - { id: trn_plan_approve, name: Approve, field: fld_plan_status, from: Submitted, to: Awaiting proof, action: edit, roles: [finance, admin], sets: { fld_approved_on: today } }
+  - { id: trn_plan_reject, name: Reject, field: fld_plan_status, from: Submitted, to: Rejected, action: edit, roles: [finance, admin] }
+  - { id: trn_plan_settle, name: Mark as paid, field: fld_plan_status, from: Awaiting proof, to: Paid, action: edit, roles: [finance, admin], sets: { fld_paid_date: today } }
+
+# A paid plan's record is evidence: it stays as it is.
+permissions:
+  - { id: prm_plan_delete, action: delete, roles: [admin] }
+
+views:
+  - { id: vw_plan_table, name: Table, type: table }
+  - { id: vw_plan_board, name: Board, type: board, group_by: fld_plan_status }
+
+events:
+  - id: evt_plan_status_changed
+    on: fld_plan_status
+    then: { service: log_activity, summary: 'Payment plan {fld_plan_no} moved from {old} to {new}' }
+  # Only a paid plan says anything about its instalment. No default: a plan submitted or rejected leaves the
+  # instalment where the schedule put it (Overdue stays Overdue).
+  - id: evt_plan_rollup
+    on: fld_plan_status
+    then:
+      service: rollup_parent_status
+      parent_field: fld_term
+      target_field: fld_term_status
+      any: { value: Paid, set: Paid }
+  - id: evt_plan_submitted_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_role: finance
+      preference_key: assigned
+      summary: 'Payment plan {fld_plan_no} needs approval'
+
+datasets:
+  - id: ds_plans_to_approve
+    select: records
+    where: { field: fld_plan_status, op: equals, value: Submitted }
+    sort: [{ field: fld_plan_date, direction: asc }]
+    limit: 200
+  - id: ds_plans_awaiting_proof
+    select: records
+    where: { field: fld_plan_status, op: equals, value: Awaiting proof }
+    sort: [{ field: fld_plan_date, direction: asc }]
+    limit: 200

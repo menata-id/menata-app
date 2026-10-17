@@ -1,0 +1,152 @@
+# Instalments & Payments -- the second of Dokter Kecil's two Applications (canvas page "Dokter Kecil · Aplikasi B",
+# boards K02a-K02f). What falls due across every contract, the plans that pay it, and purchase orders. It relates to
+# Production Contracts' instalments and contracts: Machines belong to the Workspace, so that loads; what is missing is
+# a way to declare the dependency, so an install could refuse without it (K-6).
+id: app_instalments_payments
+name: Instalments & Payments
+description: Instalments falling due across every contract, and the plans that pay them.
+icon: bar-chart
+color: emerald
+summary_machine: mch_payment_plan
+roles:
+  - admin
+  - finance
+  - member
+machines:
+  - mch_payment_plan
+  - mch_po
+navigation:
+  # Instalments (K02a): the reason the app exists -- what falls due next, from every contract.
+  - id: nav_instalments_due
+    label: Instalments
+    title: Instalments
+    description: Every unpaid instalment from every contract, soonest due first.
+    route: /pages/nav_instalments_due
+    priority: 1
+    icon: calendar
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Overdue instalments
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_count, rows: total }
+            - component: Metric
+              label: Overdue, gross
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_gross, rows: total }
+            - component: Metric
+              label: Due within 7 days
+              tone: warn
+              binding: { dataset: ds_instalment_figures, measure: msr_due_soon_count, rows: total }
+            - component: Metric
+              label: Unpaid, gross
+              binding: { dataset: ds_instalment_figures, measure: msr_unpaid_gross, rows: total }
+        - component: Collection
+          heading: Payment plans to approve
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_plans_to_approve, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: money }
+                    - component: Button
+                      label: Approve
+                      variant: primary
+                      becomes: Awaiting proof
+                      from: { describes: title }
+                      binding: { write: transition }
+                    - component: Button
+                      label: Reject
+                      variant: secondary
+                      becomes: Rejected
+                      from: { describes: title }
+                      binding: { write: transition }
+        - component: Collection
+          heading: Awaiting proof of payment
+          hint: open the plan to upload the proof and mark it paid
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_plans_awaiting_proof, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - static: caption
+                  from: { text: money }
+        - component: Table
+          label: Unpaid instalments
+          empty: Every instalment is paid.
+          columns:
+            - { header: Instalment, from: title, href: record }
+            - { header: Contract, from: container }
+            - { header: Due, from: date, align: end }
+            - { header: Gross, from: money, align: end }
+            - { header: Status, from: status }
+          binding: { dataset: ds_instalments_unpaid, rows: records }
+        - layout: row
+          gap: default
+          children:
+            - static: link
+              list_of: ds_instalments_unpaid
+              text: All instalments
+            - static: link
+              list_of: ds_purchase_orders
+              text: Purchase orders
+  # Payment plans (K02b): created naming one instalment; approving and confirming happen on the plan's own page.
+  - id: nav_payment_plans
+    label: Payment plans
+    title: Payment plans
+    description: Plans to pay one instalment each. Approve, then upload the proof and mark it paid.
+    route: /machines/mch_payment_plan
+    priority: 2
+    icon: check-square
+  - id: nav_payments_settings
+    label: Settings
+    title: Instalments & Payments settings
+    description: Applies to this application only.
+    route: /settings/nav_payments_settings
+    icon: settings
+    settings_hub: true
+  - id: nav_purchase_orders
+    label: Purchase orders
+    description: One per vendor contract.
+    route: /machines/mch_po
+    icon: file-text
+    settings_hub_member: true
