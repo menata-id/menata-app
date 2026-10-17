@@ -1250,8 +1250,8 @@ func MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relat
 	})
 }
 
-// machineScreen is the generic Machine page: the Machine's own heading, its Field list, and its records
-// arranged by the selected View. A board View does not come through here -- it is a screen of its own
+// machineScreen is the generic Machine page: the Machine's own heading, its records arranged by the selected
+// View, and (for a Workspace admin only) the Machine id and Field schema below them. A board View does not come through here -- it is a screen of its own
 // (boardScreen), because a board's header, create affordance and per-column composer are not a Fields
 // table with a different Layout under it.
 func machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) templ.Component {

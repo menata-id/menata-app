@@ -169,6 +169,19 @@ the actual failure mode this convention exists to prevent: the two strings are t
 **A generic Machine's own page is always reachable at `/machines/{id}`** even with no navigation
 entry at all — navigation is a convenience menu, not what makes a Machine's CRUD screens exist.
 
+**What that generic page draws (2026-10-17).** The Machine's heading, then its **records** in the selected View, and
+below them, for a Workspace admin only, the Machine id and the Fields schema table (plumbing a member does not need).
+A `status` cell is a badge, toned from the Machine's `status_categories:` when it declares them (`start`/`active` info,
+`attention` warn, `done` good, `stopped` bad) and neutral when it does not, so declaring categories improves every
+generic list at no cost. It is still a fallback: an Application whose people work from a queue should declare a `page:`
+(section 12.1a) and keep the Machine list as a secondary navigation item. Helpdesk, Accounting, Maintenance and Lending
+in Workspace `default` are written that way.
+
+**A create Form does not ask for a governed status that has a default (2026-10-17).** If any `transitions:` edge names the
+status Field and the Field declares `default:`, a new record starts at that default and leaves it only along the edges, so
+the Form omits the select (a borrower cannot apply for a loan that is already `disbursed`). Without a `default:` the
+select stays, since nothing else would give the record a status.
+
 ## 3. Field types
 
 Each Field declares a `type:`. The full closed set the runtime understands

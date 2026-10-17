@@ -16,7 +16,7 @@ kept in a private companion repository.
 - **Declared screens**: a navigation item can declare its whole screen as a tree of layouts, text and components,
   bound to declared data. Lists, metrics, forms that create and edit records, buttons that move, delete or change
   the status of a record, and conditions on what a record shows. The board settings, dashboard, My Tasks and
-  calendar screens are drawn this way.
+  calendar screens are drawn this way, and so are the Helpdesk, Accounting, Maintenance and Lending queues.
 - **Data definitions**: named datasets with filters, sorting, grouping, counts and relations between models.
 - **Status categories**: a model can say which of its statuses are a start, in progress, needing attention, done or
   stopped, the basis for drawing a process map.
