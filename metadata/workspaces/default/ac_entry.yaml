@@ -16,6 +16,16 @@ fields:
     required: true
     options: [draft, posted]
     default: draft
+card_fields:
+  - field: fld_description
+    role: title
+  - field: fld_period
+    role: container
+  - field: fld_status
+    role: status
+status_categories:
+  field: fld_status
+  values: { draft: start, posted: done }
 permissions:
   - id: prm_create_entry
     action: create
@@ -38,3 +48,24 @@ frozen_when:
   via: fld_period
   field: fld_status
   equals: closed
+datasets:
+  - id: ds_ac_figures
+    measures:
+      - id: msr_draft
+        aggregate: count
+        where: { field: fld_status, op: equals, value: draft }
+      - id: msr_posted
+        aggregate: count
+        where: { field: fld_status, op: equals, value: posted }
+  - id: ds_ac_draft
+    select: records
+    where: { field: fld_status, op: equals, value: draft }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 200
+  - id: ds_ac_posted
+    select: records
+    where: { field: fld_status, op: equals, value: posted }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 50

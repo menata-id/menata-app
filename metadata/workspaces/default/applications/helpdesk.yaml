@@ -8,10 +8,203 @@ roles:
 icon: check
 color: blue
 navigation:
+  # Queue (Case 09 C09a): what needs an agent, worst first. Take, Wait, Resolve and Resume are the Machine's declared
+  # edges, drawn only for an agent. No create Form: a ticket's Agent is a person Field, and a Form cannot draw a
+  # reference Field yet (T4), so a ticket is opened from the Tickets list.
+  - id: nav_helpdesk_queue
+    label: Queue
+    title: Ticket queue
+    description: Open tickets by urgency. Take, wait on or resolve one without opening it.
+    route: /pages/nav_helpdesk_queue
+    priority: 1
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Open
+              binding: { dataset: ds_helpdesk_figures, measure: msr_open, rows: total }
+            - component: Metric
+              label: Overdue
+              hint: past the due date
+              tone: bad
+              binding: { dataset: ds_helpdesk_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Awaiting customer
+              tone: warn
+              binding: { dataset: ds_helpdesk_figures, measure: msr_waiting, rows: total }
+            - component: Metric
+              label: Reopened
+              binding: { dataset: ds_helpdesk_figures, measure: msr_reopened, rows: total }
+        - layout: stack
+          gap: default
+          empty: No open ticket needs attention.
+          children:
+            - component: Collection
+              heading: Overdue
+              hint: soonest due first
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_hd_overdue, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: caption
+                          from: { text: person }
+                        - component: Button
+                          label: Take
+                          variant: primary
+                          becomes: in_progress
+                          from: { describes: title }
+                          binding: { write: transition }
+                        - component: Button
+                          label: Resolve
+                          variant: secondary
+                          becomes: resolved
+                          from: { describes: title }
+                          binding: { write: transition }
+            - component: Collection
+              heading: Reopened
+              hint: the reporter was not satisfied
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_hd_reopened, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          tone: warn
+                          from: { label: status }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: caption
+                          from: { text: person }
+                        - component: Button
+                          label: Take again
+                          variant: primary
+                          becomes: in_progress
+                          from: { describes: title }
+                          binding: { write: transition }
+            - component: Collection
+              heading: Awaiting customer
+              hint: waiting for the reporter
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_hd_waiting, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: caption
+                          from: { text: person }
+                        - component: Button
+                          label: Resume
+                          variant: secondary
+                          becomes: in_progress
+                          from: { describes: title }
+                          binding: { write: transition }
+            - component: Collection
+              heading: New and in progress
+              hint: soonest due first
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_hd_active, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: caption
+                          from: { text: person }
+                        - component: Button
+                          label: Take
+                          variant: primary
+                          becomes: in_progress
+                          from: { describes: title }
+                          binding: { write: transition }
+                        - component: Button
+                          label: Wait
+                          variant: secondary
+                          becomes: waiting
+                          from: { describes: title }
+                          binding: { write: transition }
+                        - component: Button
+                          label: Resolve
+                          variant: secondary
+                          becomes: resolved
+                          from: { describes: title }
+                          binding: { write: transition }
+            - static: link
+              list_of: ds_hd_active
+              text: All tickets, as a board or a table
   - id: nav_helpdesk
     label: Tickets
     route: /machines/mch_helpdesk_ticket
-    home_card: true
+    priority: 2
+    home_card: false
   - id: nav_helpdesk_helpdesk_ticket_mine
     label: My tickets
     route: /pages/nav_helpdesk_helpdesk_ticket_mine

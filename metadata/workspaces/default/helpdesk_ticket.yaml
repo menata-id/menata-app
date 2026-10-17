@@ -198,3 +198,52 @@ datasets:
       - id: msr_open
         aggregate: count
         where: { field: fld_status, op: not_equals, value: $done }
+      - id: msr_overdue
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_status, op: not_equals, value: waiting }
+            - { field: fld_status, op: not_equals, value: reopened }
+            - { field: fld_due, op: lt, value: $today }
+      - id: msr_waiting
+        aggregate: count
+        where: { field: fld_status, op: equals, value: waiting }
+      - id: msr_reopened
+        aggregate: count
+        where: { field: fld_status, op: equals, value: reopened }
+  # The queue's sections (Case 09 C09a). Each is open work, worst first; together they hold every ticket not resolved.
+  - id: ds_hd_overdue
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_status, op: not_equals, value: waiting }
+        - { field: fld_status, op: not_equals, value: reopened }
+        - { field: fld_due, op: lt, value: $today }
+    sort:
+      - { field: fld_due, direction: asc }
+    limit: 200
+  - id: ds_hd_reopened
+    select: records
+    where: { field: fld_status, op: equals, value: reopened }
+    sort:
+      - { field: fld_due, direction: asc }
+    limit: 200
+  - id: ds_hd_waiting
+    select: records
+    where: { field: fld_status, op: equals, value: waiting }
+    sort:
+      - { field: fld_due, direction: asc }
+    limit: 200
+  - id: ds_hd_active
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_status, op: not_equals, value: waiting }
+        - { field: fld_status, op: not_equals, value: reopened }
+        - { field: fld_due, op: gte, value: $today }
+    sort:
+      - { field: fld_due, direction: asc }
+    limit: 200

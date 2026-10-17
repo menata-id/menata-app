@@ -505,6 +505,16 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 			<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
 		}
 	</div>
+	@stackLayout(domain.GapTight) {
+		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
+		@viewSwitcher(m, v)
+		switch v.EffectiveType() {
+			case domain.ViewCards:
+				@cardsLayout(m, cards)
+			default:
+				@tableLayout(m, records, relations, groups, actor, now)
+		}
+	}
 	if showMachineSchema(actor) {
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
@@ -528,16 +538,6 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 			}
 		</div>
 	}
-	}
-	@stackLayout(domain.GapTight) {
-		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
-		@viewSwitcher(m, v)
-		switch v.EffectiveType() {
-			case domain.ViewCards:
-				@cardsLayout(m, cards)
-			default:
-				@tableLayout(m, records, relations, groups, actor, now)
-		}
 	}
 }
 

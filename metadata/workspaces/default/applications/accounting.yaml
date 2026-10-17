@@ -12,12 +12,98 @@ icon: board
 color: blue
 summary_machine: mch_ac_entry
 navigation:
+  # Entries (Case 21 C21a): drafts that wait to be posted and what is already in the books. Post is the Machine's
+  # declared edge (supervisor only) and is refused unless the entry's debit and credit balance. No create Form: an
+  # entry belongs to a Period (a reference Field, T4) and carries its lines in another Machine (U-01), so an entry is
+  # opened from the Journal list.
+  - id: nav_ac_entries
+    label: Entries
+    title: Journal entries
+    description: Drafts waiting to be posted, and the entries already in the books.
+    route: /pages/nav_ac_entries
+    priority: 1
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 2
+          mobile: 2
+          children:
+            - component: Metric
+              label: Drafts
+              hint: waiting to be posted
+              tone: warn
+              binding: { dataset: ds_ac_figures, measure: msr_draft, rows: total }
+            - component: Metric
+              label: Posted
+              binding: { dataset: ds_ac_figures, measure: msr_posted, rows: total }
+        - component: Collection
+          heading: Waiting to be posted
+          hint: newest first
+          gap: tight
+          divided: true
+          empty: No draft waits to be posted.
+          complete: true
+          binding: { dataset: ds_ac_draft, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: StatusBadge
+                      tone: warn
+                      from: { label: status }
+                    - component: Button
+                      label: Post
+                      variant: primary
+                      becomes: posted
+                      from: { describes: title }
+                      binding: { write: transition }
+        - component: Collection
+          heading: Recently posted
+          hint: the latest fifty
+          gap: tight
+          divided: true
+          hide_empty: true
+          binding: { dataset: ds_ac_posted, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - component: StatusBadge
+                  tone: good
+                  from: { label: status }
   - id: nav_ac_entry
     label: Journal
     title: General journal
     description: Every journal entry and its status.
     route: /machines/mch_ac_entry
-    home_card: true
+    priority: 2
+    home_card: false
   - id: nav_ac_line
     label: Journal lines
     title: Journal lines
