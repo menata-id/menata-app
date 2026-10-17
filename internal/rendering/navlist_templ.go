@@ -70,7 +70,7 @@ func navList(label, variant, home, rows string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var2 = []any{"flex-col", layoutGap(ctx, domain.GapLoose), templ.KV("hidden w-55 shrink-0 sm:flex", variant == "sidebar"), templ.KV("flex", variant != "sidebar")}
+		var templ_7745c5c3_Var2 = []any{"flex-col", layoutGap(ctx, domain.GapLoose), templ.KV("hidden w-55 shrink-0 sm:flex", variant == "sidebar"), templ.KV("flex max-w-md", variant != "sidebar")}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

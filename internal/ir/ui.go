@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 
@@ -205,12 +206,12 @@ func componentHasSlot(t string) bool { return slottedComponents[t] }
 // Kept as data beside the validator rather than as a switch, so adding a property to a node type is one entry
 // and a reader can see the whole surface at once.
 var allowedProps = map[string][]string{
-	"layout/stack":               {"gap"},
+	"layout/stack":               {"gap", "anchor"},
 	"layout/row":                 {"gap", "align", "justify"},
 	"layout/grid":                {"gap", "mobile", "columns"},
 	"layout/split":               {"gap", "side", "aside"},
 	"layout/columns":             {"gap", "align"},
-	"layout/section":             {"gap", "current"},
+	"layout/section":             {"gap", "current", "anchor"},
 	"layout/panel":               {},
 	"static/eyebrow":             {"text"},
 	"static/heading":             {"text"},
@@ -262,8 +263,10 @@ var layoutPropValues = map[string]func(string) bool{
 	"side":            func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
 	"aside":           func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
 	"section/current": func(v string) bool { return v == "true" },
-	"mobile":          gridColsKnown,
-	"columns":         gridColsKnown,
+	// An anchor is a plain word: the id a `#fragment` link names, never a place for markup.
+	"anchor":  func(v string) bool { return anchorPattern.MatchString(v) },
+	"mobile":  gridColsKnown,
+	"columns": gridColsKnown,
 }
 
 func gridColsKnown(v string) bool {
@@ -303,3 +306,5 @@ func PermittedProps(kind NodeKind, typ string) []string {
 	slices.Sort(keys)
 	return keys
 }
+
+var anchorPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)

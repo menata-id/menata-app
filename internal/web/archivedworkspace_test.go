@@ -99,7 +99,7 @@ func TestBlockWritesToArchivedWorkspace_allowsAllowlist(t *testing.T) {
 // TestSubmitArchiveWorkspace covers the Danger Zone action end to end: it archives the ctx-scoped
 // Workspace and redirects to /switch-workspace, not /home, since the Workspace the request was
 // sitting in is now the one that just became read-only.
-func TestSubmitArchiveWorkspace(t *testing.T) {
+func TestRunArchiveWorkspace(t *testing.T) {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
 	cfg := config.Config{SessionSecret: "submit-archive-test-secret", SecureCookies: false}
@@ -111,23 +111,23 @@ func TestSubmitArchiveWorkspace(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, "unused_submit_archive_test@example.com")
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace-settings/archive", nil)
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/archive_workspace", nil)
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
 	rec := httptest.NewRecorder()
-	submitArchiveWorkspace(store, cfg)(rec, req)
+	actionRouter(runtimeAction(store, nil, cfg, nil))(rec, req)
 
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("submitArchiveWorkspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("archive_workspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
 	}
 	if got := rec.Header().Get("Location"); got != "/switch-workspace" {
-		t.Errorf("submitArchiveWorkspace redirected to %q, want /switch-workspace", got)
+		t.Errorf("archive_workspace redirected to %q, want /switch-workspace", got)
 	}
 	row, err := store.GetWorkspace(ctx, ws.ID)
 	if err != nil {
 		t.Fatalf("GetWorkspace: %v", err)
 	}
 	if !row.Archived {
-		t.Error("submitArchiveWorkspace did not archive the workspace")
+		t.Error("archive_workspace did not archive the workspace")
 	}
 }
 
@@ -160,18 +160,18 @@ func TestSubmitArchiveWorkspace_authenticatedAdminStaysSignedIn(t *testing.T) {
 
 	sessionCookie := &http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)}
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace-settings/archive", nil)
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/archive_workspace", nil)
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
 	req.AddCookie(sessionCookie)
 	rec := httptest.NewRecorder()
-	submitArchiveWorkspace(store, cfg)(rec, req)
+	actionRouter(runtimeAction(store, nil, cfg, nil))(rec, req)
 
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("submitArchiveWorkspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("archive_workspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
 	}
 	location := rec.Header().Get("Location")
 	if location != "/switch-workspace" {
-		t.Fatalf("submitArchiveWorkspace redirected to %q, want /switch-workspace", location)
+		t.Fatalf("archive_workspace redirected to %q, want /switch-workspace", location)
 	}
 
 	// No pending_email cookie is ever set in this test -- only the real session cookie, which is
@@ -251,5 +251,23 @@ func TestSubmitRestoreWorkspaceFromChoose_requiresAdmin(t *testing.T) {
 	}
 	if row.Archived {
 		t.Error("submitRestoreWorkspaceFromChoose(admin) did not restore the workspace")
+	}
+}
+
+// An action that needs the process's reload hook says so when the process has none, instead of reporting success.
+func TestRunReloadWorkspace_saysWhenTheProcessHasNoReloadHook(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ws, err := store.CreateWorkspace(context.Background(), "Reload Hook Test", "reload-hook-test-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, "unused_reload_hook_test@example.com")
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/reload_workspace", nil)
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	rec := httptest.NewRecorder()
+	actionRouter(runtimeAction(store, nil, config.Config{}, nil))(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("reload with no hook = %d, want 500 saying so", rec.Code)
 	}
 }

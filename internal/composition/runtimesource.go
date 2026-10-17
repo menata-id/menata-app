@@ -50,6 +50,29 @@ func (l *Loader) WithRuntime(machines []*domain.Machine, viewer domain.Actor) *L
 	return l
 }
 
+// WithRuntimeProvider supplies the reader of a source whose registry entry says `Provider: "web"`: a handler passes a
+// closure over what only it holds. A source not so marked cannot be given a reader here, so a handler cannot replace
+// what composition provides.
+func (l *Loader) WithRuntimeProvider(source string, p RuntimeProvider) *Loader {
+	if registry.RuntimeSources[source].Provider != "web" {
+		return l
+	}
+	if l.extraProviders == nil {
+		l.extraProviders = map[string]RuntimeProvider{}
+	}
+	l.extraProviders[source] = p
+	return l
+}
+
+// provider is the reader of a source: composition's own, or the handler's for a "web" source.
+func (l *Loader) provider(source string) (RuntimeProvider, bool) {
+	if p, ok := runtimeProviders[source]; ok {
+		return p, true
+	}
+	p, ok := l.extraProviders[source]
+	return p, ok
+}
+
 // WithParams hands the request's query parameters to the runtime sources, which may read only the ones the registry says
 // they understand (registry.RuntimeSource.Params): a provider asks for one by name through sourceParam, never for the
 // request.
@@ -73,7 +96,7 @@ func (l *Loader) sourceParam(source, name string) string {
 // Dataset's `where:`, ordered by its `sort:` and cut at its `limit:`, all in memory, with the same fail-closed reading of
 // a sentinel the database path has.
 func (l *Loader) selectRuntime(ctx context.Context, ds domain.Dataset, src *domain.Machine, where expression.Context) ([]*data.Record, bool, error) {
-	provider, ok := runtimeProviders[src.Runtime]
+	provider, ok := l.provider(src.Runtime)
 	if !ok {
 		return nil, false, fmt.Errorf("composition: runtime machine %s names source %q, which has no provider", src.ID, src.Runtime)
 	}
@@ -208,7 +231,7 @@ func grantsLine(grants []string) string {
 // RuntimeRecordExists reports whether the runtime source provides a record with this id for this viewer. A runtime
 // screen that is one record's page asks it before drawing, so an id the source does not hold is a 404 and not an empty page.
 func RuntimeRecordExists(ctx context.Context, l *Loader, viewer domain.Actor, source, id string) (bool, error) {
-	provider, ok := runtimeProviders[source]
+	provider, ok := l.provider(source)
 	if !ok {
 		return false, fmt.Errorf("composition: runtime source %q has no provider", source)
 	}

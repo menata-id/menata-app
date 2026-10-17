@@ -146,7 +146,7 @@ func TestSubmitGroupMembers_membershipLandsAndEffectiveRolesSeeIt(t *testing.T) 
 
 	form := url.Values{"member": {actorID}}
 	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/set_group_members?record="+group.ID, runtimeAction(store, nil, config.Config{}), form)
+		"/runtime-actions/set_group_members?record="+group.ID, runtimeAction(store, nil, config.Config{}, nil), form)
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("set group members = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -191,7 +191,7 @@ func TestSubmitDeleteGroup_removesTheGroupAndItsGrants(t *testing.T) {
 	}
 
 	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/delete_group?record="+group.ID, runtimeAction(store, nil, config.Config{}), url.Values{})
+		"/runtime-actions/delete_group?record="+group.ID, runtimeAction(store, nil, config.Config{}, nil), url.Values{})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("delete group = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -224,7 +224,7 @@ func TestSubmitRevokeInvite_removesThePendingInvitation(t *testing.T) {
 	}
 
 	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/revoke_invite?record="+url.QueryEscape(invited), runtimeAction(store, nil, config.Config{}), url.Values{})
+		"/runtime-actions/revoke_invite?record="+url.QueryEscape(invited), runtimeAction(store, nil, config.Config{}, nil), url.Values{})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("revoke invite = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -235,7 +235,7 @@ func TestSubmitRevokeInvite_removesThePendingInvitation(t *testing.T) {
 	// No invitation named is refused rather than deleting nothing silently -- the difference between "that
 	// invitation is gone" and "the request named nothing and the screen said it worked".
 	if rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/revoke_invite", runtimeAction(store, nil, config.Config{}), url.Values{}); rec.Code != http.StatusBadRequest {
+		"/runtime-actions/revoke_invite", runtimeAction(store, nil, config.Config{}, nil), url.Values{}); rec.Code != http.StatusBadRequest {
 		t.Errorf("revoke naming no invitation = %d, want 400", rec.Code)
 	}
 }

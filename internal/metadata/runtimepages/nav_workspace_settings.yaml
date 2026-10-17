@@ -1,0 +1,64 @@
+# The Workspace's settings hub: every settings section as a row, how its installation is re-read and put back, and archiving
+# it. The rows are derived from the runtime screens that declare themselves part of the section (NavList), so this page and the
+# sidebar beside every other settings screen cannot disagree. Admin only (the default).
+id: nav_workspace_settings
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - component: NavList
+      section: workspace_settings
+      variant: page
+    - layout: section
+      gap: default
+      anchor: installation
+      children:
+        - static: panel-heading
+          text: Installation
+        - static: caption
+          text: Re-read this workspace's files after editing them by hand. A file that does not load changes nothing.
+        - component: Button
+          label: Reload from disk
+          variant: secondary
+          binding: { write: action, action: reload_workspace }
+        - static: link
+          to: nav_workspace_files
+          text: Replace a file
+        - static: caption
+          text: Paste a corrected YAML file and see what would change first.
+        - static: subheading
+          text: Saved installations
+        - static: caption
+          text: Taken before each install, publish or restore. Restoring saves the current one first, so it can be undone.
+        - component: Collection
+          gap: tight
+          divided: true
+          block: true
+          empty: No saved installations yet.
+          binding: { dataset: ds_runtime_snapshots, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: paragraph
+                  from: { text: title }
+                - component: Button
+                  label: Restore
+                  variant: secondary
+                  confirm: Restore this saved installation? The current one is saved first.
+                  binding: { write: action, action: restore_snapshot }
+    - layout: section
+      gap: default
+      anchor: danger-zone
+      children:
+        - static: panel-heading
+          text: Danger zone
+        - static: caption
+          text: "Transfer ownership: no single Workspace Owner exists yet to transfer."
+        - component: Button
+          label: Archive workspace
+          variant: danger
+          confirm: Archive this workspace? It becomes read-only and hidden from members until an admin restores it.
+          binding: { write: action, action: archive_workspace }

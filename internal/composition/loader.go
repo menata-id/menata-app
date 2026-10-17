@@ -79,6 +79,9 @@ type Loader struct {
 	runtimeViewer domain.Actor
 	hasRuntime    bool
 	runtimeParams map[string]string
+	// extraProviders are readers a handler supplies for the sources registry says it provides (Provider "web"): they need
+	// the process's own configuration, which this package cannot see.
+	extraProviders map[string]RuntimeProvider
 }
 
 // NewLoader returns a Loader for one request.

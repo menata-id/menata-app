@@ -24,6 +24,9 @@ type RuntimeSource struct {
 	// Params are the request parameters the provider reads to narrow its rows (a search box's `q`). Nothing else of the
 	// request reaches a provider.
 	Params []string
+	// Provider says where the reader lives when it is not `internal/composition`: "web" for a source that needs the process's
+	// own configuration (the backup directory), which composition cannot see. Empty is composition.
+	Provider string
 }
 
 // RuntimeSources is the closed set a Machine's `runtime:` may name.
@@ -32,6 +35,8 @@ var RuntimeSources = map[string]RuntimeSource{
 		Doc: "the Workspace's members, each with the roles they hold, the Groups they belong to and whether they are active; `q` narrows by name or email; for the Workspace's admins"},
 	"invites": {ID: "invites", Provides: []string{"fld_id", "fld_title"}, Params: []string{"q"},
 		Doc: "the invitations nobody has accepted yet, each with the roles it will become; `q` narrows by email; for the Workspace's admins"},
+	"snapshots": {ID: "snapshots", Provides: []string{"fld_id", "fld_title"}, Provider: "web",
+		Doc: "the Workspace's saved installations, newest first, each with when it was taken and how large; for the Workspace's admins"},
 	"groups": {ID: "groups", Provides: []string{"fld_name"}, RecordRoute: "/workspace-groups/{id}", Doc: "the Workspace's Groups, each with its member count and the role it grants per Application; for the Workspace's admins"},
 }
 

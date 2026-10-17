@@ -312,10 +312,9 @@ func Routes(d Deps) http.Handler {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
 			// nav_workspace_settings (Flow 2 gap study Tahap 5) -- the Workspace-level Settings
 			// hub, same admin gate as everything else in this group.
-			ar.Get("/workspace-settings", showWorkspaceSettings(d.Store, d.Cfg))
+			ar.Get("/workspace-settings", showRuntimePage(d.Store, d.Cfg, "nav_workspace_settings").ServeHTTP)
 			// Danger zone's Archive action (Flow 2 gap study Tahap 7) -- taken from inside the
 			// Workspace being archived, same admin gate as the hub itself.
-			ar.Post("/workspace-settings/archive", submitArchiveWorkspace(d.Store, d.Cfg))
 			ar.Get("/workspace-members", showRuntimePage(d.Store, d.Cfg, "nav_workspace_members").ServeHTTP)
 			// An Application's own Members & roles (S2.2): one role column, scoped to the Application the
 			// hub belongs to. Same admin gate as the Workspace page it narrows.
@@ -349,9 +348,7 @@ func Routes(d Deps) http.Handler {
 			// read (TestGetRoutesDoNotWrite).
 			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
 			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
-			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Mailer, d.Cfg))
-			ar.Post("/reload-workspace", submitReloadWorkspace(d.Store, d.Cfg, d.ReloadMetadata))
-			ar.Post("/restore-workspace-snapshot", submitRestoreSnapshot(d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Mailer, d.Cfg, d.ReloadMetadata))
 			ar.Post("/workspace-settings/validate", submitValidateFiles(d.Store, d.Cfg))
 			ar.Get("/workspace-settings/files", showWorkspaceFiles(d.Store, d.Cfg))
 			ar.Post("/workspace-settings/files", reviewWorkspaceFiles(d.Store, d.Cfg))

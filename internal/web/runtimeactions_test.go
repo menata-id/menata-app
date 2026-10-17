@@ -151,3 +151,12 @@ func TestRuntimeAction_setMemberAccessRefusesAnInvalidWorkspaceRole(t *testing.T
 		t.Errorf("the role did not land: %+v", m)
 	}
 }
+
+func TestWebProvidedRuntimeSourcesHaveAReader(t *testing.T) {
+	// Every source the registry leaves to the handler is one the handler supplies a reader for: snapshotsProvider is the one.
+	for id, src := range registry.RuntimeSources {
+		if src.Provider == "web" && id != "snapshots" {
+			t.Errorf("registry leaves source %q to the web package and nothing here supplies a reader for it", id)
+		}
+	}
+}

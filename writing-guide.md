@@ -1189,7 +1189,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 | Key | Value | Meaning |
 |---|---|---|
-| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
+| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `anchor`, `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, `EmptyState`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
@@ -1898,6 +1898,7 @@ a Button's own rule (Permission, `transitions:`) still decides whether it is dra
 
 - **`binding: {write: action, action: create_group}`** on a `Form` (it asks what the action asks) or on a `Button` inside a Collection over a runtime source's Machine (`action: delete_group`, with a `confirm:` sentence). Nothing else about the request is written; the closed set of actions is `registry.RuntimeActions`. A Workspace's or an Application's page that names one is a load error.
 - **`component: NavList`** with `section: workspace_settings` and `variant: sidebar|page`: the grouped list of the settings screens, one marked as where the viewer is. You write neither the rows nor the label: they come from the runtime screens that declare themselves part of the section. Put the sidebar in `layout: split` with `side: start` and `aside: compact` (220px from `sm` up, not drawn on a phone).
+- **`anchor: <word>`** on a `layout: stack` or `section` makes it the target of a `#fragment` link (drawn as one wrapping element holding the id); the word is lowercase letters, digits and hyphens, starting with a letter.
 - **`component: SearchBox`** with `label`, `query` (the key; `q` for the members and invitations) and `placeholder`: a GET form that sends its words back to the page; the runtime source the page reads narrows from the key, and the box keeps the words the request carried. It never narrows by itself.
 - **`from: {text: subtitle}`, `from: {text: detail}` and `from: {text: summary}`**: two plain lines and a longer sentence a Machine's `card_fields` may give a record under its title.
 

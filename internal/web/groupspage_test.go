@@ -299,3 +299,45 @@ func TestMemberIsARuntimePageForOneMember(t *testing.T) {
 		t.Errorf("an unknown member = %d, want 404", rec.Code)
 	}
 }
+
+// TestWorkspaceSettingsIsARuntimePage: /workspace-settings is the runtime's declared hub. Its rows are the settings sections
+// (Groups among them, which the hand-written hub never listed), the sidebar-only Danger zone row is not one of them, the
+// Installation and Danger zone sections carry the anchors the sidebar links to, and reload, archive and a saved installation's
+// restore are the runtime's named actions; an admin opens it and a member does not.
+func TestWorkspaceSettingsIsARuntimePage(t *testing.T) {
+	h, cookie, ctx, store, _, _, _ := routerSetupFor(t, "settingshub", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	body := getPage(t, h, cookie, "/workspace-settings")
+	for _, want := range []string{
+		`<nav aria-label="Workspace settings"`, `href="/workspace-groups"`, `href="/workspace-members"`, "Invitations", "Not built yet",
+		`id="installation"`, `id="danger-zone"`, `hx-post="/runtime-actions/reload_workspace"`, "Reload from disk",
+		`href="/workspace-settings/files"`, "Saved installations", "No saved installations yet.",
+		`hx-post="/runtime-actions/archive_workspace"`, "Archive workspace", "hx-confirm=", "Transfer ownership",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the settings hub does not contain %q", want)
+		}
+	}
+	if strings.Contains(body, `href="/workspace-settings#danger-zone"`) {
+		t.Error("the page variant draws the sidebar-only Danger zone row")
+	}
+	if strings.Contains(body, `aria-current="page"`) {
+		t.Error("the hub marks a settings row current; it is the list, not one of the rows")
+	}
+
+	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "settingshub_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", member.ID) })
+	if err := store.AddMember(ctx, wsID, member.ID, "settingshub_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/workspace-settings", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, config.Config{SessionSecret: "settingshub-secret"}, member.ID, 0)})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("a member opening the settings hub = %d, want 403", rec.Code)
+	}
+}

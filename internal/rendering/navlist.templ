@@ -42,7 +42,7 @@ func navListGroups(rows string) []navGroup {
 // list; it leads with a link back to that hub (`home`). `page` is the hub's own list, each row with its description. A row
 // for a section that is not built says so and links nowhere, so a navigation list cannot lead to a page that does not exist.
 templ navList(label, variant, home, rows string) {
-	<nav aria-label={ label } class={ "flex-col", layoutGap(ctx, domain.GapLoose), templ.KV("hidden w-55 shrink-0 sm:flex", variant == "sidebar"), templ.KV("flex", variant != "sidebar") }>
+	<nav aria-label={ label } class={ "flex-col", layoutGap(ctx, domain.GapLoose), templ.KV("hidden w-55 shrink-0 sm:flex", variant == "sidebar"), templ.KV("flex max-w-md", variant != "sidebar") }>
 		if variant == "sidebar" && home != "" {
 			<a href={ templ.SafeURL(home) } class={ "px-3", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { label }</a>
 		}

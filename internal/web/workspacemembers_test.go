@@ -48,7 +48,7 @@ func TestSubmitInviteMember_recordsInvitationWithoutMembership(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg, nil))
 	form := strings.NewReader("email=" + email + "&" +
 		url.QueryEscape("app_role[app_document_approval]") + "=approver")
 	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", form)
@@ -108,7 +108,7 @@ func TestSubmitInviteMember_missingEmailIsRejected(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg, nil))
 	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", strings.NewReader("email="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
@@ -153,7 +153,7 @@ func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
 		t.Fatalf("AddMember: %v", err)
 	}
 
-	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg, nil))
 	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", strings.NewReader("email="+email))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
@@ -199,7 +199,7 @@ func postDeactivate(t *testing.T, store *data.Store, machines map[string]*domain
 	req = req.WithContext(rendering.WithCurrentWorkspace(
 		data.WithWorkspaceScope(req.Context(), workspaceID), testWorkspaceFor(machines), "Test Workspace", false))
 	r := chi.NewRouter()
-	r.Post("/runtime-actions/{action}", runtimeAction(store, nil, config.Config{}))
+	r.Post("/runtime-actions/{action}", runtimeAction(store, nil, config.Config{}, nil))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec
@@ -325,7 +325,7 @@ func TestSubmitReactivateMember_reversesDeactivation(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/reactivate_member?record="+user.ID, nil)
 	req = req.WithContext(wsCtx)
 	r := chi.NewRouter()
-	r.Post("/runtime-actions/{action}", runtimeAction(store, nil, config.Config{}))
+	r.Post("/runtime-actions/{action}", runtimeAction(store, nil, config.Config{}, nil))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -367,7 +367,7 @@ func TestRunInviteMember_anUndeclaredRoleIsRefusedAndNothingIsRecorded(t *testin
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
-	actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))(rec, req)
+	actionRouter(runtimeAction(store, mail.LogMailer{}, cfg, nil))(rec, req)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422; body: %s", rec.Code, rec.Body.String())
 	}

@@ -100,3 +100,18 @@ func TestLower_aSearchBoxWritesNoValueAndUsesNoQueryTheRuntimeOwns(t *testing.T)
 		}
 	}
 }
+
+func TestLower_aLayoutMayCarryAnAnchorThatIsAPlainWord(t *testing.T) {
+	for anchor, ok := range map[string]bool{"danger-zone": true, "installation": true, "x1": true, "Danger": false, "a b": false, "1a": false, "a\"b": false, "<b>": false} {
+		n := formPage(domain.PageNode{Kind: "layout", Type: "section", Props: map[string]string{"gap": "default", "anchor": anchor},
+			Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}})
+		got, err := Lower(n, Resolver{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		issues := Validate(got)
+		if (len(issues) == 0) != ok {
+			t.Errorf("anchor %q: valid=%v, want %v (%v)", anchor, len(issues) == 0, ok, issues)
+		}
+	}
+}

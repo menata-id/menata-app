@@ -14,8 +14,10 @@ import (
 
 func TestRuntimeSourcesAndProvidersAgree(t *testing.T) {
 	var declared []string
-	for id := range registry.RuntimeSources {
-		declared = append(declared, id)
+	for id, src := range registry.RuntimeSources {
+		if src.Provider == "" {
+			declared = append(declared, id)
+		}
 	}
 	slices.Sort(declared)
 	if got := RuntimeProviderIDs(); !slices.Equal(got, declared) {
@@ -226,5 +228,20 @@ func TestEffectiveAccessLine_mergesDirectAndGroupRolesAndNamesTheGroups(t *testi
 	}
 	if got := effectiveAccessLine(apps, data.Membership{}); got != "No application access." {
 		t.Errorf("nothing held = %q", got)
+	}
+}
+
+// A handler may supply the reader of a source the registry says it provides, and cannot replace one composition provides.
+func TestWithRuntimeProvider_isAcceptedOnlyForASourceTheRegistryLeavesToTheHandler(t *testing.T) {
+	fake := func(context.Context, *Loader, domain.Actor) ([]*data.Record, error) { return nil, nil }
+	l := NewLoader(nil, nil).WithRuntimeProvider("snapshots", fake).WithRuntimeProvider("groups", fake)
+	if _, ok := l.provider("snapshots"); !ok {
+		t.Error("a web source's reader was not taken")
+	}
+	if _, ok := l.extraProviders["groups"]; ok {
+		t.Error("a handler replaced a source composition provides")
+	}
+	if p, ok := l.provider("groups"); !ok || p == nil {
+		t.Error("composition's own reader was lost")
 	}
 }

@@ -261,7 +261,7 @@ func userMachineFor(t *testing.T, loaded *metadata.App) *domain.Machine {
 	return nil
 }
 
-// TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne drives POST /restore-workspace-snapshot as the
+// TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne drives POST /runtime-actions/restore_snapshot as the
 // Workspace admin: a snapshot taken before an edit is restored through the router and the edit is gone, a made-up id
 // answers 422 and leaves the files alone, and the restore itself left a snapshot behind (so it can be undone).
 func TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne(t *testing.T) {
@@ -282,7 +282,7 @@ func TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne(t *testi
 		t.Fatalf("ListSnapshots = %v, %v", list, err)
 	}
 
-	bad := s.postTo(t, "/restore-workspace-snapshot", url.Values{"snapshot": {"20200101T000000.000000000Z"}})
+	bad := s.postTo(t, "/runtime-actions/restore_snapshot?record=20200101T000000.000000000Z", url.Values{})
 	if bad.Code != http.StatusUnprocessableEntity {
 		t.Errorf("an unknown snapshot answered %d, want 422", bad.Code)
 	}
@@ -290,7 +290,7 @@ func TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne(t *testi
 		t.Error("a refused restore changed the manifest")
 	}
 
-	ok := s.postTo(t, "/restore-workspace-snapshot", url.Values{"snapshot": {list[0].ID}})
+	ok := s.postTo(t, "/runtime-actions/restore_snapshot?record="+list[0].ID, url.Values{})
 	if ok.Code != http.StatusSeeOther && ok.Code != http.StatusOK {
 		t.Fatalf("restore answered %d: %s", ok.Code, ok.Body.String())
 	}
@@ -322,7 +322,7 @@ func TestWorkspaceSettingsListsSavedInstallationsFromTheRealStore(t *testing.T) 
 	}
 
 	before := get()
-	if !strings.Contains(before, `action="/reload-workspace"`) || !strings.Contains(before, "No saved installations yet.") {
+	if !strings.Contains(before, `hx-post="/runtime-actions/reload_workspace"`) || !strings.Contains(before, "No saved installations yet.") {
 		t.Error("the hub with no snapshot should carry the reload button and say none are saved")
 	}
 	if _, err := installer.SnapshotWorkspace(s.manifestPath, s.deps.Cfg.BackupDir, time.Now().Add(-time.Hour)); err != nil {
@@ -333,7 +333,7 @@ func TestWorkspaceSettingsListsSavedInstallationsFromTheRealStore(t *testing.T) 
 		t.Fatalf("ListSnapshots = %v, %v", list, err)
 	}
 	after := get()
-	if !strings.Contains(after, `value="`+list[0].ID+`"`) || !strings.Contains(after, `action="/restore-workspace-snapshot"`) {
+	if !strings.Contains(after, `hx-post="/runtime-actions/restore_snapshot?record=`+list[0].ID+`"`) {
 		t.Errorf("the hub does not offer to restore snapshot %s", list[0].ID)
 	}
 }
@@ -382,7 +382,7 @@ func TestReloadWorkspaceSnapshotsAHandEditOnce(t *testing.T) {
 	writeTestFile(t, s.manifestPath, string(body)+"# hand edit\n")
 
 	for i := 0; i < 3; i++ {
-		if rec := s.postTo(t, "/reload-workspace", url.Values{}); rec.Code != http.StatusSeeOther && rec.Code != http.StatusOK {
+		if rec := s.postTo(t, "/runtime-actions/reload_workspace", url.Values{}); rec.Code != http.StatusSeeOther && rec.Code != http.StatusOK {
 			t.Fatalf("reload %d answered %d: %s", i, rec.Code, rec.Body.String())
 		}
 	}

@@ -1417,6 +1417,47 @@ func headerTree(appName, title, description string) ir.UINode {
 	}
 }
 
+// uiLayout draws one Layout node through the primitives. A node that carries an `anchor` is wrapped by uiNode in one
+// element that holds the id (the target of a `#fragment` link), so no primitive accepts an arbitrary attribute.
+templ uiLayout(n ir.UINode) {
+	switch domain.LayoutKind(n.Type) {
+		case domain.LayoutStack:
+			@stackLayout(domain.Gap(n.Props["gap"])) {
+				@uiChildren(n)
+			}
+		case domain.LayoutPanel:
+			@panelLayout() {
+				@uiChildren(n)
+			}
+		case domain.LayoutSection:
+			if n.Props[ir.SectionCurrentProp] == "true" {
+				@currentSectionLayout(domain.Gap(n.Props["gap"])) {
+					@uiChildren(n)
+				}
+			} else {
+				@sectionLayout(domain.Gap(n.Props["gap"])) {
+					@uiChildren(n)
+				}
+			}
+		case domain.LayoutColumns:
+			@columnsLayout(domain.Gap(n.Props["gap"]), domain.ColumnsAlign(n.Props["align"])) {
+				@uiChildren(n)
+			}
+		case domain.LayoutRow:
+			@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
+				@uiChildren(n)
+			}
+		case domain.LayoutGrid:
+			@gridLayout(domain.Gap(n.Props["gap"]), gridColsFromProp(n.Props["mobile"]), gridColsFromProp(n.Props["columns"])) {
+				@uiChildren(n)
+			}
+		case domain.LayoutSplit:
+			@splitLayout(domain.Gap(n.Props["gap"]), domain.SplitSide(n.Props["side"]), domain.AsideWidth(n.Props["aside"])) {
+				@uiChildren(n)
+			}
+	}
+}
+
 // uiNode walks a UI IR tree and draws it through the primitives already registered.
 //
 // **It has no per-screen branch and cannot acquire anything.** Every value it draws arrives in `Props`,
@@ -1426,41 +1467,12 @@ func headerTree(appName, title, description string) ir.UINode {
 templ uiNode(n ir.UINode) {
 	switch n.Kind {
 		case ir.NodeLayout:
-			switch domain.LayoutKind(n.Type) {
-				case domain.LayoutStack:
-					@stackLayout(domain.Gap(n.Props["gap"])) {
-						@uiChildren(n)
-					}
-				case domain.LayoutPanel:
-					@panelLayout() {
-						@uiChildren(n)
-					}
-				case domain.LayoutSection:
-					if n.Props[ir.SectionCurrentProp] == "true" {
-						@currentSectionLayout(domain.Gap(n.Props["gap"])) {
-							@uiChildren(n)
-						}
-					} else {
-						@sectionLayout(domain.Gap(n.Props["gap"])) {
-							@uiChildren(n)
-						}
-					}
-				case domain.LayoutColumns:
-					@columnsLayout(domain.Gap(n.Props["gap"]), domain.ColumnsAlign(n.Props["align"])) {
-						@uiChildren(n)
-					}
-				case domain.LayoutRow:
-					@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
-						@uiChildren(n)
-					}
-				case domain.LayoutGrid:
-					@gridLayout(domain.Gap(n.Props["gap"]), gridColsFromProp(n.Props["mobile"]), gridColsFromProp(n.Props["columns"])) {
-						@uiChildren(n)
-					}
-				case domain.LayoutSplit:
-					@splitLayout(domain.Gap(n.Props["gap"]), domain.SplitSide(n.Props["side"]), domain.AsideWidth(n.Props["aside"])) {
-						@uiChildren(n)
-					}
+			if n.Props["anchor"] != "" {
+				<div id={ n.Props["anchor"] }>
+					@uiLayout(n)
+				</div>
+			} else {
+				@uiLayout(n)
 			}
 		case ir.NodeStatic:
 			switch domain.StaticKind(n.Type) {

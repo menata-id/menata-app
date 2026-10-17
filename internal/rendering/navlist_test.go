@@ -9,6 +9,7 @@ import (
 	"github.com/a-h/templ"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/ir"
 )
 
 func renderNavList(t *testing.T, variant string) string {
@@ -103,5 +104,21 @@ func TestSearchField_isANamedSearchFormThatSubmitsByGetAndKeepsTheWords(t *testi
 		if !strings.Contains(html, want) {
 			t.Errorf("search field does not contain %q: %s", want, html)
 		}
+	}
+}
+
+func TestUINode_aLayoutWithAnAnchorIsWrappedInOneElementHoldingTheId(t *testing.T) {
+	node := func(props map[string]string) ir.UINode {
+		return ir.UINode{Kind: ir.NodeLayout, Type: "stack", Props: props, Children: []ir.UINode{{Kind: ir.NodeStatic, Type: "paragraph", Props: map[string]string{"text": "hi"}}}}
+	}
+	var with, without bytes.Buffer
+	if err := uiNode(node(map[string]string{"gap": "default", "anchor": "danger-zone"})).Render(context.Background(), &with); err != nil {
+		t.Fatal(err)
+	}
+	if err := uiNode(node(map[string]string{"gap": "default"})).Render(context.Background(), &without); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(with.String(), `<div id="danger-zone">`) || strings.Contains(without.String(), "id=") {
+		t.Errorf("anchored: %s\nplain: %s", with.String(), without.String())
 	}
 }

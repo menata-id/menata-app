@@ -1,0 +1,16 @@
+# The Workspace's saved installations (registry.RuntimeSources: snapshots), newest first: when each was taken and how large it
+# is. Taken before every install, publish or restore; read by the Workspace settings page only.
+id: mch_snapshot
+name: Saved installation
+runtime: snapshots
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Taken, type: text, required: true }
+card_fields:
+  - { field: fld_title, role: title }
+datasets:
+  - id: ds_runtime_snapshots
+    select: records
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 50

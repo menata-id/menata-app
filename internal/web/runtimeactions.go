@@ -1,8 +1,14 @@
 package web
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -10,6 +16,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/mail"
 	"menata.app/internal/registry"
 	"menata.app/internal/rendering"
@@ -25,6 +32,9 @@ type actionEnv struct {
 	store  *data.Store
 	mailer mail.Mailer
 	cfg    config.Config
+	// reload re-reads one Workspace's manifest from disk and swaps its routes (web.Deps.ReloadMetadata); nil in a process
+	// with no hook, which an action that needs it reports rather than ignores.
+	reload func(slug string) error
 }
 
 // runtimeActionRunners are the executors, one per registry.RuntimeActions entry (TestRuntimeActionsAndRunnersAgree).
@@ -39,6 +49,9 @@ var runtimeActionRunners = map[string]actionRunner{
 	"set_member_access": runSetMemberAccess,
 	"deactivate_member": runDeactivateMember,
 	"reactivate_member": runReactivateMember,
+	"reload_workspace":  runReloadWorkspace,
+	"restore_snapshot":  runRestoreSnapshot,
+	"archive_workspace": runArchiveWorkspace,
 	"revoke_invite":     runRevokeInvite,
 }
 
@@ -49,8 +62,8 @@ var runtimeActionRunners = map[string]actionRunner{
 // The route holds no logic of any operation: it looks the name up in the closed set, checks that a record is named
 // exactly when the action is about one, and hands over. What an action may do is what its runner does, and nothing a page
 // said.
-func runtimeAction(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
-	env := actionEnv{store: store, mailer: mailer, cfg: cfg}
+func runtimeAction(store *data.Store, mailer mail.Mailer, cfg config.Config, reload func(slug string) error) http.HandlerFunc {
+	env := actionEnv{store: store, mailer: mailer, cfg: cfg, reload: reload}
 	return func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "action")
 		a, known := registry.RuntimeActions[id]
@@ -262,4 +275,88 @@ func runReactivateMember(w http.ResponseWriter, req *http.Request, env actionEnv
 		return "", false
 	}
 	return "", true
+}
+
+// runReloadWorkspace re-reads this Workspace's manifest from disk -- what to press after fixing a hand edit, or after a
+// Workspace was marked unavailable. A manifest that fails to load changes nothing live and answers 422 with the error, which
+// names the file. A hand edit is not a write the runtime made, so no snapshot was taken for it: one is taken now, before the
+// reload, unless the newest already holds exactly this state.
+func runReloadWorkspace(w http.ResponseWriter, req *http.Request, env actionEnv, _ string) (string, bool) {
+	if env.reload == nil {
+		serverError(w, errors.New("this process has no reload hook configured"))
+		return "", false
+	}
+	if manifestPath, _, err := workspaceInstallation(req.Context(), env.store, env.cfg); err == nil && env.cfg.BackupDir != "" {
+		if out, err := installer.SnapshotWorkspaceIfChanged(manifestPath, env.cfg.BackupDir, time.Now()); err != nil {
+			log.Printf("snapshot before reloading %s failed: %v", filepath.Base(manifestPath), err)
+		} else if out != "" {
+			log.Printf("snapshot %s", out)
+		}
+	}
+	if err := reloadCurrentWorkspace(req.Context(), env.store, env.reload); err != nil {
+		http.Error(w, fmt.Sprintf("this workspace was not reloaded and keeps serving what it had: %v", err), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	return domain.RuntimeScreenRoute("nav_home"), true
+}
+
+// runRestoreSnapshot puts this Workspace's installation back to a saved snapshot (the record) and reloads it. The restore is
+// load-verified and itself snapshotted first (installer.RestoreSnapshot), so pressing it by mistake is undone by restoring the
+// newest snapshot; a snapshot that does not load answers 422 and changes nothing.
+func runRestoreSnapshot(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	if env.cfg.BackupDir == "" || env.reload == nil {
+		serverError(w, errors.New("this process has no backup directory or reload hook configured"))
+		return "", false
+	}
+	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	if err := installer.RestoreSnapshot(manifestPath, env.cfg.BackupDir, record, time.Now()); err != nil {
+		var rejected *installer.RejectedError
+		if errors.As(err, &rejected) {
+			http.Error(w, fmt.Sprintf("the snapshot was not restored: %v", err), http.StatusUnprocessableEntity)
+			return "", false
+		}
+		serverError(w, err)
+		return "", false
+	}
+	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
+		serverError(w, fmt.Errorf("the snapshot was restored on disk but the live reload failed -- a process restart will pick it up: %w", err))
+		return "", false
+	}
+	return domain.RuntimeScreenRoute("nav_home"), true
+}
+
+// runArchiveWorkspace archives the current Workspace. Not the Workspace this session was just in: it is now archived, so the
+// admin is sent to /switch-workspace, the mid-session screen of whatever else this identity belongs to (/choose-workspace
+// resolves identity from a pre-session cookie an authenticated admin never carries).
+func runArchiveWorkspace(w http.ResponseWriter, req *http.Request, env actionEnv, _ string) (string, bool) {
+	workspaceID, _ := data.WorkspaceScope(req.Context())
+	if err := env.store.ArchiveWorkspace(req.Context(), workspaceID); err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	return "/switch-workspace", true
+}
+
+// snapshotsProvider is the reader of the `snapshots` source: the Workspace's saved installations, newest first as
+// installer.ListSnapshots lists them, titled by when they were taken and how large they are. It lives here because the
+// backup directory is the process's own configuration.
+func snapshotsProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
+	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		snaps, err := workspaceSnapshots(ctx, store, cfg)
+		if err != nil {
+			return nil, err
+		}
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		out := make([]*data.Record, 0, len(snaps))
+		for _, sn := range snaps {
+			out = append(out, &data.Record{ID: sn.ID, MachineID: "mch_snapshot", WorkspaceID: workspaceID, CreatedAt: sn.TakenAt,
+				Values: map[string]any{"fld_id": sn.ID, "fld_title": fmt.Sprintf("%s UTC · %d KB", sn.TakenAt.UTC().Format("2006-01-02 15:04:05"), (sn.Size+1023)/1024)}})
+		}
+		return out, nil
+	}
 }
