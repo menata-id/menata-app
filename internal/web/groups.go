@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -13,29 +12,6 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/rendering"
 )
-
-// showGroups lists the Workspace's Groups (ROADMAP.md Case 03 Fase 4). Gated by
-// requireWorkspaceAdmin, like every other membership-administration route.
-func showGroups(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		ws := rendering.CurrentWorkspace(ctx)
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		groups, err := store.ListGroups(ctx, workspaceID)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		chrome, err := resolveChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.GroupsPage(groups, chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref))
-	}
-}
 
 func showGroupDetail(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -115,27 +91,6 @@ func groupMemberChoices(ctx context.Context, ld *composition.Loader, store *data
 		})
 	}
 	return choices, nil
-}
-
-func submitCreateGroup(store *data.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		if err := req.ParseForm(); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-		name := strings.TrimSpace(req.FormValue("name"))
-		if name == "" {
-			http.Error(w, "group name is required", http.StatusUnprocessableEntity)
-			return
-		}
-		if _, err := store.CreateGroup(ctx, workspaceID, name); err != nil {
-			serverError(w, err)
-			return
-		}
-		redirectTo(w, req, "/workspace-groups")
-	}
 }
 
 // submitGroupMembers replaces the Group's membership with exactly what was ticked. The form

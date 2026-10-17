@@ -175,7 +175,28 @@ const (
 	// case and is refused by name rather than half built; its first consumer is the bespoke Dashboard, which this does not
 	// migrate.
 	ComponentTable ComponentType = "Table"
+
+	// ComponentNavList is a list of the app's own destinations, grouped under headings, one of them marked as where the
+	// viewer is: the settings sidebar and the settings hub are both one. A page names only the section
+	// (`section: workspace_settings`) and how it is drawn (`variant: sidebar|page`); the rows are **derived** from the
+	// navigation items that declare themselves part of that section (`NavigationItem.SettingsSection`), so the sidebar and
+	// the hub cannot disagree about what exists, and a destination is declared once (001 #8). A row for a screen that is
+	// not built is drawn as such and links nowhere.
+	ComponentNavList ComponentType = "NavList"
 )
+
+// KnownNavListVariants is how a NavList is drawn: a sidebar beside a screen (hidden below the `sm` breakpoint, where the
+// hub is the list) or a page-wide list with each row's description.
+var KnownNavListVariants = map[string]bool{"sidebar": true, "page": true}
+
+// NavSectionWorkspaceSettings is the one section a NavList can list today.
+const NavSectionWorkspaceSettings = "workspace_settings"
+
+// KnownNavSections is the closed set a NavList's `section:` may name.
+var KnownNavSections = map[string]bool{NavSectionWorkspaceSettings: true}
+
+// NavSectionHub is the navigation item each section leads back to: the hub whose rows the section lists.
+var NavSectionHub = map[string]string{NavSectionWorkspaceSettings: "nav_workspace_settings"}
 
 // KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not
 // messages: a message that is neither news, nor good, nor bad, nor a warning has no reason to be boxed.

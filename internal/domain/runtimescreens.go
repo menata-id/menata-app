@@ -34,18 +34,44 @@ var RuntimeScreens = []NavigationItem{
 		Route:       "/home",
 		Title:       "Applications",
 		Description: "The applications you can open here, based on the roles assigned to you.",
+		// A row of the Workspace settings sections (see the group below).
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Workspace", Priority: 2,
+	},
+	// The Workspace settings sections, the rows of its NavList (sidebar and hub). General, Authentication and Audit log
+	// have no screen: they are listed as not built, which is what the mockup shows, and link nowhere.
+	{
+		ID: "nav_workspace_general", Label: "General", Description: "Name, logo, time zone and language.",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Workspace", Priority: 1, Placeholder: true,
 	},
 	// "Members" is the board's own heading (04); "Workspace Members" stays the menu's word, where "Members"
 	// alone would not say whose. The description cannot name the Workspace for the reason nav_home's
 	// cannot.
 	{
-		ID:          "nav_workspace_members",
-		Label:       "Workspace Members",
-		Route:       "/workspace-members",
-		Title:       "Members",
-		Description: "Everyone in this workspace, their workspace role and the applications they can open.",
+		ID:              "nav_workspace_members",
+		Label:           "Workspace Members",
+		Route:           "/workspace-members",
+		Title:           "Members",
+		Description:     "Everyone in this workspace, their workspace role and the applications they can open.",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 1,
 	},
-	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
+	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups", Description: "Assign a role to a Group once, then add or remove members instead of editing every person's own row. A member's effective role in an Application is their direct assignment plus every role their Groups hold there.", SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 2},
+	// Invitations share Members' route: one page lists both (an invitation is not a membership, but it is drawn beside one).
+	{
+		ID: "nav_workspace_invitations", Label: "Invitations", Route: "/workspace-members", Description: "Pending and expired invitations.",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 3,
+	},
+	{
+		ID: "nav_workspace_auth", Label: "Authentication", Description: "Two-step verification, allowed email domains.",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Security", Priority: 1, Placeholder: true,
+	},
+	{
+		ID: "nav_workspace_audit", Label: "Audit log", Description: "Permanent record of changes.",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Security", Priority: 2, Placeholder: true,
+	},
+	{
+		ID: "nav_workspace_danger", Label: "Danger zone", Route: "/workspace-settings#danger-zone",
+		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Security", Priority: 3, SidebarOnly: true,
+	},
 	// nav_notifications (2026-10-17): the viewer's own notifications, across Applications. A runtime screen for the
 	// reason the rest are: it exists identically in a Workspace with any number of Applications. Its body is a runtime
 	// page (metadata/runtimepages), and its Dataset sits on mch_notification, which every Workspace shares.

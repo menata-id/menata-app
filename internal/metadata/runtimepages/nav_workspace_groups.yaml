@@ -1,0 +1,37 @@
+# The Workspace's Groups: who they hold and what they grant, and a form to add one. Admin only (the default).
+id: nav_workspace_groups
+page:
+  layout: split
+  side: start
+  aside: compact
+  gap: loose
+  children:
+    - component: NavList
+      section: workspace_settings
+      variant: sidebar
+    - layout: stack
+      gap: comfortable
+      children:
+        - static: link
+          to: nav_workspace_members
+        - component: Disclosure
+          summary: "+ New group"
+          children:
+            - component: Form
+              submit: Create group
+              binding: { write: action, action: create_group }
+        - component: Collection
+          gap: tight
+          divided: true
+          empty: No groups yet. Create one to grant a role to several people at once.
+          binding: { dataset: ds_runtime_groups, rows: records }
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: link
+                  from: { text: title, href: record }
+                - static: caption
+                  from: { text: subtitle }
+                - static: caption
+                  from: { text: detail }

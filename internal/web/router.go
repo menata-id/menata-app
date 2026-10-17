@@ -270,7 +270,7 @@ func Routes(d Deps) http.Handler {
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
 		// as /home and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
-		pr.Handle("/notifications", showRuntimePage(d.Store, d.Cfg, "nav_notifications"))
+		pr.Get("/notifications", showRuntimePage(d.Store, d.Cfg, "nav_notifications").ServeHTTP)
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
 		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg))
@@ -331,8 +331,7 @@ func Routes(d Deps) http.Handler {
 
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
 			// gate as the member routes above.
-			ar.Get("/workspace-groups", showGroups(d.Store, d.Cfg))
-			ar.Post("/workspace-groups", submitCreateGroup(d.Store))
+			ar.Get("/workspace-groups", showRuntimePage(d.Store, d.Cfg, "nav_workspace_groups").ServeHTTP)
 			ar.Get("/workspace-groups/{groupID}", showGroupDetail(d.Store, d.Cfg))
 			ar.Post("/workspace-groups/{groupID}/members", submitGroupMembers(d.Store))
 			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store))
@@ -358,6 +357,7 @@ func Routes(d Deps) http.Handler {
 			// read (TestGetRoutesDoNotWrite).
 			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
 			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Cfg))
 			ar.Post("/reload-workspace", submitReloadWorkspace(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/restore-workspace-snapshot", submitRestoreSnapshot(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/workspace-settings/validate", submitValidateFiles(d.Store, d.Cfg))

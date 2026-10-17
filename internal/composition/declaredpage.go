@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"sort"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/ir"
+	"menata.app/internal/registry"
 	"menata.app/internal/rendering"
 )
 
@@ -45,8 +47,15 @@ import (
 // navigation is the Application's `AllNavigation`, which a `to:` resolves against; a page is a body the
 // Application declared, so its links reach that Application's own screens.
 func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
+	return DeclaredPageFor(ctx, l, viewer, params, now, navigation, "", page)
+}
+
+// DeclaredPageFor is DeclaredPage for the page that belongs to navigation item pageID, which is how a NavList marks the
+// row for the screen the viewer is on.
+func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, pageID string, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
-		Route: ir.NavigationRoutes(navigation),
+		PageID: pageID,
+		Route:  ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {
 			ds, ok := l.Dataset(datasetID)
 			return ds.Source, ok
@@ -63,6 +72,10 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
 		},
+		Action: func(b domain.PageBinding) (ir.FormSpec, error) {
+			return bindingAction(viewer, b)
+		},
+		Navigation: navigationSection,
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
 			return bindingTransitionAll(ctx, l, viewer, params, now, b, becomes)
 		},
@@ -167,9 +180,10 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	transitions := make([]ir.RecordTransition, 0, len(records))
 	for i, r := range records {
 		item := ProjectedByRole(src, r, people)
-		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
+		item[domain.PageRecordRole] = recordRouteOf(src, r.ID)
 		fillDerivedDate(item, src, r, now)
 		fillCreatedAndLink(item, src, r)
+		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
@@ -678,4 +692,62 @@ func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, p
 		return nil, "", nil, err
 	}
 	return src, target, records, nil
+}
+
+// bindingAction is one runtime-action Binding: what a Form for it asks, and whether this viewer may perform it. The
+// permission is courtesy (the route asks again): an admin-only action is not drawn for a member, so a page does not
+// offer what the route would refuse. The same split `Workspace menu` makes: anyone who is not a plain member counts as an
+// admin here, because the shared admin credential has no role and is let through the gate.
+func bindingAction(viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
+	a, ok := registry.RuntimeActions[b.Action]
+	if !ok {
+		return ir.FormSpec{}, fmt.Errorf("composition: page binding names action %q, which is not an operation the runtime performs", b.Action)
+	}
+	spec := ir.FormSpec{Permitted: !a.Admin || viewer.WorkspaceRole != domain.WorkspaceRoleMember}
+	for _, in := range a.Inputs {
+		spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputText, Required: in.Required})
+	}
+	return spec, nil
+}
+
+// navigationSection answers a NavList's section from the runtime's own screens: the entries are those that declare
+// themselves part of it, grouped in the order their first row is declared and ordered inside a group by Priority (ties
+// keep declaration order). The label and the way back are the settings hub's own, never retyped.
+func navigationSection(section string) (ir.NavSection, error) {
+	if section != domain.NavSectionWorkspaceSettings {
+		return ir.NavSection{}, fmt.Errorf("composition: navigation section %q is not declared", section)
+	}
+	var hub domain.NavigationItem
+	groupOrder := []string{}
+	byGroup := map[string][]domain.NavigationItem{}
+	for _, s := range domain.RuntimeScreens {
+		if s.ID == domain.NavSectionHub[section] {
+			hub = s
+		}
+		if s.SettingsSection != section {
+			continue
+		}
+		if _, seen := byGroup[s.SettingsGroup]; !seen {
+			groupOrder = append(groupOrder, s.SettingsGroup)
+		}
+		byGroup[s.SettingsGroup] = append(byGroup[s.SettingsGroup], s)
+	}
+	out := ir.NavSection{Label: hub.Label, Home: hub.Route}
+	for _, g := range groupOrder {
+		items := byGroup[g]
+		sort.SliceStable(items, func(i, j int) bool { return items[i].Priority < items[j].Priority })
+		for _, it := range items {
+			out.Entries = append(out.Entries, ir.NavEntry{ID: it.ID, Group: g, Label: it.Heading, Description: it.Description, Href: it.Route, Placeholder: it.Placeholder, SidebarOnly: it.SidebarOnly})
+		}
+	}
+	return out, nil
+}
+
+// recordRouteOf is the screen a listed record opens: the generic record page for a stored Machine, the source's own
+// screen for a runtime one (a runtime record has no generic page).
+func recordRouteOf(src *domain.Machine, id string) string {
+	if src.Runtime != "" {
+		return strings.ReplaceAll(registry.RuntimeSources[src.Runtime].RecordRoute, "{id}", url.PathEscape(id))
+	}
+	return RecordRoute(src.ID, id)
 }

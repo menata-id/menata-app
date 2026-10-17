@@ -56,7 +56,6 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"WorkspaceSettingsPage":    {"workspace", "Workspace-level settings, not an Application's"},
 	"WorkspaceMembersPage":     {"workspace", "Workspace membership; identity data (project_identity-model)"},
 	"EditMemberPage":           {"workspace", "Workspace membership; identity data (project_identity-model)"},
-	"GroupsPage":               {"workspace", "Workspace groups, registered as a fixed literal"},
 	"ApplicationMembersPage":   {"workspace", "S2.2: Workspace membership scoped to one Application's roles; identity data (project_identity-model) and a write form per row, neither of which a page: block can bind"},
 	"GroupDetailPage":          {"workspace", "Workspace groups, registered as a fixed literal"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},

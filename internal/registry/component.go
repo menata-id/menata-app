@@ -61,6 +61,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentSegmentedControl: {Contract: segmentedControlContract, Validate: validateSegmentedControl},
 	domain.ComponentPopover:          {Contract: popoverContract, Validate: validatePopover},
 	domain.ComponentTable:            {Contract: tableContract, Validate: validateTable},
+	domain.ComponentNavList:          {Contract: navListContract, Validate: validateNavList},
 }
 
 // tableContract is a records table, the nameable form of `dataTable`.
@@ -246,7 +247,7 @@ func validateSegmentedControl(inputs map[string]string) []string {
 // in sync.
 var disclosureContract = domain.ComponentContract{
 	Type:   domain.ComponentDisclosure,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "summary", Kind: "string", Required: true},
 	},
@@ -447,6 +448,10 @@ func validateForm(inputs map[string]string) []string {
 	case valid:
 		valid = len(parts) == 2
 	}
+	// A runtime page's Form performs a named operation: a post to /runtime-actions/<name> (with the record it is about).
+	if strings.HasPrefix(a, "/runtime-actions/") && method == "" {
+		valid = strings.Trim(strings.SplitN(strings.TrimPrefix(a, "/runtime-actions/"), "?", 2)[0], "/") != ""
+	}
 	if !valid {
 		issues = append(issues, fmt.Sprintf("Form action %q is not a Machine's create route (/machines/<id>/records) or, with method %s, one of its records (/machines/<id>/records/<id>)", a, domain.FormMethodPatch))
 	}
@@ -600,7 +605,8 @@ func buttonRequestIssues(inputs map[string]string) []string {
 			issues = append(issues, "a Button that sends a delete states its consequence in `confirm`")
 		}
 	case domain.ButtonMethodPost:
-		if confirm != "" {
+		// A move asks nothing; a runtime action may ask before it does what cannot be undone.
+		if confirm != "" && !strings.HasPrefix(action, "/runtime-actions/") {
 			issues = append(issues, "a Button that sends a move asks nothing, so it takes no `confirm`")
 		}
 	case domain.ButtonMethodPatch:
@@ -616,8 +622,8 @@ func buttonRequestIssues(inputs map[string]string) []string {
 	if inputs["name"] != "" && method != domain.ButtonMethodPatch {
 		issues = append(issues, "a Button that sends a delete or a move posts no name/value pair")
 	}
-	if !strings.HasPrefix(action, "/machines/") {
-		issues = append(issues, fmt.Sprintf("Button action %q is not a route the runtime derives (/machines/<id>/records/<id>[/move])", action))
+	if !strings.HasPrefix(action, "/machines/") && !(strings.HasPrefix(action, "/runtime-actions/") && method == domain.ButtonMethodPost) {
+		issues = append(issues, fmt.Sprintf("Button action %q is not a route the runtime derives (/machines/<id>/records/<id>[/move] or a post to /runtime-actions/<name>)", action))
 	}
 	return issues
 }
@@ -889,4 +895,77 @@ func SlottedComponentTypeNames() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// navListContract is a grouped list of the app's own destinations with one marked as where the viewer is: the settings
+// sidebar and the settings hub.
+//
+// **The rows are an input, and the page never writes them.** A page names the `section`; lowering reads the navigation
+// items that declare themselves part of it and produces `rows` (one row per line, five tab-separated cells: group, label,
+// description, href, state), so the sidebar, the hub and every screen's own title agree about what exists and a destination
+// is declared once. `home` is the hub's route, for the sidebar's way back.
+//
+// What the contract forces that a reviewer would not have asked for: a **row for a screen that is not built carries no
+// href**, so it is drawn as not built and cannot be a link to nowhere (the hand-written sidebar did this by a separate
+// function, and nothing held the two to the same rule), and a list with no accessible name is refused, since two navs on one
+// page are told apart by it.
+var navListContract = domain.ComponentContract{
+	Type:   domain.ComponentNavList,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "variant", Kind: "string", Required: true},
+		{Name: "home", Kind: "string"},
+		{Name: "rows", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "a <nav> named by `label`; the current row carries aria-current=\"page\"; a row for a screen that is not built is plain text with a tag saying so and is not a link; the sidebar variant is not drawn below the sm breakpoint, where the page-wide list is the way in",
+	Renderer:         "navList",
+}
+
+// validateNavList checks a use against the declared inputs, a non-blank label, a closed variant, and that every row line
+// has its five cells, a link unless it is a placeholder, and at most one current row.
+func validateNavList(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(navListContract, inputs, "NavList")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "NavList label is blank -- a navigation with no name is announced as only \"navigation\"")
+	}
+	if v := inputs["variant"]; v != "" && !domain.KnownNavListVariants[v] {
+		issues = append(issues, fmt.Sprintf("NavList variant %q is not sidebar or page", v))
+	}
+	current := 0
+	for _, line := range strings.Split(inputs["rows"], "\n") {
+		if line == "" {
+			continue
+		}
+		cells := strings.Split(line, "\t")
+		if len(cells) != 5 {
+			issues = append(issues, "NavList has a row without its five cells (group, label, description, href, state)")
+			continue
+		}
+		switch cells[4] {
+		case "":
+		case "current":
+			current++
+		case "placeholder":
+			if cells[3] != "" {
+				issues = append(issues, fmt.Sprintf("NavList row %q is not built yet and so has no href", cells[1]))
+			}
+			continue
+		default:
+			issues = append(issues, fmt.Sprintf("NavList row %q has the state %q, which is not current or placeholder", cells[1], cells[4]))
+		}
+		if cells[3] == "" {
+			issues = append(issues, fmt.Sprintf("NavList row %q has no href and is not a placeholder", cells[1]))
+		}
+		if strings.TrimSpace(cells[1]) == "" {
+			issues = append(issues, "NavList has a row with no label")
+		}
+	}
+	if current > 1 {
+		issues = append(issues, "NavList marks more than one row as current")
+	}
+	return issues
 }

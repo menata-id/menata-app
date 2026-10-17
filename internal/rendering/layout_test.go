@@ -39,7 +39,6 @@ func TestGridLayout_rendersTheClassStringEachCallSiteReplaced(t *testing.T) {
 	}{
 		{"calendar.CalendarPage (migrated to nav_calendar, 2026-10-11)", domain.GapDefault, domain.GridCols1, domain.GridCols7, "grid grid-cols-1 gap-3 sm:grid-cols-7"},
 		{"approvalinbox.pendingApprovalCardGrid", domain.GapComfortable, domain.GridCols1, domain.GridCols2, "grid grid-cols-1 gap-4 sm:grid-cols-2"},
-		{"groups.GroupsPage", domain.GapComfortable, domain.GridCols1, domain.GridCols2, "grid grid-cols-1 gap-4 sm:grid-cols-2"},
 		{"machine.cardsLayout", domain.GapDefault, domain.GridCols1, domain.GridCols2, "grid grid-cols-1 gap-3 sm:grid-cols-2"},
 	} {
 		var buf bytes.Buffer

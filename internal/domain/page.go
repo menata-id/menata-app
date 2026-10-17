@@ -198,6 +198,9 @@ type PageBinding struct {
 	// Dataset and sits outside a template. Nothing is written except through the same guards as moving each record
 	// alone (`edit` Permission, declared edges, write guards, Events); a record the viewer may not move is left as it is.
 	All bool
+	// Action, with `write: action`, names one of registry.RuntimeActions: what a Form or Button of the runtime's own pages
+	// performs. Nothing else about the request is written on the page.
+	Action string
 }
 
 // PageGroupDate buckets a records binding by the Machine's `date` card_fields role, one bucket per day of the
@@ -243,6 +246,9 @@ const (
 	// edges (`CheckTransitions`) and the `edit` Permission are its guards. Drawn only on a record for which that
 	// move is allowed, which is also why a "Reopen" and a "Mark done" Button can sit side by side: one shows.
 	PageWriteTransition = "transition"
+	// PageWriteAction is a Form or a Button that performs one of the runtime's named operations (registry.RuntimeActions)
+	// instead of writing a record of a Machine. Only the runtime's own pages may use it.
+	PageWriteAction = "action"
 )
 
 // The two words a transition Button's `becomes:` may use instead of a status option, both read from the Machine's own
@@ -256,8 +262,8 @@ const (
 // WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
-	ComponentForm:   {PageWriteCreate, PageWriteUpdate},
-	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition},
+	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction},
+	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a
@@ -331,4 +337,17 @@ var BindableComponents = map[ComponentType][]string{
 // checks it is an option of the Machine's status Field and re-selects the Dataset itself, so the page names no record.
 func TransitionAllRoute(machineID, datasetID, to string) string {
 	return "/machines/" + machineID + "/transition-all?" + url.Values{"dataset": {datasetID}, "to": {to}}.Encode()
+}
+
+// PageRecordIDRole is the reserved `from:` key under which a record's own id travels in the map a records Binding hands
+// to `ir.Lower`. A page never reads it as text; lowering spends it on the route of an action about that record.
+const PageRecordIDRole = "record:id"
+
+// RuntimeActionRoute is the runtime's route for one named operation, with the record it is about when there is one.
+func RuntimeActionRoute(actionID, recordID string) string {
+	route := "/runtime-actions/" + actionID
+	if recordID != "" {
+		route += "?" + url.Values{"record": {recordID}}.Encode()
+	}
+	return route
 }

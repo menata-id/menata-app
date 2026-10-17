@@ -4,68 +4,6 @@ import "fmt"
 import "menata.app/internal/data"
 import "menata.app/internal/domain"
 
-// GroupsPage lists a Workspace's Groups, ported from menata-runtime's own `groups.html`
-// (CAP-O07's shipped design, copied into this repo's ui-sample/ alongside this port).
-//
-// A Group exists so a role can be assigned once and membership managed instead of editing every
-// person's row. The cards therefore lead with what each Group *grants*, not just who is in it.
-//
-// Two deliberate differences from that mockup, both because it was drawn for a different shell:
-// it carries menata-runtime's own ui-sample chrome and a client-side search box. The chrome is
-// replaced by this app's appShell, and the search box is omitted for the same reason board 04's
-// is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
-// filters nothing is worse than none.
-templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell(labelByID(ctx, "nav_workspace_groups"), workspaceName, viewer, switchWorkspaceHref) {
-		@workspaceSettingsFrame(wsSectionGroups) {
-		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
-			<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-				@staticText(domain.StaticOverline, "Administration")
-				@staticText(domain.StaticHeading, labelByID(ctx, "nav_workspace_groups"))
-				<div class={ "max-w-prose", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>
-					Assign a role to a Group once, then add or remove members — instead of editing every
-					person's own row. A member's effective role in an Application is their direct
-					assignment plus every role their Groups hold there.
-				</div>
-			</div>
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
-				{ labelByID(ctx, "nav_workspace_members") } →
-			</a>
-		}
-		@disclosure("+ New group") {
-				<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
-					@csrfHiddenInput()
-					@authField("group_name", "name", "Group name", "text", "off", false)
-					@authSubmit("Create group")
-				</form>
-		}
-		if len(groups) == 0 {
-			@emptyState("No groups yet. Create one to grant a role to several people at once.")
-		}
-		@gridLayout(domain.GapComfortable, domain.GridCols1, domain.GridCols2) {
-			for _, g := range groups {
-				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), inkClass(ctx, domain.InkStrong) + " " + accentEdgeHoverClass(ctx) }>
-					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
-						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ g.Name }</span>
-						<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
-					</div>
-					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
-						if len(g.Grants) == 0 {
-							<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Grants no role yet</span>
-						}
-						for _, app := range roleApps {
-							if role, ok := g.Grants[app.ID]; ok {
-								@statusBadge(app.Name+" · "+role, domain.ToneInfo, domain.BadgeRegular)
-							}
-						}
-					}
-				</a>
-			}
-		}
-		}
-	}
-}
-
 // GroupMemberChoice is one Workspace member offered on the Group detail screen, and whether they
 // are currently in the Group.
 type GroupMemberChoice struct {

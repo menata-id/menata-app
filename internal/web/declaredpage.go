@@ -82,7 +82,7 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 			if runtime {
 				loader = loader.WithRuntime(ws.RuntimeMachines, actor)
 			}
-			body, err := composition.DeclaredPage(ctx, loader, actor, pageParams(req, ""), time.Now(), ws.LinkTargets(), *item.Page)
+			body, err := composition.DeclaredPageFor(ctx, loader, actor, pageParams(req, ""), time.Now(), ws.LinkTargets(), navID, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

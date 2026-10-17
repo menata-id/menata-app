@@ -156,6 +156,10 @@ func groupsProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Rec
 	apps := rendering.CurrentWorkspace(ctx).Applications
 	out := make([]*data.Record, 0, len(groups))
 	for _, g := range groups {
+		count := strconv.Itoa(g.MemberCount) + " members"
+		if g.MemberCount == 1 {
+			count = "1 member"
+		}
 		var grants []string
 		for _, app := range apps {
 			if role, ok := g.Grants[app.ID]; ok {
@@ -164,8 +168,15 @@ func groupsProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Rec
 		}
 		out = append(out, &data.Record{
 			ID: g.ID, MachineID: "mch_group", WorkspaceID: workspaceID,
-			Values: map[string]any{"fld_name": g.Name, "fld_member_count": strconv.Itoa(g.MemberCount), "fld_grants": strings.Join(grants, ", ")},
+			Values: map[string]any{"fld_name": g.Name, "fld_member_count": count, "fld_grants": grantsLine(grants)},
 		})
 	}
 	return out, nil
+}
+
+func grantsLine(grants []string) string {
+	if len(grants) == 0 {
+		return "Grants no role yet"
+	}
+	return strings.Join(grants, ", ")
 }

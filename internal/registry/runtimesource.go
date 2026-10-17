@@ -17,11 +17,15 @@ type RuntimeSource struct {
 	Provides []string
 	// Doc says what the source holds and who may read it. Reading is gated by the page that binds it, never by the source.
 	Doc string
+	// RecordRoute is the screen one record of this source opens, with {id} where the record's id goes ("" when none). A
+	// runtime record has no generic /machines/<id>/records/<rid> page, so `from: {href: record}` on a page of the
+	// runtime's own is this.
+	RecordRoute string
 }
 
 // RuntimeSources is the closed set a Machine's `runtime:` may name.
 var RuntimeSources = map[string]RuntimeSource{
-	"groups": {ID: "groups", Provides: []string{"fld_name"}, Doc: "the Workspace's Groups, each with its member count and the role it grants per Application; for the Workspace's admins"},
+	"groups": {ID: "groups", Provides: []string{"fld_name"}, RecordRoute: "/workspace-groups/{id}", Doc: "the Workspace's Groups, each with its member count and the role it grants per Application; for the Workspace's admins"},
 }
 
 // RuntimeSourceIDs lists the set, sorted, for messages.

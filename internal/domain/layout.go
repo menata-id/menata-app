@@ -176,12 +176,16 @@ type AsideWidth string
 const (
 	AsideNarrow AsideWidth = "narrow"
 	AsideWide   AsideWidth = "wide"
+	// AsideCompact is a navigation rail, 220px, beside the screen from `sm` up rather than `lg`: the Workspace settings
+	// sidebar, which a phone does not draw at all. A third step, added with its screen as the paragraph above requires.
+	AsideCompact AsideWidth = "compact"
 )
 
 // KnownAsideWidths is the closed set.
 var KnownAsideWidths = map[AsideWidth]bool{
-	AsideNarrow: true,
-	AsideWide:   true,
+	AsideNarrow:  true,
+	AsideWide:    true,
+	AsideCompact: true,
 }
 
 // GridCols is a grid's column count: a closed set, not a free integer.

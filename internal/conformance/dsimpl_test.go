@@ -393,8 +393,8 @@ func TestPanelAndSectionPaddingMatchTheirElement(t *testing.T) {
 		}
 	}
 	// 14 when rencana 0.4 migrated them (15 counted by 2.3d's review, one over the floor); 13 since 2.3d, when both dialogs' moved
-	// into `dialogClasses` (layout.templ).
-	if seen < 13 {
-		t.Fatalf("found %d panel/section padding readers, want at least 13 -- the scan is reading the wrong text", seen)
+	// into `dialogClasses` (layout.templ); 12 since the Groups list became a declared page (W3, 2026-10-17).
+	if seen < 12 {
+		t.Fatalf("found %d panel/section padding readers, want at least 12 -- the scan is reading the wrong text", seen)
 	}
 }

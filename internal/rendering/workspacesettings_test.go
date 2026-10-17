@@ -68,7 +68,6 @@ func TestWorkspaceSettingsFrame_sidebarOnTheAdminScreens(t *testing.T) {
 	pages := map[string]struct{ html, current string }{
 		"members":      {render(WorkspaceMembersPage([]data.Membership{m}, nil, nil, "Acme", viewer, nil, "", "", 1)), "/workspace-members"},
 		"edit member":  {render(EditMemberPage(m, "Rina", "Acme", viewer, nil, "")), "/workspace-members"},
-		"groups":       {render(GroupsPage(nil, "Acme", viewer, nil, "")), "/workspace-groups"},
 		"group detail": {render(GroupDetailPage(data.Group{ID: "g1", Name: "Finance"}, nil, "Acme", viewer, nil, "")), "/workspace-groups"},
 	}
 	for name, p := range pages {

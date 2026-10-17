@@ -1253,9 +1253,10 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
-| `Disclosure` | experimental | No installed `page:` declares one yet: Groups and Members draw it in Go ("+ New group", "+ Invite member") |
+| `Disclosure` | stable | Declared by the runtime's own page for Groups ("+ New group"); Members still draws it in Go ("+ Invite member") |
 | `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
+| `NavList` | stable | Declared by the runtime's own page for Groups, installed in every Workspace |
 | `Popover` | experimental | No installed `page:` declares one yet: the record page's "..." menu and the board header's "New <machine>" form draw it in Go, and no declared screen has a menu |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
@@ -1891,6 +1892,12 @@ a Button's own rule (Permission, `transitions:`) still decides whether it is dra
 - **`from: {href: link}`** on a link in a records template takes the destination from the Machine's `card_fields` role `link` (a text Field holding a route). The runtime hands over only a route inside the app; anything else (`https://...`, `//host`) makes the link plain words.
 - **`from: {text: "created:label"}`** is when the record was created, for any Machine.
 - **`binding: {dataset: ds_x, write: transition, all: true}`** on a `Button` with `becomes: <option>` moves every record of the Dataset the viewer may move, outside any template. It is drawn only while something would move, and the route applies the same rules as moving each record alone.
+
+**A runtime page may also perform the runtime's own operations and draw its settings navigation (W3, 2026-10-17).** Three more things only the runtime's own pages use, or that exist for them:
+
+- **`binding: {write: action, action: create_group}`** on a `Form` (it asks what the action asks) or on a `Button` inside a Collection over a runtime source's Machine (`action: delete_group`, with a `confirm:` sentence). Nothing else about the request is written; the closed set of actions is `registry.RuntimeActions`. A Workspace's or an Application's page that names one is a load error.
+- **`component: NavList`** with `section: workspace_settings` and `variant: sidebar|page`: the grouped list of the settings screens, one marked as where the viewer is. You write neither the rows nor the label: they come from the runtime screens that declare themselves part of the section. Put the sidebar in `layout: split` with `side: start` and `aside: compact` (220px from `sm` up, not drawn on a phone).
+- **`from: {text: subtitle}` and `from: {text: detail}`**: two plain lines a Machine's `card_fields` may give a record under its title.
 
 **A node drawn only for some viewers (P-b, 2026-10-16).** A node anywhere on a page, not only inside a template, may carry
 `when: {viewer: workspace_role, is: admin}` (or `is: member`): it, and everything under it, is drawn for a viewer whose

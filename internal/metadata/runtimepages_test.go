@@ -96,3 +96,45 @@ func TestRuntimeMachines_onlyTheRuntimesOwnPagesMayBindOne(t *testing.T) {
 		t.Errorf("a Workspace page binding a runtime dataset: %v", err)
 	}
 }
+
+func TestActionBinding_isHeldToWhatTheActionIs(t *testing.T) {
+	group := &domain.Machine{ID: "mch_group", Runtime: "groups"}
+	other := &domain.Machine{ID: "mch_x"}
+	node := func(typ, action string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: typ, Binding: &domain.PageBinding{Write: domain.PageWriteAction, Action: action}}
+	}
+	for name, tc := range map[string]struct {
+		n    domain.PageNode
+		item *domain.Machine
+		want string // "" means no issue
+	}{
+		"a create form at the root":           {node("Form", "create_group"), nil, ""},
+		"a delete button in a group list":     {node("Button", "delete_group"), group, ""},
+		"an action nobody performs":           {node("Button", "drop_everything"), nil, "not an operation"},
+		"a form for an action that asks none": {node("Form", "delete_group"), group, "asks nothing"},
+		"a button for an action that asks":    {node("Button", "create_group"), nil, "asks for"},
+		"a create action inside a template":   {node("Form", "create_group"), group, "not about a record"},
+		"a record action outside a template":  {node("Button", "delete_group"), nil, "inside the item template"},
+		"a record action over another source": {node("Button", "delete_group"), other, "inside the item template"},
+	} {
+		issues := actionBindingIssues(tc.n, tc.item, "where")
+		switch {
+		case tc.want == "" && len(issues) > 0:
+			t.Errorf("%s: unexpected issues %v", name, issues)
+		case tc.want != "" && (len(issues) != 1 || !strings.Contains(issues[0], tc.want)):
+			t.Errorf("%s: %v, want one containing %q", name, issues, tc.want)
+		}
+	}
+	extra := node("Form", "create_group")
+	extra.Binding.Dataset = "ds_runtime_groups"
+	if issues := actionBindingIssues(extra, nil, "where"); len(issues) != 1 || !strings.Contains(issues[0], "nothing else") {
+		t.Errorf("an action naming a dataset: %v", issues)
+	}
+}
+
+func TestActionBinding_onlyTheRuntimesOwnPagesMayPerformOne(t *testing.T) {
+	ws := strings.Replace(validWorkspacePage, "        - static: link\n          to: nav_docs\n", "        - component: Form\n          submit: Go\n          binding: { write: action, action: create_group }\n", 1)
+	if err := workspacePageFixture(t, ws); err == nil || !strings.Contains(err.Error(), "runtime's own pages only") {
+		t.Errorf("a Workspace page performing a runtime action: %v", err)
+	}
+}

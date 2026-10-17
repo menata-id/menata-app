@@ -144,6 +144,7 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 		"domain.SplitAsideEnd":    domain.KnownSplitSides[domain.SplitAsideEnd],
 		"domain.AsideNarrow":      domain.KnownAsideWidths[domain.AsideNarrow],
 		"domain.AsideWide":        domain.KnownAsideWidths[domain.AsideWide],
+		"domain.AsideCompact":     domain.KnownAsideWidths[domain.AsideCompact],
 		"domain.RowAlignStretch":  domain.KnownRowAligns[domain.RowAlignStretch],
 		"domain.RowAlignCenter":   domain.KnownRowAligns[domain.RowAlignCenter],
 		"domain.RowJustifyStart":  domain.KnownRowJustifies[domain.RowJustifyStart],
@@ -163,7 +164,7 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 	// And the sets may not grow past what this gate enumerates, which is the half a range loop gives for
 	// free and a hand-written map does not.
 	if got, want := len(domain.KnownSplitSides)+len(domain.KnownAsideWidths)+
-		len(domain.KnownRowAligns)+len(domain.KnownRowJustifies), 8; got != want {
+		len(domain.KnownRowAligns)+len(domain.KnownRowJustifies), 9; got != want {
 		t.Errorf("the split/row parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm and its caller", got, want)
 	}
 }

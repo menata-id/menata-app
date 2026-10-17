@@ -9,6 +9,8 @@ fields:
   - { id: fld_grants, name: Grants, type: text }
 card_fields:
   - { field: fld_name, role: title }
+  - { field: fld_member_count, role: subtitle }
+  - { field: fld_grants, role: detail }
 datasets:
   - id: ds_runtime_groups
     select: records

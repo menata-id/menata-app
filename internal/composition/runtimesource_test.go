@@ -111,3 +111,85 @@ func TestSelectRuntime_sortsDescendingAndByText(t *testing.T) {
 		t.Errorf("descending by name, case-insensitively = %v, want [carol bob Alice]", ids)
 	}
 }
+
+func TestBindingAction_isOfferedToAnAdminAndNotToAMember(t *testing.T) {
+	b := domain.PageBinding{Write: domain.PageWriteAction, Action: "create_group"}
+	for role, want := range map[string]bool{domain.WorkspaceRoleAdmin: true, domain.WorkspaceRoleMember: false, "": true} {
+		spec, err := bindingAction(domain.Actor{WorkspaceRole: role}, b)
+		if err != nil || spec.Permitted != want || len(spec.Inputs) != 1 {
+			t.Errorf("role %q: permitted=%v err=%v inputs=%d, want permitted=%v and one input", role, spec.Permitted, err, len(spec.Inputs), want)
+		}
+	}
+	if _, err := bindingAction(domain.Actor{}, domain.PageBinding{Action: "nothing"}); err == nil {
+		t.Error("an unknown action resolved")
+	}
+}
+
+func TestNavigationSection_isTheRuntimesDeclaredRowsGroupedAndOrdered(t *testing.T) {
+	s, err := navigationSection(domain.NavSectionWorkspaceSettings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Label == "" || s.Home == "" {
+		t.Errorf("section label %q / home %q: the hub's own", s.Label, s.Home)
+	}
+	var groups []string
+	prev := ""
+	for _, e := range s.Entries {
+		if e.Group != prev {
+			groups = append(groups, e.Group)
+			prev = e.Group
+		}
+		if !e.Placeholder && e.Href == "" {
+			t.Errorf("row %q is not a placeholder and has no destination", e.ID)
+		}
+	}
+	if !slices.Equal(groups, []string{"Workspace", "People", "Security"}) {
+		t.Errorf("groups = %v, want each heading once, in the order its first row is declared", groups)
+	}
+	var people []string
+	for _, e := range s.Entries {
+		if e.Group == "People" {
+			people = append(people, e.ID)
+		}
+	}
+	if !slices.Equal(people, []string{"nav_workspace_members", "nav_workspace_groups", "nav_workspace_invitations"}) {
+		t.Errorf("People = %v, want the declared Priority order", people)
+	}
+	if _, err := navigationSection("nothing"); err == nil {
+		t.Error("an undeclared section resolved")
+	}
+}
+
+func TestRecordRouteOf_aRuntimeRecordOpensItsSourcesScreenAndAStoredOneTheGenericPage(t *testing.T) {
+	if got := recordRouteOf(&domain.Machine{ID: "mch_group", Runtime: "groups"}, "grp 1"); got != "/workspace-groups/grp%201" {
+		t.Errorf("runtime record route = %q", got)
+	}
+	if got := recordRouteOf(&domain.Machine{ID: "mch_x"}, "rec_1"); got != "/machines/mch_x/records/rec_1" {
+		t.Errorf("stored record route = %q", got)
+	}
+}
+
+// Priority, not declaration order, orders the rows inside a group.
+func TestNavigationSection_ordersByPriorityNotByDeclaration(t *testing.T) {
+	for i := range domain.RuntimeScreens {
+		if domain.RuntimeScreens[i].ID == "nav_workspace_groups" {
+			old := domain.RuntimeScreens[i].Priority
+			domain.RuntimeScreens[i].Priority = 0
+			t.Cleanup(func() { domain.RuntimeScreens[i].Priority = old })
+		}
+	}
+	s, err := navigationSection(domain.NavSectionWorkspaceSettings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var people []string
+	for _, e := range s.Entries {
+		if e.Group == "People" {
+			people = append(people, e.ID)
+		}
+	}
+	if len(people) == 0 || people[0] != "nav_workspace_groups" {
+		t.Errorf("People = %v, want Groups first once its Priority is lowest", people)
+	}
+}

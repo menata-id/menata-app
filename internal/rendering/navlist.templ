@@ -1,0 +1,64 @@
+package rendering
+
+import (
+	"strings"
+
+	"menata.app/internal/domain"
+)
+
+// navRow is one decoded row of a NavList.
+type navRow struct {
+	Group, Label, Description, Href string
+	Current, Placeholder            bool
+}
+
+// navGroup is the rows under one heading, in the order they were given.
+type navGroup struct {
+	Heading string
+	Rows    []navRow
+}
+
+// navListGroups decodes a NavList's `rows` input -- one row per line, five tab-separated cells: group, label,
+// description, href, state ("", "current" or "placeholder") -- and groups consecutive rows under one heading. Lowering
+// produced the text and the validator refused a malformed line, so a short line is skipped rather than guessed at.
+func navListGroups(rows string) []navGroup {
+	var groups []navGroup
+	for _, line := range strings.Split(rows, "\n") {
+		cells := strings.Split(line, "\t")
+		if len(cells) != 5 {
+			continue
+		}
+		row := navRow{Group: cells[0], Label: cells[1], Description: cells[2], Href: cells[3], Current: cells[4] == "current", Placeholder: cells[4] == "placeholder"}
+		if n := len(groups); n == 0 || groups[n-1].Heading != row.Group {
+			groups = append(groups, navGroup{Heading: row.Group})
+		}
+		groups[len(groups)-1].Rows = append(groups[len(groups)-1].Rows, row)
+	}
+	return groups
+}
+
+// navList is the registered renderer for `domain.ComponentNavList`: the app's own destinations under headings, one marked
+// as where the viewer is. `sidebar` sits beside a screen from `sm` up and is not drawn on a phone, where the hub is the
+// list; it leads with a link back to that hub (`home`). `page` is the hub's own list, each row with its description. A row
+// for a section that is not built says so and links nowhere, so a navigation list cannot lead to a page that does not exist.
+templ navList(label, variant, home, rows string) {
+	<nav aria-label={ label } class={ "flex-col", layoutGap(ctx, domain.GapLoose), templ.KV("hidden w-55 shrink-0 sm:flex", variant == "sidebar"), templ.KV("flex", variant != "sidebar") }>
+		if variant == "sidebar" && home != "" {
+			<a href={ templ.SafeURL(home) } class={ "px-3", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { label }</a>
+		}
+		for _, g := range navListGroups(rows) {
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
+				@settingsGroupHeading(g.Heading)
+				for _, r := range g.Rows {
+					if r.Placeholder {
+						@settingsPlaceholderRow(r.Label, r.Description)
+					} else if variant == "sidebar" {
+						@settingsRow(r.Href, r.Label, "", r.Current)
+					} else {
+						@settingsRow(r.Href, r.Label, r.Description, r.Current)
+					}
+				}
+			</div>
+		}
+	</nav>
+}

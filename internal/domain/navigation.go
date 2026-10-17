@@ -129,6 +129,18 @@ type NavigationItem struct {
 	// page; what is drawn inside for each viewer is `when:`. A member-open page reads its Datasets with no Application
 	// role check, so it is the author's statement that those figures are for every member (read permissions are D5).
 	OpenTo string
+	// SettingsSection, when set, makes this item a row of the NavList of that section (a domain.KnownNavSections member);
+	// SettingsGroup is the heading it sits under, and groups appear in the order their first row is declared. Priority
+	// orders rows inside a group, as it does everywhere. Declared on the runtime's own screens, which is where the
+	// Workspace settings sections live.
+	SettingsSection string
+	SettingsGroup   string
+	// Placeholder marks a row for a section that does not exist yet (General, Authentication): it is listed, said to be
+	// not built, and linked to nothing, so there is no destination to declare and Route may be empty.
+	Placeholder bool
+	// SidebarOnly keeps a row out of the page-wide variant: the sidebar's "Danger zone" jumps to a section the hub itself
+	// already draws.
+	SidebarOnly bool
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

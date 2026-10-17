@@ -53,6 +53,7 @@ type pageBindingDoc struct {
 	Write   string
 	Group   string
 	All     bool
+	Action  string
 }
 
 var pageDiscriminators = []string{"layout", "static", "component"}
@@ -353,13 +354,15 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Write = val.Value
 		case "group":
 			b.Group = val.Value
+		case "action":
+			b.Action = val.Value
 		case "all":
 			if val.Value != "true" && val.Value != "false" {
 				return nil, fmt.Errorf("line %d: binding.all: %q is not true or false", key.Line, val.Value)
 			}
 			b.All = val.Value == "true"
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all, action)", key.Line, key.Value)
 		}
 	}
 	return b, nil
@@ -371,7 +374,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -421,6 +424,17 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		},
 		// A bulk transition is drawn when there is something to move, so the placeholder says there is, which keeps the
 		// Button and its properties validated.
+		Navigation: func(section string) (ir.NavSection, error) {
+			return ir.NavSection{Label: "x", Home: "/x", Entries: []ir.NavEntry{{ID: "x", Group: "x", Label: "x", Href: "/x"}}}, nil
+		},
+		Action: func(b domain.PageBinding) (ir.FormSpec, error) {
+			a := registry.RuntimeActions[b.Action]
+			spec := ir.FormSpec{Route: domain.RuntimeActionRoute(b.Action, ""), Permitted: true}
+			for _, in := range a.Inputs {
+				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputText, Required: in.Required})
+			}
+			return spec, nil
+		},
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
 			return ir.AllTransition{Route: domain.TransitionAllRoute("machine", b.Dataset, "x"), Count: 1}, nil
 		},
@@ -532,6 +546,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	// Workspace's or an Application's page binding one would put the Workspace's people on a screen whose gate is
 	// not the one that was meant for them.
 	readsRuntime := func(item domain.NavigationItem, where string) {
+		if usesAction(*item.Page) {
+			issues = append(issues, fmt.Sprintf("%s: page: write: %s performs an operation of the runtime and is for the runtime's own pages only", where, domain.PageWriteAction))
+		}
 		for _, id := range boundDatasets(*item.Page) {
 			if runtimeDatasets[id] {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q is provided by the runtime and is read by the runtime's own pages only", where, id))
@@ -610,6 +627,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteMove {
 		issues = append(issues, moveBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWriteAction {
+		issues = append(issues, actionBindingIssues(n, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteTransition && b.All {
 		issues = append(issues, transitionAllIssues(n, datasets, machines, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteTransition {
@@ -1109,6 +1128,43 @@ func pageReadsParameter(n domain.PageNode, param string, datasets map[string]dom
 	}
 	for _, c := range n.Children {
 		if pageReadsParameter(c, param, datasets) {
+			return true
+		}
+	}
+	return false
+}
+
+// actionBindingIssues is what a `write: action` binding asks: an action the registry knows, a Form only for an action
+// that asks something and a Button only for one that asks nothing, and a place that matches what the action is about.
+// An action about a record sits inside a Collection of that source's runtime Machine and names no dataset; one that is
+// not about a record sits outside any. (That only the runtime's own pages may use one is validatePages' question.)
+func actionBindingIssues(n domain.PageNode, item *domain.Machine, where string) []string {
+	b := *n.Binding
+	a, ok := registry.RuntimeActions[b.Action]
+	switch {
+	case !ok:
+		return []string{fmt.Sprintf("%s: page: action %q is not an operation the runtime performs (%s)", where, b.Action, strings.Join(registry.RuntimeActionIDs(), ", "))}
+	case b.Dataset != "" || b.Rows != "" || b.Measure != "":
+		return []string{fmt.Sprintf("%s: page: write: %s names the action and nothing else: a dataset, rows or measure would be a second thing it acts on", where, domain.PageWriteAction)}
+	case n.Type == string(domain.ComponentForm) && len(a.Inputs) == 0:
+		return []string{fmt.Sprintf("%s: page: action %q asks nothing, so it is a Button and not a Form", where, a.ID)}
+	case n.Type == string(domain.ComponentButton) && len(a.Inputs) > 0:
+		return []string{fmt.Sprintf("%s: page: action %q asks for %d thing(s), so it is a Form and not a Button", where, a.ID, len(a.Inputs))}
+	case a.Source == "" && item != nil:
+		return []string{fmt.Sprintf("%s: page: action %q is not about a record, so it sits outside a Collection's item template", where, a.ID)}
+	case a.Source != "" && (item == nil || item.Runtime != a.Source):
+		return []string{fmt.Sprintf("%s: page: action %q is about a record of the runtime source %q, so it sits inside the item template of a Collection over that source's machine", where, a.ID, a.Source)}
+	}
+	return nil
+}
+
+// usesAction reports whether any node under n performs a runtime action.
+func usesAction(n domain.PageNode) bool {
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteAction {
+		return true
+	}
+	for _, c := range n.Children {
+		if usesAction(c) {
 			return true
 		}
 	}

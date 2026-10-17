@@ -69,6 +69,11 @@ const (
 	// destination). A page takes it as a link's address with `from: {href: link}`; the runtime hands the page the value
 	// only when it is a path inside the app (`SafeInAppPath`), so a stored value can never send a viewer elsewhere.
 	CardFieldRoleLink CardFieldRole = "link"
+	// CardFieldRoleSubtitle and CardFieldRoleDetail are the second and third lines a record says about itself under its
+	// title: a count, a role, an address. Plain text of any Field; what they hold is the Machine's own words, so a page
+	// draws them without knowing what they are.
+	CardFieldRoleSubtitle CardFieldRole = "subtitle"
+	CardFieldRoleDetail   CardFieldRole = "detail"
 )
 
 // SafeInAppPath reports whether s is a route inside this app: one slash then something that is not a second slash or
@@ -140,6 +145,8 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleComment:   true,
 	CardFieldRoleContainer: true,
 	CardFieldRoleLink:      true,
+	CardFieldRoleSubtitle:  true,
+	CardFieldRoleDetail:    true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

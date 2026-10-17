@@ -305,6 +305,14 @@ type Resolver struct {
 	Source  SourceResolver
 	Form    FormResolver
 	Total   TotalResolver
+	// Action answers a `write: action` binding: the operation's route, whether this viewer may perform it, and what a
+	// Form for it asks. Only the runtime's own pages bind one.
+	Action FormResolver
+	// Navigation answers a NavList's `section:`: the label of the list, the route the sidebar leads back to, and the
+	// destinations the navigation declares as part of it, in order. PageID is the navigation item the page being lowered
+	// belongs to, which is how the row for the screen the viewer is on is marked.
+	Navigation NavigationResolver
+	PageID     string
 	// TransitionAll answers a `write: transition` Button with `all: true`: where the request goes and how many records
 	// of the Dataset the viewer could move to the status `becomes` names (the Machine's `completion:` already applied
 	// to `$done`/`$reopen`). A count of none is the Button not being drawn.
@@ -340,6 +348,21 @@ type AllTransition struct {
 	Route string
 	Count int
 }
+
+// NavEntry is one destination of a NavList section as the resolver found it.
+type NavEntry struct {
+	ID, Group, Label, Description, Href string
+	Placeholder, SidebarOnly            bool
+}
+
+// NavSection is a section's answer: its own name and hub route, and its entries in the order they are drawn.
+type NavSection struct {
+	Label, Home string
+	Entries     []NavEntry
+}
+
+// NavigationResolver is the injected question behind a NavList.
+type NavigationResolver func(section string) (NavSection, error)
 
 // TransitionAllResolver is the injected question behind a bulk transition Button.
 type TransitionAllResolver func(b domain.PageBinding, becomes string) (AllTransition, error)
@@ -422,6 +445,12 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteMove {
 		return lowerMoveButton(n, path, record, writes)
+	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentNavList) {
+		return lowerNavList(n, r, path)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteAction {
+		return lowerAction(n, r, path, record)
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition && n.Binding.All {
 		return lowerTransitionAll(n, r, path, record)
@@ -1496,6 +1525,99 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	props["name"] = t.Field
 	props["value"] = target
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// lowerNavList turns `component: NavList` with a `section:` and a `variant:` into the NavList whose rows are the
+// destinations the navigation declares for that section. The page writes neither the rows nor the label nor the way
+// back: they are the navigation's, so a destination is declared once and the sidebar and the hub cannot disagree. The
+// row for the page's own navigation item is marked current; a row that is not built carries no href. The page-wide
+// variant leaves out the rows that exist only for the sidebar.
+func lowerNavList(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	if len(n.Children) > 0 || n.Binding != nil || len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: a NavList takes a section and a variant and nothing else: its rows are the navigation's", path)
+	}
+	for p := range n.Props {
+		if p != "section" && p != "variant" {
+			return nil, fmt.Errorf("%s: NavList takes only section: and variant:, and %q is derived from the section", path, p)
+		}
+	}
+	section, variant := n.Props["section"], n.Props["variant"]
+	if !domain.KnownNavSections[section] {
+		return nil, fmt.Errorf("%s: NavList section %q is not one the navigation declares", path, section)
+	}
+	if !domain.KnownNavListVariants[variant] {
+		return nil, fmt.Errorf("%s: NavList variant %q is not sidebar or page", path, variant)
+	}
+	if r.Navigation == nil {
+		return nil, fmt.Errorf("%s: no resolver for a navigation list", path)
+	}
+	s, err := r.Navigation(section)
+	if err != nil {
+		return nil, err
+	}
+	var rows []string
+	for _, e := range s.Entries {
+		if e.SidebarOnly && variant != "sidebar" {
+			continue
+		}
+		state := ""
+		switch {
+		case e.Placeholder:
+			state = "placeholder"
+		case e.ID != "" && e.ID == r.PageID:
+			state = "current"
+		}
+		rows = append(rows, strings.Join([]string{e.Group, e.Label, e.Description, e.Href, state}, "\t"))
+	}
+	props := map[string]string{"label": s.Label, "variant": variant, "rows": strings.Join(rows, "\n")}
+	if variant == "sidebar" {
+		props["home"] = s.Home
+	}
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentNavList), Props: props}}, nil
+}
+
+// lowerAction turns a Form or Button bound with `write: action` into the Form or Button that performs one of the
+// runtime's named operations. The route is the runtime's (`domain.RuntimeActionRoute`), with the record the action is
+// about when the node sits in a records template; the Form's controls are what the action asks, and a Button asks
+// nothing and may carry the `confirm` sentence an author writes. A viewer the resolver does not permit gets no node.
+func lowerAction(n domain.PageNode, r Resolver, path string, record map[string]string) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if r.Action == nil {
+		return nil, fmt.Errorf("%s: no resolver for runtime actions", path)
+	}
+	for _, p := range []string{"name", "value", "action", "method"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a runtime action's route comes from its name, so the node takes no %s", path, p)
+		}
+	}
+	spec, err := r.Action(*n.Binding)
+	if err != nil {
+		return nil, err
+	}
+	if !spec.Permitted {
+		return nil, nil
+	}
+	recordID := ""
+	if record != nil {
+		recordID = record[domain.PageRecordIDRole]
+	}
+	route := domain.RuntimeActionRoute(n.Binding.Action, recordID)
+	if n.Type == string(domain.ComponentButton) {
+		props := make(map[string]string, len(n.Props)+2)
+		for k, v := range n.Props {
+			props[k] = v
+		}
+		props[formActionProp] = route
+		props[formMethodProp] = domain.ButtonMethodPost
+		return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+	}
+	if n.Type != string(domain.ComponentForm) {
+		return nil, fmt.Errorf("%s: write: %s is for a Form or a Button, not %s", path, domain.PageWriteAction, n.Type)
+	}
+	spec.Route = route
+	return buildForm(n, path, spec, domain.PageWriteCreate, "the action")
 }
 
 // lowerTransitionAll turns a `Button` bound with `write: transition, all: true` into a Button that posts to the bulk
