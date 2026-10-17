@@ -120,7 +120,7 @@ func (c Comparison) Evaluate(values map[string]any) bool {
 		v := values[c.Field]
 		return v == nil || fmt.Sprint(v) == ""
 	}
-	actual := fmt.Sprint(values[c.Field])
+	actual := text(values[c.Field])
 	switch c.Op {
 	case OpEquals:
 		return actual == c.Value
@@ -134,4 +134,14 @@ func (c Comparison) Evaluate(values map[string]any) bool {
 	default:
 		return false
 	}
+}
+
+// text is a stored value as a comparison reads it. A figure is written in full: fmt.Sprint writes 1000000.0 as
+// "1e+06", so `equals: "1000000"` never matched a stored number of a million or more, while the SQL path (which reads
+// the JSON text) did -- the same condition answered differently on a Dataset and a Measure.
+func text(v any) string {
+	if n, ok := v.(float64); ok {
+		return strconv.FormatFloat(n, 'f', -1, 64)
+	}
+	return fmt.Sprint(v)
 }

@@ -105,12 +105,12 @@ var generatedFieldSchema = geminiSchema{
 		},
 		"compute": {
 			Type:             "OBJECT",
-			Description:      "Only on a field that should be calculated rather than entered: a total (op sum, on a number field over number fields), or a date plus a number of days (op add_days, on a DATE field, fields: [a date field, a number field]). It is never shown as an input; it is calculated every time the record is saved.",
+			Description:      "Only on a field that should be calculated rather than entered: a total (op sum, on a number or money field over number or money fields), or a date plus a number of days (op add_days, on a DATE field, fields: [a date field, a number field]). It is never shown as an input; it is calculated every time the record is saved.",
 			Required:         []string{"op", "fields"},
 			PropertyOrdering: []string{"op", "fields"},
 			Properties: map[string]geminiSchema{
 				"op":     {Type: "STRING", Enum: computeOpEnum()},
-				"fields": {Type: "ARRAY", Items: &stringSchema, Description: "Ids of number fields of this same machine that are not computed themselves."},
+				"fields": {Type: "ARRAY", Items: &stringSchema, Description: "Ids of number or money fields of this same machine that are not computed themselves."},
 			},
 		},
 	},
@@ -238,8 +238,8 @@ var generatedTransitionSchema = geminiSchema{
 			Properties: map[string]geminiSchema{
 				"of":     {Type: "STRING", Description: "The machine whose records are totalled (the lines)."},
 				"via":    {Type: "STRING", Description: "A relation field of that machine pointing back at THIS machine."},
-				"debit":  {Type: "STRING", Description: "A number field of that machine."},
-				"credit": {Type: "STRING", Description: "A different number field of that machine."},
+				"debit":  {Type: "STRING", Description: "A number or money field of that machine."},
+				"credit": {Type: "STRING", Description: "A different number or money field of that machine."},
 				"reason": {Type: "STRING", Description: "What a refused step is told."},
 			}},
 		"generates": {Type: "OBJECT", Description: "Optional: taking this step creates a schedule of records of another machine (disbursing a loan writes its instalments), at most 120, never twice for one record.",
@@ -251,8 +251,8 @@ var generatedTransitionSchema = geminiSchema{
 				"link_field":     {Type: "STRING", Description: "A relation field of the created machine pointing back at THIS machine."},
 				"due_field":      {Type: "STRING", Description: "A date field of the created machine: the i-th record is due i x due_every_days days from the day the step is taken."},
 				"due_every_days": {Type: "INTEGER", Description: "Days between records, at least 1."},
-				"amount_field":   {Type: "STRING", Description: "A number field of the created machine."},
-				"amount_from":    {Type: "STRING", Description: "A number field of THIS machine, split evenly across the records."},
+				"amount_field":   {Type: "STRING", Description: "A number or money field of the created machine."},
+				"amount_from":    {Type: "STRING", Description: "A number or money field of THIS machine, split evenly across the records."},
 			}},
 	},
 }

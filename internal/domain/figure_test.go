@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestFormatFigure(t *testing.T) {
 	for _, c := range []struct {
@@ -13,12 +16,16 @@ func TestFormatFigure(t *testing.T) {
 		{FieldTypeNumber, -3, "-3"},
 		{FieldTypeMoney, 0, "0"},
 		{FieldTypeMoney, 999, "999"},
-		{FieldTypeMoney, 1000, "1.000"},
-		{FieldTypeMoney, 180000000, "180.000.000"},
-		{FieldTypeMoney, 1234567.5, "1.234.567,5"},
-		{FieldTypeMoney, 1234567.05, "1.234.567,05"},
+		{FieldTypeMoney, 1000, "1,000"},
+		{FieldTypeMoney, 180000000, "180,000,000"},
+		{FieldTypeMoney, 1234567.5, "1,234,567.5"},
+		{FieldTypeMoney, 1234567.05, "1,234,567.05"},
 		{FieldTypeMoney, 0.999, "1"},
-		{FieldTypeMoney, -2700000, "-2.700.000"},
+		{FieldTypeMoney, -2700000, "-2,700,000"},
+		{FieldTypeMoney, -0.001, "0"},                             // rounds to zero, which has no sign
+		{FieldTypeMoney, 1e15 + 0.25, "1,000,000,000,000,000.25"}, // past an int64 of cents' comfort
+		{FieldTypeMoney, math.Inf(1), "+Inf"},
+		{FieldTypeMoney, math.NaN(), "NaN"},
 	} {
 		if got := FormatFigure(c.t, c.v); got != c.want {
 			t.Errorf("FormatFigure(%s, %v) = %q, want %q", c.t, c.v, got, c.want)
@@ -28,7 +35,7 @@ func TestFormatFigure(t *testing.T) {
 
 func TestFieldFigureOnlyFormatsStoredFigures(t *testing.T) {
 	money := Field{ID: "fld_value", Type: FieldTypeMoney}
-	if got, ok := money.Figure(float64(54000000)); !ok || got != "54.000.000" {
+	if got, ok := money.Figure(float64(54000000)); !ok || got != "54,000,000" {
 		t.Errorf("money figure = %q, %v", got, ok)
 	}
 	for _, v := range []any{nil, "54000000", true} {

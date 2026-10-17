@@ -73,3 +73,15 @@ func TestComparison_OrderedOnAnAbsentFieldIsFalse(t *testing.T) {
 		t.Error("IsOrdered misclassifies an operator")
 	}
 }
+
+// TestEqualsReadsALargeFigureInFull: a stored figure of a million or more equals its plain text, the way the SQL path
+// reads it -- not Go's exponent form.
+func TestEqualsReadsALargeFigureInFull(t *testing.T) {
+	values := map[string]any{"fld_amount": float64(180000000)}
+	if !(Comparison{Field: "fld_amount", Op: OpEquals, Value: "180000000"}).Evaluate(values) {
+		t.Error("equals 180000000 did not match a stored 180000000")
+	}
+	if (Comparison{Field: "fld_amount", Op: OpNotEquals, Value: "180000000"}).Evaluate(values) {
+		t.Error("not_equals 180000000 matched a stored 180000000")
+	}
+}

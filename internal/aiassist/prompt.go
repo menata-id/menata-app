@@ -46,8 +46,8 @@ func composableSurface() string {
 - Machines with Fields: ` + fieldTypeSentence() + `.
 - A relation field may point at any machine already installed in this workspace, including one another
   application owns -- machines belong to the workspace, so two applications can share data this way.
-- A computed number field ("compute": {"op": ..., "fields": [...]}): its value is calculated from other
-  number fields of the same machine every time a record is saved, and it is never an input. Operations:
+- A computed number or money field ("compute": {"op": ..., "fields": [...]}): its value is calculated from other
+  number or money fields of the same machine every time a record is saved, and it is never an input. Operations:
   ` + strings.Join(computeOpEnum(), ", ") + `. Use it for totals rather than asking people to type one.
 - A starting value for a field ("default", as text; a status field's must be one of its options, e.g. the
   first, so new records begin at "new"). A person field the runtime fills with whoever created the record
@@ -112,13 +112,13 @@ func composableSurface() string {
   date fields with the day it is taken ("sets": [{field, source: "today"}], e.g. the completion date); a DATE
   field may be computed as another date plus a number of days (compute op "add_days", fields: [date, number]).
   A step may hold until the records of another machine that point at this one balance ("balanced": {of: that
-  machine, via: its relation field pointing back, debit and credit: two different number fields, reason}): a
+  machine, via: its relation field pointing back, debit and credit: two different number or money fields, reason}): a
   journal entry is posted only when its lines' debit and credit are equal. A step may also create a schedule of
   records of another machine when taken ("generates": {machine, count_field: a number field here, link_field: a
-  relation field there pointing back, due_field: a date field there, due_every_days, amount_field: a number field
-  there, amount_from: a number field here}): disbursing a loan writes its instalments, due every period and
+  relation field there pointing back, due_field: a date field there, due_every_days, amount_field: a number or money
+  field there, amount_from: a number or money field here}): disbursing a loan writes its instalments, due every period and
   sharing the amount evenly, at most 120, never twice. Both are only on a new machine or added to an existing one.
-- A limit on a total over a machine's own records ("ensure": {id starting ens_, sum_of: a number field, per: the
+- A limit on a total over a machine's own records ("ensure": {id starting ens_, sum_of: a number or money field, per: the
   field that groups records, at_least and/or at_most, reason}): stock may not go below zero per item
   (at_least 0), the vouchers of a period may not exceed the fund (at_most). It is checked on every create and
   edit of that machine, so a write that would break it is refused with the reason.

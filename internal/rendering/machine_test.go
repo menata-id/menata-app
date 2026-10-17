@@ -171,7 +171,7 @@ func TestRecordRowWritesFiguresAsPeopleReadThem(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
-	for _, want := range []string{"180.000.000", "2400000"} {
+	for _, want := range []string{"180,000,000", "2400000"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the row does not show %q", want)
 		}
