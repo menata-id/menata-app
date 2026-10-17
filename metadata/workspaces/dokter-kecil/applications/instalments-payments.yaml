@@ -29,6 +29,13 @@ navigation:
       layout: stack
       gap: comfortable
       children:
+        - component: ActionBar
+          label: Instalment actions
+          children:
+            - static: link
+              list_of: ds_purchase_orders
+              text: Purchase orders
+              variant: secondary
         - layout: grid
           gap: default
           columns: 4
@@ -113,30 +120,90 @@ navigation:
         - component: Table
           label: Unpaid instalments
           empty: Every instalment is paid.
+          framed: true
           columns:
-            - { header: Instalment, from: title, href: record }
-            - { header: Contract, from: container }
-            - { header: Due, from: date, align: end }
-            - { header: Gross, from: money, align: end }
-            - { header: Status, from: status }
+            - { header: Due date, field: fld_due_date }
+            - { header: Instalment, field: fld_term_label, href: record }
+            - { header: Contract, field: fld_contract }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: Status, field: fld_term_status }
           binding: { dataset: ds_instalments_unpaid, rows: records }
-        - layout: row
-          gap: default
-          children:
-            - static: link
-              list_of: ds_instalments_unpaid
-              text: All instalments
-            - static: link
-              list_of: ds_purchase_orders
-              text: Purchase orders
-  # Payment plans (K02b): created naming one instalment; approving and confirming happen on the plan's own page.
+        - static: link
+          list_of: ds_instalments_unpaid
+          text: All instalments
+  # Payment plans (K02b): chips by status with their counts, a search over the plan number, and the plans by the
+  # columns the board draws. Approve and Reject sit on the row for finance; confirming payment happens on the plan's page.
   - id: nav_payment_plans
     label: Payment plans
     title: Payment plans
-    description: Plans to pay one instalment each. Approve, then upload the proof and mark it paid.
-    route: /machines/mch_payment_plan
+    route: /pages/nav_payment_plans
     priority: 2
     icon: check-square
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Payment plan actions
+          children:
+            - static: link
+              to: nav_new_plan
+              text: + New plan
+              variant: primary
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - component: FilterChips
+              label: Plan status
+              query: status
+              all: All
+              binding: { dataset: ds_plans_by_status, measure: msr_plans_by_status, rows: dimension }
+            - component: SearchBox
+              label: Search payment plans
+              query: q
+              placeholder: Search plan number
+        - component: Table
+          label: Payment plans
+          empty: No payment plan matches.
+          framed: true
+          complete: true
+          columns:
+            - { header: Plan no., field: fld_plan_no, href: record }
+            - { header: Instalment, field: fld_term }
+            - { header: Net, field: fld_plan_amount, align: end }
+            - { header: Planned, field: fld_plan_date }
+            - { header: Paid on, field: fld_paid_date }
+            - { header: Status, field: fld_plan_status }
+          binding: { dataset: ds_payment_plans, rows: records }
+          children:
+            - component: Button
+              label: Approve
+              variant: primary
+              becomes: Awaiting proof
+              from: { describes: title }
+              binding: { write: transition }
+            - component: Button
+              label: Reject
+              variant: secondary
+              becomes: Rejected
+              from: { describes: title }
+              binding: { write: transition }
+  # New payment plan: the form the list's action opens. A plan names its instalment; it is created Submitted.
+  - id: nav_new_plan
+    label: New payment plan
+    title: New payment plan
+    description: One plan pays one instalment. The proof of payment is uploaded when the money has moved.
+    route: /pages/nav_new_plan
+    in_menu: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Submit plan
+          binding: { dataset: ds_payment_plans, write: create }
   - id: nav_payments_settings
     label: Settings
     title: Instalments & Payments settings

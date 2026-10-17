@@ -239,7 +239,7 @@ var allowedProps = map[string][]string{
 	"component/Disclosure":       {"summary"},
 	"component/SegmentedControl": {"label", "query", "options", "selected"},
 	"component/Popover":          {"label", "title", "trigger", "align", "density"},
-	"component/Table":            {"label", "empty", "headers", "aligns", "truncated"},
+	"component/Table":            {"label", "empty", "headers", "aligns", "truncated", "framed"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
 	"component/SearchBox":        {"label", "query", "placeholder", "value", "action", "submit", "keep"},
 	"component/Diff":             {"label", "text"},

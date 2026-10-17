@@ -65,10 +65,15 @@ func recordTableColumns(fields []domain.Field) []TableColumn {
 // header, both produced by lowering from the page's `columns:`; the cells are row-major, so cell i belongs to column
 // i mod the number of headers and to row i div that number. A table with no cells and an `empty` text says that instead
 // of drawing a header over nothing.
-templ table(label, empty, headers, aligns string, truncated Truncation, cells []templ.Component) {
+templ table(label, empty, headers, aligns string, framed bool, truncated Truncation, cells []templ.Component) {
 	{{ cols := tableColumnsFromProps(headers, aligns) }}
 	if len(cells) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
+	} else if framed {
+		<div class={ surfaceClasses(ctx) }>
+			@tableBody(label, cols, cells)
+		</div>
+		@truncationNotice(truncated)
 	} else {
 		@tableBody(label, cols, cells)
 		@truncationNotice(truncated)

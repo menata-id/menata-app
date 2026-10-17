@@ -213,6 +213,9 @@ type PageBinding struct {
 	// so the Data Plane resolves those Fields -- and a relation among them, in one statement by the ids listed -- and
 	// no other. A binding with none resolves only the Projection, as before.
 	Fields []string
+	// CountCut is never written either: a Table that says `complete: true` asks, when its Dataset's bound cuts it, how
+	// many records it was cut from. Set at load, so a list that claims nothing pays no count.
+	CountCut bool
 }
 
 // PageGroupDate buckets a records binding by the Machine's `date` card_fields role, one bucket per day of the

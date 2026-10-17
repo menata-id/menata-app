@@ -80,3 +80,16 @@ datasets:
     where: { field: fld_plan_status, op: equals, value: Awaiting proof }
     sort: [{ field: fld_plan_date, direction: asc }]
     limit: 200
+  # The plan list (K02b): a status chip and the search over the plan number are optional request parameters.
+  - id: ds_payment_plans
+    select: records
+    where:
+      all:
+        - { field: fld_plan_status, op: equals, value: $parameters.status, optional: true }
+        - { field: fld_plan_no, op: contains, value: $parameters.q, optional: true }
+    sort: [{ field: fld_plan_no, direction: desc }]
+    limit: 100
+  - id: ds_plans_by_status
+    dimension: fld_plan_status
+    measures:
+      - { id: msr_plans_by_status, aggregate: count }

@@ -23,7 +23,7 @@ func renderTable(t *testing.T, label, empty, headers, aligns string, cells ...st
 		cs[i] = cellText(c)
 	}
 	var b bytes.Buffer
-	if err := table(label, empty, headers, aligns, Truncation{}, cs).Render(assignedNavFixture(), &b); err != nil {
+	if err := table(label, empty, headers, aligns, false, Truncation{}, cs).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	return b.String()
@@ -86,14 +86,14 @@ func TestTable_escapesAHeaderAndNeverPanicsOnShortProps(t *testing.T) {
 func TestTableSaysWhatACutListWasCutFrom(t *testing.T) {
 	var b strings.Builder
 	cell := templ.Raw("<span>a</span>")
-	if err := table("Contracts", "", "Contract", "start", truncationFromProp("100/340"), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+	if err := table("Contracts", "", "Contract", "start", false, truncationFromProp("100/340"), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(b.String(), "Showing the first 100 of 340") {
 		t.Errorf("a cut list does not say what it was cut from: %s", b.String())
 	}
 	b.Reset()
-	if err := table("Contracts", "", "Contract", "start", truncationFromProp(""), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+	if err := table("Contracts", "", "Contract", "start", false, truncationFromProp(""), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "Showing the first") {

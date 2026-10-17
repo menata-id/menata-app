@@ -382,6 +382,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 				out.Binding.Fields = append(out.Binding.Fields, c.Field)
 			}
 		}
+		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 	}
 	if len(p.from) > 0 {
 		out.From = p.from

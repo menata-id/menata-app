@@ -207,6 +207,9 @@ var tableContract = domain.ComponentContract{
 		// truncated is lowered from `complete: true` when the Dataset's bound cut the list: "100", or "100/340" when the
 		// count it was cut from is known. Never written.
 		{Name: "truncated", Kind: "string"},
+		// framed draws the table on a surface (the bordered card the mockups put a list in); absent, it is unframed and
+		// the layout around it decides.
+		{Name: "framed", Kind: "boolean"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"cell"},
@@ -221,6 +224,9 @@ func validateTable(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(tableContract, inputs, "Table")
 	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
 		issues = append(issues, "Table label is blank -- a table with no name is announced as only \"table\"")
+	}
+	if v, ok := inputs["framed"]; ok && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Table framed %q is not true or false", v))
 	}
 	headers := strings.Split(inputs["headers"], "\n")
 	if inputs["headers"] == "" {

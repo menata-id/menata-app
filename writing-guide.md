@@ -1785,7 +1785,7 @@ cell may take and makes it a link to the record's own page. There are up to twel
 only: a table of several Measures per Dimension (the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a
 window and claims nothing about completeness -- unless it says **`complete: true`** (2026-10-17, as a Collection may): then a list
 the bound cut says so under its rows, with the count it was cut from ("Showing the first 100 of 340"), which costs one count only
-when the bound bit. **`stable`**: the
+when the bound bit. **`framed: true`** draws the table on a surface, the bordered card the mockups put a list in. **`stable`**: the
 Helpdesk's All tickets page declares one.
 
 **`component: ActionBar`** (2026-10-17) is a page's primary actions, named as a group. Put it at the root of the page and it

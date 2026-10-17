@@ -3266,7 +3266,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentTable:
-				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], truncationFromProp(n.Props["truncated"]), uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
