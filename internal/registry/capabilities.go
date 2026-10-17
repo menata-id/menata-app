@@ -58,7 +58,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "views", "presentation", "experience", true, ""),
 	key("machineDoc", "constraints", "behaviour", "behavior", false, "block-if rules relate two Machines; the assistant has no related-record vocabulary yet"),
 	key("machineDoc", "actions", "behaviour", "behavior", false, "declares what an Action writes; only the approval engine's Machines use it"),
-	key("machineDoc", "datasets", "data", "data", false, "free-form selection (a status filter, counts); a generated Machine gets a Dataset only as the list behind a menu entry (GeneratedMenuItem.List, W5-a)"),
+	key("machineDoc", "datasets", "data", "data", false, "free-form selection (a status filter, counts); a generated Machine gets a Dataset only as the list behind a menu entry (GeneratedMenuItem.List, W5-a), a status filter, or a work queue (GeneratedMenuItem.Queue)"),
 	key("machineDoc", "sequencing", "engine", "behavior", false, "approval-engine ordering; generated Machines have no step Machine"),
 	key("machineDoc", "signature_placement", "engine", "behavior", false, "approval-engine role (step); not generatable"),
 	key("machineDoc", "signature_store", "engine", "behavior", false, "approval-engine role (signature); not generatable"),

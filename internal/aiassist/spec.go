@@ -98,6 +98,9 @@ type GeneratedMenuItem struct {
 	// ByStatus makes the entry a page of one tile per status, each opening a second page that lists the
 	// records in that status (W6). Only for a new item; the writer adds the second page to the menu.
 	ByStatus *GeneratedByStatus `json:"by_status,omitempty"`
+	// Queue makes the entry the work-queue page of this Machine: figures, then what is open in sections, each
+	// row carrying the buttons that move it along (queue.go). Only for a new item.
+	Queue *GeneratedQueue `json:"queue,omitempty"`
 	// detail marks the second page a ByStatus entry expands into; set by the writer, never by the model.
 	detail *GeneratedByStatus
 }
@@ -387,4 +390,29 @@ func (e GeneratedEvent) EventService() string {
 		return EventServiceLogActivity
 	}
 	return e.Service
+}
+
+// GeneratedQueue is the closed queue-page recipe. The model picks it and names at most a date Field and some
+// words; the Datasets, count measures, Metrics, Collections and transition Buttons are derived from the Machine's
+// status_categories, completion, transitions and card_fields (queue.go).
+type GeneratedQueue struct {
+	// DateField, when set, makes a dated queue (overdue, due today, next 7 days, later): a date Field the
+	// Machine projects with a card_fields entry of role date, and the Machine must declare completion.
+	// Left empty, the sections are the Machine's open statuses (start, active, attention categories).
+	DateField string `json:"date_field,omitempty"`
+	// Limit is how many records each section shows at most, 1..200.
+	Limit int `json:"limit"`
+	// Words are the headings and labels, in the person's own language; any left empty reads in English.
+	Words GeneratedQueueWords `json:"words,omitempty"`
+}
+
+type GeneratedQueueWords struct {
+	Overdue      string `json:"overdue,omitempty"`
+	DueToday     string `json:"due_today,omitempty"`
+	NextWeek     string `json:"next_week,omitempty"`
+	Later        string `json:"later,omitempty"`
+	RecentlyDone string `json:"recently_done,omitempty"`
+	Empty        string `json:"empty,omitempty"`
+	All          string `json:"all,omitempty"`
+	Add          string `json:"add,omitempty"`
 }

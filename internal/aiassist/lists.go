@@ -32,8 +32,9 @@ type datasetDoc struct {
 }
 
 type measureDoc struct {
-	ID        string `yaml:"id"`
-	Aggregate string `yaml:"aggregate"`
+	ID        string        `yaml:"id"`
+	Aggregate string        `yaml:"aggregate"`
+	Where     *wherePredDoc `yaml:"where,omitempty"`
 }
 
 // The measure and the query parameter a status filter is written with.
@@ -57,13 +58,14 @@ func expandMenu(items []GeneratedMenuItem) []GeneratedMenuItem {
 }
 
 func (n GeneratedMenuItem) hasPage() bool {
-	return n.List != nil || n.ByStatus != nil || n.detail != nil
+	return n.List != nil || n.ByStatus != nil || n.Queue != nil || n.detail != nil
 }
 
 type wherePredDoc struct {
-	Field string `yaml:"field"`
-	Op    string `yaml:"op"`
-	Value string `yaml:"value"`
+	Field string         `yaml:"field,omitempty"`
+	Op    string         `yaml:"op,omitempty"`
+	Value string         `yaml:"value,omitempty"`
+	All   []wherePredDoc `yaml:"all,omitempty"`
 }
 
 type sortFieldDoc struct {
@@ -74,6 +76,19 @@ type sortFieldDoc struct {
 // pageNodeDoc is the one shape the writer needs of a page node; metadata's own pageNodeDoc has a custom
 // decoder and unexported fields, so (like the other docs in writer.go) this is a write-side mirror.
 type pageNodeDoc struct {
+	Label     string            `yaml:"label,omitempty"`
+	Heading   string            `yaml:"heading,omitempty"`
+	Summary   string            `yaml:"summary,omitempty"`
+	Submit    string            `yaml:"submit,omitempty"`
+	Text      string            `yaml:"text,omitempty"`
+	ListOf    string            `yaml:"list_of,omitempty"`
+	Variant   string            `yaml:"variant,omitempty"`
+	Becomes   string            `yaml:"becomes,omitempty"`
+	Align     string            `yaml:"align,omitempty"`
+	Justify   string            `yaml:"justify,omitempty"`
+	Divided   bool              `yaml:"divided,omitempty"`
+	HideEmpty bool              `yaml:"hide_empty,omitempty"`
+	Complete  bool              `yaml:"complete,omitempty"`
 	Columns   int               `yaml:"columns,omitempty"`
 	Mobile    int               `yaml:"mobile,omitempty"`
 	To        string            `yaml:"to,omitempty"`
@@ -90,9 +105,10 @@ type pageNodeDoc struct {
 }
 
 type pageBindingDoc struct {
-	Dataset string `yaml:"dataset"`
+	Dataset string `yaml:"dataset,omitempty"`
 	Measure string `yaml:"measure,omitempty"`
-	Rows    string `yaml:"rows"`
+	Rows    string `yaml:"rows,omitempty"`
+	Write   string `yaml:"write,omitempty"`
 }
 
 // listed is one new menu entry that carries a list, with the ids the writer assigned it.
@@ -121,6 +137,8 @@ func assignNavIDs(appID string, desired []GeneratedMenuItem, current map[string]
 			base += "_" + n.List.Scope
 		case n.ByStatus != nil:
 			base += "_by_status"
+		case n.Queue != nil:
+			base += "_queue"
 		case n.detail != nil:
 			base += statusDetailSuffix
 		}
@@ -226,6 +244,12 @@ func validateLists(app *GeneratedApplication) []string {
 	var issues []string
 	for _, item := range app.Navigation {
 		issues = append(issues, validateByStatus(item, machines)...)
+		if item.Queue != nil {
+			if m, ok := machines[item.MachineID]; ok {
+				issues = append(issues, validateQueue(item, m)...)
+			}
+			continue
+		}
 		l := item.List
 		if l == nil {
 			continue
@@ -305,4 +329,20 @@ func validateByStatus(item GeneratedMenuItem, machines map[string]GeneratedMachi
 		issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- the page a tile opens draws each record by its title", where, m.ID))
 	}
 	return issues
+}
+
+// datasetsFor is every Dataset an entry's page needs: one for a list or a tile page, several for a queue.
+func datasetsFor(l listed, m GeneratedMachine) []datasetDoc {
+	if l.Item.Queue != nil {
+		return queueDatasets(l, m)
+	}
+	return []datasetDoc{datasetFor(l)}
+}
+
+// pageForEntry is the page an entry is written as, whichever kind it is.
+func pageForEntry(l listed, m GeneratedMachine) pageNodeDoc {
+	if l.Item.Queue != nil {
+		return queuePage(l, m)
+	}
+	return pageFor(l, m)
 }

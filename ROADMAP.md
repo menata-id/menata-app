@@ -58,7 +58,7 @@ In order. Each stage is broken into small, finished steps.
 - Updating an application through the assistant keeps everything it does not understand.
 - The assistant says clearly what it cannot write yet, and those requests are recorded and reviewed.
 - It writes defaults, completion, owner fields, notifications, boards and card layouts, datasets and declared
-  screens, including screens per user and filter tiles.
+  screens, including screens per user, filter tiles and work queues.
 - From now on, a new metadata capability arrives with the assistant's ability to write it.
 - A set of reference applications, written ahead of the runtime, shows which capability to build next.
 

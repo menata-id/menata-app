@@ -90,6 +90,21 @@ func composableSurface() string {
   opening a second page of the records in it (at most "limit", 1 to 200). Give "detail_label", the menu
   label of that second page; it is added to the menu for you. Same title requirement and the same note as
   a list: it filters what the pages show, nothing more.
+- A menu entry may instead be a work queue ("queue" on a NEW menu item) -- use it for anything people work
+  through: tickets, maintenance, loans due, requests. The page shows figures, then what is still open in
+  sections, a button on every row for the next step, a form to add one, and the latest finished ones. You give
+  only "limit" (1 to 200), optionally "date_field", and optionally "words" (the headings, in the person's
+  language); everything else is derived from the machine, so the machine MUST carry what it reads:
+  a card_fields entry with role "title", "status_categories" (which statuses are start, active, attention, done),
+  and "transitions" for the steps -- each declared step becomes a button, so a queue with no transitions is
+  only a list. With "date_field" (a DATE field that also has a card_fields entry with role "date") the sections
+  are Overdue, Due today, Next 7 days and Later, and the machine needs "completion" and a transition into the
+  done status (it becomes the Complete button) -- maintenance, loan instalments, deadlines. Without it, there
+  is one section per open status, in order -- a helpdesk (new, in progress, waiting) needs no date at all.
+  Examples: helpdesk = status field with new/in_progress/waiting/resolved, categories start/active/attention/done,
+  transitions new->in_progress->resolved, queue {limit: 50}. Maintenance = a "due" date field plus completion,
+  queue {date_field: "fld_due", limit: 50}. Lending = the instalment machine's due date and a "paid" status,
+  queue {date_field: "fld_due_date", limit: 50}. Same note as a list: it filters what the page shows, nothing more.
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button). A step may be limited to holders of
   some roles ("roles") and/or to the person a person field of the record names ("actor_field": "only the

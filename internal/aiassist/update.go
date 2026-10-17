@@ -93,7 +93,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 			doc := machineDocFor(m)
 			for _, l := range lists {
 				if l.Item.MachineID == m.ID {
-					doc.Datasets = append(doc.Datasets, datasetFor(l))
+					doc.Datasets = append(doc.Datasets, datasetsFor(l, m)...)
 				}
 			}
 			if err := installer.WriteYAMLStrict(path, doc); err != nil {
@@ -305,8 +305,10 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		}
 	}
 	for _, l := range newLists {
-		if err := appendEncoded(ensureSeq(doc, "datasets"), datasetFor(l)); err != nil {
-			return err
+		for _, ds := range datasetsFor(l, m) {
+			if err := appendEncoded(ensureSeq(doc, "datasets"), ds); err != nil {
+				return err
+			}
 		}
 	}
 	return writeYAMLDoc[installer.FullMachineCheckDoc](written, path, doc)
@@ -346,7 +348,7 @@ func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lis
 		setScalar(node, "route", "/machines/"+n.MachineID)
 		if l, ok := listFor(lists, ids[i]); ok {
 			setScalar(node, "route", "/pages/"+ids[i])
-			if err := setEncoded(node, "page", pageFor(l, machines[n.MachineID])); err != nil {
+			if err := setEncoded(node, "page", pageForEntry(l, machines[n.MachineID])); err != nil {
 				return err
 			}
 		}

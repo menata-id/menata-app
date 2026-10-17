@@ -321,7 +321,7 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 		doc := machineDocFor(m)
 		for _, l := range lists {
 			if l.Item.MachineID == m.ID {
-				doc.Datasets = append(doc.Datasets, datasetFor(l))
+				doc.Datasets = append(doc.Datasets, datasetsFor(l, m)...)
 			}
 		}
 
@@ -362,7 +362,7 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 	for i, item := range menu {
 		nav := navItemDoc{ID: navIDs[i], Label: item.Label, Route: "/machines/" + item.MachineID, HomeCard: i == 0}
 		if l, ok := listFor(lists, navIDs[i]); ok {
-			page := pageFor(l, machinesByID[item.MachineID])
+			page := pageForEntry(l, machinesByID[item.MachineID])
 			nav.Route, nav.Page = "/pages/"+navIDs[i], &page
 		}
 		appDoc.Navigation = append(appDoc.Navigation, nav)

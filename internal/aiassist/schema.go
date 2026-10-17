@@ -385,8 +385,30 @@ var generatedByStatusSchema = geminiSchema{
 	},
 }
 
+var generatedQueueSchema = geminiSchema{
+	PropertyOrdering: []string{"date_field", "limit", "words"},
+	Type:             "OBJECT",
+	Required:         []string{"limit"},
+	Properties: map[string]geminiSchema{
+		"date_field": {Type: "STRING", Description: "Optional: a date field of that machine that its card_fields projects with role date. Gives sections Overdue, Due today, Next 7 days and Later; the machine must also declare completion. Leave empty to section the queue by the machine's open statuses instead."},
+		"limit":      {Type: "INTEGER", Description: "How many records each section shows at most, 1 to 200."},
+		"words": {Type: "OBJECT", Description: "The page's headings and labels in the person's own language; leave any out to read in English.",
+			PropertyOrdering: []string{"overdue", "due_today", "next_week", "later", "recently_done", "empty", "all", "add"},
+			Properties: map[string]geminiSchema{
+				"overdue":       {Type: "STRING"},
+				"due_today":     {Type: "STRING"},
+				"next_week":     {Type: "STRING"},
+				"later":         {Type: "STRING"},
+				"recently_done": {Type: "STRING"},
+				"empty":         {Type: "STRING"},
+				"all":           {Type: "STRING"},
+				"add":           {Type: "STRING"},
+			}},
+	},
+}
+
 var generatedMenuItemSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "label", "machine_id", "list", "by_status"},
+	PropertyOrdering: []string{"id", "label", "machine_id", "list", "by_status", "queue"},
 	Type:             "OBJECT",
 	Required:         []string{"label"},
 	Properties: map[string]geminiSchema{
@@ -395,6 +417,7 @@ var generatedMenuItemSchema = geminiSchema{
 		"machine_id": {Type: "STRING", Description: "Required for a new item: one of this application's own machine ids; the entry opens that machine's list."},
 		"list":       withDescription(generatedListSchema, "Only for a NEW item: makes the entry a list page of that machine's records (all of them, or only the viewer's own). Needs the machine to have a card_fields entry with role title. Never on an existing item."),
 		"by_status":  withDescription(generatedByStatusSchema, "Only for a NEW item, instead of list: the entry is a page of one tile per status counting that machine's records, each tile opening a page of the records in that status. Needs a card_fields entry with role title. Never on an existing item."),
+		"queue":      withDescription(generatedQueueSchema, "Only for a NEW item, instead of list and by_status: the entry is the machine's work queue -- figures, then what is open in sections, with a button on each row for the next step and a form to add one. Needs a card_fields entry with role title, status_categories on the machine, and (without date_field) a card_fields entry with role status. Never on an existing item."),
 	},
 }
 
