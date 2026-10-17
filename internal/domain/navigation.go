@@ -149,6 +149,8 @@ type NavigationItem struct {
 	// RecordSource, on a runtime screen that is one record's page, names the registry.RuntimeSources entry the record
 	// comes from; the route's id is that record's, and an id the source does not provide is a 404.
 	RecordSource string
+	// RecordParam is the name the page reads the route's id under (`$parameters.<name>`); empty means "id".
+	RecordParam string
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

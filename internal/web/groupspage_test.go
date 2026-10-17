@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // TestGroupsIsARuntimePage: /workspace-groups is the runtime's declared page. It lists the Workspace's Groups with their
@@ -339,5 +340,136 @@ func TestWorkspaceSettingsIsARuntimePage(t *testing.T) {
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("a member opening the settings hub = %d, want 403", rec.Code)
+	}
+}
+
+// TestApplicationMembersNamesItsApplicationByItsHubAndRefusesWhatIsNone: /settings/<hub>/members is one runtime page for every
+// Application, the one whose settings hub the route names; a hub that is no Application's is a 404, and an Application that
+// declares no roles has none to assign.
+func TestApplicationMembersNamesItsApplicationByItsHubAndRefusesWhatIsNone(t *testing.T) {
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "appmembers404", "default")
+	var withRoles, withoutRoles string
+	for _, app := range ws.Applications {
+		for _, item := range app.AllNavigation {
+			if !item.SettingsHub {
+				continue
+			}
+			if len(app.Roles) > 0 && withRoles == "" {
+				withRoles = item.Route
+			}
+			if len(app.Roles) == 0 && withoutRoles == "" {
+				withoutRoles = item.Route
+			}
+		}
+	}
+	if withRoles == "" {
+		t.Fatal("the fixture installs no Application with roles and a hub")
+	}
+	get := func(path string) int {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := get(withRoles + "/members"); code != http.StatusOK {
+		t.Errorf("an Application with roles = %d, want 200", code)
+	}
+	if code := get("/settings/nav_nobody/members"); code != http.StatusNotFound {
+		t.Errorf("a hub nobody declares = %d, want 404", code)
+	}
+	if withoutRoles != "" {
+		if code := get(withoutRoles + "/members"); code != http.StatusNotFound {
+			t.Errorf("an Application with no roles = %d, want 404", code)
+		}
+	}
+}
+
+// A deactivated member holds a role but cannot act on it, so coverage counts active members only, and the row says so.
+func TestApplicationMembersCoverageCountsActiveMembersOnly(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "appmemberscover", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	app := applicationWithRoles(t, ws)
+	var hub domain.NavigationItem
+	for _, item := range app.AllNavigation {
+		if item.SettingsHub {
+			hub = item
+		}
+	}
+	if hub.ID == "" {
+		t.Skip("the Application has no settings hub")
+	}
+	u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "amc_gone@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+	if err := store.AddMember(ctx, wsID, u.ID, "amc_gone@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetMemberAppRole(ctx, wsID, u.ID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeactivateMember(ctx, wsID, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	body := getPage(t, h, cookie, hub.Route+"/members")
+	if !strings.Contains(body, "amc_gone@example.com") || !strings.Contains(body, "Deactivated") {
+		t.Error("a deactivated member is not listed as such")
+	}
+	if strings.Contains(body, "2 of 2 active") || !strings.Contains(body, "of 1 active member have access to "+app.Name) {
+		t.Errorf("coverage counted the deactivated member: %s", firstChars(body))
+	}
+}
+
+// A role a Group adds is shown beside the member's own and is not editable on this screen: a person who holds a role both ways is
+// shown it once, as their direct role.
+func TestApplicationMembersShowsWhatAGroupAddsAndNotWhatTheMemberAlreadyHolds(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "appmembersgroup", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	app := applicationWithRoles(t, ws)
+	var hub domain.NavigationItem
+	for _, item := range app.AllNavigation {
+		if item.SettingsHub {
+			hub = item
+		}
+	}
+	if hub.ID == "" || len(app.Roles) < 2 {
+		t.Skip("needs an Application with a settings hub and two roles")
+	}
+	u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "amg_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+	if err := store.AddMember(ctx, wsID, u.ID, "amg_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	g, err := store.CreateGroup(ctx, wsID, "AMG-group")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteGroup(ctx, wsID, g.ID) })
+	if err := store.SetGroupMembers(ctx, g.ID, []string{u.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetMemberAppRole(ctx, wsID, u.ID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetGroupAppRole(ctx, g.ID, app.ID, app.Roles[1]); err != nil {
+		t.Fatal(err)
+	}
+	body := getPage(t, h, cookie, hub.Route+"/members")
+	if !strings.Contains(body, "+ "+app.Roles[1]+" through a Group") {
+		t.Error("a role a Group adds is not shown")
+	}
+	if strings.Contains(body, "+ "+app.Roles[0]+" through a Group") {
+		t.Error("the member's own role is shown again as a Group's")
+	}
+	if err := store.SetGroupAppRole(ctx, g.ID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+	if body := getPage(t, h, cookie, hub.Route+"/members"); strings.Contains(body, "through a Group") {
+		t.Error("a role held both directly and through a Group is shown as the Group's too")
 	}
 }

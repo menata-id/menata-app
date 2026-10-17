@@ -318,8 +318,7 @@ func Routes(d Deps) http.Handler {
 			ar.Get("/workspace-members", showRuntimePage(d.Store, d.Cfg, "nav_workspace_members").ServeHTTP)
 			// An Application's own Members & roles (S2.2): one role column, scoped to the Application the
 			// hub belongs to. Same admin gate as the Workspace page it narrows.
-			ar.Get("/settings/{navID}/members", showApplicationMembers(d.Store, d.Cfg))
-			ar.Post("/settings/{navID}/members/{userRecordID}", submitApplicationMemberRole(d.Store))
+			ar.Get("/settings/{navID}/members", showRuntimeRecordPage(d.Store, d.Cfg, "nav_application_members", "navID").ServeHTTP)
 			ar.Get("/workspace-members/{userRecordID}/edit", showRuntimeRecordPage(d.Store, d.Cfg, "nav_workspace_member", "userRecordID").ServeHTTP)
 			// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27).
 

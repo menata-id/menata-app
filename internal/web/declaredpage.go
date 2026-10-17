@@ -101,7 +101,11 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 					http.NotFound(w, req)
 					return
 				}
-				params["id"] = id
+				name := item.RecordParam
+				if name == "" {
+					name = "id"
+				}
+				params[name] = id
 			}
 			current := navID
 			if item.SettingsCurrent != "" {

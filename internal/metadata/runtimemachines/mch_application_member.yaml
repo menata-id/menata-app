@@ -1,0 +1,24 @@
+# Every member of the Workspace once for each Application that declares roles (registry.RuntimeSources: application_members),
+# keyed `<hub id>:<user record id>`. A row says who the person is, what a Group adds on top, and the one role they hold directly in
+# that Application, which the screen's select edits. Read by admin pages only.
+id: mch_application_member
+name: Application member
+runtime: application_members
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_hub, name: Hub, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_email, name: Email, type: text }
+  - { id: fld_detail, name: Notes, type: text }
+  - { id: fld_role, name: Direct role, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_email, role: subtitle }
+  - { field: fld_detail, role: detail }
+datasets:
+  - id: ds_runtime_application_members
+    select: records
+    where: { field: fld_hub, op: equals, value: $parameters.hub }
+    sort:
+      - { field: fld_title, direction: asc }
+    limit: 500

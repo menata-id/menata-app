@@ -45,6 +45,7 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 	memberCookie := sessionCookieValueForTest(t, cfg, member.ID, 0)
 
 	page := hub.Route + "/members"
+	action := "/runtime-actions/set_member_app_role?record=" + hub.ID + ":"
 	do := func(method, path, cookie string, form url.Values) *httptest.ResponseRecorder {
 		var req *http.Request
 		if method == http.MethodPost {
@@ -82,9 +83,9 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 
 	// Pintu 2 -> Pintu 1.
 	chosen := app.Roles[1]
-	rec = do(http.MethodPost, page+"/"+member.ID, adminCookie, url.Values{memberRoleFormField: {chosen}})
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != page {
-		t.Fatalf("POST role = %d %q, want 303 back to %s", rec.Code, rec.Header().Get("Location"), page)
+	rec = do(http.MethodPost, action+member.ID, adminCookie, url.Values{"role": {chosen}})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST role = %d, want 303", rec.Code)
 	}
 	edit := do(http.MethodGet, "/workspace-members/"+member.ID+"/edit", adminCookie, nil).Body.String()
 	if !strings.Contains(edit, fmt.Sprintf(`<option value=%q selected`, chosen)) {
@@ -106,10 +107,10 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 	}
 
 	// Refusals write nothing.
-	if rec := do(http.MethodPost, page+"/"+member.ID, adminCookie, url.Values{memberRoleFormField: {"not-a-role"}}); rec.Code != http.StatusUnprocessableEntity {
+	if rec := do(http.MethodPost, action+member.ID, adminCookie, url.Values{"role": {"not-a-role"}}); rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("an undeclared role = %d, want 422", rec.Code)
 	}
-	if rec := do(http.MethodPost, page+"/usr_not_a_member", adminCookie, url.Values{memberRoleFormField: {chosen}}); rec.Code != http.StatusNotFound {
+	if rec := do(http.MethodPost, action+"usr_not_a_member", adminCookie, url.Values{"role": {chosen}}); rec.Code != http.StatusNotFound {
 		t.Errorf("an unknown member = %d, want 404", rec.Code)
 	}
 	if m, err := store.GetMembership(wsCtx, wsID, member.ID); err != nil || m.AppRoles[app.ID] != other {
@@ -120,7 +121,7 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 	if rec := do(http.MethodGet, page, memberCookie, nil); rec.Code != http.StatusForbidden {
 		t.Errorf("a non-admin GET = %d, want 403", rec.Code)
 	}
-	if rec := do(http.MethodPost, page+"/"+member.ID, memberCookie, url.Values{memberRoleFormField: {chosen}}); rec.Code != http.StatusForbidden {
+	if rec := do(http.MethodPost, action+member.ID, memberCookie, url.Values{"role": {chosen}}); rec.Code != http.StatusForbidden {
 		t.Errorf("a non-admin POST = %d, want 403", rec.Code)
 	}
 	if m, _ := store.GetMembership(wsCtx, wsID, member.ID); m.AppRoles[app.ID] != other {
@@ -128,7 +129,7 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 	}
 
 	// Clearing the select removes the row.
-	do(http.MethodPost, page+"/"+member.ID, adminCookie, url.Values{memberRoleFormField: {""}})
+	do(http.MethodPost, action+member.ID, adminCookie, url.Values{"role": {""}})
 	if m, _ := store.GetMembership(wsCtx, wsID, member.ID); m.AppRoles[app.ID] != "" {
 		t.Errorf("an empty role left %q stored", m.AppRoles[app.ID])
 	}

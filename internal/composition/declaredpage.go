@@ -740,6 +740,23 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				}
 				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: domain.AppRoleField(app.ID), Label: app.Name, Kind: domain.InputSelect, Options: app.Roles, Default: held[app.ID]})
 			}
+		case registry.ActionInputMemberAppRole:
+			hubID, userID, _ := strings.Cut(recordID, ":")
+			app, _, found := SettingsApplication(rendering.CurrentWorkspace(ctx), hubID)
+			if !found {
+				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application settings hub of this Workspace", hubID)
+			}
+			members, err := l.Members(ctx)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			direct := ""
+			for _, m := range members {
+				if m.UserRecordID == userID {
+					direct = m.AppRoles[app.ID]
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: app.Roles, Default: direct})
 		case registry.ActionInputWorkspaceRole:
 			members, err := l.Members(ctx)
 			if err != nil {

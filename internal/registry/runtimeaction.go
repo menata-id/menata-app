@@ -42,6 +42,9 @@ const (
 	ActionInputAppRoles = "app_roles"
 	// ActionInputWorkspaceRole is a select of the Workspace's two roles, starting as the member's own.
 	ActionInputWorkspaceRole = "workspace_role"
+	// ActionInputMemberAppRole is one select of the roles of the Application a member-in-an-Application record belongs to,
+	// starting as the role that member holds there directly. The record id says both (`<hub id>:<user record id>`).
+	ActionInputMemberAppRole = "member_app_role"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -59,6 +62,8 @@ var RuntimeActions = map[string]RuntimeAction{
 	"reload_workspace":  {ID: "reload_workspace", Admin: true, Doc: "re-reads this Workspace's files from disk; a file that does not load changes nothing live"},
 	"restore_snapshot":  {ID: "restore_snapshot", Source: "snapshots", Admin: true, Doc: "puts the Workspace's installation back to a saved one and reloads it; saved first itself, so pressing it by mistake is undone"},
 	"archive_workspace": {ID: "archive_workspace", Admin: true, Doc: "makes the Workspace read-only and hides it from its members until an admin restores it"},
+	"set_member_app_role": {ID: "set_member_app_role", Source: "application_members", Admin: true, Inputs: []ActionInput{{Name: "role", Label: "Role", Kind: ActionInputMemberAppRole}},
+		Doc: "sets one member's direct role in one Application and nothing else: not their Workspace role, not their roles elsewhere"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},

@@ -1,0 +1,24 @@
+# One Application's words for its own Members & roles screen (registry.RuntimeSources: settings_applications): what the screen is
+# for, how many active members have access, and the way back to the Application's settings hub. Keyed by the hub's navigation id,
+# which is how the screen's route names the Application. Read by admin pages only.
+id: mch_settings_application
+name: Application settings
+runtime: settings_applications
+fields:
+  - { id: fld_id, name: Hub, type: text }
+  - { id: fld_title, name: Application, type: text, required: true }
+  - { id: fld_intro, name: Intro, type: text }
+  - { id: fld_coverage, name: Coverage, type: text }
+  - { id: fld_back, name: Back, type: text }
+  - { id: fld_link, name: Hub route, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_intro, role: subtitle }
+  - { field: fld_coverage, role: detail }
+  - { field: fld_back, role: summary }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_settings_application
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.hub }
+    limit: 1

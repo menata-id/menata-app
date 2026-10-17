@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -43,16 +44,17 @@ var runtimeActionRunners = map[string]actionRunner{
 	"delete_group": runDeleteGroup,
 	// A Group's membership is the whole set ticked: unticking everyone is a meaningful submission, which is why
 	// data.SetGroupMembers takes a list and not a sequence of adds and removes.
-	"set_group_members": runSetGroupMembers,
-	"set_group_roles":   runSetGroupRoles,
-	"invite_member":     runInviteMember,
-	"set_member_access": runSetMemberAccess,
-	"deactivate_member": runDeactivateMember,
-	"reactivate_member": runReactivateMember,
-	"reload_workspace":  runReloadWorkspace,
-	"restore_snapshot":  runRestoreSnapshot,
-	"archive_workspace": runArchiveWorkspace,
-	"revoke_invite":     runRevokeInvite,
+	"set_group_members":   runSetGroupMembers,
+	"set_group_roles":     runSetGroupRoles,
+	"invite_member":       runInviteMember,
+	"set_member_access":   runSetMemberAccess,
+	"deactivate_member":   runDeactivateMember,
+	"reactivate_member":   runReactivateMember,
+	"set_member_app_role": runSetMemberAppRole,
+	"reload_workspace":    runReloadWorkspace,
+	"restore_snapshot":    runRestoreSnapshot,
+	"archive_workspace":   runArchiveWorkspace,
+	"revoke_invite":       runRevokeInvite,
 }
 
 // runtimeAction is `POST /runtime-actions/{action}[?record=<id>]`, the one route a runtime page's Form or Button for a
@@ -359,4 +361,35 @@ func snapshotsProvider(store *data.Store, cfg config.Config) composition.Runtime
 		}
 		return out, nil
 	}
+}
+
+// runSetMemberAppRole sets one member's direct role in one Application and nothing else: not their Workspace role, not their roles
+// elsewhere. The record names both (`<hub id>:<user record id>`); the value is checked against the Application's own declared
+// vocabulary, an empty one clears the row, and a member who is not in this Workspace is a 404 -- SetMemberAppRole alone would
+// insert a row for any user id. It leaves the legacy workspace_members.app_role column alone: nothing reads it (the member screen
+// still writes it for the Document Approval id, see legacyAppRoleApplicationID), and a second write here would be a second place
+// to remember it exists.
+func runSetMemberAppRole(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	hubID, userID, _ := strings.Cut(record, ":")
+	app, _, found := composition.SettingsApplication(rendering.CurrentWorkspace(ctx), hubID)
+	if !found {
+		http.NotFound(w, req)
+		return "", false
+	}
+	role := req.FormValue("role")
+	if role != "" && !slices.Contains(app.Roles, role) {
+		http.Error(w, "this application does not declare that role", http.StatusUnprocessableEntity)
+		return "", false
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if _, err := env.store.GetMembership(ctx, workspaceID, userID); err != nil {
+		recordError(w, err)
+		return "", false
+	}
+	if err := env.store.SetMemberAppRole(ctx, workspaceID, userID, app.ID, role); err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	return "", true
 }

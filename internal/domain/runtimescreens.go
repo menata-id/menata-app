@@ -55,6 +55,13 @@ var RuntimeScreens = []NavigationItem{
 		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 1,
 	},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups", Description: "Assign a role to a Group once, then add or remove members instead of editing every person's own row. A member's effective role in an Application is their direct assignment plus every role their Groups hold there.", SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 2},
+	// An Application's own Members & roles (S2.2): who holds which role in that one Application, the role editable in place. The
+	// route carries the Application's settings hub id (the record), which the page reads as $parameters.hub. An admin screen that
+	// is not a settings row: its way back is the Application's own hub.
+	{
+		ID: "nav_application_members", Label: "Members & roles", Route: "/settings", Title: "Members & roles",
+		RecordSource: "settings_applications", RecordParam: "hub",
+	},
 	// One member's own screen: their Workspace role, their role in each Application, and removing them from the Workspace.
 	// Not a settings row; it sits under Members.
 	{

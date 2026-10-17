@@ -20,9 +20,11 @@ import (
 type RuntimeProvider func(ctx context.Context, l *Loader, viewer domain.Actor) ([]*data.Record, error)
 
 var runtimeProviders = map[string]RuntimeProvider{
-	"groups":  groupsProvider,
-	"members": membersProvider,
-	"invites": invitesProvider,
+	"groups":                groupsProvider,
+	"members":               membersProvider,
+	"invites":               invitesProvider,
+	"settings_applications": settingsApplicationsProvider,
+	"application_members":   applicationMembersProvider,
 }
 
 // RuntimeProviderIDs lists the sources a provider exists for, for the agreement test.
@@ -338,4 +340,110 @@ func effectiveAccessLine(apps []domain.Application, m data.Membership) string {
 		return "No application access."
 	}
 	return strings.Join(parts, ", ")
+}
+
+// SettingsApplication finds the Application of this Workspace whose settings hub has the navigation id `hubID`, with the hub
+// item, for an Application that declares roles. The hub id is how a members screen names the one Application it is about.
+func SettingsApplication(ws domain.Workspace, hubID string) (domain.Application, domain.NavigationItem, bool) {
+	for _, app := range ws.Applications {
+		if len(app.Roles) == 0 {
+			continue
+		}
+		if hub, ok := SettingsHubOf(app, hubID); ok {
+			return app, hub, true
+		}
+	}
+	return domain.Application{}, domain.NavigationItem{}, false
+}
+
+// settingsApplicationsProvider is the `settings_applications` source: one record for each Application that declares roles and a
+// settings hub, by the hub's navigation id. The record carries the words the Application's members screen says about it: what
+// the screen is for, how many of the active members have access (directly or through a Group -- a deactivated member holds a
+// role but cannot act on it, and counting them would flatter the number), and the way back to the hub.
+func settingsApplicationsProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Record, error) {
+	members, err := l.Members(ctx)
+	if err != nil {
+		return nil, err
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	var out []*data.Record
+	for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+		if len(app.Roles) == 0 {
+			continue
+		}
+		for _, item := range app.AllNavigation {
+			if !item.SettingsHub {
+				continue
+			}
+			active, covered := 0, 0
+			for _, m := range members {
+				if m.Deactivated {
+					continue
+				}
+				active++
+				if len(data.EffectiveRoles(m.AppRoles, m.Groups)[app.ID]) > 0 {
+					covered++
+				}
+			}
+			noun := "members"
+			if active == 1 {
+				noun = "member"
+			}
+			out = append(out, &data.Record{ID: item.ID, MachineID: "mch_settings_application", WorkspaceID: workspaceID, Values: map[string]any{
+				"fld_id": item.ID, "fld_title": app.Name,
+				"fld_intro":    "Who can use " + app.Name + ", and with which role. A role here means nothing in other applications.",
+				"fld_coverage": fmt.Sprintf("%d of %d active %s have access to %s.", covered, active, noun, app.Name),
+				"fld_back":     "← " + item.Heading, "fld_link": item.Route,
+			}})
+		}
+	}
+	return out, nil
+}
+
+// applicationMembersProvider is the `application_members` source: every member of the Workspace once for each Application that
+// declares roles and a hub, keyed `<hub id>:<user record id>`. The direct role is what the page's select edits; the roles a Group
+// grants are shown beside it and not editable here (a Group's role is changed on the Group), so a person who holds "approver"
+// both ways is shown it once, as their direct role.
+func applicationMembersProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Record, error) {
+	members, err := l.Members(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names, err := l.PersonNames(ctx)
+	if err != nil {
+		return nil, err
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	var out []*data.Record
+	for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+		if len(app.Roles) == 0 {
+			continue
+		}
+		for _, item := range app.AllNavigation {
+			if !item.SettingsHub {
+				continue
+			}
+			for _, m := range members {
+				direct := m.AppRoles[app.ID]
+				var notes []string
+				if m.Deactivated {
+					notes = append(notes, "Deactivated")
+				}
+				for _, role := range data.EffectiveRoles(m.AppRoles, m.Groups)[app.ID] {
+					if role != direct {
+						notes = append(notes, "+ "+role+" through a Group")
+					}
+				}
+				title, email := names[m.UserRecordID], m.Email
+				if strings.TrimSpace(title) == "" || title == email {
+					title, email = m.Email, ""
+				}
+				out = append(out, &data.Record{ID: item.ID + ":" + m.UserRecordID, MachineID: "mch_application_member", WorkspaceID: workspaceID, Values: map[string]any{
+					"fld_id": item.ID + ":" + m.UserRecordID, "fld_hub": item.ID, "fld_title": title, "fld_email": email,
+					"fld_detail": strings.Join(notes, " · "), "fld_role": direct,
+				}})
+			}
+		}
+	}
+	return out, nil
 }

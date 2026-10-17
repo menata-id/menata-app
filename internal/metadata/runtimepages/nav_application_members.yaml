@@ -1,0 +1,57 @@
+# One Application's Members & roles: who can use it and with which role, the role editable in place, one save per row. The
+# Application is the one whose settings hub the route names ($parameters.hub). Only this Application's role is editable here;
+# what reaches across Applications (the Workspace role, inviting, removing) is on the Workspace members screen and linked to. A
+# role a Group grants is shown and left alone: it is changed on the Group. Admin only (the default).
+id: nav_application_members
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - component: Collection
+      gap: comfortable
+      block: true
+      binding: { dataset: ds_runtime_settings_application, rows: records }
+      children:
+        - layout: stack
+          gap: default
+          children:
+            - static: link
+              from: { text: summary, href: link }
+            - static: message
+              from: { text: subtitle }
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: caption
+                  from: { text: detail }
+                - static: link
+                  to: nav_workspace_members
+                  text: "Workspace Members →"
+    - component: Collection
+      gap: tight
+      divided: true
+      block: true
+      empty: This Workspace has no members yet.
+      binding: { dataset: ds_runtime_application_members, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: paragraph
+                  from: { text: title }
+                - static: caption
+                  from: { text: subtitle }
+                - static: caption
+                  from: { text: detail }
+            - component: Form
+              submit: Save
+              binding: { write: action, action: set_member_app_role }
+    - static: note
+      text: Only workspace admins can change roles. Setting a role to No access removes someone from this application only; their workspace role, invitations and removal from the workspace are on the Workspace members page.
