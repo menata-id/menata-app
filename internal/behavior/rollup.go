@@ -11,15 +11,18 @@ import "menata.app/internal/domain"
 // so a single rejection decides the parent the moment it happens, rather than waiting for the
 // remaining children to make up their minds -- the discriminator half of the parent-rollup
 // pattern. AllValue applies only when every child holds it. Everything else, including a parent
-// with no children at all, is Default.
+// with no children at all, is Default -- and when no Default is declared, false: the parent keeps
+// whatever it holds, so another writer of the same Field (a schedule marking it overdue) is not
+// overwritten by a rollup with nothing to say (K-15, menata-app-document
+// audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md).
 //
 // An empty AnyValue or AllValue disables that arm rather than matching children that hold no
 // value, so a rollup declaring only one of the two behaves as written.
-func RollupValue(r domain.Rollup, childValues []string) string {
+func RollupValue(r domain.Rollup, childValues []string) (string, bool) {
 	if r.AnyValue != "" {
 		for _, v := range childValues {
 			if v == r.AnyValue {
-				return r.AnySet
+				return r.AnySet, true
 			}
 		}
 	}
@@ -32,8 +35,8 @@ func RollupValue(r domain.Rollup, childValues []string) string {
 			}
 		}
 		if all {
-			return r.AllSet
+			return r.AllSet, true
 		}
 	}
-	return r.Default
+	return r.Default, r.Default != ""
 }

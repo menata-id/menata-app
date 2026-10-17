@@ -27,7 +27,7 @@ func ValuesFromForm(m *domain.Machine, form url.Values) map[string]any {
 		if raw == "" {
 			continue
 		}
-		if f.Type == domain.FieldTypeNumber {
+		if f.Type.IsNumeric() {
 			if n, err := strconv.ParseFloat(raw, 64); err == nil {
 				values[f.ID] = n
 				continue

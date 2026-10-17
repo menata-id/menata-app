@@ -909,8 +909,8 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			f, ok := fieldsByID[ms.Field]
 			if !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a sum, so field %q must be a field of machine %q", ds.ID, ms.ID, ms.Field, m.ID))
-			} else if f.Type != domain.FieldTypeNumber {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q sums field %q, which must be a number field, got %q", ds.ID, ms.ID, ms.Field, f.Type))
+			} else if !f.Type.IsNumeric() {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q sums field %q, which must be a number or money field, got %q", ds.ID, ms.ID, ms.Field, f.Type))
 			}
 		case domain.AggregateCount:
 			if ms.Field != "" {
@@ -1024,14 +1024,14 @@ func orderedComparisonIssues(f domain.Field, c expression.Comparison) []string {
 	if !expression.IsOrdered(c.Op) {
 		return issues
 	}
-	if f.Type != domain.FieldTypeNumber && f.Type != domain.FieldTypeDate {
+	if !f.Type.IsNumeric() && f.Type != domain.FieldTypeDate {
 		return append(issues, fmt.Sprintf("op %q orders a number or a date, and field %q is type %q", c.Op, f.ID, f.Type))
 	}
 	if expression.IsSentinel(c.Value) {
 		return issues
 	}
 	switch f.Type {
-	case domain.FieldTypeNumber:
+	case domain.FieldTypeNumber, domain.FieldTypeMoney:
 		if !expression.IsNumber(c.Value) {
 			issues = append(issues, fmt.Sprintf("value %q is not a number, and field %q is one", c.Value, f.ID))
 		}
@@ -1556,7 +1556,7 @@ func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[st
 	switch {
 	case !ok:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: sum_of %q is not a field of this machine", m.ID, b.ID, b.SumOf))
-	case sum.Type != domain.FieldTypeNumber && sum.Type != domain.FieldTypeMoney:
+	case !sum.Type.IsNumeric():
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: sum_of %q must be a number or money field, got %q", m.ID, b.ID, b.SumOf, sum.Type))
 	}
 	switch per, ok := fieldsByID[b.Per]; {
@@ -1564,7 +1564,7 @@ func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[st
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per %q is not a field of this machine", m.ID, b.ID, b.Per))
 	case b.Per == b.SumOf:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per and sum_of name the same field", m.ID, b.ID))
-	case per.Type == domain.FieldTypeNumber || per.Type == domain.FieldTypeMoney || per.Type == domain.FieldTypeDate || per.Type == domain.FieldTypeFile || per.Type == domain.FieldTypeBoolean:
+	case per.Type.IsNumeric() || per.Type == domain.FieldTypeDate || per.Type == domain.FieldTypeFile || per.Type == domain.FieldTypeBoolean:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per %q must group records by a text, status, person or relation field, got %q", m.ID, b.ID, b.Per, per.Type))
 	}
 	switch {
@@ -1673,7 +1673,7 @@ func sortedFieldStamps() []string {
 }
 
 // validateCompute holds a computed Field to the shape its evaluation assumes: a number, one known
-// operation, operands that are number Fields of this Machine and not computed themselves (so the
+// operation, operands that are number (or money) Fields of this Machine and not computed themselves (so the
 // order of evaluation cannot matter and no cycle can exist), and none of the declarations that
 // would contradict "the runtime writes this, a person does not" -- required, or a default.
 func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []string {
@@ -1681,14 +1681,21 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 		return nil
 	}
 	var issues []string
-	// What an operation produces and what it reads: sum adds numbers into a number; add_days adds a number of days to a
-	// date and gives a date, so its operands are exactly [a date field, a number field].
-	wantType, operandTypes := domain.FieldTypeNumber, []domain.FieldType{domain.FieldTypeNumber}
-	if f.Compute.Op == domain.ComputeAddDays {
-		wantType, operandTypes = domain.FieldTypeDate, []domain.FieldType{domain.FieldTypeDate, domain.FieldTypeNumber}
+	// What an operation produces and what it reads: sum adds figures (number or money) into a figure; add_days adds a
+	// number of days to a date and gives a date, so its operands are exactly [a date field, a number field].
+	type accepts struct {
+		name string
+		ok   func(domain.FieldType) bool
 	}
-	if f.Type != wantType {
-		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a %s field, got type %q", f.ID, f.Compute.Op, wantType, f.Type))
+	figure := accepts{"number or money", domain.FieldType.IsNumeric}
+	result, operands := figure, []accepts{figure}
+	if f.Compute.Op == domain.ComputeAddDays {
+		date := accepts{"date", func(t domain.FieldType) bool { return t == domain.FieldTypeDate }}
+		days := accepts{"number", func(t domain.FieldType) bool { return t == domain.FieldTypeNumber }}
+		result, operands = date, []accepts{date, days}
+	}
+	if !result.ok(f.Type) {
+		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a %s field, got type %q", f.ID, f.Compute.Op, result.name, f.Type))
 	}
 	if !domain.KnownComputeOps[f.Compute.Op] {
 		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, f.Compute.Op, sortedComputeOps()))
@@ -1708,14 +1715,14 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 	seen := map[string]bool{}
 	for i, id := range f.Compute.Fields {
 		operand, ok := fieldsByID[id]
-		want := operandTypes[min(i, len(operandTypes)-1)]
+		want := operands[min(i, len(operands)-1)]
 		switch {
 		case id == f.ID:
 			issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
 		case !ok:
 			issues = append(issues, fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, id))
-		case operand.Type != want:
-			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a %s field, got type %q", f.ID, id, want, operand.Type))
+		case !want.ok(operand.Type):
+			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a %s field, got type %q", f.ID, id, want.name, operand.Type))
 		case operand.Compute != nil:
 			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q is itself computed -- compute from the fields it is computed from instead", f.ID, id))
 		}
@@ -1791,7 +1798,7 @@ func validateGenerates(machines []*domain.Machine) error {
 				bad("due_every_days is %d; it must be at least 1", g.DueEveryDays)
 			}
 			for key, id := range map[string]string{"count_field": g.CountField, "amount_from": g.AmountFrom} {
-				if f, ok := m.FieldByID(id); !ok || f.Type != domain.FieldTypeNumber {
+				if f, ok := m.FieldByID(id); !ok || !f.Type.IsNumeric() || (key == "count_field" && f.Type != domain.FieldTypeNumber) {
 					bad("%s %q must be a number field of this machine", key, id)
 				}
 			}
@@ -1817,8 +1824,8 @@ func validateGenerates(machines []*domain.Machine) error {
 			if f, ok := target.FieldByID(g.DueField); !ok || f.Type != domain.FieldTypeDate {
 				bad("due_field %q must be a date field of %s", g.DueField, target.ID)
 			}
-			if f, ok := target.FieldByID(g.AmountField); !ok || f.Type != domain.FieldTypeNumber {
-				bad("amount_field %q must be a number field of %s", g.AmountField, target.ID)
+			if f, ok := target.FieldByID(g.AmountField); !ok || !f.Type.IsNumeric() {
+				bad("amount_field %q must be a number or money field of %s", g.AmountField, target.ID)
 			}
 			for _, f := range target.Fields {
 				if f.Required && !named[f.ID] && f.Default == nil && f.Compute == nil && f.Stamp == "" {
@@ -1883,8 +1890,8 @@ func validateBalanced(machines []*domain.Machine) error {
 				bad("debit and credit must be two different fields")
 			}
 			for key, id := range map[string]string{"debit": b.Debit, "credit": b.Credit} {
-				if f, ok := target.FieldByID(id); !ok || f.Type != domain.FieldTypeNumber {
-					bad("%s %q must be a number field of %s", key, id, target.ID)
+				if f, ok := target.FieldByID(id); !ok || !f.Type.IsNumeric() {
+					bad("%s %q must be a number or money field of %s", key, id, target.ID)
 				}
 			}
 		}

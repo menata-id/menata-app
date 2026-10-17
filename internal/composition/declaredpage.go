@@ -535,7 +535,7 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 		if k == "" {
 			continue // records with the Dimension unset have no label to show
 		}
-		rows = append(rows, ir.Row{Label: k, Value: formatMeasure(agg.ByDimension[k][b.Measure]), Measures: rowMeasures(agg, k)})
+		rows = append(rows, ir.Row{Label: k, Value: agg.Format(b.Measure, agg.ByDimension[k][b.Measure]), Measures: rowMeasures(agg, k)})
 	}
 	return rows, nil
 }
@@ -568,7 +568,7 @@ func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggrega
 	})
 	rows := make([]ir.Row, 0, len(keys))
 	for _, k := range keys {
-		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: formatMeasure(agg.ByDimension[k][measure]), Measures: rowMeasures(agg, k)})
+		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: agg.Format(measure, agg.ByDimension[k][measure]), Measures: rowMeasures(agg, k)})
 	}
 	return rows, nil
 }
@@ -583,7 +583,7 @@ func bindingTotal(ctx context.Context, l *Loader, now time.Time, b domain.PageBi
 	if !ok {
 		return "", fmt.Errorf("composition: dataset %q declares no measure %q", b.Dataset, b.Measure)
 	}
-	return formatMeasure(v), nil
+	return agg.Format(b.Measure, v), nil
 }
 
 // aggregateContext is what a Measure's `where:` may resolve: the request's date and nothing else. An aggregate
@@ -597,13 +597,9 @@ func aggregateContext(now time.Time) expression.Context {
 func rowMeasures(agg Aggregation, key string) map[string]string {
 	out := make(map[string]string, len(agg.Total))
 	for id := range agg.Total {
-		out[id] = formatMeasure(agg.ByDimension[key][id])
+		out[id] = agg.Format(id, agg.ByDimension[key][id])
 	}
 	return out
-}
-
-func formatMeasure(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 // fillCreatedAndLink puts two things every record can say in its map. The creation time is a column, not a Field, so a

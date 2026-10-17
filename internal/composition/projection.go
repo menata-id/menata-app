@@ -64,7 +64,8 @@ func ProjectCardFields(m *domain.Machine, r *data.Record, relations rendering.Re
 // projectedFieldDisplay resolves one Field's stored value to a display string, the same shape
 // RecordDetailView's own read-only field dispatch already uses (internal/rendering/detail.templ):
 // a reference field resolves through relations, a date field formats the same way buildInbox
-// already formats SubmittedAt ("2 Jan 2006"), everything else is DisplayString as-is.
+// already formats SubmittedAt ("2 Jan 2006"), a figure as domain.FormatFigure writes it, everything else is
+// DisplayString as-is.
 func projectedFieldDisplay(f domain.Field, value any, relations rendering.RelationOptions) string {
 	if f.IsReference() {
 		return rendering.RelationLabel(relations, f.RelatedMachine, DisplayString(value))
@@ -73,6 +74,9 @@ func projectedFieldDisplay(f domain.Field, value any, relations rendering.Relati
 		if due, err := time.Parse("2006-01-02", DisplayString(value)); err == nil {
 			return due.Format("2 Jan 2006")
 		}
+	}
+	if figure, ok := f.Figure(value); ok {
+		return figure
 	}
 	return DisplayString(value)
 }

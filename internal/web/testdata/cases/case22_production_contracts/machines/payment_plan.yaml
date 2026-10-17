@@ -1,0 +1,25 @@
+id: mch_payment_plan
+name: Payment Plan
+fields:
+  - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true }
+  - { id: fld_plan_no, name: Plan no., type: text, required: true }
+  - { id: fld_plan_amount, name: Planned amount, type: money, required: true }
+  - { id: fld_paid_date, name: Payment date, type: date }
+  - { id: fld_plan_status, name: Status, type: status, default: Submitted, options: [Submitted, Awaiting proof, Paid, Rejected] }
+  - { id: fld_proof, name: Proof of payment, type: file, required_when: { field: fld_plan_status, equals: Paid } }
+
+transitions:
+  - { id: trn_plan_approve, name: Approve, field: fld_plan_status, from: Submitted, to: Awaiting proof, action: edit, roles: [finance] }
+  - { id: trn_plan_reject, name: Reject, field: fld_plan_status, from: Submitted, to: Rejected, action: edit, roles: [finance] }
+  - { id: trn_plan_settle, name: Mark as paid, field: fld_plan_status, from: Awaiting proof, to: Paid, action: edit, roles: [finance], sets: { fld_paid_date: today } }
+
+# Only a paid plan says anything about its instalment. With no default, a plan that is submitted or rejected leaves the
+# instalment's status where the schedule put it (K-15).
+events:
+  - id: evt_plan_rollup
+    on: fld_plan_status
+    then:
+      service: rollup_parent_status
+      parent_field: fld_term
+      target_field: fld_term_status
+      any: { value: Paid, set: Paid }

@@ -424,6 +424,10 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 		watched = append(watched, fmt.Sprint(s.Values[watchField]))
 	}
 
+	value, decided := behavior.RollupValue(r, watched)
+	if !decided {
+		return // no arm fired and no default is declared: the parent keeps what it holds
+	}
 	parent, err := store.GetRecord(ctx, parentField.RelatedMachine, parentID)
 	if err != nil {
 		log.Printf("rollup %s: reading parent %s: %v", r.TargetField, parentID, err)
@@ -433,7 +437,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 	for k, v := range parent.Values {
 		oldParentValues[k] = v
 	}
-	parent.Values[r.TargetField] = behavior.RollupValue(r, watched)
+	parent.Values[r.TargetField] = value
 	if _, err := store.UpdateRecord(ctx, parentField.RelatedMachine, parentID, parent.Values); err != nil {
 		log.Printf("rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
 		return

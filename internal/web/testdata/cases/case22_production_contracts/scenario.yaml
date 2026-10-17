@@ -1,0 +1,97 @@
+case: 22
+title: Production Contracts (Dokter Kecil)
+actors:
+  - { name: silvia, role: production_manager }
+  - { name: fina, role: finance }
+steps:
+  # Money is a figure, not text: a value that is not a number is refused, and one that is reads back as a number.
+  - id: money-must-be-a-number
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/C/025, fld_party_name: Nobody, fld_value: "a lot" } }
+    expect: refused
+
+  - id: contract
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/C/026, fld_party_name: Reza Anggara, fld_value: "180000" } }
+    expect: ok
+    record: { fld_value: "180000", fld_payment_status: In progress }
+
+  # Net is computed from money fields (deductions stored negative), so it is a sum the runtime keeps.
+  - id: signing
+    as: silvia
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Signing, fld_gross: "54000", fld_wht: "-2700", fld_due_date: "2026-01-05" } }
+    expect: ok
+    record: { fld_net: "51300", fld_term_status: Scheduled }
+
+  - id: first-shooting-day
+    as: silvia
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: First shooting day, fld_gross: "72000", fld_due_date: "2099-11-02" } }
+    expect: ok
+
+  # The instalments of one contract may not add up past its value: this one would make 186000.
+  - id: instalments-cannot-exceed-the-value
+    as: silvia
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Wrap, fld_gross: "60000", fld_due_date: "2099-12-18" } }
+    expect: refused
+
+  - id: wrap
+    as: silvia
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Wrap, fld_gross: "54000", fld_due_date: "2099-12-18" } }
+    expect: ok
+
+  # The schedule marks the unpaid, past-due instalment overdue, and the contract follows it.
+  - id: signing-is-overdue
+    tick: { days: 0, ref: signing }
+    expect: ok
+    record: { fld_term_status: Overdue }
+    count: { machine: mch_contract, where: { fld_payment_status: Overdue }, equals: 1 }
+
+  # A plan that is only submitted says nothing about its instalment: Overdue stays (K-15).
+  - id: plan-without-proof
+    as: silvia
+    create: { machine: mch_payment_plan, values: { fld_term: $signing, fld_plan_no: PP-0141, fld_plan_amount: "51300" } }
+    expect: ok
+    record: { fld_plan_status: Submitted }
+    count: { machine: mch_contract_term, where: { fld_term_status: Overdue }, equals: 1 }
+
+  - id: production-cannot-approve
+    as: silvia
+    update: { ref: plan-without-proof, values: { fld_plan_status: Awaiting proof } }
+    expect: refused
+
+  - id: finance-approves
+    as: fina
+    update: { ref: plan-without-proof, values: { fld_plan_status: Awaiting proof } }
+    expect: ok
+    record: { fld_plan_status: Awaiting proof }
+    count: { machine: mch_contract_term, where: { fld_term_status: Overdue }, equals: 1 }
+
+  # Paid needs the proof of payment.
+  - id: paid-needs-proof
+    as: fina
+    update: { ref: plan-without-proof, values: { fld_plan_status: Paid } }
+    expect: refused
+
+  - id: plan-with-proof
+    as: silvia
+    create: { machine: mch_payment_plan, values: { fld_term: $signing, fld_plan_no: PP-0142, fld_plan_amount: "51300" }, files: { fld_proof: transfer.pdf } }
+    expect: ok
+
+  - id: finance-approves-second
+    as: fina
+    update: { ref: plan-with-proof, values: { fld_plan_status: Awaiting proof } }
+    expect: ok
+
+  # Only now is the instalment paid; nothing is overdue, and the contract is back in progress.
+  - id: finance-marks-paid
+    as: fina
+    update: { ref: plan-with-proof, values: { fld_plan_status: Paid } }
+    expect: ok
+    record: { fld_plan_status: Paid, fld_paid_date: "*" }
+    count: { machine: mch_contract_term, where: { fld_term_status: Paid }, equals: 1 }
+
+  - id: contract-is-in-progress-again
+    as: silvia
+    update: { ref: contract, values: { fld_party_name: Reza Anggara } }
+    expect: ok
+    record: { fld_payment_status: In progress }

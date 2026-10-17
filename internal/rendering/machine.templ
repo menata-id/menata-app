@@ -1143,7 +1143,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		for i, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
 				if i == 0 {
-					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ valueText(f, r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
 					@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 				} else if f.Type == domain.FieldTypeFile {
@@ -1155,7 +1155,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 				} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
 					@statusBadge(toString(r.Values[f.ID]), statusOptionTone(m, f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 				} else {
-					{ fmt.Sprint(r.Values[f.ID]) }
+					{ valueText(f, r.Values[f.ID]) }
 				}
 			</td>
 		}
@@ -1214,6 +1214,24 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			</td>
 		</form>
 	</tr>
+}
+
+// valueText is a stored value as a table cell or a detail line shows it: a figure as domain.FormatFigure writes it
+// (never "1.8e+08"), anything else as it is stored.
+func valueText(f domain.Field, v any) string {
+	if s, ok := f.Figure(v); ok {
+		return s
+	}
+	return fmt.Sprint(v)
+}
+
+// figureInputValue is a stored figure as a number input's starting value: written in full, since an edit form must
+// not offer "1.8e+08" back to a person to correct. Grouping is for reading; an input takes the bare number.
+func figureInputValue(v any) string {
+	if n, ok := v.(float64); ok {
+		return domain.FormatFigure(domain.FieldTypeNumber, n)
+	}
+	return toString(v)
 }
 
 func toString(v any) string {

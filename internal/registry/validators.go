@@ -77,11 +77,8 @@ func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 	if !domain.FieldIDPattern.MatchString(r.TargetField) {
 		issues = append(issues, fmt.Sprintf("event %q: then.target_field %q must match %s", e.ID, r.TargetField, domain.FieldIDPattern.String()))
 	}
-	if r.Default == "" {
-		issues = append(issues, fmt.Sprintf("event %q: then.default is required -- it is what the parent becomes when neither rule fires, including when it has no children yet", e.ID))
-	}
 	if r.AnyValue == "" && r.AllValue == "" {
-		issues = append(issues, fmt.Sprintf("event %q: a rollup declaring neither any nor all can only ever write then.default", e.ID))
+		issues = append(issues, fmt.Sprintf("event %q: a rollup declaring neither any nor all can only ever write then.default (or nothing)", e.ID))
 	}
 
 	// The values watched for are values of the Event's own on: field -- that is the field whose

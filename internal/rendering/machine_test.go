@@ -152,3 +152,31 @@ func TestMachineBody_noSwitcherBelowTwoViews(t *testing.T) {
 		t.Error("a single-view Machine rendered a switcher, want none")
 	}
 }
+
+// TestRecordRowWritesFiguresAsPeopleReadThem: a stored figure is never printed the way Go's %v prints it (180000000
+// as "1.8e+08"). Money is grouped in thousands; a number is written in full (K-14).
+func TestRecordRowWritesFiguresAsPeopleReadThem(t *testing.T) {
+	m := &domain.Machine{
+		ID:   "mch_contract",
+		Name: "Contract",
+		Fields: []domain.Field{
+			{ID: "fld_contract_no", Name: "Contract no.", Type: domain.FieldTypeText},
+			{ID: "fld_value", Name: "Contract value", Type: domain.FieldTypeMoney},
+			{ID: "fld_days", Name: "Shooting days", Type: domain.FieldTypeNumber},
+		},
+	}
+	r := &data.Record{ID: "rec_c1", Values: map[string]any{"fld_contract_no": "CTR/C/026", "fld_value": float64(180000000), "fld_days": float64(2400000)}}
+	var buf bytes.Buffer
+	if err := RecordRow(m, r, nil, nil, domain.Actor{ID: "rec_user1"}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{"180.000.000", "2400000"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the row does not show %q", want)
+		}
+	}
+	if strings.Contains(html, "e+0") {
+		t.Error("a figure was printed in exponent form")
+	}
+}

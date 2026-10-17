@@ -1,0 +1,26 @@
+# Case 22 -- Dokter Kecil's production contracts (menata-app-document audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md).
+# Two Applications in the real Workspace; one here, because the harness grants roles in one Application. What the case
+# measures is the behaviour both share: money that adds up, and an instalment status two writers can hold together.
+id: app_production_contracts
+name: Production Contracts
+machines:
+  - mch_contract
+  - mch_contract_term
+  - mch_payment_plan
+roles:
+  - production_manager
+  - finance
+description: Contracts with cast, crew and vendors, their instalments, and the plans that pay them.
+icon: file-text
+color: blue
+summary_machine: mch_contract
+navigation:
+  - id: nav_contracts
+    label: Contracts
+    route: /machines/mch_contract
+  - id: nav_instalments
+    label: Instalments
+    route: /machines/mch_contract_term
+  - id: nav_payment_plans
+    label: Payment plans
+    route: /machines/mch_payment_plan

@@ -54,7 +54,7 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 			if !ok || !contains(f.Options, s) {
 				issues = append(issues, fmt.Sprintf("field %q: value %v is not one of %v", f.ID, v, f.Options))
 			}
-		case domain.FieldTypeNumber:
+		case domain.FieldTypeNumber, domain.FieldTypeMoney:
 			switch v.(type) {
 			case float64, float32, int, int64:
 			default:

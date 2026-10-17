@@ -135,7 +135,7 @@ func formInputOf(f Field) FormInput {
 		in.Kind, in.Options = InputSelect, f.Options
 	case FieldTypeLongText:
 		in.Kind = InputLongText
-	case FieldTypeNumber:
+	case FieldTypeNumber, FieldTypeMoney:
 		in.Kind = InputNumber
 	case FieldTypeDate:
 		in.Kind = InputDate

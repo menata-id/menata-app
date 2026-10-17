@@ -26,6 +26,15 @@ type Aggregation struct {
 	// even if every Measure filtered that record out -- so "this assignee exists but has nothing
 	// open" is a present group of zeroes, not a missing key.
 	ByDimension map[string]map[string]float64
+	// Types maps a sum Measure's id to the type of the Field it sums, so its figure is written the way that Field is
+	// read: a total of money grouped in thousands. A count, or any Measure absent here, is written as a plain number.
+	// Aggregate leaves it empty; the Loader, which knows the source Machine, fills it.
+	Types map[string]domain.FieldType
+}
+
+// Format writes one of this Aggregation's figures for a page (domain.FormatFigure).
+func (a Aggregation) Format(measure string, v float64) string {
+	return domain.FormatFigure(a.Types[measure], v)
 }
 
 // Aggregate evaluates ds over records: 007 §7.2-§7.4 (Dataset, Dimension, Measure) made

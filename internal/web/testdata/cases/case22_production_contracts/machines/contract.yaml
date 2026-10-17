@@ -1,0 +1,7 @@
+id: mch_contract
+name: Contract
+fields:
+  - { id: fld_contract_no, name: Contract no., type: text, required: true }
+  - { id: fld_party_name, name: Contracted party, type: text, required: true }
+  - { id: fld_value, name: Contract value, type: money, required: true }
+  - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }

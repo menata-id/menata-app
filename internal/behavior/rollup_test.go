@@ -34,7 +34,7 @@ func TestRollupValue(t *testing.T) {
 		{"rejection wins over approvals", []string{"approved", "approved", "rejected"}, "rejected"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := RollupValue(approvalRollup(), tc.children); got != tc.want {
+			if got, ok := RollupValue(approvalRollup(), tc.children); !ok || got != tc.want {
 				t.Errorf("RollupValue(%v) = %q, want %q", tc.children, got, tc.want)
 			}
 		})
@@ -47,10 +47,25 @@ func TestRollupValue(t *testing.T) {
 func TestRollupValue_oneArmOnly(t *testing.T) {
 	r := domain.Rollup{AllValue: "done", AllSet: "closed", Default: "open"}
 
-	if got := RollupValue(r, []string{"", ""}); got != "open" {
+	if got, _ := RollupValue(r, []string{"", ""}); got != "open" {
 		t.Errorf("children with no value = %q, want the default %q", got, "open")
 	}
-	if got := RollupValue(r, []string{"done", "done"}); got != "closed" {
+	if got, _ := RollupValue(r, []string{"done", "done"}); got != "closed" {
 		t.Errorf("every child done = %q, want %q", got, "closed")
+	}
+}
+
+// TestRollupValueWithoutADefaultDecidesNothing: a rollup with no default says nothing unless an arm fires, so the
+// parent keeps a value another writer put there -- an instalment a schedule marked overdue stays overdue while its
+// payment plan is only submitted (K-15).
+func TestRollupValueWithoutADefaultDecidesNothing(t *testing.T) {
+	r := domain.Rollup{AnyValue: "Paid", AnySet: "Paid"}
+	for _, children := range [][]string{nil, {"Submitted"}, {"Rejected", "Awaiting proof"}} {
+		if got, ok := RollupValue(r, children); ok {
+			t.Errorf("children %v decided %q, want nothing decided", children, got)
+		}
+	}
+	if got, ok := RollupValue(r, []string{"Rejected", "Paid"}); !ok || got != "Paid" {
+		t.Errorf("a paid plan = %q, %v; want Paid", got, ok)
 	}
 }

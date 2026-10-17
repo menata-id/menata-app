@@ -1,0 +1,34 @@
+id: mch_contract_term
+name: Instalment
+fields:
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true }
+  - { id: fld_term_label, name: Label, type: text }
+  - { id: fld_gross, name: Gross, type: money, required: true }
+  # Deductions stored as negative figures, so net is a sum the runtime keeps (the K-9 half-way out of the mockup).
+  - { id: fld_vat, name: VAT, type: money }
+  - { id: fld_wht, name: WHT, type: money }
+  - { id: fld_net, name: Net, type: money, compute: { op: sum, fields: [fld_gross, fld_vat, fld_wht] } }
+  - { id: fld_due_date, name: Due date, type: date, required: true }
+  - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
+
+# The instalments of one contract may not add up past this; a literal stands in for the contract value (K-1).
+ensure:
+  - { id: ens_terms_within_value, sum_of: fld_gross, per: fld_contract, at_most: 180000 }
+
+# Two writers on one status: the schedule marks an unpaid instalment overdue, a payment plan marks it paid.
+events:
+  - id: evt_term_overdue_logged
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_term_status, guard_not_equals: Paid }
+    then: { service: log_activity, summary: "Instalment overdue: {fld_term_label}" }
+  - id: evt_term_overdue
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_term_status, guard_not_equals: Paid }
+    then: { service: set_field, target_field: fld_term_status, value: Overdue }
+  - id: evt_term_rollup
+    on: fld_term_status
+    then:
+      service: rollup_parent_status
+      parent_field: fld_contract
+      target_field: fld_payment_status
+      any: { value: Overdue, set: Overdue }
+      all: { value: Paid, set: Settled }
+      default: In progress

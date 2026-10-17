@@ -47,10 +47,10 @@ func TestValidate_computedFieldRefusesWhatItCannotEvaluate(t *testing.T) {
 		"missing operand":  {"fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_nope]", "does not declare"},
 		"self reference":   {"fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_total]", "names itself"},
 		"no operands":      {"fields: [fld_pdam, fld_well]", "fields: []", "at least one field"},
-		"not a number":     {"    type: number\n    compute:", "    type: text\n    compute:", "only valid on a number field"},
+		"not a number":     {"    type: number\n    compute:", "    type: text\n    compute:", "only valid on a number or money field"},
 		"required":         {"    type: number\n    compute:", "    type: number\n    required: true\n    compute:", "cannot be required"},
 		"repeated operand": {"fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_pdam]", "more than once"},
-		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number field"},
+		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number or money field"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -106,5 +106,39 @@ func TestComputedFieldsAreGenericallyWritten(t *testing.T) {
 	m.WorkflowRole, m.ID = "", domain.UserMachineID
 	if err := validateComputedFieldsAreGenericallyWritten([]*domain.Machine{m}); err == nil {
 		t.Error("mch_user was allowed a computed field")
+	}
+}
+
+// TestValidate_moneyIsAFigureWhereverAFigureIsRead: money is stored as a number, so every place that reads a figure
+// takes it -- a computed sum (and a money result), a Measure's sum and an ordered where -- rather than loading a
+// money Field the runtime then sums as 0 (K-14). A count of days for add_days is still a plain number.
+func TestValidate_moneyIsAFigureWhereverAFigureIsRead(t *testing.T) {
+	m, err := Parse([]byte(`id: mch_term
+name: Instalment
+fields:
+  - { id: fld_gross, name: Gross, type: money }
+  - { id: fld_wht, name: WHT, type: money }
+  - { id: fld_net, name: Net, type: money, compute: { op: sum, fields: [fld_gross, fld_wht] } }
+  - { id: fld_due, name: Due, type: date }
+  - { id: fld_days, name: Days, type: money }
+datasets:
+  - id: ds_big_terms
+    select: records
+    where: { field: fld_gross, op: gte, value: "1000000" }
+    limit: 50
+  - id: ds_term_totals
+    measures:
+      - { id: msr_gross, aggregate: sum, field: fld_gross }
+`))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if err := Validate(m); err != nil {
+		t.Fatalf("money was refused where a figure is read: %v", err)
+	}
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_next", Name: "Next", Type: domain.FieldTypeDate,
+		Compute: &domain.FieldCompute{Op: domain.ComputeAddDays, Fields: []string{"fld_due", "fld_days"}}})
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "must be a number field") {
+		t.Errorf("add_days took money as its count of days: %v", err)
 	}
 }

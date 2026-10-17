@@ -1227,7 +1227,7 @@ func TestValidate_computeAddDaysAndTransitionSets(t *testing.T) {
 		"a text second operand": {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when", "fld_note"} }, "must be a number field"},
 		"sum still wants numbers": {func(m *domain.Machine) {
 			next(m).Type, next(m).Compute = domain.FieldTypeNumber, &domain.FieldCompute{Op: domain.ComputeSum, Fields: []string{"fld_when"}}
-		}, "must be a number field"},
+		}, "must be a number or money field"},
 		"sets on a decide edge": {func(m *domain.Machine) {
 			m.Transitions[0].Action, m.Transitions[0].Sets = domain.ActionDecide, map[string]string{"fld_when": "today"}
 		}, "only an edge with action"},

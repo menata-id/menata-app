@@ -194,7 +194,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 						} else if f.Type == domain.FieldTypeLongText {
 							@longText(toString(r.Values[f.ID]))
 						} else {
-							{ fmt.Sprint(r.Values[f.ID]) }
+							{ valueText(f, r.Values[f.ID]) }
 						}
 					</dd>
 				}

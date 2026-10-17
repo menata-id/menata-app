@@ -196,7 +196,7 @@ Each Field declares a `type:`. The full closed set the runtime understands
 | `date` | A calendar date | |
 | `status` | A closed set of named states | Requires a non-empty `options:` list |
 | `person` | "Assigned to a user" | See §4 — implicitly a relation to the built-in user Machine |
-| `money` | A currency value | Declared, but no shipped Machine uses one yet — treat as unproven |
+| `money` | A figure (an amount of money) | Stored as a number, like `number`, and summed, bounded, computed and ordered the same way; shown grouped in thousands (`180.000.000`). No currency symbol is declared or shown |
 | `relation` | A reference to another Machine's record | Requires `machine:` naming the target |
 | `file` | An uploaded file | The stored value is a storage key, not the raw file |
 
@@ -2218,8 +2218,12 @@ events:
       target_field: fld_status        # a field on the PARENT machine
       any: { value: rejected, set: rejected }   # one child holding it decides immediately
       all: { value: approved, set: approved }   # only when every child holds it
-      default: in_review              # everything else, including no children yet
+      default: in_review              # everything else, including no children yet (optional)
 ```
+
+`default` is optional. Without it, a change neither `any` nor `all` decides leaves the parent's Field as it is. Use that when
+something else also writes the Field: a payment plan that is only submitted must not undo the Overdue a schedule put on its
+instalment, so that rollup declares only `any: { value: Paid, set: Paid }`.
 
 **The fourth Service, `composite_signed_document`** (`domain.Composite`, 2026-09-28) — burns every
 approved step's signature image, plus the approval-status banner, onto the parent document's PDF and
@@ -2693,6 +2697,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Declared Views (`views:` — `table`/`board`/`cards`/`stepper`) | A View composing *other* Views, rather than one Machine's own records, has one real case built (2026-09-26): `stepper` (`domain.ViewStepper`, menata-runtime's CAP-V20) renders a parent's own children as a sequential done/current/waiting progress indicator — `mch_approval_step`'s `vw_step_progress`, composed by `internal/rendering/detail.templ` via `domain.Machine.StepperView`, not selected by `?view=`. What's still hardcoded is the Review Document screen's own orchestration around it (Approve/Reject bar, signature canvas/placement) — see the row above |
 | Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks and the Calendar resolve title/status/date through Projection | Composed screens: Approval Inbox. What stays Go on the migrated screens is their *layout* — which measure lands in which column and how rows are bucketed (overdue/today/upcoming), a temporal predicate that `where:` cannot express. Board Settings reads a Label's name and colour through `mch_label`'s `title`/`color` card_fields and its three Datasets, so `projectionRatchet` is empty |
 | Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/execution.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
+| Money figures: summed, bounded, computed, ordered (`type: money`) | **How a money figure is written**: grouped in thousands with `.`, decimals after `,`, no currency symbol (`domain.FormatFigure`). That is Indonesian usage and what every mockup writes; no Workspace or Field can declare another locale or a currency yet. Forward pointer: top-level roadmap (`menata-app-document` audits/2026-10-15-peta-jalan-menuju-aplikasi-lengkap.md) Tahap 3, domain capabilities; gap U-08 of audits/2026-10-17-kajian-gap-mockup-21-case |
 | — | **The ⋯ menu's Share item** — a clipboard write of the page's own address, inline in `detail.templ`. A copy-to-clipboard gesture has no declarative form: it is 007 §12.3's `actions` slot, not built, the same class as the board's drag script. Listed per `CLAUDE.md`'s exception rule; revisit when `actions` lands |
 
 **A Page's own layout is the next row to move, and the plan for it is written** (2026-09-30):

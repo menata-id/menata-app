@@ -369,8 +369,8 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class={ "size-4", controlAccentClass(ctx) }/>
 		case f.Type == domain.FieldTypeDate:
 			<input type="date" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
-		case f.Type == domain.FieldTypeNumber:
-			<input type="number" step="any" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
+		case f.Type.IsNumeric():
+			<input type="number" step="any" name={ f.ID } value={ figureInputValue(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type == domain.FieldTypeLongText:
 			<textarea name={ f.ID } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
 		case f.Type == domain.FieldTypeFile:

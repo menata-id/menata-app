@@ -857,7 +857,19 @@ func (l *Loader) AggregateDataset(ctx context.Context, datasetID string, where e
 	if err != nil {
 		return Aggregation{}, err
 	}
-	return Aggregate(ds, records, where)
+	agg, err := Aggregate(ds, records, where)
+	if err != nil {
+		return agg, err
+	}
+	if m := l.Machine(ds.Source); m != nil {
+		agg.Types = map[string]domain.FieldType{}
+		for _, ms := range ds.Measures {
+			if f, ok := m.FieldByID(ms.Field); ok && ms.Aggregate == domain.AggregateSum {
+				agg.Types[ms.ID] = f.Type
+			}
+		}
+	}
+	return agg, nil
 }
 
 // DisplayString renders a stored field value as text. Records hold JSONB-decoded values, so a

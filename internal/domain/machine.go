@@ -68,7 +68,14 @@ type FieldTypeSpec struct {
 	// ReferencesMachine is true when a value of this type is another record's id. Person is included:
 	// Normalize binds it to mch_user, which is an inference (001 #6), not a hand-written target.
 	ReferencesMachine bool
+	// Numeric is true when a value of this type is a figure: stored as a float64, summed by a Measure, an
+	// `ensure:` bound or `compute: sum`, and ordered by lt/gt. Money is one, with the same storage as number;
+	// what differs is only how it is shown (FormatFigure).
+	Numeric bool
 }
+
+// IsNumeric reports whether a value of this type is a figure (FieldTypeSpec.Numeric).
+func (t FieldType) IsNumeric() bool { return KnownFieldTypes[t].Numeric }
 
 // KnownFieldTypes is the closed set of field types the runtime currently understands, each with what it
 // is. New types are added here **and** wherever their plane implements them; an unrecognized type is a
@@ -77,12 +84,12 @@ type FieldTypeSpec struct {
 var KnownFieldTypes = map[FieldType]FieldTypeSpec{
 	FieldTypeText:     {Label: "text"},
 	FieldTypeLongText: {Label: "long text (multi-line)"},
-	FieldTypeNumber:   {Label: "number"},
+	FieldTypeNumber:   {Label: "number", Numeric: true},
 	FieldTypeBoolean:  {Label: "boolean"},
 	FieldTypeDate:     {Label: "date"},
 	FieldTypeStatus:   {Label: "status (with options)", NeedsOptions: true},
 	FieldTypePerson:   {Label: "person (a user reference)", ReferencesMachine: true},
-	FieldTypeMoney:    {Label: "money"},
+	FieldTypeMoney:    {Label: "money (a number shown with thousands separators)", Numeric: true},
 	FieldTypeRelation: {Label: "relation (references another machine)", ReferencesMachine: true},
 	FieldTypeFile:     {Label: "file"},
 	FieldTypeGroup:    {Label: "group"},
@@ -132,7 +139,7 @@ type Field struct {
 	// Default is the value a new record gets when this field is left unset at create time --
 	// 001 Principle #5 ("Convention over Configuration"), the same posture already load-bearing
 	// for Layout (a Machine with no view: block defaults to table, Phase 5). Already coerced to
-	// this Field's own storage type by Parse (float64 for FieldTypeNumber, bool for
+	// this Field's own storage type by Parse (float64 for a numeric type, bool for
 	// FieldTypeBoolean, string otherwise) -- callers never re-parse it. Nil means no default was
 	// declared. Applies only at creation (internal/data.ApplyDefaults); an update that clears a
 	// field back to empty is never silently re-filled, the same distinction SQL's own DEFAULT
@@ -446,6 +453,8 @@ type Composite struct {
 // Three outcomes, in priority order: AnyValue wins the moment one child holds it (a single
 // rejection decides the parent immediately, without waiting for the rest), AllValue applies only
 // once every child holds it, and Default covers everything else including having no children yet.
+// Default is optional: without it, a rollup neither arm decides leaves the parent's Field as it is,
+// which is what lets a second writer (a schedule) share that Field.
 //
 // That ordering is the capability's substance, not an implementation detail -- it is what
 // distinguishes a rollup from a plain count, and it matches the shape this replaces
@@ -462,7 +471,7 @@ type Rollup struct {
 	AllValue string
 	AllSet   string
 	// Default is what the parent becomes when neither rule fires, including when the parent has
-	// no children at all.
+	// no children at all. Empty: the parent is left as it is.
 	Default string
 }
 

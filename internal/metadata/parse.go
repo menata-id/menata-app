@@ -731,7 +731,7 @@ func CoerceDefault(fieldType domain.FieldType, raw string) (any, error) {
 // invalid metadata must not enter execution) rather than silently producing a wrong default.
 func coerceDefault(fieldType domain.FieldType, raw string) (any, error) {
 	switch fieldType {
-	case domain.FieldTypeNumber:
+	case domain.FieldTypeNumber, domain.FieldTypeMoney:
 		n, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
 			return nil, fmt.Errorf("not a number: %w", err)
