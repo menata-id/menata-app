@@ -131,6 +131,10 @@ func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 			f.Type == FieldTypeBoolean || (f.Type == FieldTypeStatus && m.GovernsTransitions(f.ID)) || f.IsReference() {
 			continue
 		}
+		// A Field the Machine locks for this record (`locked_when:`, `set_once:`) is not asked: the route refuses a change.
+		if locked, _ := m.LockedField(f, values); locked {
+			continue
+		}
 		in := formInputOf(f)
 		switch v := values[f.ID].(type) {
 		case string:

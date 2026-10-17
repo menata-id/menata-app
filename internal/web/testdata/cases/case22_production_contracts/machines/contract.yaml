@@ -1,7 +1,8 @@
 id: mch_contract
 name: Contract
 fields:
-  - { id: fld_contract_no, name: Contract no., type: text, required: true }
+  # A contract's number is its identity on paper: set once (owner decision K1).
+  - { id: fld_contract_no, name: Contract no., type: text, required: true, set_once: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_value, name: Contract value, type: money, required: true }
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, options: [Cast, Crew, Item] }

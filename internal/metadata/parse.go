@@ -19,10 +19,12 @@ type machineDoc struct {
 	// Ensure declares aggregate bounds over this Machine's own records (domain.AggregateBound).
 	Ensure []ensureDoc `yaml:"ensure"`
 	// FrozenWhen freezes a record while a related record holds a value (domain.FrozenWhen).
-	FrozenWhen  *frozenWhenDoc  `yaml:"frozen_when"`
-	Events      []eventDoc      `yaml:"events"`
-	Permissions []permissionDoc `yaml:"permissions"`
-	Transitions []transitionDoc `yaml:"transitions"`
+	FrozenWhen *frozenWhenDoc `yaml:"frozen_when"`
+	// DeletableUnless: see domain.Machine.DeletableUnless.
+	DeletableUnless []deleteGuardDoc `yaml:"deletable_unless"`
+	Events          []eventDoc       `yaml:"events"`
+	Permissions     []permissionDoc  `yaml:"permissions"`
+	Transitions     []transitionDoc  `yaml:"transitions"`
 	// Actions are what a named Action writes beyond the submitted values -- see domain.ActionEffect.
 	Actions    []actionEffectDoc `yaml:"actions"`
 	Datasets   []datasetDoc      `yaml:"datasets"`
@@ -300,6 +302,17 @@ type fieldDoc struct {
 	// RequiredWhen and DefaultFrom: see domain.Field.
 	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
+	// LockedWhen, SetOnce and OnParentDelete: see domain.Field.
+	LockedWhen     *requiredWhenDoc `yaml:"locked_when"`
+	SetOnce        bool             `yaml:"set_once"`
+	OnParentDelete string           `yaml:"on_parent_delete"`
+}
+
+// deleteGuardDoc is one `deletable_unless:` entry: see domain.DeleteGuard.
+type deleteGuardDoc struct {
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
+	Reason string `yaml:"reason"`
 }
 
 type requiredWhenDoc struct {
@@ -466,7 +479,14 @@ func Parse(data []byte) (*domain.Machine, error) {
 		if fd.DefaultFrom != nil {
 			defaultFrom = &domain.FieldDefaultFrom{Field: fd.DefaultFrom.Field, Days: fd.DefaultFrom.Days}
 		}
+		var lockedWhen *domain.FieldCondition
+		if fd.LockedWhen != nil {
+			lockedWhen = &domain.FieldCondition{Field: fd.LockedWhen.Field, Equals: fd.LockedWhen.Equals}
+		}
 		m.Fields = append(m.Fields, domain.Field{
+			LockedWhen:     lockedWhen,
+			SetOnce:        fd.SetOnce,
+			OnParentDelete: domain.ParentDelete(fd.OnParentDelete),
 			RequiredWhen:   requiredWhen,
 			DefaultFrom:    defaultFrom,
 			ID:             fd.ID,
@@ -498,6 +518,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 	if doc.FrozenWhen != nil {
 		m.Frozen = &domain.FrozenWhen{Via: doc.FrozenWhen.Via, Field: doc.FrozenWhen.Field, Equals: doc.FrozenWhen.Equals}
+	}
+	for _, g := range doc.DeletableUnless {
+		m.DeletableUnless = append(m.DeletableUnless, domain.DeleteGuard{Field: g.Field, Equals: g.Equals, Reason: g.Reason})
 	}
 	for _, ed := range doc.Ensure {
 		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: ed.ID, SumOf: ed.SumOf, Per: ed.Per, AtLeast: ed.AtLeast, AtMost: ed.AtMost, Reason: ed.Reason})

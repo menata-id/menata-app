@@ -26,7 +26,6 @@ import (
 // stays declared, like any emptied ratchet.
 var componentsWithoutInstalledUse = map[string]string{
 	"Avatar":           "drawn by bespoke screens only (members, assignees, the app shell) -- the contract was registered over four measured sites, and no `page:` declares one yet",
-	"Popover":          "drawn by the record page's \"...\" card-actions menu and the board header's \"New <machine>\" form only -- registered over those two (2026-10-15, gap plan K-04); no `page:` declares one, because no declared screen has a menu",
 	"SegmentedControl": "drawn by the record list's view switch only (`viewSwitcher`, every Machine with two or more Views) -- registered over that one site (2026-10-14, rencana 2.5 step 1); no `page:` declares one, because a declared page has no handler that reads the query parameter yet",
 }
 

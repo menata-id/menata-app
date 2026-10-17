@@ -147,7 +147,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 28, Steps: 28},
+	"case22_production_contracts": {Rejected: 0, Passed: 37, Steps: 37},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -691,10 +691,18 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 				code = send(http.MethodDelete, "/machines/"+machine+"/records/"+id, s.As, nil, nil)
 			}
 			if s.Expect == "refused" && !(code >= 400 && code < 500) && snapshot != nil {
-				// The runtime deleted what the case says it must keep: put it back so later steps stay meaningful.
-				if _, err := store.CreateRecord(wsCtx, machine, snapshot); err != nil {
+				// The runtime deleted what the case says it must keep: put it back so later steps stay meaningful. It
+				// comes back under a new id, which the steps after this one now name.
+				restored, err := store.CreateRecord(wsCtx, machine, snapshot)
+				if err != nil {
 					t.Fatalf("restoring after %s: %v", s.ID, err)
 				}
+				for ref, rid := range recordOf {
+					if rid == id {
+						recordOf[ref] = restored.ID
+					}
+				}
+				id, snapshot = restored.ID, nil
 			}
 		} else if s.Create != nil {
 			machine = s.Create.Machine

@@ -1,15 +1,20 @@
 id: mch_contract_term
 name: Instalment
 fields:
-  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true }
+  # A contract with instalments cannot be deleted from under them (K-13).
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
   - { id: fld_term_label, name: Label, type: text }
-  - { id: fld_gross, name: Gross, type: money, required: true }
+  # A paid instalment's figures are a record of a payment: they stay as they were paid.
+  - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   # Deductions stored as negative figures, so net is a sum the runtime keeps (the K-9 half-way out of the mockup).
   - { id: fld_vat, name: VAT, type: money }
   - { id: fld_wht, name: WHT, type: money }
   - { id: fld_net, name: Net, type: money, compute: { op: sum, fields: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_due_date, name: Due date, type: date, required: true }
   - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
+
+deletable_unless:
+  - { field: fld_term_status, equals: Paid, reason: A paid instalment is a record of a payment and cannot be deleted. }
 
 # The instalments of one contract may not add up past this; a literal stands in for the contract value (K-1).
 ensure:

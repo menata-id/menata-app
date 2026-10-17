@@ -5,11 +5,13 @@
 id: mch_contract_term
 name: Instalment
 fields:
-  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true }
+  # A contract with instalments cannot be deleted from under them (K-13).
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
   - { id: fld_term_label, name: Label, type: text, required: true }
-  - { id: fld_gross, name: Gross, type: money, required: true }
-  - { id: fld_vat, name: VAT, type: money }
-  - { id: fld_wht, name: WHT, type: money }
+  # A paid instalment's figures are the record of a payment: they stay as they were paid (owner decision K1).
+  - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
+  - { id: fld_vat, name: VAT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
+  - { id: fld_wht, name: WHT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_net, name: Net, type: money }
   - { id: fld_due_date, name: Due date, type: date, required: true }
   # Two writers: the schedule below marks an unpaid instalment Overdue; a paid payment plan marks it Paid. Invoiced is
@@ -37,6 +39,9 @@ frozen_when: { via: fld_contract, field: fld_status, equals: Closed }
 
 permissions:
   - { id: prm_term_delete, action: delete, roles: [admin] }
+
+deletable_unless:
+  - { field: fld_term_status, equals: Paid, reason: A paid instalment is the record of a payment and cannot be deleted. }
 
 views:
   - { id: vw_term_table, name: Table, type: table }

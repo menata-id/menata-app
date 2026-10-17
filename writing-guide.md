@@ -363,6 +363,32 @@ delete routes, so a Machine a workflow engine or the runtime writes itself is re
 related status Field's own options (a value it can never hold would freeze nothing). The assistant adds it to a new Machine
 and to an existing one without it, and never changes or removes one.
 
+### 3.0b. What may change and what may be deleted: `locked_when`, `set_once`, `on_parent_delete`, `deletable_unless` (2026-10-17)
+
+Some data should be easy to edit and delete row by row; some should rarely change, should not change, or must not be
+deleted while something holds (owner decision K1). Four declarations say which, and the write routes enforce them:
+
+```yaml
+fields:
+  - { id: fld_contract_no, name: Contract no., type: text, set_once: true }        # never changes once it has a value
+  - { id: fld_gross, name: Gross, type: money,
+      locked_when: { field: fld_term_status, equals: Paid } }                      # stays as it was paid
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract,
+      on_parent_delete: restrict }                                                 # the contract stays while this points at it
+deletable_unless:
+  - { field: fld_term_status, equals: Paid, reason: A paid instalment is the record of a payment. }
+```
+
+- `set_once` and `locked_when` (a status Field of the same Machine and one of its options) are judged against the record **as
+  stored**: an update that changes the Field is refused (422) with the reason; one that sends it back unchanged is not. Every
+  edit form shows a locked Field as text instead of an input. Not on a computed or stamped Field.
+- `on_parent_delete: restrict` (a relation Field only) refuses deleting the record it points at while any record points at
+  it (409: "cannot be deleted while 3 Instalment record(s) point at it"). `cascade` and `clear` are not built and are refused.
+- `deletable_unless` refuses deleting a record while its status Field holds the value, with the reason given.
+- **A button is offered only where the route would take the write**: a page's Delete and Edit read the same rules (and
+  `frozen_when:`) for the listed records, in one statement per related Machine, so a contract with instalments shows no
+  Delete. The routes check again regardless.
+
 ### 3.1. Required only under a condition, and a date derived from a status (2026-10-15)
 
 ```yaml
@@ -1276,7 +1302,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
-| `Popover` | experimental | No installed `page:` declares one yet: the record page's "..." menu and the board header's "New <machine>" form draw it in Go, and no declared screen has a menu |
+| `Popover` | stable | Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -1725,6 +1751,29 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
     - { header: Category, field: fld_category }           # a relation: the related record's label, never its id
     - { header: Contract value, field: fld_value, align: end }   # money grouped: 180,000,000
     - { header: Payment, field: fld_payment_status }       # a status: a badge toned from status_categories
+```
+
+**A Table's `children:` are its row actions** (2026-10-17): a template drawn once per record in a last, unnamed column --
+an Edit (`Popover` holding a `Form` with `binding: {write: update}`), a Delete (`Button` with `binding: {write: delete}`),
+a transition -- each drawn only where that record's own rules let this viewer, exactly as inside a Collection's item:
+
+```yaml
+  children:
+    - component: Popover
+      label: Edit
+      title: Edit contract
+      trigger: secondary
+      align: end
+      density: regular
+      children:
+        - component: Form
+          submit: Save
+          binding: { write: update }
+    - component: Button
+      label: Delete
+      variant: danger
+      confirm: Delete this contract?
+      binding: { write: delete }
 ```
 
 The cell is the Field's value as the record's own page shows it. A relation or person Field is resolved for the listed records only,

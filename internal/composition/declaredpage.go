@@ -203,6 +203,10 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	if err != nil {
 		return ir.RecordSet{}, err
 	}
+	held, err := heldRecords(ctx, l, src, ds, sel)
+	if err != nil {
+		return ir.RecordSet{}, err
+	}
 	out := make([]map[string]string, 0, len(records))
 	tagLists := make([][]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
@@ -218,10 +222,22 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		fillCreatedAndLink(item, src, r)
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
-		edits = append(edits, recordEditForm(src, r, viewer))
-		deletes = append(deletes, recordDeleteAction(src, r, viewer))
-		moves = append(moves, recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated))
-		transitions = append(transitions, recordTransition(src, r, viewer))
+		edit, del := recordEditForm(src, r, viewer), recordDeleteAction(src, r, viewer)
+		move, transition := recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated), recordTransition(src, r, viewer)
+		// What the routes would refuse for a reason outside the record itself is not offered either: a record frozen by
+		// its parent is not written at all, and one other records still point at (`on_parent_delete: restrict`) is not
+		// deleted.
+		if held[r.ID].frozen {
+			edit.Permitted, del.Permitted, move = false, false, ir.RecordMove{Route: move.Route}
+			transition.Allows = func(string) (bool, bool) { return false, false }
+		}
+		if held[r.ID].pointedAt {
+			del.Permitted = false
+		}
+		edits = append(edits, edit)
+		deletes = append(deletes, del)
+		moves = append(moves, move)
+		transitions = append(transitions, transition)
 		for _, rel := range ds.Relations {
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
@@ -672,6 +688,81 @@ func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record
 	if !d.Present {
 		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
 	}
+}
+
+// held is what keeps a listed record from being written beyond its own values: frozen by its parent (`frozen_when:`),
+// or pointed at by records that restrict deleting it (`on_parent_delete: restrict`).
+type held struct{ frozen, pointedAt bool }
+
+// heldRecords answers held for the listed records in one statement per parent Machine and per restricting child
+// Machine, however many records are listed -- the same answers frozenReason and deleteAllowed give one record at the
+// routes, so a page offers no Edit or Delete the route would refuse. Nothing is read for a Machine that declares
+// neither.
+func heldRecords(ctx context.Context, l *Loader, src *domain.Machine, ds domain.Dataset, sel Selection) (map[string]held, error) {
+	records := sel.Records
+	out := map[string]held{}
+	if len(records) == 0 {
+		return out, nil
+	}
+	ids := make([]string, 0, len(records))
+	for _, r := range records {
+		ids = append(ids, r.ID)
+	}
+	if f := src.Frozen; f != nil {
+		if via, ok := src.FieldByID(f.Via); ok {
+			var parentIDs []string
+			for _, r := range records {
+				if id := DisplayString(r.Values[f.Via]); id != "" {
+					parentIDs = append(parentIDs, id)
+				}
+			}
+			parents, err := l.RecordsByIDs(ctx, via.RelatedMachine, parentIDs)
+			if err != nil {
+				return nil, err
+			}
+			frozenParent := map[string]bool{}
+			for _, p := range parents {
+				frozenParent[p.ID] = DisplayString(p.Values[f.Field]) == f.Equals
+			}
+			for _, r := range records {
+				if frozenParent[DisplayString(r.Values[f.Via])] {
+					h := out[r.ID]
+					h.frozen = true
+					out[r.ID] = h
+				}
+			}
+		}
+	}
+	machines := make([]*domain.Machine, 0, len(l.machines))
+	for _, id := range slices.Sorted(maps.Keys(l.machines)) {
+		machines = append(machines, l.machines[id])
+	}
+	for _, link := range domain.RestrictingChildren(machines, src.ID) {
+		// A Relation the Dataset already declares over the same child and Field has read them: no second statement.
+		var children []*data.Record
+		declared := false
+		for _, rel := range ds.Relations {
+			if rel.Machine == link.Machine.ID && rel.Via == link.Field && rel.Where == nil {
+				declared = true
+				for _, id := range ids {
+					children = append(children, sel.Related(rel.ID, id)...)
+				}
+			}
+		}
+		if !declared {
+			var err error
+			if children, err = l.store.ListRecordsByAny(ctx, link.Machine.ID, ds.ID+" restrict", link.Field, ids); err != nil {
+				return nil, err
+			}
+		}
+		for _, c := range children {
+			parent := DisplayString(c.Values[link.Field])
+			h := out[parent]
+			h.pointedAt = true
+			out[parent] = h
+		}
+	}
+	return out, nil
 }
 
 // fillDerivedStatus is PageStatusToneRole: the tone of the record's `status` role, from the Machine's own

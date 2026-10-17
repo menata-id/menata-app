@@ -5,9 +5,10 @@
 id: mch_payment_plan
 name: Payment Plan
 fields:
-  - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true }
-  - { id: fld_plan_no, name: Plan no., type: text, required: true }
-  - { id: fld_plan_amount, name: Planned amount (net), type: money, required: true }
+  # An instalment with a payment plan cannot be deleted from under it.
+  - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true, on_parent_delete: restrict }
+  - { id: fld_plan_no, name: Plan no., type: text, required: true, set_once: true }
+  - { id: fld_plan_amount, name: Planned amount (net), type: money, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
   - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
   - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }
   - { id: fld_requested_by, name: Requested by, type: person, stamp: current_user }
@@ -16,6 +17,10 @@ fields:
   - { id: fld_paid_date, name: Payment date, type: date }
   # Required only when the plan becomes Paid: the plan form does not ask for it; the confirmation does.
   - { id: fld_proof, name: Proof of payment, type: file, required_when: { field: fld_plan_status, equals: Paid } }
+
+# A paid plan is the record of a payment.
+deletable_unless:
+  - { field: fld_plan_status, equals: Paid, reason: A paid plan is the record of a payment and cannot be deleted. }
 
 card_fields:
   - { field: fld_plan_no, role: title }

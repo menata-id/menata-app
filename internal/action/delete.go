@@ -53,6 +53,10 @@ func CanDeleteDocument(status string, steps []*data.Record) (ok bool, reason str
 // 2026-09-27 conversion to IsStep/IsDocument missed it because internal/action is precisely the
 // package TestNoBareMachineIDIdentityChecks excludes, so nothing was watching this file.
 func CanDelete(m *domain.Machine, values map[string]any, steps []*data.Record) (ok bool, reason string) {
+	// A Machine's own `deletable_unless:` first: it is the declared rule, and it holds for every Machine alike.
+	if reason := m.DeleteRefusal(values); reason != "" {
+		return false, reason
+	}
 	switch {
 	case IsStep(m):
 		return CanDeleteApprovalStep(values)

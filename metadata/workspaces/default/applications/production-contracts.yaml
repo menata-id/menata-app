@@ -178,6 +178,24 @@ navigation:
             - { header: Status, field: fld_status }
             - { header: Payment, field: fld_payment_status }
           binding: { dataset: ds_contracts, rows: records }
+          # Row actions (owner decision K1): Edit opens the contract's form in place; Delete is offered only where it
+          # would be taken (admin only, and never for a contract with instalments).
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit contract
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this contract?
+              binding: { write: delete }
   # New contract: the form the list's action opens. Not a menu entry of its own.
   - id: nav_new_contract
     label: New contract

@@ -39,6 +39,12 @@ type Capability struct {
 	Cases []string
 }
 
+// editRuleReason is why the four edit and delete rules of 2026-10-17 (owner decision K1: deletable_unless, locked_when,
+// set_once, on_parent_delete) have no assistant slot yet: they landed with Dokter Kecil's list screens, and the slot --
+// schema, writer, update plan and prompt, as required_when has -- is the next assistant slice (menata-app-document
+// audits/2026-10-17-rencana-tampilan-langkah-1-4.md §1).
+const editRuleReason = "an edit/delete rule (owner decision K1, 2026-10-17); the assistant's slot is the next assistant slice, not built with the screens"
+
 func key(structName, k, kind, plane string, ai bool, reason string) Capability {
 	return Capability{ID: structName + "." + k, Struct: structName, Keys: []string{k}, Kind: kind, Plane: plane, Stage: StageSupported, AIWritable: ai, AIReason: reason}
 }
@@ -72,6 +78,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "runtime", "data", "data", false, "a runtime-provided Machine belongs to the runtime (W2); a generated Application declares only stored Machines"),
 	key("machineDoc", "ensure", "behaviour", "behavior", true, ""),
 	key("machineDoc", "frozen_when", "behaviour", "behavior", true, ""),
+	key("machineDoc", "deletable_unless", "behaviour", "behavior", false, editRuleReason),
 	// transitionDoc
 	key("transitionDoc", "id", "identity", "domain", true, ""),
 	key("transitionDoc", "name", "identity", "domain", true, ""),
@@ -127,6 +134,9 @@ var Capabilities = []Capability{
 	key("fieldDoc", "stamp", "structure", "domain", true, ""),
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
+	key("fieldDoc", "locked_when", "behaviour", "behavior", false, editRuleReason),
+	key("fieldDoc", "set_once", "behaviour", "behavior", false, editRuleReason),
+	key("fieldDoc", "on_parent_delete", "behaviour", "behavior", false, editRuleReason),
 
 	// Proposed rows (a key a case corpus wishes for and no loader reads) are none today: both corpora, Cases 1, 2, 17 and
 	// Cases 4, 5, 6, 14 and Case 9, are fully built (2026-10-16). A new wish arrives as a row here naming its cases, which the

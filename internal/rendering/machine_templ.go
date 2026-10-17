@@ -4176,7 +4176,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = fieldInput(f, r.Values[f.ID], relations, groups).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = editInput(m, f, r, relations, groups).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

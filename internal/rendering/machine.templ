@@ -1167,7 +1167,7 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 		>
 			for _, f := range m.Fields {
 				<td class={ tableCellClasses(ctx) }>
-					@fieldInput(f, r.Values[f.ID], relations, groups)
+					@editInput(m, f, r, relations, groups)
 				</td>
 			}
 			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>

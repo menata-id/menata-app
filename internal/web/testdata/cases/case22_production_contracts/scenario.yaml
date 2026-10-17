@@ -187,3 +187,46 @@ steps:
       path: /machines/mch_contract/records/$contract
       shows: ['text-tone-info-ink">In progress<']
     expect: ok
+
+  # Edit and delete rules (owner decision K1), each enforced by the write routes and read by every button.
+  - id: a-contract-with-instalments-cannot-be-deleted
+    as: silvia
+    delete: { ref: contract }
+    expect: refused
+  - id: nor-through-the-api
+    as: silvia
+    delete: { ref: contract }
+    api: true
+    expect: refused
+  - id: the-list-offers-delete-only-where-it-would-be-taken
+    as: silvia
+    view:
+      path: /pages/nav_contracts
+      shows: ['hx-delete="/machines/mch_contract/records/$crew-contract"']
+      hides: ['hx-delete="/machines/mch_contract/records/$contract"']
+    expect: ok
+  - id: a-contract-number-is-set-once
+    as: silvia
+    update: { ref: contract, values: { fld_contract_no: CTR/C/999 } }
+    expect: refused
+  - id: a-paid-instalment-keeps-its-gross
+    as: silvia
+    update: { ref: signing, values: { fld_gross: "50000" } }
+    expect: refused
+  - id: an-unpaid-one-does-not
+    as: silvia
+    update: { ref: wrap, values: { fld_gross: "50000" } }
+    expect: ok
+    record: { fld_gross: "50000" }
+  - id: a-paid-instalment-cannot-be-deleted
+    as: silvia
+    delete: { ref: signing }
+    expect: refused
+  - id: an-instalment-not-yet-paid-can
+    as: silvia
+    delete: { ref: wrap }
+    expect: ok
+  - id: a-contract-with-no-instalments-can-be-deleted
+    as: silvia
+    delete: { ref: crew-contract }
+    expect: ok

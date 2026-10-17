@@ -444,6 +444,39 @@ func (l *Loader) ListRecordsBy(ctx context.Context, machineID, fieldID, value st
 //
 // The same request-scoped contract applies as to the rest of this type: a Loader must not span a
 // write, because a memo would then serve the pre-write state.
+// RecordsByIDs is the records of machineID with the given ids, through the same memo Record keeps: only the ids this
+// request has not read yet are fetched, in one statement, so a page that names a parent's label and asks whether that
+// parent freezes its child reads the parent once (a missing id is simply absent from the answer).
+func (l *Loader) RecordsByIDs(ctx context.Context, machineID string, ids []string) ([]*data.Record, error) {
+	var missing []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if _, cached := l.record[machineID+"\x00"+id]; !cached && !seen[id] {
+			missing = append(missing, id)
+		}
+		seen[id] = true
+	}
+	if len(missing) > 0 {
+		fetched, err := l.store.ListRecordsByIDs(ctx, machineID, missing)
+		if err != nil {
+			return nil, err
+		}
+		l.reads++
+		for _, r := range fetched {
+			l.record[machineID+"\x00"+r.ID] = r
+		}
+	} else if len(ids) > 0 {
+		l.served++
+	}
+	out := make([]*data.Record, 0, len(seen))
+	for id := range seen {
+		if r, ok := l.record[machineID+"\x00"+id]; ok {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
 func (l *Loader) Record(ctx context.Context, machineID, id string) (*data.Record, error) {
 	key := machineID + "\x00" + id
 	if cached, ok := l.record[key]; ok {
@@ -775,11 +808,10 @@ func (l *Loader) RelatedLabels(ctx context.Context, machineID string, ids []stri
 	if !ok || len(target.Fields) == 0 || len(ids) == 0 {
 		return nil, nil
 	}
-	records, err := l.store.ListRecordsByIDs(ctx, target.ID, ids)
+	records, err := l.RecordsByIDs(ctx, target.ID, ids)
 	if err != nil {
 		return nil, err
 	}
-	l.reads++
 	labelField := target.LabelField()
 	labels := make(map[string]string, len(records))
 	for _, r := range records {

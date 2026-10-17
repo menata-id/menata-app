@@ -223,8 +223,10 @@ func validateTable(inputs map[string]string) []string {
 	if inputs["headers"] == "" {
 		return issues
 	}
-	for _, h := range headers {
-		if strings.TrimSpace(h) == "" {
+	for i, h := range headers {
+		// The last column may be unnamed: it is the row actions' (ir.lowerTable), whose buttons name themselves. A column
+		// a page declares always has a header -- lowering refuses a blank one before this runs.
+		if strings.TrimSpace(h) == "" && i < len(headers)-1 {
 			issues = append(issues, "Table has a blank header")
 			break
 		}
@@ -255,7 +257,7 @@ func validateTable(inputs map[string]string) []string {
 // hand-written "..." button carried `aria-label` by luck, and nothing would have caught the next one without it).
 var popoverContract = domain.ComponentContract{
 	Type:   domain.ComponentPopover,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "title", Kind: "string"},

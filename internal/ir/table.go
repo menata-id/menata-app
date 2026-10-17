@@ -32,8 +32,6 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	switch {
 	case b.Measure != "" || b.Group != "":
 		return nil, fmt.Errorf("%s: a Table lists records, so its binding takes no measure and no group", path)
-	case len(n.Children) > 0:
-		return nil, fmt.Errorf("%s: a Table holds no children -- its cells are produced from its columns:", path)
 	case len(n.From) > 0 || n.To != "" || n.Param != "":
 		return nil, fmt.Errorf("%s: from:, to: and param: do not belong on a Table; a column takes its role with from: inside columns:", path)
 	}
@@ -78,6 +76,15 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The Table's children are its row actions (owner decision K1, 2026-10-17): a template lowered once per record, the
+	// way a Collection's item is -- an Edit, a Delete, a transition, each offered only where the record's own rules let
+	// this viewer -- and drawn as one more cell at the row's end, under an unnamed header.
+	var actions *domain.PageNode
+	if len(n.Children) > 0 {
+		actions = &domain.PageNode{Kind: string(NodeLayout), Type: string(domain.LayoutRow),
+			Props: map[string]string{"gap": string(domain.GapTight), "align": string(domain.RowAlignCenter), "justify": string(domain.RowJustifyStart)}, Children: n.Children}
+		headers, aligns = append(headers, ""), append(aligns, string(domain.TableAlignEnd))
+	}
 	props := make(map[string]string, len(n.Props)+2)
 	for k, v := range n.Props {
 		props[k] = v
@@ -97,6 +104,17 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			cell, err := tableCell(c, text, rec)
 			if err != nil {
 				return nil, fmt.Errorf("%s.columns[%d]: record %d: %w", path, j, i, err)
+			}
+			out.Children = append(out.Children, cell)
+		}
+		if actions != nil {
+			items, err := lowerRecordItem(*actions, r, path+".children", set, i)
+			if err != nil {
+				return nil, err
+			}
+			cell := UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": ""}}
+			if len(items) == 1 {
+				cell = items[0]
 			}
 			out.Children = append(out.Children, cell)
 		}

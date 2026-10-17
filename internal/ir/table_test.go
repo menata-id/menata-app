@@ -69,7 +69,6 @@ func TestLowerTableRefusesEachMisuseForItsOwnReason(t *testing.T) {
 		"a dimension binding":     {func(n *domain.PageNode) { n.Binding.Rows = domain.PageRowsDimension }, "takes a binding with rows: records"},
 		"a measure":               {func(n *domain.PageNode) { n.Binding.Measure = "msr" }, "no measure and no group"},
 		"a group":                 {func(n *domain.PageNode) { n.Binding.Group = domain.PageGroupDate }, "no measure and no group"},
-		"children":                {func(n *domain.PageNode) { n.Children = []domain.PageNode{{Kind: "static", Type: "paragraph"}} }, "holds no children"},
 		"from on the table":       {func(n *domain.PageNode) { n.From = map[string]string{"label": "title"} }, "do not belong on a Table"},
 		"written headers":         {func(n *domain.PageNode) { n.Props["headers"] = "X" }, "never written"},
 		"written aligns":          {func(n *domain.PageNode) { n.Props["aligns"] = "end" }, "never written"},
@@ -149,6 +148,38 @@ func TestTableCellsTakeTheToneTheDataPlaneResolved(t *testing.T) {
 	}
 	if issues := Validate(tree); len(issues) != 0 {
 		t.Errorf("not a valid tree: %v", issues)
+	}
+}
+
+// TestTableRowActionsAreOneMoreCellPerRecord: a Table's children are its row actions, lowered per record with that
+// record's writes -- a Delete drawn only where the record's rules permit it -- under an unnamed, end-aligned header.
+func TestTableRowActionsAreOneMoreCellPerRecord(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentTable), string(domain.ComponentButton)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentTable)})
+	n := tableNode(domain.PageColumn{Header: "Ticket", From: "title"})
+	n.Children = []domain.PageNode{{Kind: "component", Type: "Button", Props: map[string]string{"label": "Delete", "variant": "danger", "confirm": "Delete it?"},
+		Binding: &domain.PageBinding{Write: domain.PageWriteDelete}}}
+	r := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"title": "a"}, {"title": "b"}},
+			Deletes: []RecordAction{{Route: "/machines/mch_t/records/a", Permitted: true}, {Route: "/machines/mch_t/records/b", Permitted: false}}}, nil
+	}}
+	tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{n}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tree.Children[0]
+	if table.Props["headers"] != "Ticket\n" || table.Props["aligns"] != "start,end" {
+		t.Fatalf("headers %q aligns %q, want an unnamed end-aligned actions column", table.Props["headers"], table.Props["aligns"])
+	}
+	if len(table.Children) != 4 {
+		t.Fatalf("%d cells, want 2 columns x 2 records", len(table.Children))
+	}
+	first, second := table.Children[1], table.Children[3]
+	if len(first.Children) != 1 || first.Children[0].Props["action"] != "/machines/mch_t/records/a" {
+		t.Errorf("the permitted record's actions = %+v, want its Delete", first)
+	}
+	if len(second.Children) != 0 {
+		t.Errorf("the refused record's actions = %+v, want none drawn", second)
 	}
 }
 

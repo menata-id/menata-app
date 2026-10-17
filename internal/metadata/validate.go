@@ -151,8 +151,10 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateCompute(f, fieldsByID)...)
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
+		issues = append(issues, validateLocks(f, fieldsByID)...)
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
+	issues = append(issues, validateDeleteGuards(m, fieldsByID)...)
 
 	if m.Frozen != nil {
 		via, ok := fieldsByID[m.Frozen.Via]
@@ -1602,6 +1604,53 @@ func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[st
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: declares neither at_least nor at_most, so it bounds nothing", m.ID, b.ID))
 	case b.AtLeast != nil && b.AtMost != nil && *b.AtLeast > *b.AtMost:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: at_least %v is above at_most %v, so no total could satisfy it", m.ID, b.ID, *b.AtLeast, *b.AtMost))
+	}
+	return issues
+}
+
+// validateLocks holds `locked_when`, `set_once` and `on_parent_delete` to what their enforcement assumes: a lock on a
+// Field a person writes, compared against a status Field's own option, and a parent rule on a relation only.
+func validateLocks(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	if (f.LockedWhen != nil || f.SetOnce) && (f.Compute != nil || f.Stamp != "") {
+		issues = append(issues, fmt.Sprintf("field %q: a computed or stamped field is written by the runtime, so locked_when/set_once would lock nothing a person writes", f.ID))
+	}
+	if lw := f.LockedWhen; lw != nil {
+		other, ok := fieldsByID[lw.Field]
+		switch {
+		case lw.Field == f.ID:
+			issues = append(issues, fmt.Sprintf("field %q: locked_when names itself -- use set_once for a value that never changes", f.ID))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("field %q: locked_when.field %q is not a field of this machine", f.ID, lw.Field))
+		case other.Type != domain.FieldTypeStatus:
+			issues = append(issues, fmt.Sprintf("field %q: locked_when.field %q must be a status field, got %q", f.ID, lw.Field, other.Type))
+		case !slices.Contains(other.Options, lw.Equals):
+			issues = append(issues, fmt.Sprintf("field %q: locked_when.equals %q is not one of %q's options %v -- it would lock nothing", f.ID, lw.Equals, lw.Field, other.Options))
+		}
+	}
+	switch {
+	case f.OnParentDelete == "":
+	case f.Type != domain.FieldTypeRelation:
+		issues = append(issues, fmt.Sprintf("field %q: on_parent_delete belongs to a relation field, and this is %q", f.ID, f.Type))
+	case f.OnParentDelete != domain.ParentDeleteRestrict:
+		issues = append(issues, fmt.Sprintf("field %q: on_parent_delete %q is not built -- the one rule today is %q", f.ID, f.OnParentDelete, domain.ParentDeleteRestrict))
+	}
+	return issues
+}
+
+// validateDeleteGuards holds `deletable_unless:` to a status Field of the Machine and one of its options.
+func validateDeleteGuards(m *domain.Machine, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	for _, g := range m.DeletableUnless {
+		f, ok := fieldsByID[g.Field]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("deletable_unless.field %q is not a field of this machine", g.Field))
+		case f.Type != domain.FieldTypeStatus:
+			issues = append(issues, fmt.Sprintf("deletable_unless.field %q must be a status field, got %q", g.Field, f.Type))
+		case !slices.Contains(f.Options, g.Equals):
+			issues = append(issues, fmt.Sprintf("deletable_unless.equals %q is not one of %q's options %v -- it would refuse nothing", g.Equals, g.Field, f.Options))
+		}
 	}
 	return issues
 }

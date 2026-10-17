@@ -5,7 +5,8 @@
 id: mch_contract
 name: Contract
 fields:
-  - { id: fld_contract_no, name: Contract no., type: text, required: true }
+  # The number is the contract's identity on paper: set once (owner decision K1).
+  - { id: fld_contract_no, name: Contract no., type: text, required: true, set_once: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, required: true, options: [Cast, Crew, Item] }
   - { id: fld_category, name: Category, type: relation, machine: mch_category, required: true }
@@ -51,7 +52,8 @@ constraints:
       related_field: fld_contract
       condition: { field: fld_term_status, op: not_equals, value: Paid }
 
-# Deleting a contract would orphan its instalments (K-13, until on_parent_delete exists): admin only.
+# Deleting a contract is admin only (owner decision); one with instalments cannot be deleted at all (its instalments'
+# on_parent_delete: restrict, contract_term.yaml).
 permissions:
   - { id: prm_contract_delete, action: delete, roles: [admin] }
 

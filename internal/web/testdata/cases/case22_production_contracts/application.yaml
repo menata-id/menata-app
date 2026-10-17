@@ -63,6 +63,14 @@ navigation:
             - { header: Category, field: fld_category }
             - { header: Contract value, field: fld_value, align: end }
             - { header: Payment, field: fld_payment_status }
+          # Row actions (owner decision K1): what each row offers is what its own rules allow -- a contract with
+          # instalments offers no Delete.
+          children:
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this contract?
+              binding: { write: delete }
   # The form the list's action opens: not a menu entry, and its category is a select of the Category records.
   - id: nav_new_contract
     label: New contract

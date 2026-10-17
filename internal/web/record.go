@@ -270,7 +270,7 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 			return false
 		}
 		data.ApplyComputed(machine, values)
-		if !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
+		if !keepsLockedFields(w, req, store, machine, id, values) || !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return false
 		}
 		batch, ok := planGenerated(w, req, store, machines, machine, id, values)
@@ -919,9 +919,10 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	// stateGoverned/permissionGoverned decide, before any fetch, whether this Machine needs one
 	// at all -- the common case (neither) stays a zero-query no-op, same as the generic route
 	// always was.
-	stateGoverned := action.IsStep(machine) || action.IsDocument(machine)
+	stateGoverned := action.IsStep(machine) || action.IsDocument(machine) || len(machine.DeletableUnless) > 0
 	permissionGoverned := len(machine.PermissionsFor(domain.ActionDelete)) > 0
-	if !stateGoverned && !permissionGoverned && machine.Frozen == nil {
+	restricting := domain.RestrictingChildren(slices.Collect(maps.Values(machinesFor(ctx))), machine.ID)
+	if !stateGoverned && !permissionGoverned && machine.Frozen == nil && len(restricting) == 0 {
 		return true, 0, "", nil
 	}
 
@@ -957,7 +958,57 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	if permissionGoverned && !allowsActionResolvingParents(ctx, store, machine, domain.ActionDelete, existing.Values, actor) {
 		return false, http.StatusForbidden, "not allowed to delete this record", nil
 	}
+	// `on_parent_delete: restrict`: a record other records still point at stays, so none of them is left pointing at
+	// nothing (gap K-13). Asked last, because it is the one check that reads another Machine.
+	for _, link := range restricting {
+		children, err := store.ListRecordsBy(ctx, link.Machine.ID, link.Field, id)
+		if err != nil {
+			return false, 0, "", err
+		}
+		if n := len(children); n > 0 {
+			return false, http.StatusConflict, fmt.Sprintf("cannot be deleted while %d %s record(s) point at it -- delete or move them first", n, link.Machine.Name), nil
+		}
+	}
 	return true, 0, "", nil
+}
+
+// sameStoredValue says whether a submitted value leaves a stored one as it is: equal as written, or both empty (a form
+// sends "" for a Field the record never had).
+func sameStoredValue(submitted, stored any) bool {
+	blank := func(v any) bool { return v == nil || fmt.Sprint(v) == "" }
+	if blank(submitted) && blank(stored) {
+		return true
+	}
+	return fmt.Sprint(submitted) == fmt.Sprint(stored)
+}
+
+// keepsLockedFields refuses an update that changes a Field its Machine locks for the record as stored (`locked_when:`,
+// `set_once:`, owner decision K1): a paid instalment's gross, a contract's number. A Field the request does not change
+// is not judged, so a form that sends the record back whole still saves. No read for a Machine that locks nothing.
+func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	locks := false
+	for _, f := range machine.Fields {
+		locks = locks || f.SetOnce || f.LockedWhen != nil
+	}
+	if !locks {
+		return true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return false
+	}
+	for _, f := range machine.Fields {
+		v, sent := values[f.ID]
+		if !sent || sameStoredValue(v, existing.Values[f.ID]) {
+			continue
+		}
+		if locked, why := machine.LockedField(f, existing.Values); locked {
+			http.Error(w, why, http.StatusUnprocessableEntity)
+			return false
+		}
+	}
+	return true
 }
 
 // parseRecordForm parses a create/update request body that may be multipart/form-data (needed

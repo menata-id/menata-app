@@ -416,7 +416,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 				for _, f := range m.Fields {
 					<dt class={ "self-center", textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
 					<dd class="m-0">
-						@fieldInput(f, r.Values[f.ID], relations, groups)
+						@editInput(m, f, r, relations, groups)
 					</dd>
 				}
 			</dl>

@@ -165,6 +165,79 @@ type Field struct {
 	// ("priority decides the due date"). Nil for none. Applied by internal/data.ApplyDefaults only where the
 	// submitter left the Field empty, and only on create, like Default.
 	DefaultFrom *FieldDefaultFrom
+	// LockedWhen (`locked_when: {field, equals}`, owner decision K1, 2026-10-17) keeps this Field as it is once the
+	// stored record holds Equals in Field: an instalment's gross cannot change after it is Paid. SetOnce (`set_once:
+	// true`) keeps it as it is once it has a value: a contract's number. Both are judged against the record as stored,
+	// enforced by the generic update routes, and read by every edit form, which shows a locked Field as text.
+	LockedWhen *FieldCondition
+	SetOnce    bool
+	// OnParentDelete is what deleting the record this relation Field points at does to this record (`on_parent_delete:`,
+	// relation Fields only). ParentDeleteRestrict refuses the delete while any record points at it -- a contract with
+	// instalments (gap K-13). Empty leaves the parent free to go, as before.
+	OnParentDelete ParentDelete
+}
+
+// ParentDelete is a relation Field's answer to its parent being deleted. One member is built; `cascade` and `clear`
+// (plan direction A5) are refused at load by name until they are.
+type ParentDelete string
+
+const ParentDeleteRestrict ParentDelete = "restrict"
+
+// DeleteGuard refuses deleting a record of a Machine while its Field holds Equals (`deletable_unless:`): a paid
+// instalment is a record of a payment. Reason is what the refusal says, on the button's absence and at the route.
+type DeleteGuard struct {
+	Field  string
+	Equals string
+	Reason string
+}
+
+// LockedField says whether f of a record whose stored values are stored may not change, and why.
+func (m *Machine) LockedField(f Field, stored map[string]any) (bool, string) {
+	if f.SetOnce {
+		if v, ok := stored[f.ID]; ok && v != nil && fmt.Sprint(v) != "" {
+			return true, fmt.Sprintf("%s is set once and cannot change", f.Name)
+		}
+	}
+	if c := f.LockedWhen; c != nil && fmt.Sprint(stored[c.Field]) == c.Equals {
+		return true, fmt.Sprintf("%s cannot change once the record is %s", f.Name, c.Equals)
+	}
+	return false, ""
+}
+
+// DeleteRefusal is why a record whose values are values may not be deleted under m's `deletable_unless:`, or "".
+func (m *Machine) DeleteRefusal(values map[string]any) string {
+	if m == nil {
+		return ""
+	}
+	for _, g := range m.DeletableUnless {
+		if fmt.Sprint(values[g.Field]) == g.Equals {
+			if g.Reason != "" {
+				return g.Reason
+			}
+			return fmt.Sprintf("a record whose %s is %s cannot be deleted", g.Field, g.Equals)
+		}
+	}
+	return ""
+}
+
+// RestrictingChildren are the (Machine, relation Field) pairs among machines whose records keep a record of parentID's
+// Machine from being deleted (`on_parent_delete: restrict`), in the order the Machines are given.
+func RestrictingChildren(machines []*Machine, parentID string) []ChildLink {
+	var out []ChildLink
+	for _, c := range machines {
+		for _, f := range c.Fields {
+			if f.Type == FieldTypeRelation && f.RelatedMachine == parentID && f.OnParentDelete == ParentDeleteRestrict {
+				out = append(out, ChildLink{Machine: c, Field: f.ID})
+			}
+		}
+	}
+	return out
+}
+
+// ChildLink is one child Machine and the relation Field it points at its parent through.
+type ChildLink struct {
+	Machine *Machine
+	Field   string
 }
 
 // FrozenWhen freezes a record of this Machine while the record one of its relation Fields points at (Via) holds Equals in
@@ -591,6 +664,9 @@ type Machine struct {
 	Constraints    []Constraint
 	// Frozen makes a record read-only while the record it points at holds a value (`frozen_when:`): see FrozenWhen.
 	Frozen *FrozenWhen
+	// DeletableUnless are the states a record of this Machine may not be deleted in (`deletable_unless:`, owner decision
+	// K1): see DeleteGuard. Read by the delete routes and by every Delete a screen offers.
+	DeletableUnless []DeleteGuard
 	// Bounds are aggregate constraints over this Machine's own records (`ensure:`): see AggregateBound.
 	Bounds []AggregateBound
 	Events []Event
