@@ -168,7 +168,7 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 			return
 		}
 
-		values, _, ok := submittedValues(w, req, docMachine, files)
+		values, _, ok := submittedValues(w, req, docMachine, files, cfg.MaxUploadBytes())
 		if !ok {
 			return
 		}
@@ -399,7 +399,7 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			return
 		}
 
-		values, _, ok := submittedValues(w, req, machine, files)
+		values, _, ok := submittedValues(w, req, machine, files, cfg.MaxUploadBytes())
 		if !ok {
 			return
 		}

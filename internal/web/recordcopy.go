@@ -29,7 +29,7 @@ func copyRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			http.Error(w, machine.Name+" records cannot be copied", http.StatusUnprocessableEntity)
 			return
 		}
-		if !parseRecordForm(w, req) {
+		if !parseRecordForm(w, req, cfg.MaxUploadBytes()) {
 			return
 		}
 		source, err := store.GetRecord(req.Context(), machine.ID, chi.URLParam(req, "id"))

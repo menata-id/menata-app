@@ -115,7 +115,7 @@ func TestCSRFProtect_postWithMatchingHeaderTokenPasses(t *testing.T) {
 // TestCSRFProtect_multipartWithoutHeaderRejectedWithoutConsumingBody confirms a multipart request
 // missing the header is rejected outright, never falling back to parsing the body (which would
 // both be wrong -- csrf_token isn't expected in a multipart body in this app -- and would bypass
-// the app's own upload size limit by parsing with Go's default instead of maxUploadBytes).
+// the app's own upload size limit by parsing with Go's default instead of the configured MAX_UPLOAD_MB cap).
 func TestCSRFProtect_multipartWithoutHeaderRejectedWithoutConsumingBody(t *testing.T) {
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 

@@ -88,6 +88,11 @@ type Config struct {
 	// stop a runaway query holding a pooled connection, not to shape normal traffic. 0 disables it.
 	StatementTimeoutSeconds int
 
+	// MaxUploadMB caps one record write's request body, file uploads included, in megabytes (MAX_UPLOAD_MB; 20 by
+	// default). A body over it is refused with 413 before it is read to disk (internal/web.parseRecordForm). Read it
+	// through MaxUploadBytes, which also applies the default to an unset or non-positive value.
+	MaxUploadMB int
+
 	// BackupDir is where installer.SnapshotWorkspace writes a Workspace's installation before an install or an
 	// assistant publish rewrites it (K10). Empty disables snapshots.
 	BackupDir string
@@ -120,7 +125,22 @@ func Load() Config {
 		BackupDir:               getenv("BACKUP_DIR", "backups/metadata"),
 		StatementTimeoutSeconds: getenvInt("STATEMENT_TIMEOUT_SECONDS", 20),
 		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
+		MaxUploadMB:             getenvInt("MAX_UPLOAD_MB", DefaultMaxUploadMB),
 	}
+}
+
+// DefaultMaxUploadMB is the record-write body cap when MAX_UPLOAD_MB is unset: generous enough for a scanned contract
+// or a handful of photos, small enough that one request cannot fill the disk.
+const DefaultMaxUploadMB = 20
+
+// MaxUploadBytes is MaxUploadMB in bytes, with DefaultMaxUploadMB standing in for an unset, zero or negative value --
+// a cap of nothing would refuse every upload, and a Config built in a test without one must still have a cap.
+func (c Config) MaxUploadBytes() int64 {
+	mb := c.MaxUploadMB
+	if mb <= 0 {
+		mb = DefaultMaxUploadMB
+	}
+	return int64(mb) << 20
 }
 
 func getenv(key, fallback string) string {

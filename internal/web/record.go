@@ -37,7 +37,7 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		if !ok {
 			return
 		}
-		if !parseRecordForm(w, req) {
+		if !parseRecordForm(w, req, cfg.MaxUploadBytes()) {
 			return
 		}
 
@@ -235,7 +235,7 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 			return
 		}
 
-		values, uploaded, ok := submittedValues(w, req, machine, files)
+		values, uploaded, ok := submittedValues(w, req, machine, files, cfg.MaxUploadBytes())
 		if !ok {
 			return
 		}
@@ -317,7 +317,7 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 		if !allowsRecordEdit(w, req, store, machine, id, actor) {
 			return
 		}
-		if !parseRecordForm(w, req) {
+		if !parseRecordForm(w, req, cfg.MaxUploadBytes()) {
 			return
 		}
 		existing, err := store.GetRecord(req.Context(), machine.ID, id)
@@ -447,8 +447,8 @@ func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Stor
 // submittedValues reads the form body and merges in any freshly uploaded files. It returns the
 // uploaded set separately as well, because "which file fields did this request actually set" is
 // what carryForwardFixedFields needs and cannot recover from values alone.
-func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.Machine, files *storage.Store) (values, uploaded map[string]any, ok bool) {
-	if !parseRecordForm(w, req) {
+func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.Machine, files *storage.Store, uploadLimit int64) (values, uploaded map[string]any, ok bool) {
+	if !parseRecordForm(w, req, uploadLimit) {
 		return nil, nil, false
 	}
 	values = data.ValuesFromForm(machine, req.Form)
@@ -966,19 +966,19 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 // runs ParseForm first regardless of content type, so http.ErrNotMultipart here just means "no
 // file part was present, req.Form is already populated correctly" -- not a real failure.
 //
-// The body is capped at maxUploadBytes before it is read. ParseMultipartForm's own argument is only how much it keeps
+// The body is capped at limit (config.Config.MaxUploadBytes, MAX_UPLOAD_MB) before it is read. ParseMultipartForm's own argument is only how much it keeps
 // in memory before spilling file parts to temporary files on disk, so on its own it bounded nothing (the plan for
 // Dokter Kecil, Tahap 0.3). A body over the cap is answered 413 and never reaches the disk. It answers the request
 // itself and returns false when the body is refused.
-func parseRecordForm(w http.ResponseWriter, req *http.Request) bool {
-	req.Body = http.MaxBytesReader(w, req.Body, maxUploadBytes)
-	err := req.ParseMultipartForm(maxUploadBytes)
+func parseRecordForm(w http.ResponseWriter, req *http.Request, limit int64) bool {
+	req.Body = http.MaxBytesReader(w, req.Body, limit)
+	err := req.ParseMultipartForm(limit)
 	var tooLarge *http.MaxBytesError
 	switch {
 	case err == nil || errors.Is(err, http.ErrNotMultipart):
 		return true
 	case errors.As(err, &tooLarge):
-		http.Error(w, fmt.Sprintf("the upload is larger than the %d MB limit", maxUploadBytes>>20), http.StatusRequestEntityTooLarge)
+		http.Error(w, fmt.Sprintf("the upload is larger than the %d MB limit", limit>>20), http.StatusRequestEntityTooLarge)
 	default:
 		http.Error(w, "invalid form body", http.StatusBadRequest)
 	}

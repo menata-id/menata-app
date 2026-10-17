@@ -79,7 +79,7 @@ func TestHandleFileUploads_multipartWithFile(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body.String()))
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+	if err := req.ParseMultipartForm(config.Config{}.MaxUploadBytes()); err != nil {
 		t.Fatalf("ParseMultipartForm: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func uploadOneFile(t *testing.T, filename string, content []byte) (*http.Request
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body.String()))
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+	if err := req.ParseMultipartForm(config.Config{}.MaxUploadBytes()); err != nil {
 		t.Fatalf("ParseMultipartForm: %v", err)
 	}
 
@@ -396,7 +396,8 @@ func testWorkspaceFor(machines map[string]*domain.Machine) domain.Workspace {
 
 // TestParseRecordFormRefusesABodyOverTheCap: a record write's body is capped before it is read. ParseMultipartForm's
 // argument alone is only an in-memory threshold, past which file parts spill to temporary files, so without the cap a
-// body of any size reached the disk. Over the cap the answer is 413; at the cap the body parses (Tahap 0.3).
+// body of any size reached the disk. Over the cap the answer is 413, naming the limit; under it the body parses
+// (Tahap 0.3).
 func TestParseRecordFormRefusesABodyOverTheCap(t *testing.T) {
 	build := func(size int) *http.Request {
 		var body bytes.Buffer
@@ -414,15 +415,33 @@ func TestParseRecordFormRefusesABodyOverTheCap(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("TMPDIR", tmp)
 
+	// The cap is the operator's (MAX_UPLOAD_MB): 2 MB here, and a 3 MB scan is refused under it.
+	limit := config.Config{MaxUploadMB: 2}.MaxUploadBytes()
 	rec := httptest.NewRecorder()
-	if parseRecordForm(rec, build(maxUploadBytes+1)) || rec.Code != http.StatusRequestEntityTooLarge {
+	if parseRecordForm(rec, build(3<<20), limit) || rec.Code != http.StatusRequestEntityTooLarge {
 		t.Errorf("a body over the cap: parsed or answered %d, want 413", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "2 MB") {
+		t.Errorf("the refusal does not name the limit: %q", rec.Body.String())
 	}
 	if spilled, _ := os.ReadDir(tmp); len(spilled) != 0 {
 		t.Errorf("a refused body left %d temporary files", len(spilled))
 	}
 	rec = httptest.NewRecorder()
-	if !parseRecordForm(rec, build(1<<20)) {
+	if !parseRecordForm(rec, build(1<<20), limit) {
 		t.Errorf("a 1 MB upload was refused with %d", rec.Code)
+	}
+}
+
+// TestMaxUploadBytesDefaultsWhenUnsetOrNonsense: MAX_UPLOAD_MB unset, zero or negative still leaves a cap -- the
+// default -- rather than a cap of nothing, which would refuse every upload.
+func TestMaxUploadBytesDefaultsWhenUnsetOrNonsense(t *testing.T) {
+	for _, mb := range []int{0, -5} {
+		if got := (config.Config{MaxUploadMB: mb}).MaxUploadBytes(); got != config.DefaultMaxUploadMB<<20 {
+			t.Errorf("MaxUploadMB %d gives %d bytes, want the default", mb, got)
+		}
+	}
+	if got := (config.Config{MaxUploadMB: 50}).MaxUploadBytes(); got != 50<<20 {
+		t.Errorf("MaxUploadMB 50 gives %d bytes", got)
 	}
 }

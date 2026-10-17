@@ -23,7 +23,7 @@ import (
 // pageShell's page-wide hx-headers sends for every HTMX request) and only falls back to the
 // csrf_token form field for a non-multipart body -- a multipart request is never read via
 // r.FormValue here, because doing so would trigger Go's default-32MB ParseMultipartForm before the
-// handler's own req.ParseMultipartForm(maxUploadBytes) (record.go) gets to apply the app's real
+// handler's own parseRecordForm (record.go, MAX_UPLOAD_MB) gets to apply the app's real
 // 20MB limit. Every multipart POST/PUT in this app is HTMX-driven (documentsubmit.templ,
 // detail.templ) and so always carries the header already -- a multipart request without it is
 // correctly rejected, not silently allowed through.
