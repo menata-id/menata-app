@@ -1,0 +1,20 @@
+# What the loader says about the viewer's own draft of the file being edited (registry.RuntimeSources: file_reviews), one record, or
+# none when they have no draft of it. Loads means it loads and would change something (the only status that can be applied); Unchanged
+# loads and changes nothing; Not checked parses but nothing in the workspace loads it; Rejected does not load.
+id: mch_file_review
+name: File review
+runtime: file_reviews
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_path, name: Path, type: text, required: true }
+  - { id: fld_status, name: Verdict, type: status, options: [Loads, Unchanged, Not checked, Rejected] }
+  - { id: fld_reason, name: Reason, type: long_text }
+card_fields:
+  - { field: fld_path, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_reason, role: summary }
+datasets:
+  - id: ds_runtime_file_review
+    select: records
+    where: { field: fld_path, op: equals, value: $parameters.path }
+    limit: 1

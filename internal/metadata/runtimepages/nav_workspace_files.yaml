@@ -1,0 +1,99 @@
+# The admin door for replacing one of the Workspace's own YAML files: pick a file, edit its content, review what the loader says and
+# what would change, then apply. The review is of the viewer's own draft, kept in the process between the Review and the Apply, so
+# the page is an ordinary page and Apply acts on what was reviewed. Admin only (the default).
+id: nav_workspace_files
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - static: link
+      to: nav_workspace_settings
+      text: "← Workspace settings"
+    - static: caption
+      text: Choose the file to replace. Only a file this workspace already has can be replaced here.
+    - component: Collection
+      gap: tight
+      divided: true
+      block: true
+      empty: This workspace has no files of its own yet.
+      binding: { dataset: ds_runtime_workspace_files, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - static: link
+              from: { text: title, href: link }
+            - component: StatusBadge
+              tone: warn
+              when: { role: status, is: Draft }
+              from: { label: status }
+    - component: Collection
+      gap: comfortable
+      block: true
+      hide_empty: true
+      binding: { dataset: ds_runtime_workspace_file, rows: records }
+      children:
+        - layout: section
+          gap: comfortable
+          children:
+            - static: overline
+              text: Editing
+            - static: paragraph
+              from: { text: title }
+            - component: Form
+              submit: Review changes
+              binding: { write: action, action: review_file }
+            - component: Button
+              label: Discard draft
+              variant: secondary
+              when: { role: status, is: Draft }
+              binding: { write: action, action: discard_file_draft }
+    - component: Collection
+      gap: comfortable
+      block: true
+      hide_empty: true
+      binding: { dataset: ds_runtime_file_review, rows: records }
+      children:
+        - layout: section
+          gap: comfortable
+          children:
+            - component: StatusBadge
+              tone: good
+              when: { role: status, is: Loads }
+              from: { label: status }
+            - component: StatusBadge
+              tone: neutral
+              when: { role: status, is: Unchanged }
+              from: { label: status }
+            - component: StatusBadge
+              tone: warn
+              when: { role: status, is: Not checked }
+              from: { label: status }
+            - component: StatusBadge
+              tone: bad
+              when: { role: status, is: Rejected }
+              from: { label: status }
+            - static: code
+              from: { text: summary }
+    - component: Collection
+      gap: default
+      block: true
+      hide_empty: true
+      binding: { dataset: ds_runtime_file_diffs, rows: records }
+      children:
+        - component: Diff
+          from: { label: title, text: detail }
+    - component: Collection
+      gap: default
+      block: true
+      hide_empty: true
+      binding: { dataset: ds_runtime_file_review, rows: records }
+      children:
+        - component: Button
+          label: Apply
+          variant: primary
+          confirm: Replace this file now? The current installation is saved first, so it can be restored.
+          when: { role: status, is: Loads }
+          binding: { write: action, action: apply_file }

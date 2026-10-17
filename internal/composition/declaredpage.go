@@ -740,6 +740,12 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				}
 				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: domain.AppRoleField(app.ID), Label: app.Name, Kind: domain.InputSelect, Options: app.Roles, Default: held[app.ID]})
 			}
+		case registry.ActionInputRecordText:
+			text, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputCode, Required: in.Required, Default: text})
 		case registry.ActionInputTemplateRoles:
 			roles, err := sourceRecordRoles(ctx, l, viewer, a.Source, recordID)
 			if err != nil {

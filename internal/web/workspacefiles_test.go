@@ -51,8 +51,18 @@ func TestWorkspaceFilesScreenPicksOnlyOwnedFilesAndReadsOnlyThose(t *testing.T) 
 	}
 }
 
+// review pastes content for one file through the review action and reads the page that answers, the way the admin does.
+func (s *installTestSetup) review(t *testing.T, path, body string) (code int, page string) {
+	t.Helper()
+	rec := s.postTo(t, "/runtime-actions/review_file?record="+url.QueryEscape(path), url.Values{"yaml": {body}})
+	if rec.Code != http.StatusSeeOther {
+		return rec.Code, rec.Body.String()
+	}
+	return rec.Code, s.getAs(t, rec.Header().Get("Location")).Body.String()
+}
+
 // A review shows the loader's verdict and the diff and writes nothing; only a file that loads and differs offers
-// Apply, and the Apply form carries the exact path and content that were reviewed.
+// Apply, and Apply replaces the file with exactly the draft that was reviewed.
 func TestWorkspaceFilesReviewOffersApplyOnlyForAFileThatLoadsAndChanges(t *testing.T) {
 	s := newInstallTestSetup(t, "wfreview")
 	live := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
@@ -60,46 +70,64 @@ func TestWorkspaceFilesReviewOffersApplyOnlyForAFileThatLoadsAndChanges(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	review := func(path, body string) string {
-		t.Helper()
-		rec := s.postTo(t, "/workspace-settings/files", url.Values{"path": {path}, "yaml": {body}})
-		if rec.Code != http.StatusOK {
-			t.Fatalf("review of %q answered %d: %s", path, rec.Code, rec.Body.String())
-		}
-		return rec.Body.String()
-	}
-	const applyForm = `action="/workspace-settings/apply"`
+	const apply = "apply_file"
 
-	good := review("document.yaml", string(before)+"  - id: fld_extra\n    name: Extra\n    type: text\n")
-	for _, want := range []string{"Loads", "+  - id: fld_extra", applyForm, `name="path" value="document.yaml"`, `name="yaml" value="`} {
+	_, good := s.review(t, "document.yaml", string(before)+"  - id: fld_extra\n    name: Extra\n    type: text\n")
+	for _, want := range []string{"Loads", "+  - id: fld_extra", apply} {
 		if !strings.Contains(good, want) {
 			t.Errorf("a loadable change is missing %q", want)
 		}
 	}
 
-	bad := review("document.yaml", strings.Replace(string(before), "type: text", "type: bogus", 1))
-	if !strings.Contains(bad, "Rejected") || strings.Contains(bad, applyForm) {
-		t.Errorf("a file the loader rejects must say Rejected and offer no Apply (apply form present: %v)", strings.Contains(bad, applyForm))
+	_, bad := s.review(t, "document.yaml", strings.Replace(string(before), "type: text", "type: bogus", 1))
+	if !strings.Contains(bad, "Rejected") || strings.Contains(bad, apply) {
+		t.Errorf("a file the loader rejects must say Rejected and offer no Apply (present: %v)", strings.Contains(bad, apply))
 	}
 
-	same := review("document.yaml", string(before))
-	if !strings.Contains(same, "Nothing would change") || strings.Contains(same, applyForm) {
+	_, same := s.review(t, "document.yaml", string(before))
+	if !strings.Contains(same, "Unchanged") || strings.Contains(same, apply) {
 		t.Error("an unchanged file must say so and offer no Apply")
 	}
 
-	unowned := review("nothere.yaml", "id: x\n")
-	if !strings.Contains(unowned, "Rejected") || strings.Contains(unowned, applyForm) {
-		t.Error("a file the Workspace does not have must be Rejected with no Apply")
+	if code, _ := s.review(t, "nothere.yaml", "id: x\n"); code != http.StatusNotFound {
+		t.Errorf("a file the Workspace does not have = %d, want 404", code)
 	}
 
 	// A file the Workspace owns but nothing loads parses and differs, yet was not checked: no Apply.
 	writeTestFile(t, filepath.Join(filepath.Dir(s.manifestPath), s.slug, "orphan.yaml"), "id: mch_orphan\nname: Orphan\n")
-	if unchecked := review("orphan.yaml", "id: mch_orphan\nname: Orphan Two\n"); !strings.Contains(unchecked, "Not checked") || strings.Contains(unchecked, applyForm) {
+	if _, unchecked := s.review(t, "orphan.yaml", "id: mch_orphan\nname: Orphan Two\n"); !strings.Contains(unchecked, "Not checked") || strings.Contains(unchecked, apply) {
 		t.Error("a changed file nothing loads must say Not checked and offer no Apply")
 	}
 
 	if after, _ := os.ReadFile(live); string(after) != string(before) {
 		t.Error("a review changed the live file")
+	}
+}
+
+// Apply acts on the reviewed draft and nothing else: with no draft it refuses, with one it writes that content.
+func TestWorkspaceFilesApplyWritesTheReviewedDraftOnly(t *testing.T) {
+	s := newInstallTestSetup(t, "wfapply")
+	live := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	before, _ := os.ReadFile(live)
+	if rec := s.postTo(t, "/runtime-actions/apply_file?record=document.yaml", url.Values{"yaml": {"id: smuggled\n"}}); rec.Code != http.StatusConflict {
+		t.Errorf("apply with no reviewed draft = %d, want 409", rec.Code)
+	}
+	if after, _ := os.ReadFile(live); string(after) != string(before) {
+		t.Fatal("an apply with no draft changed the file")
+	}
+	draft := string(before) + "  - id: fld_applied\n    name: Applied\n    type: text\n"
+	s.review(t, "document.yaml", draft)
+	if rec := s.postTo(t, "/runtime-actions/apply_file?record=document.yaml", url.Values{"yaml": {"id: smuggled\n"}}); rec.Code != http.StatusSeeOther {
+		t.Fatalf("apply = %d: %s", rec.Code, rec.Body.String())
+	}
+	if after, _ := os.ReadFile(live); string(after) != draft {
+		t.Error("apply did not write the reviewed draft (or wrote the posted body)")
+	}
+	if rec := s.postTo(t, "/runtime-actions/apply_file?record=document.yaml", url.Values{}); rec.Code != http.StatusConflict {
+		t.Errorf("a second apply = %d, want 409: the draft is spent once applied", rec.Code)
+	}
+	if rec := s.postTo(t, "/runtime-actions/apply_file?record=nothere.yaml", url.Values{}); rec.Code != http.StatusNotFound {
+		t.Errorf("apply of a file the Workspace does not have = %d, want 404", rec.Code)
 	}
 }
 
@@ -109,10 +137,10 @@ func TestWorkspaceFilesScreenAnswers503WithoutAMetadataDirectory(t *testing.T) {
 	s := newInstallTestSetup(t, "wfnodir")
 	s.deps.Cfg.MetadataPath = ""
 	s.handler = Routes(s.deps)
-	if rec := s.getAs(t, "/workspace-settings/files"); rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("GET = %d, want 503", rec.Code)
+	if rec := s.getAs(t, "/workspace-settings/files"); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "document.yaml") {
+		t.Errorf("GET = %d: a process with no metadata directory lists no files, and the page still draws", rec.Code)
 	}
-	if rec := s.postTo(t, "/workspace-settings/files", url.Values{"path": {"document.yaml"}, "yaml": {"x: 1\n"}}); rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("POST = %d, want 503", rec.Code)
+	if code, _ := s.review(t, "document.yaml", "x: 1\n"); code != http.StatusServiceUnavailable {
+		t.Errorf("review = %d, want 503", code)
 	}
 }

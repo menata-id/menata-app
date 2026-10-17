@@ -9,53 +9,38 @@ import (
 	"menata.app/internal/domain"
 )
 
-func renderWorkspaceFiles(t *testing.T, view WorkspaceFilesView) string {
+func renderDiff(t *testing.T, label, text string) string {
 	t.Helper()
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Tallyville", true)
 	var buf bytes.Buffer
-	if err := WorkspaceFilesPage(view, "Tallyville", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := diffView(label, text).Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()
 }
 
-// Pasted YAML is attacker-shaped text as far as the page is concerned: it comes back inside a textarea and a
-// hidden input, and must not be able to close either.
-func TestWorkspaceFilesPage_escapesPastedContentInTheEditorAndTheApplyForm(t *testing.T) {
-	const evil = "name: \"x\"</textarea><script>alert(1)</script>"
-	html := renderWorkspaceFiles(t, WorkspaceFilesView{
-		Files: []string{"a.yaml"}, Path: "a.yaml", YAML: evil,
-		Review: &FileReview{VerdictLabel: "Loads", Tone: domain.ToneGood, CanApply: true,
-			Diffs: []FileDiffView{{Path: "a.yaml", Changed: true, Diff: "-old\n+<b>new</b>\n"}}},
-	})
-	if strings.Contains(html, "<script>alert(1)</script>") || strings.Contains(html, "<b>new</b>") {
-		t.Error("pasted content or a diff line reached the page unescaped")
-	}
-	if !strings.Contains(html, "&lt;/textarea&gt;") {
-		t.Error("the editor did not escape a closing textarea tag")
+// A diff line is attacker-shaped text as far as the page is concerned: pasted YAML comes back inside it.
+func TestDiff_escapesLinesAndLabel(t *testing.T) {
+	html := renderDiff(t, "<i>a.yaml</i>", "-old\n+<b>new</b><script>alert(1)</script>\n")
+	if strings.Contains(html, "<b>new</b>") || strings.Contains(html, "<script>") || strings.Contains(html, "<i>a.yaml</i>") {
+		t.Error("a diff line or the label reached the page unescaped")
 	}
 }
 
-// Apply is drawn only for a review that said CanApply; the page cannot offer a button the handler withheld.
-func TestWorkspaceFilesPage_drawsApplyOnlyWhenTheReviewAllowsIt(t *testing.T) {
-	review := func(can bool) string {
-		return renderWorkspaceFiles(t, WorkspaceFilesView{Files: []string{"a.yaml"}, Path: "a.yaml", YAML: "id: a\n",
-			Review: &FileReview{VerdictLabel: "Rejected", Tone: domain.ToneBad, CanApply: can}})
-	}
-	if !strings.Contains(review(true), `action="/workspace-settings/apply"`) {
-		t.Error("CanApply did not draw the Apply form")
-	}
-	if strings.Contains(review(false), `action="/workspace-settings/apply"`) {
-		t.Error("the Apply form was drawn for a review that did not allow it")
+// Added and removed lines draw in the good and bad tone; a hunk header in neither.
+func TestDiff_colorsLinesByTheirFirstCharacter(t *testing.T) {
+	html := renderDiff(t, "a.yaml", "@@ -1 +1 @@\n-old\n+new\n same\n")
+	for _, want := range []string{"tone-good-bg", "tone-bad-bg"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("no %s line in %s", want, html)
+		}
 	}
 }
 
-// A verdict with no chosen file (a rejected path) still shows its reason: dropping it would leave the admin with
-// a picker and no explanation.
-func TestWorkspaceFilesPage_showsAReviewEvenWithNoFileChosen(t *testing.T) {
-	html := renderWorkspaceFiles(t, WorkspaceFilesView{Files: []string{"a.yaml"},
-		Review: &FileReview{VerdictLabel: "Rejected", Tone: domain.ToneBad, Reason: "\"x.yaml\" is not a file this workspace has"}})
-	if !strings.Contains(html, "not a file this workspace has") {
-		t.Error("the reason for a rejected path is not on the page")
+// A file that would not change is a sentence, not an empty box.
+func TestDiff_aBlankTextSaysNothingWouldChange(t *testing.T) {
+	html := renderDiff(t, "a.yaml", "  \n")
+	if strings.Contains(html, "<pre") || !strings.Contains(html, "Nothing would change") {
+		t.Errorf("a blank diff was not drawn as the sentence: %s", html)
 	}
 }

@@ -28,7 +28,6 @@ var handWrittenVariantTokens = map[string]int{
 var handWrittenLeading = map[string]int{
 	"appsettings.templ": 3, "appshell.templ": 2, "authshell.templ": 1, "chooseworkspace.templ": 1,
 	"machine.templ": 1, "reviewdocument.templ": 2, "rolematrix.templ": 7, "signatureplacement.templ": 1,
-	"workspacefiles.templ": 3,
 }
 
 // handWrittenTracking counts `tracking-wide`, the artifact's 0.025em on eyebrows and table heads. It is not a Theme role (the

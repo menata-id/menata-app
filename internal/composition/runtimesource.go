@@ -87,6 +87,9 @@ func (l *Loader) WithParams(params map[string]string) *Loader {
 
 // sourceParam is the request's value of a parameter a source declares (registry.RuntimeSource.Params), "" for any other:
 // a provider cannot read what its source did not declare.
+// SourceParam is sourceParam for a provider supplied by a handler, which cannot see this package's unexported names.
+func (l *Loader) SourceParam(source, name string) string { return l.sourceParam(source, name) }
+
 func (l *Loader) sourceParam(source, name string) string {
 	for _, p := range registry.RuntimeSources[source].Params {
 		if p == name {
@@ -488,4 +491,23 @@ func suggestionsProvider(ctx context.Context, _ *Loader, _ domain.Actor) ([]*dat
 		}})
 	}
 	return out, nil
+}
+
+// sourceRecordText is the text one field of a runtime source's record holds, read from the source's own reader so the Form that
+// edits it starts as exactly what the list shows.
+func sourceRecordText(ctx context.Context, l *Loader, viewer domain.Actor, source, recordID, field string) (string, error) {
+	provider, ok := l.provider(source)
+	if !ok {
+		return "", fmt.Errorf("composition: source %q has no provider", source)
+	}
+	rows, err := provider(ctx, l, viewer)
+	if err != nil {
+		return "", err
+	}
+	for _, r := range rows {
+		if r.ID == recordID {
+			return DisplayString(r.Values[field]), nil
+		}
+	}
+	return "", nil
 }

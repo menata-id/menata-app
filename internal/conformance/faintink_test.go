@@ -41,7 +41,7 @@ var faintInkSites = map[string]struct {
 	"machine.templ:avatarClasses":               {1, "a pending member's initials in a dashed ring; the avatar's name is its aria-label"},
 	"machine.templ:MachineList":                 {1, "a Machine's technical id"},
 	"machine.templ:machineScreen":               {1, "a Machine's technical id"},
-	"workspacefiles.templ:diffLineClass":        {1, "a diff's hunk header (`@@ -1 +1 @@`): position metadata for the reader of a diff"},
+	"diff.templ:diffLineClass":                  {1, "a diff's hunk header (`@@ -1 +1 @@`): position metadata for the reader of a diff"},
 }
 
 // faintInkReaderFuncs are the functions in layout.templ whose bodies name a faint role as a reader, not as a site.

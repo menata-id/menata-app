@@ -259,6 +259,8 @@ templ formInput(id, name, kind, options, value string, required bool) {
 			<input id={ id } type="date" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
 		case domain.InputNumber:
 			<input id={ id } type="number" step="any" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+		case domain.InputCode:
+			<textarea id={ id } name={ name } rows="18" spellcheck="false" required?={ required } class={ fieldClasses(ctx) + " h-auto w-full py-2 font-mono " + textClass(ctx, domain.RoleMeta) }>{ value }</textarea>
 		case domain.InputLongText:
 			<textarea id={ id } name={ name } rows="5" required?={ required } class={ fieldClasses(ctx) + " w-full" }>{ value }</textarea>
 		default:

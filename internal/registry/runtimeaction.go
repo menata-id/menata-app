@@ -34,6 +34,8 @@ type ActionInput struct {
 	// that declares roles, each starting as the record's role there. Both are decided per request by the runtime, so the page
 	// writes neither an option nor a name.
 	Kind string
+	// Field, with Kind ActionInputRecordText, is the field of the record whose text the input starts as (a file's content).
+	Field string
 }
 
 // The two dynamic input kinds an action may ask.
@@ -49,6 +51,9 @@ const (
 	// installs an Application holds a role in it at once (without one they would be locked out of what they just installed).
 	// A template that declares none asks nothing.
 	ActionInputTemplateRoles = "template_roles"
+	// ActionInputRecordText is a code box that starts as the text one field of the record holds (a file's content), so a Form can
+	// edit what a source provides without the page naming the field's value.
+	ActionInputRecordText = "record_text"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -70,6 +75,10 @@ var RuntimeActions = map[string]RuntimeAction{
 		Doc: "sets one member's direct role in one Application and nothing else: not their Workspace role, not their roles elsewhere"},
 	"install_application": {ID: "install_application", Source: "templates", Admin: true, Inputs: []ActionInput{{Name: "role", Label: "Your role here", Kind: ActionInputTemplateRoles}},
 		Doc: "installs a library template into this Workspace as that Workspace's own copy, reloads it, and grants the installer the role they chose"},
+	"review_file": {ID: "review_file", Source: "workspace_files", Admin: true, Inputs: []ActionInput{{Name: "yaml", Label: "New content", Required: true, Kind: ActionInputRecordText, Field: "fld_yaml"}},
+		Doc: "keeps the pasted content as the viewer's own draft of that file and shows what the loader says about it; writes nothing to the Workspace"},
+	"apply_file":         {ID: "apply_file", Source: "file_reviews", Admin: true, Doc: "replaces the file with the viewer's draft of it (validated on a staged copy, snapshotted first, load-verified), then reloads the Workspace"},
+	"discard_file_draft": {ID: "discard_file_draft", Source: "workspace_files", Admin: true, Doc: "drops the viewer's draft of a file"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},

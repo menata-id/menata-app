@@ -1,0 +1,20 @@
+# What applying the viewer's draft would change (registry.RuntimeSources: file_diffs): one record per file the writer would touch,
+# each with the unified diff it produced, keyed by the file being reviewed.
+id: mch_file_diff
+name: File diff
+runtime: file_diffs
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_path, name: Reviewing, type: text }
+  - { id: fld_title, name: File, type: text, required: true }
+  - { id: fld_state, name: State, type: status, options: [Changed, Unchanged] }
+  - { id: fld_diff, name: Diff, type: long_text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_state, role: status }
+  - { field: fld_diff, role: detail }
+datasets:
+  - id: ds_runtime_file_diffs
+    select: records
+    where: { field: fld_path, op: equals, value: $parameters.path }
+    limit: 50

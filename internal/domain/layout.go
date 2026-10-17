@@ -430,6 +430,10 @@ const (
 	// conditional text, a sentence with an inline `<span>`, and three whose apostrophe `{ text }` would escape
 	// to `&#39;` (not byte-identical, the same floor StaticMessage and StaticNote carry).
 	StaticCaption StaticKind = "caption"
+	// StaticCode is text whose line breaks and spacing matter: a loader's multi-line verdict, a file's content. A `<pre>` at the
+	// meta role in the body ink, wrapping rather than scrolling sideways so a long line is still read. It is the one static kind
+	// that keeps its whitespace, which is its whole reason to exist beside `paragraph`.
+	StaticCode StaticKind = "code"
 )
 
 // KnownStaticKinds is the closed set.
@@ -446,4 +450,5 @@ var KnownStaticKinds = map[StaticKind]bool{
 
 	StaticPanelHeading: true,
 	StaticCaption:      true,
+	StaticCode:         true,
 }

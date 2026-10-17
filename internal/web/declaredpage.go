@@ -176,7 +176,11 @@ func pageViewer(actor domain.Actor, cfg config.Config) domain.Actor {
 // holds (the store's per-request identity, the process's configuration). A source left to the web package with no reader here is
 // caught by TestWebProvidedRuntimeSourcesHaveAReader.
 func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]composition.RuntimeProvider {
+	previews := &filePreviews{}
 	return map[string]composition.RuntimeProvider{
+		"workspace_files":    workspaceFilesProvider(store, cfg),
+		"file_reviews":       fileReviewsProvider(store, cfg, previews),
+		"file_diffs":         fileDiffsProvider(store, cfg, previews),
 		"snapshots":          snapshotsProvider(store, cfg),
 		"templates":          templatesProvider(cfg),
 		"applications":       applicationsProvider(store, cfg),

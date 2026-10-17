@@ -188,6 +188,11 @@ const (
 	// page under the query parameter `query`, and the runtime source or Dataset the page reads is what narrows. It
 	// holds the words the request already carried, so a search is never silently lost.
 	ComponentSearchBox ComponentType = "SearchBox"
+
+	// ComponentDiff is a unified diff of one file: its path and, beneath it, each line coloured by what it did (added, removed, a
+	// hunk header, context), or a sentence saying nothing would change. The colours are the Theme's tones and the text is whatever the
+	// writer produced; the Component reads neither a file nor a record.
+	ComponentDiff ComponentType = "Diff"
 )
 
 // SearchParamsReserved are the query names a SearchBox may not use: the runtime owns them (the Application a page is
@@ -231,6 +236,9 @@ const (
 	// carries the ticked values. Its options are `value=Label` lines and its value the ticked values joined by
 	// InputOptionsSep. Unticking everything is a meaningful answer (an empty set), which a lone checkbox is not.
 	InputMultiSelect InputKind = "multiselect"
+	// InputCode is a long text that is edited as text and not as prose: a monospace box of eighteen lines with spell-check off,
+	// for a file's content.
+	InputCode InputKind = "code"
 )
 
 // KnownInputKinds is the closed set.
@@ -242,6 +250,7 @@ var KnownInputKinds = map[InputKind]bool{
 	InputBoolean:     true,
 	InputSelect:      true,
 	InputMultiSelect: true,
+	InputCode:        true,
 }
 
 // InputOptionsSep joins a select's options into the one string property an `Input` carries them in. A newline,

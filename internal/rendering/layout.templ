@@ -1334,6 +1334,8 @@ templ staticText(kind domain.StaticKind, text string) {
 			<h2 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
 		case domain.StaticCaption:
 			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ text }</p>
+		case domain.StaticCode:
+			<pre class={ "m-0 overflow-x-auto whitespace-pre-wrap", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody) }>{ text }</pre>
 		case domain.StaticSubheading:
 			<h2 class={ "m-0", textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
 		case domain.StaticMessage:
@@ -1519,6 +1521,8 @@ templ uiNode(n ir.UINode) {
 					@popover(n.Props["label"], n.Props["title"], domain.PopoverTrigger(n.Props["trigger"]), domain.PopoverAlign(n.Props["align"]), domain.PopoverDensity(n.Props["density"])) {
 						@uiChildren(n)
 					}
+				case domain.ComponentDiff:
+					@diffView(n.Props["label"], n.Props["text"])
 				case domain.ComponentSearchBox:
 					@searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"], n.Props["action"], n.Props["submit"])
 				case domain.ComponentNavList:

@@ -63,6 +63,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentTable:            {Contract: tableContract, Validate: validateTable},
 	domain.ComponentNavList:          {Contract: navListContract, Validate: validateNavList},
 	domain.ComponentSearchBox:        {Contract: searchBoxContract, Validate: validateSearchBox},
+	domain.ComponentDiff:             {Contract: diffContract, Validate: validateDiff},
 }
 
 // tableContract is a records table, the nameable form of `dataTable`.
@@ -1025,3 +1026,31 @@ func validateSearchBox(inputs map[string]string) []string {
 }
 
 var searchParamPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// diffContract is one file's unified diff.
+//
+// `label` is the file's path (required: a diff that does not say which file is a wall of coloured lines) and `text` is the unified
+// diff the writer produced; a blank text is a file that would not change, drawn as a sentence and not as an empty box. The Component reads no file and no record; lines are coloured by their first character,
+// which is also what says added or removed to a reader who does not see colour.
+var diffContract = domain.ComponentContract{
+	Type:   domain.ComponentDiff,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "text", Kind: "string"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "the file's path as text above a <pre> with one row per line; an added line starts with + and a removed one with -, so the change is in the text and not only in the colour; a file that would not change is a sentence, not an empty box",
+	Renderer:         "diffView",
+}
+
+// validateDiff checks a use against the declared inputs, and a non-blank label.
+func validateDiff(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(diffContract, inputs, "Diff")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Diff label is blank -- a diff must say which file")
+	}
+	return issues
+}

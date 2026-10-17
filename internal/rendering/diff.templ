@@ -1,0 +1,66 @@
+package rendering
+
+import (
+	"context"
+	"strings"
+
+	"menata.app/internal/domain"
+)
+
+// diffView is the registered renderer for `domain.ComponentDiff`: one file's unified diff as the writer produced it, the
+// path above it in the code face, each line a row coloured by its first character (added in the good tone, removed in the bad,
+// a hunk header faint, context neutral). A file that would not change says so in a caption instead of drawing an empty box. The
+// colours are the Theme's tones, so a Workspace that remaps a tone moves every diff together; whether a line was added or
+// removed is also in its first character, so colour is never the only carrier.
+templ diffView(label, text string) {
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
+		<span class={ "font-mono", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody) }>{ label }</span>
+		if strings.TrimSpace(text) != "" {
+			<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2", textClass(ctx, domain.RoleMeta) }>
+				for _, line := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
+					<div class={ diffLineClass(ctx, line) }>{ line }</div>
+				}
+			</pre>
+		} else {
+			@staticText(domain.StaticCaption, wfUnchanged)
+		}
+	</div>
+}
+
+func diffLineClass(ctx context.Context, line string) string {
+	switch {
+	case strings.HasPrefix(line, "+"):
+		return toneFillClass(ctx, domain.ToneGood) + " " + "px-3" + " " + toneInkClass(ctx, domain.ToneGood)
+	case strings.HasPrefix(line, "-"):
+		return toneFillClass(ctx, domain.ToneBad) + " " + "px-3" + " " + toneInkClass(ctx, domain.ToneBad)
+	case strings.HasPrefix(line, "@@"):
+		return "px-3 " + inkClass(ctx, domain.InkFaint)
+	default:
+		return "px-3" + " " + toneInkClass(ctx, domain.ToneNeutral)
+	}
+}
+
+const wfUnchanged = "Nothing would change: the pasted content is the same as the file."
+
+// FileDiffView is one file of a review: where it lives and what applying a change would do to it.
+type FileDiffView struct {
+	Path    string
+	Changed bool
+	Diff    string
+}
+
+// fileDiffList draws each file's diff: the shared diffView, one per file, so the generated-change review draws a diff the same
+// way a declared page does.
+templ fileDiffList(diffs []FileDiffView) {
+	for _, d := range diffs {
+		@diffView(d.Path, diffTextOf(d))
+	}
+}
+
+// diffTextOf is the text a file's diff draws: nothing for a file that would not change, which diffView says in words.
+func diffTextOf(d FileDiffView) string {
+	if !d.Changed {
+		return ""
+	}
+	return d.Diff
+}

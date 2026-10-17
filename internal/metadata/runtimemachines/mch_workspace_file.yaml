@@ -1,0 +1,27 @@
+# The YAML files this Workspace owns (registry.RuntimeSources: workspace_files), each with where to edit it; the one file the
+# request names (?path=) also carries the content an editor starts as: the viewer's own unsent draft, else the current file. Read by the
+# Workspace files screen only. Only a file the Workspace already has can be replaced, so the list is the only authority on what exists.
+id: mch_workspace_file
+name: Workspace file
+runtime: workspace_files
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_path, name: Path, type: text, required: true }
+  - { id: fld_state, name: State, type: status, options: [Saved, Draft] }
+  - { id: fld_link, name: Edit at, type: text }
+  - { id: fld_yaml, name: Content, type: long_text }
+card_fields:
+  - { field: fld_path, role: title }
+  - { field: fld_state, role: status }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_workspace_files
+    select: records
+    sort:
+      - { field: fld_path, direction: asc }
+    limit: 500
+  # The one file being edited, by the path the request names ($parameters.path); none when it names none.
+  - id: ds_runtime_workspace_file
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.path }
+    limit: 1

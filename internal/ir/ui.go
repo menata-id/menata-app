@@ -222,6 +222,7 @@ var allowedProps = map[string][]string{
 	"static/caption":             {"text"},
 	"static/message":             {"text"},
 	"static/note":                {"text"},
+	"static/code":                {"text"},
 	"static/link":                {"href", "text"},
 	"component/StatusBadge":      {"label", "tone", "size"},
 	"component/Avatar":           {"initials", "label", "size", "presence"},
@@ -241,6 +242,7 @@ var allowedProps = map[string][]string{
 	"component/Table":            {"label", "empty", "headers", "aligns"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
 	"component/SearchBox":        {"label", "query", "placeholder", "value", "action", "submit"},
+	"component/Diff":             {"label", "text"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

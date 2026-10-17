@@ -1190,7 +1190,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 | Key | Value | Meaning |
 |---|---|---|
 | `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `anchor`, `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap` |
-| `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
+| `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note`, `code` | Text that is the same for everyone (`code` keeps its line breaks and spacing: a verdict or a file's content). Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, `EmptyState`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_dashboard`' two open-card groups, a `columns` of two `section`s.
@@ -1253,6 +1253,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
 | `Callout` | stable | Declared by the runtime's own page for the template library (a template that cannot be installed here, and why) |
+| `Diff` | stable | Declared by the runtime's own page for replacing a Workspace file (what applying the reviewed draft would change) |
 | `Disclosure` | stable | Declared by the runtime's own page for Groups ("+ New group"); Members still draws it in Go ("+ Invite member") |
 | `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
