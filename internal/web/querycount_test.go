@@ -57,7 +57,12 @@ import (
 // getting worse, it was the first measurement being of something thinner than production. 13 is
 // the real improvement: GetMembership stopped answering "which Groups is this one person in" by
 // reading every Group in the Workspace (data.GroupsForMember).
-const maxQueriesPerAuthenticatedPage = 13
+//
+// **13 -> 10 on 2026-10-17.** Installing Dokter Kecil's two Applications into `default` took /home to 14, because it
+// counted each Application's summary Machine with its own statement -- every Application installed made the page one
+// query dearer. Store.CountRecordsByMachine counts them all in one, so the page no longer grows with the Applications
+// a Workspace holds, and the ceiling drops to what it now costs.
+const maxQueriesPerAuthenticatedPage = 10
 
 var queryCountPattern = regexp.MustCompile(`queries=(\d+) reads=(\d+) repeated=(\d+)`)
 

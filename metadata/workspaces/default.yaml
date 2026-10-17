@@ -62,6 +62,11 @@ machines:
   - default/ac_period.yaml
   - default/ac_entry.yaml
   - default/ac_line.yaml
+  - default/category.yaml
+  - default/contract.yaml
+  - default/contract_term.yaml
+  - default/payment_plan.yaml
+  - default/purchase_order.yaml
 
 # applications: which Applications are installed here. Paths are resolved relative to this file,
 # and these are this Workspace's own copies too -- metadata/applications/ holds the templates they
@@ -75,6 +80,10 @@ applications:
   - default/applications/maintenance.yaml
   - default/applications/lending.yaml
   - default/applications/accounting.yaml
+  # Dokter Kecil's two Applications (copied from dokter-kecil, 2026-10-17), for the owner to try here as well. Copied
+  # into this Workspace rather than installed from the library: the second relates to the first's Machines (K-6).
+  - default/applications/production-contracts.yaml
+  - default/applications/instalments-payments.yaml
 
 # navigation: the pages this Workspace declares itself, the ones no Application owns. Each item carries a `page:` (the
 # same block an Application's navigation item takes), is drawn at /pages/<id> and is reached from the Workspace menu.

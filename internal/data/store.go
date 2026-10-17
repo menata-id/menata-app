@@ -119,6 +119,38 @@ func (s *Store) ListRecords(ctx context.Context, machineID string) ([]*Record, e
 // resolves by id, and this is one Application's card count, declared by summary_machine and
 // meaningful only there. Making it a Dataset would mean declaring one per Application to say
 // "count this Machine's rows", which is the declaration the Machine id already is.
+// CountRecordsByMachine counts the records of several Machines in one statement, keyed by Machine id; a Machine with no
+// records is absent (read it as 0). It exists for a page that names every installed Application with its count --
+// Workspace Home -- which issued one count per Application, so each Application installed made the page one query
+// dearer.
+func (s *Store) CountRecordsByMachine(ctx context.Context, machineIDs []string) (map[string]int, error) {
+	out := make(map[string]int, len(machineIDs))
+	if len(machineIDs) == 0 {
+		return out, nil
+	}
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return nil, errNotScoped
+	}
+	readLogFrom(ctx).record("record counts by machine")
+	rows, err := s.pool.Query(ctx, `
+		SELECT machine_id, count(*) FROM records WHERE workspace_id = $1 AND machine_id = ANY($2) GROUP BY machine_id
+	`, workspaceID, machineIDs)
+	if err != nil {
+		return nil, fmt.Errorf("count records by machine: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, fmt.Errorf("count records by machine: %w", err)
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) CountRecords(ctx context.Context, machineID string) (int, error) {
 	workspaceID, ok := workspaceScopeFrom(ctx)
 	if !ok {

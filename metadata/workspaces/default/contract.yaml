@@ -1,0 +1,83 @@
+# Contract -- one agreement with one party: a cast member, a crew member, or a vendor's item (canvas K01d/K01g). One
+# Machine for all three: fld_contract_kind is closed so required_when can make Position mandatory for crew and Item
+# description for an item. The party is typed here; there is no address book (owner's decision). There is no
+# Production Machine either: one Workspace is one film.
+id: mch_contract
+name: Contract
+fields:
+  - { id: fld_contract_no, name: Contract no., type: text, required: true }
+  - { id: fld_party_name, name: Contracted party, type: text, required: true }
+  - { id: fld_contract_kind, name: Type, type: status, default: Cast, required: true, options: [Cast, Crew, Item] }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, required: true }
+  - { id: fld_position, name: Position, type: text, required_when: { field: fld_contract_kind, equals: Crew } }
+  - { id: fld_item_desc, name: Item description, type: text, required_when: { field: fld_contract_kind, equals: Item } }
+  - { id: fld_value, name: Contract value, type: money, required: true }
+  - { id: fld_start_date, name: Start date, type: date, required: true }
+  # What the fee covers, who bears transport, terms for schedule changes: the detail that has no other field.
+  - { id: fld_description, name: Notes, type: long_text }
+  - { id: fld_doc, name: Document, type: file }
+  - { id: fld_status, name: Status, type: status, default: Draft, options: [Draft, Active, Closed, Cancelled] }
+  - { id: fld_activated_on, name: Activated on, type: date }
+  # Written by the instalments' rollup (contract_term.yaml), not by a person.
+  - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
+
+card_fields:
+  - { field: fld_contract_no, role: title }
+  - { field: fld_party_name, role: subtitle }
+  - { field: fld_contract_kind, role: detail }
+  - { field: fld_category, role: container }
+  - { field: fld_value, role: money }
+  - { field: fld_payment_status, role: status }
+  - { field: fld_start_date, role: date }
+
+completion: { field: fld_status, done: Closed }
+status_categories:
+  field: fld_status
+  values: { Draft: start, Active: active, Closed: done, Cancelled: stopped }
+
+transitions:
+  - { id: trn_contract_activate, name: Activate, field: fld_status, from: Draft, to: Active, action: edit, roles: [production_manager, admin], sets: { fld_activated_on: today } }
+  - { id: trn_contract_close, name: Close, field: fld_status, from: Active, to: Closed, action: edit, roles: [production_manager, admin] }
+  - { id: trn_contract_cancel_draft, name: Cancel, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager, admin] }
+  - { id: trn_contract_cancel, name: Cancel, field: fld_status, from: Active, to: Cancelled, action: edit, roles: [production_manager, admin] }
+
+# A contract is closed only once every instalment is paid.
+constraints:
+  - id: cst_close_needs_paid
+    on: fld_status
+    when_equals: Closed
+    block_if:
+      related_machine: mch_contract_term
+      related_field: fld_contract
+      condition: { field: fld_term_status, op: not_equals, value: Paid }
+
+# Deleting a contract would orphan its instalments (K-13, until on_parent_delete exists): admin only.
+permissions:
+  - { id: prm_contract_delete, action: delete, roles: [admin] }
+
+views:
+  - { id: vw_contract_table, name: Table, type: table }
+  - { id: vw_contract_board, name: Board, type: board, group_by: fld_contract_kind }
+
+events:
+  - id: evt_contract_status_changed
+    on: fld_status
+    then: { service: log_activity, summary: 'Contract {fld_contract_no} moved from {old} to {new}' }
+
+datasets:
+  # The Overview's figures: active contracts and their value.
+  - id: ds_contract_figures
+    measures:
+      - { id: msr_active_value, aggregate: sum, field: fld_value, where: { field: fld_status, op: equals, value: Active } }
+      - { id: msr_active_count, aggregate: count, where: { field: fld_status, op: equals, value: Active } }
+  # Contract value by category (master data, so the rows follow whatever categories exist).
+  - id: ds_contracts_by_category
+    dimension: fld_category
+    measures:
+      - { id: msr_category_value, aggregate: sum, field: fld_value, where: { field: fld_status, op: not_equals, value: Cancelled } }
+      - { id: msr_category_count, aggregate: count, where: { field: fld_status, op: not_equals, value: Cancelled } }
+  # Every contract by number, for the Overview's table. A window of 200, not a claim to be complete.
+  - id: ds_contracts_table
+    select: records
+    sort: [{ field: fld_contract_no, direction: asc }]
+    limit: 200

@@ -38,6 +38,17 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 		if perr != nil {
 			return nil, perr
 		}
+		// Every summary Machine counted in one statement: the page's cost does not grow with the Applications installed.
+		var summaryIDs []string
+		for _, app := range apps {
+			if _, ok := machines[app.SummaryMachine]; ok {
+				summaryIDs = append(summaryIDs, app.SummaryMachine)
+			}
+		}
+		counts, cerr := store.CountRecordsByMachine(ctx, summaryIDs)
+		if cerr != nil {
+			log.Printf("workspace home: count summary machines: %v", cerr)
+		}
 		out := make([]*data.Record, 0, len(apps))
 		for _, app := range apps {
 			route := app.HomeRoute
@@ -57,12 +68,9 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 					break
 				}
 			}
-			if m, ok := machines[app.SummaryMachine]; ok && status == "None" {
-				if n, err := store.CountRecords(ctx, app.SummaryMachine); err == nil {
-					status, summary = "Count", fmt.Sprintf("%d %s%s", n, m.Name, plural(n))
-				} else {
-					log.Printf("workspace home: count %s for %s: %v", app.SummaryMachine, app.ID, err)
-				}
+			if m, ok := machines[app.SummaryMachine]; ok && status == "None" && cerr == nil {
+				n := counts[app.SummaryMachine]
+				status, summary = "Count", fmt.Sprintf("%d %s%s", n, m.Name, plural(n))
 			}
 			out = append(out, &data.Record{ID: app.ID, MachineID: "mch_home_application", WorkspaceID: workspaceID, Values: map[string]any{
 				"fld_id": app.ID, "fld_title": app.Name, "fld_description": app.Description, "fld_role": "Your role: " + role,
