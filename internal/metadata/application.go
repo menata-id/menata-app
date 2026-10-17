@@ -414,6 +414,8 @@ type navItemDoc struct {
 	SettingsHubMember bool `yaml:"settings_hub_member"`
 	// Page -- see domain.NavigationItem.Page. Optional; absent means a bespoke Go screen.
 	Page *pageNodeDoc `yaml:"page"`
+	// OpenTo -- see domain.NavigationItem.OpenTo. Optional; only on a Workspace page.
+	OpenTo string `yaml:"open_to"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -924,6 +926,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			SettingsHub:       n.SettingsHub,
 			SettingsHubMember: n.SettingsHubMember,
 			Page:              page,
+			OpenTo:            n.OpenTo,
 		})
 	}
 	return items

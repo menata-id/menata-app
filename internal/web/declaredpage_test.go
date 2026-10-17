@@ -2025,6 +2025,73 @@ func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 	}
 }
 
+// TestAWorkspacePageOpenToMembersIsOpenedByAMemberAndOnlyByAMember: `open_to: member` on the Workspace's My work page admits
+// a plain member, who sees their own tickets and not another reporter's, and is offered the page in the Workspace menu; a
+// person with no membership in the Workspace is still refused, and the Overview, which says nothing, stays with the admins.
+func TestAWorkspacePageOpenToMembersIsOpenedByAMemberAndOnlyByAMember(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "mywork", "default")
+	var ticket *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_helpdesk_ticket" {
+			ticket = m
+		}
+	}
+	if ticket == nil {
+		t.Fatal("default installs no Helpdesk ticket Machine")
+	}
+	wsID, _ := data.WorkspaceScope(ctx)
+	person := func(email string, member bool) (id, sessionCookie string) {
+		u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": email})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if member {
+			if err := store.AddMember(context.Background(), wsID, u.ID, email, "member", ""); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return u.ID, sessionCookieValueForTest(t, config.Config{SessionSecret: "mywork-secret"}, u.ID, 0)
+	}
+	memberID, memberCookie := person("mywork_member@example.com", true)
+	otherID, _ := person("mywork_other@example.com", true)
+	_, strangerCookie := person("mywork_stranger@example.com", false)
+	for who, title := range map[string]string{memberID: "MyWork-mine", otherID: "MyWork-theirs"} {
+		rec, err := store.CreateRecord(ctx, ticket.ID, map[string]any{"fld_title": title, "fld_category": "software", "fld_priority": "normal", "fld_status": "new", "fld_due": "2031-01-01", "fld_reporter": who})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, ticket.ID, rec.ID) })
+	}
+	get := func(path, ck string) (int, string) {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: ck})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code, rec.Body.String()
+	}
+	code, body := get("/pages/nav_workspace_my_work", memberCookie)
+	if code != http.StatusOK {
+		t.Fatalf("a member opening My work = %d, want 200", code)
+	}
+	if !strings.Contains(body, "MyWork-mine") || strings.Contains(body, "MyWork-theirs") {
+		t.Error("My work did not show the member their own ticket and only theirs")
+	}
+	if _, home := get("/home", memberCookie); !strings.Contains(home, `href="/pages/nav_workspace_my_work"`) {
+		t.Error("the Workspace menu does not offer a member the page that is open to members")
+	} else if strings.Contains(home, `href="/pages/nav_workspace_overview"`) {
+		t.Error("the Workspace menu offers a member the Overview that is admin-only")
+	}
+	if code, _ := get("/pages/nav_workspace_overview", memberCookie); code != http.StatusForbidden {
+		t.Errorf("a member opening the admin-only Overview = %d, want 403", code)
+	}
+	if code, _ := get("/pages/nav_workspace_my_work", strangerCookie); code != http.StatusForbidden {
+		t.Errorf("a person with no membership opening My work = %d, want 403", code)
+	}
+	if code, _ := get("/pages/nav_workspace_my_work", cookie); code != http.StatusOK {
+		t.Errorf("an admin opening My work = %d, want 200", code)
+	}
+}
+
 // TestAViewerConditionShowsALinkOnlyToAnAdmin: the Helpdesk's All tickets page links to the Workspace overview only for a
 // Workspace admin, though a member holding a Helpdesk role opens the same page and sees the rest of it.
 func TestAViewerConditionShowsALinkOnlyToAnAdmin(t *testing.T) {

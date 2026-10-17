@@ -1252,6 +1252,38 @@ func TestWorkspacePage_isHeldToTheSameRulesAsAnApplicationsPage(t *testing.T) {
 	}
 }
 
+func TestWorkspacePage_openToIsReadAndHeldToItsRules(t *testing.T) {
+	for _, who := range []string{"admin", "member"} {
+		ws := strings.Replace(validWorkspacePage, "    page:\n", "    open_to: "+who+"\n    page:\n", 1)
+		if err := workspacePageFixture(t, ws); err != nil {
+			t.Errorf("open_to: %s was refused: %v", who, err)
+		}
+	}
+	for name, tc := range map[string]struct{ from, to string }{
+		"a word that is no role":  {"    page:\n", "    open_to: everyone\n    page:\n"},
+		"a negation":              {"    page:\n", "    open_to: not_admin\n    page:\n"},
+		"on an item with no page": {"    page:\n", "    open_to: member\n    xpage:\n"},
+	} {
+		ws := strings.Replace(validWorkspacePage, tc.from, tc.to, 1)
+		if name == "on an item with no page" { // an item that declares no page at all
+			ws = "  - id: nav_ws_plain\n    label: Plain\n    route: /somewhere\n    open_to: member\n"
+		}
+		if err := workspacePageFixture(t, ws); err == nil || !strings.Contains(err.Error(), "open_to") {
+			t.Errorf("%s: %v, want an open_to error", name, err)
+		}
+	}
+}
+
+func TestPage_anApplicationsOwnPageTakesNoOpenTo(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "doc.yaml", "\nid: mch_doc\nname: Doc\nfields:\n  - { id: fld_title, name: Title, type: text }\ncard_fields:\n  - { field: fld_title, role: title }\n")
+	writeFile(t, dir, "app.yaml", "\nworkspace: default\nmachines:\n  - doc.yaml\napplications:\n  - app-main.yaml\n")
+	writeFile(t, dir, "app-main.yaml", "\nid: app_docs\nname: Docs\nmachines:\n  - mch_doc\nnavigation:\n  - { id: nav_docs, label: Docs, route: /machines/mch_doc, open_to: member }\n")
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil || !strings.Contains(err.Error(), "open_to") {
+		t.Errorf("an Application's navigation item with open_to: %v, want an open_to error", err)
+	}
+}
+
 func TestPage_aViewerConditionIsReadAndHeldToItsRules(t *testing.T) {
 	var doc pageNodeDoc
 	if err := yaml.Unmarshal([]byte("static: paragraph\ntext: x\nwhen: { viewer: workspace_role, is: admin }\n"), &doc); err != nil {

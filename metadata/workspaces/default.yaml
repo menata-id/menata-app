@@ -126,6 +126,30 @@ navigation:
             dataset: ds_helpdesk_tickets_table
             rows: records
 
+  # Open to every member (`open_to: member`), so it reads only a Dataset that shows the viewer their own records
+  # (`viewer_scoped`): the tickets they raised. The Overview above stays with the admins.
+  - id: nav_workspace_my_work
+    label: My work
+    title: My work
+    description: What you have raised across this workspace, soonest due first.
+    route: /pages/nav_workspace_my_work
+    icon: check-square
+    open_to: member
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Tickets you raised
+          empty: You have not raised any tickets.
+          columns:
+            - { header: Ticket, from: title, href: record }
+            - { header: Status, from: status }
+            - { header: Due, from: date, align: end }
+          binding:
+            dataset: ds_helpdesk_helpdesk_ticket_mine_list
+            rows: records
+
 # suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
 # re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
 # per-Workspace rather than as literals in internal/rendering (owner instruction, 2026-09-27):

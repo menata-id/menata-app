@@ -503,6 +503,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	var issues []string
 	for _, app := range applications {
 		for _, item := range app.AllNavigation {
+			if item.OpenTo != "" {
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: open_to: belongs to the Workspace's own pages; an Application's page is opened by its roles", app.ID, item.ID))
+			}
 			if item.Page == nil {
 				continue
 			}
@@ -525,6 +528,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	// runtime's screens and every installed Application's navigation.
 	links := domain.Workspace{Navigation: workspaceNav, Applications: applications}.LinkTargets()
 	for _, item := range workspaceNav {
+		if item.OpenTo != "" && (item.Page == nil || !domain.KnownOpenTo[item.OpenTo]) {
+			issues = append(issues, fmt.Sprintf("workspace navigation item %q: open_to: %q must be admin or member, on an item that declares a page", item.ID, item.OpenTo))
+		}
 		if item.Page == nil {
 			continue
 		}

@@ -641,17 +641,19 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 					</span>
 					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
-				// The pages this Workspace declares itself (`navigation:` on its manifest, with a `page:`): admins only,
-				// like the screen they open (showWorkspacePage). Declared, never typed: the row is the item's own label,
-				// route and icon.
-				for _, p := range workspacePages(ctx) {
-					<a href={ templ.SafeURL(p.Route) } class={ workspaceMenuRowClasses(ctx) }>
-						<span class={ inkClass(ctx, domain.InkSecondary) }>
-							@icon(workspacePageIcon(p), "size-4")
-						</span>
-						{ p.Label }
-					</a>
-				}
+			}
+			// The pages this Workspace declares itself (`navigation:` on its manifest, with a `page:`): an admin is offered
+			// every one, a member those that say `open_to: member` -- the same rule showWorkspacePage gates the route by.
+			// Declared, never typed: the row is the item's own label, route and icon.
+			for _, p := range workspacePages(ctx, viewer.WorkspaceRole) {
+				<a href={ templ.SafeURL(p.Route) } class={ workspaceMenuRowClasses(ctx) }>
+					<span class={ inkClass(ctx, domain.InkSecondary) }>
+						@icon(workspacePageIcon(p), "size-4")
+					</span>
+					{ p.Label }
+				</a>
+			}
+			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 				// New application (Flow 2 gap study Tahap 8, 2026-09-26): the mockup's own
 				// M03b-WorkspaceMenu.dc.html panel is a whole describe-it box inline in this menu;
 				// this is a scoped-down link to the same destination (/new-application) rather than
@@ -694,11 +696,13 @@ func workspaceMenuRowClasses(ctx context.Context) string {
 		textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), hoverWashClass(ctx), "sm:py-2.5"}, " ")
 }
 
-// workspacePages are the Workspace's own declared pages, in the order its manifest lists them.
-func workspacePages(ctx context.Context) []domain.NavigationItem {
+// workspacePages are the Workspace's own declared pages the viewer may open, in the order its manifest lists them: all of
+// them for anyone who is not a plain member (admins, and the shared admin identity with no role), and for a member only
+// the pages that say `open_to: member`.
+func workspacePages(ctx context.Context, role string) []domain.NavigationItem {
 	var out []domain.NavigationItem
 	for _, item := range CurrentWorkspace(ctx).Navigation {
-		if item.Page != nil {
+		if item.Page != nil && (role != domain.WorkspaceRoleMember || item.OpenTo == domain.OpenToMember) {
 			out = append(out, item)
 		}
 	}

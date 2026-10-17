@@ -131,6 +131,30 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 	}
 }
 
+// requireWorkspaceMember admits a member of the current Workspace, whatever their role there: a page that says
+// `open_to: member` is opened by this. It is requireWorkspaceAdmin with the role test taken out and nothing else loosened --
+// an identity with no membership row is refused, except the one configured admin identity, by id. A deactivated member
+// never reaches it (requireActiveMembership runs first on every authenticated route).
+func requireWorkspaceMember(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := req.Context()
+			userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+			workspaceID, _ := data.WorkspaceScope(ctx)
+			membership, err := membershipFor(ctx, store, workspaceID, userID)
+			if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
+				serverError(w, err)
+				return
+			}
+			if membership == nil && !(userID != "" && userID == cfg.AdminUserID) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
 // activeMembershipReadAllowlist is requireActiveMembership's own named exception, the same
 // discipline archivedWriteAllowlist below already documents: small, frequently-polled GET
 // fragments (a badge count, a lazily-fetched menu section) that would otherwise gain a query they

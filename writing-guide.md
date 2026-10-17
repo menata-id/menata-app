@@ -1200,10 +1200,15 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 still comes from `title:`/`description:`, and the bindings may read any Dataset of the Workspace, so one page can put
 figures from three Applications side by side (`default.yaml`'s Overview). Two things differ. A `to:` link on it resolves
 against the whole Workspace (its own pages, the runtime's screens and every installed Application's menu), where an
-Application's page resolves against its own menu. And **only Workspace admins open it**, and the Workspace menu offers it to
-admins only: no Application role gates it, and what it reads belongs to Applications, so a member with no admin role is
-refused with the 403 a Workspace screen gives. A node's `when: {viewer: ...}` (below) decides what a viewer sees inside a page they
-may open; it does not change who may open a Workspace page, which stays admin-only until a page-level gate is built. The loader checks
+Application's page resolves against its own menu. And **who opens it is the item's `open_to:`** (2026-10-17): absent, or
+`admin`, is Workspace admins only, as before; `member` admits any member of the Workspace, and the Workspace menu offers the page
+to exactly those who may open it. A person with no membership in the Workspace is refused either way (403, the answer a
+Workspace screen gives), and so is an unknown page id for anyone who is not an admin. No Application role gates a Workspace page,
+so `open_to: member` is the author's statement that what the page reads is for every member: bind it to a Dataset that is the
+viewer's own (`viewer_scoped: true`, as `default.yaml`'s My work does) or to figures you are content for every member to see; who
+may read which record is not built (D5). `open_to:` is valid only on a Workspace page, never on an Application's item, and takes
+`admin` or `member` and nothing else. A node's `when: {viewer: ...}` (below) decides what a viewer sees inside a page they
+may open; `open_to:` decides who may open it. The loader checks
 a Workspace page by the same rules as an Application's, so a dataset nobody declares, a link to a missing item or a route that
 is not `/pages/<id>` is a load error.
 
@@ -1888,7 +1893,7 @@ cannot place (no membership row) holds no role, so a negation would show them wh
 fails closed. The only fact a page may ask is `workspace_role`, and the only values are `admin` and `member`: an Application
 role is not offered (a Workspace page has none to ask). And a node it hides is **not lowered at all**, so a Dataset it binds is
 never read for a viewer who would not see it. It is the same kind of condition as `when: {parameter: week, ...}` -- a statement
-about the request -- and, like it, it is not a permission: it decides what is drawn, not what a viewer may open or write.
+about the request -- and, like it, it is not a permission: it decides what is drawn, not what a viewer may open or write (a Workspace page's `open_to:` decides who opens it).
 Used by the Helpdesk's All tickets page, which links to the Workspace overview for admins only.
 
 ```yaml

@@ -11,6 +11,18 @@ const NavBadgeApprovalInboxPending = "approval_inbox_pending"
 // same static-seam posture as KnownFieldTypes and KnownActions (007 §14): a navigation item
 // naming a badge the runtime does not realize would silently show nothing, which is worse than
 // no badge declared at all.
+// Who a Workspace-level page opens to (`open_to:` on a navigation item of the Workspace manifest). Absent means
+// OpenToAdmin, which is what every such page was before the key existed, so adding it moves nothing. A closed set of
+// two because the Workspace has two roles; an Application's own pages are gated by that Application's roles and take
+// no such key.
+const (
+	OpenToAdmin  = "admin"
+	OpenToMember = "member"
+)
+
+// KnownOpenTo is the closed set a Workspace page's `open_to:` may name.
+var KnownOpenTo = map[string]bool{OpenToAdmin: true, OpenToMember: true}
+
 var KnownNavigationBadges = map[string]bool{
 	NavBadgeApprovalInboxPending: true,
 }
@@ -112,6 +124,11 @@ type NavigationItem struct {
 	// Description above, so a Page never restates them (001 #8). Nil is every item that existed before the
 	// key did, and means a bespoke Go screen renders the route.
 	Page *PageNode
+	// OpenTo says who may open a Workspace-level page: OpenToAdmin (also what empty means) or OpenToMember, any active
+	// member of the Workspace. Only a page of the Workspace's own navigation takes it. It decides who may *open* the
+	// page; what is drawn inside for each viewer is `when:`. A member-open page reads its Datasets with no Application
+	// role check, so it is the author's statement that those figures are for every member (read permissions are D5).
+	OpenTo string
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

@@ -9,6 +9,7 @@ import (
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
@@ -50,12 +51,13 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 // one that no Application owns: an overview across Applications, say. It is found by id in the Workspace and answers
 // 404 for anything else, which includes an Application's page named with no Application in the request.
 //
-// **Workspace admins only, for now.** An Application's pages are gated by its roles (`requireApplicationAccess`); this
-// page belongs to none, and what it reads is the Datasets of Machines that do. Until a page can say who sees it
-// (`when:` per viewer) the only honest gate is the one the Workspace already has for its own screens, so a member with no
-// admin role gets the 403 a settings screen gives, rather than figures from an Application they hold no role in.
+// **Who may open it is the item's `open_to:`**: Workspace admins unless it says `member`, which admits any member of the
+// Workspace. An Application's pages are gated by its roles (`requireApplicationAccess`); this page belongs to none, so the
+// choice is the page's own, and the default stays the narrow one -- a page that says nothing is opened by the people who
+// administer the Workspace, as it was before the key existed. An id naming no page is judged by the admin gate before the
+// 404, so a non-admin cannot tell a missing page from a page that is not theirs.
 func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.Handler {
-	return requireWorkspaceAdmin(store, cfg)(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	draw := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		ws := rendering.CurrentWorkspace(ctx)
 		for _, item := range ws.Navigation {
@@ -76,7 +78,18 @@ func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.
 			return
 		}
 		http.NotFound(w, req)
-	}))
+	})
+	admin := requireWorkspaceAdmin(store, cfg)(draw)
+	member := requireWorkspaceMember(store, cfg)(draw)
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		for _, item := range rendering.CurrentWorkspace(req.Context()).Navigation {
+			if item.ID == navID && item.Page != nil && item.OpenTo == domain.OpenToMember {
+				member.ServeHTTP(w, req)
+				return
+			}
+		}
+		admin.ServeHTTP(w, req)
+	})
 }
 
 // queryParams is the request's query string as one value per name (the first, as net/http's Get does).
