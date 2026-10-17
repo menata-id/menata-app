@@ -62,6 +62,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentPopover:          {Contract: popoverContract, Validate: validatePopover},
 	domain.ComponentTable:            {Contract: tableContract, Validate: validateTable},
 	domain.ComponentNavList:          {Contract: navListContract, Validate: validateNavList},
+	domain.ComponentSearchBox:        {Contract: searchBoxContract, Validate: validateSearchBox},
 }
 
 // tableContract is a records table, the nameable form of `dataTable`.
@@ -693,8 +694,8 @@ func validateCollection(inputs map[string]string) []string {
 	if v := inputs["block"]; v != "" && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Collection block %q is not true or false", v))
 	}
-	if inputs["block"] == "true" && (inputs["divided"] == "true" || inputs["ordered"] == "true") {
-		issues = append(issues, "Collection block draws each item as one full-width block, so it is not also divided or ordered")
+	if inputs["block"] == "true" && inputs["ordered"] == "true" {
+		issues = append(issues, "Collection block draws each item as one full-width block, so it is not also ordered (an ordinal sits beside the item)")
 	}
 	if v := inputs["truncated"]; v != "" {
 		if n, err := strconv.Atoi(v); err != nil || n <= 0 {
@@ -976,3 +977,49 @@ func validateNavList(inputs map[string]string) []string {
 	}
 	return issues
 }
+
+// searchBoxContract is a one-field GET form that narrows the page it sits on.
+//
+// `label` is the field's accessible name (required: a search field announced as only "search" is the placeholder's
+// problem, and a placeholder is not a name), `query` is the query key the words travel under, `placeholder` is the hint,
+// and `value` is the words the request already carried, produced by lowering and never written, so a narrowed list never
+// shows an empty box over a filtered result. Nothing here narrows anything: the Dataset or runtime source the page reads
+// does, from the parameter.
+//
+// What the contract forces that a reviewer would not have asked for: the key may not be one the runtime owns
+// (`application`, `id`, `week`), because a search that overwrote a record page's id would open a different record.
+var searchBoxContract = domain.ComponentContract{
+	Type:   domain.ComponentSearchBox,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+		{Name: "placeholder", Kind: "string"},
+		{Name: "value", Kind: "string"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "a form with role=search around one type=search input named by `label` through a real <label> (visually hidden), submitted with Enter in every browser with no script; the words already in the request fill the field",
+	Renderer:         "searchField",
+}
+
+// validateSearchBox checks a use against the declared inputs, a non-blank label, and a parameter name that is a plain
+// word the runtime does not own.
+func validateSearchBox(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(searchBoxContract, inputs, "SearchBox")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "SearchBox label is blank -- a placeholder is not a name")
+	}
+	if p := inputs["query"]; p != "" {
+		if !searchParamPattern.MatchString(p) {
+			issues = append(issues, fmt.Sprintf("SearchBox query %q is not a plain word (letters, digits and underscore, starting with a letter)", p))
+		}
+		if domain.SearchParamsReserved[p] {
+			issues = append(issues, fmt.Sprintf("SearchBox query %q is one the runtime owns", p))
+		}
+	}
+	return issues
+}
+
+var searchParamPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)

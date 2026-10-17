@@ -47,7 +47,6 @@ var handWrittenMutedParagraphs = map[string]int{
 	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it; and an escaped quote around an expression
 	"appsettings.templ":        2, // `leading-6`: the hub's description and its permissions subtitle, a roomier line no text role names (as installapplication)
 	"rolematrix.templ":         4, // `leading-5`, a `max-w-[760px]` measure and `px-4 py-4`: per-site width and spacing the Static kinds must not accept
-	"workspacemembers.templ":   1, // an expression inside quotes ("No member matches "{ q }""), which StaticMessage's escaped text cannot carry
 	"workspacesettings.templ":  1, // `leading-6`, as installapplication
 }
 
@@ -389,7 +388,6 @@ var handWrittenRawButtons = map[string]struct {
 	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same resting ink and hover as workspacemembers' Revoke (groups' is red at rest)"},
 	"reviewdocument.templ":     {1, "'Clear': the link look with a `sig-modal-clear` hook class a script finds"},
 	"signatureplacement.templ": {2, "the draggable signature marker (`sig-marker`, its own shape) and 'Re-centre': the link look"},
-	"workspacemembers.templ":   {1, "'Revoke': a quiet destructive text action at text-xs (T-D) with `p-0`, grey at rest and red on hover"},
 	"workspacesettings.templ":  {1, "'Archive workspace': a danger row with a title and a description inside the button (a layout in a button)"},
 }
 

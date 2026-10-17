@@ -317,6 +317,9 @@ type Resolver struct {
 	// belongs to, which is how the row for the screen the viewer is on is marked.
 	Navigation NavigationResolver
 	PageID     string
+	// Query answers a SearchBox: the words the request carried under a query parameter, "" when none. Nil is the load-time
+	// placeholder, for which there is no request.
+	Query func(name string) string
 	// TransitionAll answers a `write: transition` Button with `all: true`: where the request goes and how many records
 	// of the Dataset the viewer could move to the status `becomes` names (the Machine's `completion:` already applied
 	// to `$done`/`$reopen`). A count of none is the Button not being drawn.
@@ -452,6 +455,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentNavList) {
 		return lowerNavList(n, r, path)
+	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentSearchBox) {
+		return lowerSearchBox(n, r, path)
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteAction {
 		return lowerAction(n, r, path, record)
@@ -1578,6 +1584,30 @@ func lowerNavList(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		props["home"] = s.Home
 	}
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentNavList), Props: props}}, nil
+}
+
+// lowerSearchBox fills a SearchBox's `value` with the words the request already carried under its `param`, so the page
+// never shows an empty box over a narrowed list. The page writes the label, the parameter and the hint; the value is the
+// request's and a page that writes one is refused. A parameter the runtime owns is refused here as in the contract.
+func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	if len(n.Children) > 0 || n.Binding != nil || len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: a SearchBox takes a label, a query and a placeholder and nothing else", path)
+	}
+	if _, written := n.Props["value"]; written {
+		return nil, fmt.Errorf("%s: value: is the words the request carried, produced by lowering, and is never written", path)
+	}
+	param := n.Props["query"]
+	if domain.SearchParamsReserved[param] {
+		return nil, fmt.Errorf("%s: SearchBox query %q is one the runtime owns", path, param)
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	if r.Query != nil && param != "" {
+		props["value"] = r.Query(param)
+	}
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentSearchBox), Props: props}}, nil
 }
 
 // lowerAction turns a Form or Button bound with `write: action` into the Form or Button that performs one of the

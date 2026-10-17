@@ -1,0 +1,92 @@
+# The Workspace's members and the invitations nobody has accepted, a form to invite someone, and a search box that narrows
+# both. Admin only (the default). An invitation is not a membership: it is listed beneath the members with its own
+# actions.
+id: nav_workspace_members
+page:
+  layout: split
+  side: start
+  aside: compact
+  gap: loose
+  children:
+    - component: NavList
+      section: workspace_settings
+      variant: sidebar
+    - layout: stack
+      gap: comfortable
+      children:
+        - static: link
+          to: nav_workspace_groups
+          text: "Groups →"
+        - component: Disclosure
+          summary: "+ Invite member"
+          children:
+            - component: Form
+              submit: Send invitation
+              binding: { write: action, action: invite_member }
+        - component: SearchBox
+          label: Search members
+          query: q
+          placeholder: Search members…
+        - component: Collection
+          heading: Members
+          gap: tight
+          divided: true
+          block: true
+          empty: No member matches your search.
+          binding: { dataset: ds_runtime_members, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: hair
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: subtitle }
+                    - static: caption
+                      from: { text: detail }
+                - component: StatusBadge
+                  tone: good
+                  when: { role: status, is: Active }
+                  from: { label: status }
+                - component: StatusBadge
+                  tone: neutral
+                  when: { role: status, is: Deactivated }
+                  from: { label: status }
+        - component: Collection
+          heading: Invitations
+          gap: tight
+          divided: true
+          block: true
+          hide_empty: true
+          binding: { dataset: ds_runtime_invites, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: hair
+                  children:
+                    - static: paragraph
+                      from: { text: title }
+                    - static: caption
+                      from: { text: detail }
+                - layout: row
+                  gap: default
+                  align: center
+                  children:
+                    - component: StatusBadge
+                      tone: warn
+                      from: { label: status }
+                    - component: Button
+                      label: Revoke
+                      variant: secondary
+                      binding: { write: action, action: revoke_invite }
+        - static: note
+          text: Only workspace admins can invite, edit or remove people. Roles and groups inside an application are managed in that application’s Settings.

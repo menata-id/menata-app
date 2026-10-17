@@ -46,6 +46,9 @@ const (
 var RuntimeActions = map[string]RuntimeAction{
 	"create_group": {ID: "create_group", Inputs: []ActionInput{{Name: "name", Label: "Group name", Required: true}}, Admin: true, Doc: "adds a Group to the Workspace"},
 	"delete_group": {ID: "delete_group", Source: "groups", Admin: true, Doc: "removes a Group and what it granted"},
+	"invite_member": {ID: "invite_member", Admin: true, Inputs: []ActionInput{{Name: "email", Label: "Email", Required: true}, {Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
+		Doc: "records an invitation with the roles it will become and emails its link; the invitee states their own name when they accept"},
+	"revoke_invite": {ID: "revoke_invite", Source: "invites", Admin: true, Doc: "withdraws an invitation nobody has accepted; its emailed link stops working"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},

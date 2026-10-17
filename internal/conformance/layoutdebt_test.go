@@ -60,7 +60,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// the vocabulary has no word for (§12.5 Slot / §12.3 Component, Stage 2).
 	"row": {
 		"appsettings.templ": 1, "inference.templ": 1, "installapplication.templ": 1, "machine.templ": 1,
-		"reviewdocument.templ": 2, "rolematrix.templ": 1, "workspacemembers.templ": 1,
+		"reviewdocument.templ": 2, "rolematrix.templ": 1,
 	},
 	// `split`: a main area beside a fixed-width aside. **§12.2 lists `split`, and an earlier measurement of
 	// mine claimed it had zero uses.** It had five, all migrated on 2026-10-03; what is left is the two

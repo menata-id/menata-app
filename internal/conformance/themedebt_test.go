@@ -75,7 +75,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"signatureplacement.templ": {size: 6, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 2 glyph box (size paired with a fixed circle), 2 10px marker legend (no role)
 	"workspacefiles.templ":     {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L), 1 monospace block (no code role)
 	"workspacehome.templ":      {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 glyph box (size paired with a fixed circle)
-	"workspacemembers.templ":   {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 3 link look (T-L)
+	"workspacemembers.templ":   {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L)
 	"workspacesettings.templ":  {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L)
 }
 

@@ -62,3 +62,14 @@ templ navList(label, variant, home, rows string) {
 		}
 	</nav>
 }
+
+// searchField is the registered renderer for `domain.ComponentSearchBox`: a GET form with one search input that sends its
+// words back to the page it is on under `query`, so Enter submits it natively in every browser and the page narrows from
+// the request. `value` is what the request already carried, so a narrowed list never shows an empty box. The label is a
+// real <label>, hidden from sight and read by assistive technology.
+templ searchField(label, query, placeholder, value string) {
+	<form method="get" role="search" class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
+		<label for={ "search-" + query } class="sr-only">{ label }</label>
+		<input id={ "search-" + query } type="search" name={ query } value={ value } placeholder={ placeholder } class={ fieldClasses(ctx) + " w-full sm:w-70" }/>
+	</form>
+}

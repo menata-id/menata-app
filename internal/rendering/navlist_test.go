@@ -92,3 +92,16 @@ func TestCollection_blockDrawsEachItemAsOneColumnAndAPlainListStillWrapsInline(t
 		t.Errorf("a block list's item is not one column: %s", block.String())
 	}
 }
+
+func TestSearchField_isANamedSearchFormThatSubmitsByGetAndKeepsTheWords(t *testing.T) {
+	var buf bytes.Buffer
+	if err := searchField("Search members", "q", "Find…", `ri"na`).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	for _, want := range []string{`<form method="get" role="search"`, `<label for="search-q" class="sr-only">Search members</label>`, `type="search" name="q"`, `placeholder="Find…"`, `value="ri&#34;na"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("search field does not contain %q: %s", want, html)
+		}
+	}
+}

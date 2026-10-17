@@ -142,3 +142,90 @@ func TestGroupDetailIsARuntimePageForOneRecord(t *testing.T) {
 		t.Errorf("an unknown group = %d, want 404", rec.Code)
 	}
 }
+
+// TestMembersIsARuntimePage: /workspace-members is the runtime's declared page. It lists the members with what each holds in
+// one line and whether they are active, the invitations nobody accepted with a Revoke, the form that invites, and a search that
+// narrows both from `?q=`; an admin opens it and a member does not.
+func TestMembersIsARuntimePage(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "memberspage", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	mk := func(email string, deactivate bool) string {
+		u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": email})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+		if err := store.AddMember(ctx, wsID, u.ID, email, "member", ""); err != nil {
+			t.Fatal(err)
+		}
+		if deactivate {
+			if err := store.DeactivateMember(ctx, wsID, u.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return u.ID
+	}
+	activeID := mk("mp_active@example.com", false)
+	mk("mp_gone@example.com", true)
+	if err := store.CreatePendingInvite(ctx, data.PendingInvite{WorkspaceID: wsID, Email: "mp_invited@example.com", WorkspaceRole: "member"}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeletePendingInvite(ctx, wsID, "mp_invited@example.com") })
+	g, err := store.CreateGroup(ctx, wsID, "MP-group")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteGroup(ctx, wsID, g.ID) })
+	if err := store.SetGroupMembers(ctx, g.ID, []string{activeID}); err != nil {
+		t.Fatal(err)
+	}
+	app := applicationWithRoles(t, ws)
+	if err := store.SetMemberAppRole(ctx, wsID, activeID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	body := getPage(t, h, cookie, "/workspace-members")
+	for _, want := range []string{
+		"mp_active@example.com", "mp_gone@example.com", "mp_invited@example.com",
+		`href="/workspace-members/` + activeID + `/edit"`, ">Active<", ">Deactivated<", ">Invited<",
+		"Workspace member", app.Name + ": " + app.Roles[0], "Groups: MP-group",
+		"+ Invite member", `hx-post="/runtime-actions/invite_member"`, "Send invitation", `name="email"`, `name="app_role[` + app.ID + `]"`,
+		`hx-post="/runtime-actions/revoke_invite?record=mp_invited%40example.com"`, ">Revoke<",
+		`role="search"`, `name="q"`, "Search members", `href="/workspace-groups"`, `<nav aria-label="Workspace settings"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Members page does not contain %q", want)
+		}
+	}
+	if n := strings.Count(body, `aria-current="page"`); n != 1 || !strings.Contains(body, `href="/workspace-members" aria-current="page"`) {
+		t.Errorf("%d current settings rows, want exactly Members", n)
+	}
+
+	narrowed := getPage(t, h, cookie, "/workspace-members?q=MP_GONE")
+	if !strings.Contains(narrowed, "mp_gone@example.com") || strings.Contains(narrowed, "mp_active@example.com") || strings.Contains(narrowed, "mp_invited@example.com") {
+		t.Error("?q= did not narrow the members and the invitations to what matches")
+	}
+	if !strings.Contains(narrowed, `value="MP_GONE"`) {
+		t.Error("the search box lost the words the request carried")
+	}
+	invitedOnly := getPage(t, h, cookie, "/workspace-members?q=invited")
+	if !strings.Contains(invitedOnly, "mp_invited@example.com") || strings.Contains(invitedOnly, "mp_active@example.com") {
+		t.Error("?q= did not reach the invitations")
+	}
+
+	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "mp_plain@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", member.ID) })
+	if err := store.AddMember(ctx, wsID, member.ID, "mp_plain@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/workspace-members", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, config.Config{SessionSecret: "memberspage-secret"}, member.ID, 0)})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), "mp_active@example.com") {
+		t.Errorf("a member opening the Members page = %d, want 403 and nobody's email", rec.Code)
+	}
+}

@@ -102,7 +102,7 @@ func postGroupRoles(t *testing.T, store *data.Store, ctx context.Context, ws dom
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/runtime-actions/{action}", runtimeAction(store, cfg))
+	r.Post("/runtime-actions/{action}", runtimeAction(store, nil, cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

@@ -64,3 +64,39 @@ func TestLower_aNavListWritesNothingItDerives(t *testing.T) {
 		t.Error("a NavList holding children was accepted")
 	}
 }
+
+func searchNode(props map[string]string) domain.PageNode {
+	return formPage(domain.PageNode{Kind: "component", Type: string(domain.ComponentSearchBox), Props: props})
+}
+
+func TestLower_aSearchBoxCarriesTheWordsTheRequestAlreadyHad(t *testing.T) {
+	res := Resolver{Query: func(name string) string {
+		if name == "q" {
+			return "rina"
+		}
+		return "other"
+	}}
+	got, err := Lower(searchNode(map[string]string{"label": "Search", "query": "q", "placeholder": "Find…"}), res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Children[0].Props; p["value"] != "rina" || p["query"] != "q" || p["label"] != "Search" {
+		t.Errorf("props = %v", p)
+	}
+	got, err = Lower(searchNode(map[string]string{"label": "Search", "query": "q"}), Resolver{})
+	if err != nil || got.Children[0].Props["value"] != "" {
+		t.Errorf("no request: err=%v props=%v, want an empty box", err, got.Children[0].Props)
+	}
+}
+
+func TestLower_aSearchBoxWritesNoValueAndUsesNoQueryTheRuntimeOwns(t *testing.T) {
+	for name, props := range map[string]map[string]string{
+		"a written value": {"label": "S", "query": "q", "value": "x"},
+		"a reserved name": {"label": "S", "query": "application"},
+		"the record id":   {"label": "S", "query": "id"},
+	} {
+		if _, err := Lower(searchNode(props), Resolver{}); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}

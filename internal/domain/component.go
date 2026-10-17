@@ -183,7 +183,16 @@ const (
 	// the hub cannot disagree about what exists, and a destination is declared once (001 #8). A row for a screen that is
 	// not built is drawn as such and links nowhere.
 	ComponentNavList ComponentType = "NavList"
+
+	// ComponentSearchBox is a one-field GET form that narrows the page it sits on: it sends its words back to the same
+	// page under the query parameter `query`, and the runtime source or Dataset the page reads is what narrows. It
+	// holds the words the request already carried, so a search is never silently lost.
+	ComponentSearchBox ComponentType = "SearchBox"
 )
+
+// SearchParamsReserved are the query names a SearchBox may not use: the runtime owns them (the Application a page is
+// drawn in, a record page's id, the calendar's week).
+var SearchParamsReserved = map[string]bool{"application": true, "id": true, "week": true}
 
 // KnownNavListVariants is how a NavList is drawn: a sidebar beside a screen (hidden below the `sm` breakpoint, where the
 // hub is the list) or a page-wide list with each row's description.

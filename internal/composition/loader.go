@@ -78,6 +78,7 @@ type Loader struct {
 	// Loader may read one at all.
 	runtimeViewer domain.Actor
 	hasRuntime    bool
+	runtimeParams map[string]string
 }
 
 // NewLoader returns a Loader for one request.

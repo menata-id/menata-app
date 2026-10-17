@@ -1,0 +1,23 @@
+# The Workspace's members, as the runtime provides them (registry.RuntimeSources: members). Not stored as records and not a
+# Machine of any Workspace; read by the Workspace's admin pages only. A row says who the person is, whether they are active,
+# and in one line what they hold: their Workspace role, the role in each Application, the Groups they belong to.
+id: mch_member
+name: Member
+runtime: members
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_email, name: Email, type: text }
+  - { id: fld_status, name: Status, type: status, options: [Active, Deactivated] }
+  - { id: fld_detail, name: Access, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_email, role: subtitle }
+  - { field: fld_status, role: status }
+  - { field: fld_detail, role: detail }
+datasets:
+  - id: ds_runtime_members
+    select: records
+    sort:
+      - { field: fld_title, direction: asc }
+    limit: 500

@@ -424,6 +424,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		},
 		// A bulk transition is drawn when there is something to move, so the placeholder says there is, which keeps the
 		// Button and its properties validated.
+		Query: func(string) string { return "" },
 		Navigation: func(section string) (ir.NavSection, error) {
 			return ir.NavSection{Label: "x", Home: "/x", Entries: []ir.NavEntry{{ID: "x", Group: "x", Label: "x", Href: "/x"}}}, nil
 		},

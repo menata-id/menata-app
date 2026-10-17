@@ -86,7 +86,7 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 			actor := currentActor(req, store, cfg)
 			loader := composition.NewLoader(store, machinesFor(ctx))
 			if runtime {
-				loader = loader.WithRuntime(ws.RuntimeMachines, actor)
+				loader = loader.WithRuntime(ws.RuntimeMachines, actor).WithParams(pageParams(req, ""))
 			}
 			params := pageParams(req, "")
 			if recordParam != "" {

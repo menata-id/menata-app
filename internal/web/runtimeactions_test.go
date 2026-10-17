@@ -101,7 +101,7 @@ func TestRuntimeAction_anActionNotMarkedAdminIsNotRunByTheAdminRoute(t *testing.
 	h, cookie, _, _, _, _, _ := routerSetupFor(t, "runtimeactionopen", "default")
 	registry.RuntimeActions["zz_open"] = registry.RuntimeAction{ID: "zz_open", Admin: false}
 	ran := false
-	runtimeActionRunners["zz_open"] = func(http.ResponseWriter, *http.Request, *data.Store, string) (string, bool) {
+	runtimeActionRunners["zz_open"] = func(http.ResponseWriter, *http.Request, actionEnv, string) (string, bool) {
 		ran = true
 		return "", true
 	}

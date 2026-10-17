@@ -76,6 +76,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 			return bindingAction(ctx, l, viewer, b, recordID)
 		},
 		Navigation: navigationSection,
+		Query:      func(name string) string { return params[name] },
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
 			return bindingTransitionAll(ctx, l, viewer, params, now, b, becomes)
 		},

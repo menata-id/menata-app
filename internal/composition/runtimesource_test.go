@@ -194,3 +194,26 @@ func TestNavigationSection_ordersByPriorityNotByDeclaration(t *testing.T) {
 		t.Errorf("People = %v, want Groups first once its Priority is lowest", people)
 	}
 }
+
+func TestSourceParam_aProviderReadsOnlyWhatItsSourceDeclared(t *testing.T) {
+	l := NewLoader(nil, nil).WithParams(map[string]string{"q": "rina", "other": "x"})
+	if got := l.sourceParam("members", "q"); got != "rina" {
+		t.Errorf("a declared parameter = %q, want rina", got)
+	}
+	if got := l.sourceParam("members", "other"); got != "" {
+		t.Errorf("an undeclared parameter = %q, want nothing", got)
+	}
+	if got := l.sourceParam("groups", "q"); got != "" {
+		t.Errorf("a parameter of a source that declares none = %q, want nothing", got)
+	}
+}
+
+func TestHeldRoles_listsOnlyTheRolesHeldAndSaysWhenThereAreNone(t *testing.T) {
+	apps := []domain.Application{{ID: "a", Name: "Alpha", Roles: []string{"r"}}, {ID: "b", Name: "Beta", Roles: []string{"s"}}, {ID: "c", Name: "NoRoles"}}
+	if got := heldRoles(apps, map[string]string{"a": "r", "c": "x"}); !slices.Equal(got, []string{"Alpha: r"}) {
+		t.Errorf("held = %v, want only Alpha's (Beta holds none, NoRoles declares none)", got)
+	}
+	if got := heldRoles(apps, nil); !slices.Equal(got, []string{"no application role"}) {
+		t.Errorf("none held = %v", got)
+	}
+}

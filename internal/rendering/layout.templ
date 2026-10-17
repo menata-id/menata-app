@@ -1214,7 +1214,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, b
 	} else if divided {
 		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for _, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
+				<li class={ templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					@it
 				</li>
 			}
@@ -1507,6 +1507,8 @@ templ uiNode(n ir.UINode) {
 					@popover(n.Props["label"], n.Props["title"], domain.PopoverTrigger(n.Props["trigger"]), domain.PopoverAlign(n.Props["align"]), domain.PopoverDensity(n.Props["density"])) {
 						@uiChildren(n)
 					}
+				case domain.ComponentSearchBox:
+					@searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"])
 				case domain.ComponentNavList:
 					@navList(n.Props["label"], n.Props["variant"], n.Props["home"], n.Props["rows"])
 				case domain.ComponentTable:

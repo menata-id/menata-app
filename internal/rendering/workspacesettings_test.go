@@ -66,7 +66,6 @@ func TestWorkspaceSettingsFrame_sidebarOnTheAdminScreens(t *testing.T) {
 	}
 	m := data.Membership{UserRecordID: "u1", Email: "rina@example.com", WorkspaceRole: "member"}
 	pages := map[string]struct{ html, current string }{
-		"members":     {render(WorkspaceMembersPage([]data.Membership{m}, nil, nil, "Acme", viewer, nil, "", "", 1)), "/workspace-members"},
 		"edit member": {render(EditMemberPage(m, "Rina", "Acme", viewer, nil, "")), "/workspace-members"},
 	}
 	for name, p := range pages {

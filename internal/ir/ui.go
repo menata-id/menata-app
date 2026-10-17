@@ -239,6 +239,7 @@ var allowedProps = map[string][]string{
 	"component/Popover":          {"label", "title", "trigger", "align", "density"},
 	"component/Table":            {"label", "empty", "headers", "aligns"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
+	"component/SearchBox":        {"label", "query", "placeholder", "value"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

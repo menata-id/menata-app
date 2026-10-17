@@ -11,7 +11,6 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
-	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 )
 
@@ -41,51 +40,6 @@ func roleApplications(ws domain.Workspace) []rendering.RoleApplication {
 		})
 	}
 	return out
-}
-
-// showWorkspaceMembers lists every member of the signed-in identity's Workspace (ROADMAP.md
-// Phase 21 Step 6). Gated by requireWorkspaceAdmin.
-func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		ws := rendering.CurrentWorkspace(ctx)
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		members, err := store.ListMembers(ctx, workspaceID)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		// Two separate lists on purpose: members, and invitations nobody has accepted yet. The
-		// second set holds no membership and no role, which is why it cannot simply be a filtered
-		// view of the first (migrations/011_pending_invites.sql).
-		names, err := store.MemberNames(ctx, workspaceID)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		pending, err := store.ListPendingInvites(ctx, workspaceID)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		chrome, err := resolveChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		// q narrows both lists in Go, over what's already been fetched -- no new query, matching
-		// every other filter this app has (development-history.md "Application Settings hub"'s own search
-		// plan). totalMembers is the *unfiltered* count: the mockup's own member-count pill does
-		// not change as you type, only the rows below it do.
-		q := req.URL.Query().Get("q")
-		totalMembers := len(members)
-		render(ctx, w, rendering.WorkspaceMembersPage(
-			composition.FilterMembers(members, names, q), names, composition.FilterPendingInvites(pending, q),
-			chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref, q, totalMembers,
-		))
-	}
 }
 
 func showEditMember(store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -149,82 +103,6 @@ func submitEditMember(store *data.Store) http.HandlerFunc {
 				serverError(w, err)
 				return
 			}
-		}
-		redirectTo(w, req, "/workspace-members")
-	}
-}
-
-// submitInviteMember records an invitation and emails its workspace-bound token. It creates no
-// membership and no mch_user record: those come into existence when the invitation is *accepted*
-// (submitAcceptInvite, invite.go), which is the owner's rule from 2026-09-22 -- someone who has
-// confirmed nothing is not a member, so they must not appear in a member list, in an approver
-// picker, or in any authorization lookup.
-//
-// It also no longer asks for the invitee's full name, and that is the same rule seen from the
-// other side: a name belongs to whoever owns the email. The old form had the inviting admin type
-// a stranger's name into a Field on a record created for them; now the invitee states it once,
-// when they accept, onto their own identity (migration 010). An admin supplies the email and the
-// roles -- the two things that genuinely are the Workspace's decision.
-func submitInviteMember(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		ws := rendering.CurrentWorkspace(ctx)
-		workspaceID, _ := data.WorkspaceScope(ctx)
-
-		if err := req.ParseForm(); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-		email := normalizeEmail(req.FormValue("email"))
-		if email == "" {
-			http.Error(w, "email is required", http.StatusUnprocessableEntity)
-			return
-		}
-		appRoles, err := submittedAppRoles(req, ws.Applications)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			return
-		}
-		// Already a member of this Workspace: the invitation would have nothing to grant, and
-		// accepting it would try to create a second membership for the same identity.
-		if _, ok, err := resolveWorkspaceMembership(ctx, store, email, workspaceID); err != nil {
-			serverError(w, err)
-			return
-		} else if ok {
-			http.Error(w, "that email is already a member of this workspace", http.StatusUnprocessableEntity)
-			return
-		}
-
-		invite := data.PendingInvite{WorkspaceID: workspaceID, Email: email, WorkspaceRole: "member", AppRoles: appRoles}
-		if err := store.CreatePendingInvite(ctx, invite); err != nil {
-			serverError(w, err)
-			return
-		}
-		sendInviteEmail(ctx, mailer, cfg, email, workspaceID)
-		redirectTo(w, req, "/workspace-members")
-	}
-}
-
-// submitRevokeInvite withdraws an invitation that has not been accepted. There is no membership to
-// remove and no record to delete -- that is exactly what an invitation living in its own table
-// buys -- so this is one delete, and the emailed link stops working immediately because
-// submitAcceptInvite re-checks that the invitation still exists at the moment it is used.
-func submitRevokeInvite(store *data.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		if err := req.ParseForm(); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-		email := normalizeEmail(req.FormValue("email"))
-		if email == "" {
-			http.Error(w, "email is required", http.StatusUnprocessableEntity)
-			return
-		}
-		if err := store.DeletePendingInvite(ctx, workspaceID, email); err != nil {
-			serverError(w, err)
-			return
 		}
 		redirectTo(w, req, "/workspace-members")
 	}

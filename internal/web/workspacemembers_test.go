@@ -48,10 +48,10 @@ func TestSubmitInviteMember_recordsInvitationWithoutMembership(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
 	form := strings.NewReader("email=" + email + "&" +
 		url.QueryEscape("app_role[app_document_approval]") + "=approver")
-	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
@@ -108,8 +108,8 @@ func TestSubmitInviteMember_missingEmailIsRejected(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
-	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="))
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", strings.NewReader("email="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
@@ -153,8 +153,8 @@ func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
 		t.Fatalf("AddMember: %v", err)
 	}
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
-	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="+email))
+	handler := actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", strings.NewReader("email="+email))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
@@ -338,5 +338,40 @@ func TestSubmitReactivateMember_reversesDeactivation(t *testing.T) {
 	}
 	if m.Deactivated {
 		t.Error("membership still deactivated after reactivate")
+	}
+}
+
+// actionRouter serves a runtime-action handler under the route pattern it is registered with, so the action name reaches it
+// the way chi supplies it in the real router.
+func actionRouter(h http.HandlerFunc) http.HandlerFunc {
+	r := chi.NewRouter()
+	r.Post("/runtime-actions/{action}", h)
+	return r.ServeHTTP
+}
+
+// An invitation's roles are validated against each Application's own declared vocabulary, so a tampered form cannot invent
+// a role nothing gates on.
+func TestRunInviteMember_anUndeclaredRoleIsRefusedAndNothingIsRecorded(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	cfg := config.Config{SessionSecret: "invite-member-test-secret"}
+	ctx := context.Background()
+	const email = "invite_flow_test_badrole@example.com"
+	ws, err := store.CreateWorkspace(ctx, "Invite Bad Role Workspace", "invite-bad-role-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	form := strings.NewReader("email=" + email + "&" + url.QueryEscape("app_role[app_document_approval]") + "=emperor")
+	req := httptest.NewRequest(http.MethodPost, "/runtime-actions/invite_member", form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
+	rec := httptest.NewRecorder()
+	actionRouter(runtimeAction(store, mail.LogMailer{}, cfg))(rec, req)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422; body: %s", rec.Code, rec.Body.String())
+	}
+	if invites, _ := store.ListPendingInvites(ctx, ws.ID); len(invites) != 0 {
+		t.Errorf("a refused invitation was recorded: %d", len(invites))
 	}
 }

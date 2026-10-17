@@ -316,13 +316,11 @@ func Routes(d Deps) http.Handler {
 			// Danger zone's Archive action (Flow 2 gap study Tahap 7) -- taken from inside the
 			// Workspace being archived, same admin gate as the hub itself.
 			ar.Post("/workspace-settings/archive", submitArchiveWorkspace(d.Store, d.Cfg))
-			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
+			ar.Get("/workspace-members", showRuntimePage(d.Store, d.Cfg, "nav_workspace_members").ServeHTTP)
 			// An Application's own Members & roles (S2.2): one role column, scoped to the Application the
 			// hub belongs to. Same admin gate as the Workspace page it narrows.
 			ar.Get("/settings/{navID}/members", showApplicationMembers(d.Store, d.Cfg))
 			ar.Post("/settings/{navID}/members/{userRecordID}", submitApplicationMemberRole(d.Store))
-			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg))
-			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 			// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27).
@@ -354,7 +352,7 @@ func Routes(d Deps) http.Handler {
 			// read (TestGetRoutesDoNotWrite).
 			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
 			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
-			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Cfg))
+			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Mailer, d.Cfg))
 			ar.Post("/reload-workspace", submitReloadWorkspace(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/restore-workspace-snapshot", submitRestoreSnapshot(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/workspace-settings/validate", submitValidateFiles(d.Store, d.Cfg))

@@ -34,7 +34,7 @@ func TestValidateNavList(t *testing.T) {
 	}
 }
 
-func TestValidateCollection_blockIsBooleanAndNotAlsoDividedOrOrdered(t *testing.T) {
+func TestValidateCollection_blockIsBooleanAndNotAlsoOrdered(t *testing.T) {
 	with := func(k, v string) map[string]string {
 		m := map[string]string{"gap": "tight", "block": "true"}
 		m[k] = v
@@ -43,9 +43,29 @@ func TestValidateCollection_blockIsBooleanAndNotAlsoDividedOrOrdered(t *testing.
 	if issues := validateCollection(map[string]string{"gap": "tight", "block": "true"}); len(issues) != 0 {
 		t.Errorf("a block list: %v", issues)
 	}
-	for name, in := range map[string]map[string]string{"yes": with("block", "yes"), "divided": with("divided", "true"), "ordered": with("ordered", "true")} {
+	if issues := validateCollection(with("divided", "true")); len(issues) != 0 {
+		t.Errorf("block with divided: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{"yes": with("block", "yes"), "ordered": with("ordered", "true")} {
 		if issues := validateCollection(in); len(issues) == 0 {
 			t.Errorf("block with %s was accepted", name)
+		}
+	}
+}
+
+func TestValidateSearchBox(t *testing.T) {
+	ok := map[string]string{"label": "Search members", "query": "q"}
+	if issues := validateSearchBox(ok); len(issues) != 0 {
+		t.Errorf("a valid box: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"a blank label":    {"label": " ", "query": "q"},
+		"a reserved name":  {"label": "S", "query": "week"},
+		"not a plain word": {"label": "S", "query": "Q?x"},
+		"an undeclared":    {"label": "S", "query": "q", "action": "/x"},
+	} {
+		if issues := validateSearchBox(in); len(issues) == 0 {
+			t.Errorf("%s was accepted", name)
 		}
 	}
 }

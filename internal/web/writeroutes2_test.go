@@ -146,7 +146,7 @@ func TestSubmitGroupMembers_membershipLandsAndEffectiveRolesSeeIt(t *testing.T) 
 
 	form := url.Values{"member": {actorID}}
 	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/set_group_members?record="+group.ID, runtimeAction(store, config.Config{}), form)
+		"/runtime-actions/set_group_members?record="+group.ID, runtimeAction(store, nil, config.Config{}), form)
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("set group members = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -191,7 +191,7 @@ func TestSubmitDeleteGroup_removesTheGroupAndItsGrants(t *testing.T) {
 	}
 
 	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
-		"/runtime-actions/delete_group?record="+group.ID, runtimeAction(store, config.Config{}), url.Values{})
+		"/runtime-actions/delete_group?record="+group.ID, runtimeAction(store, nil, config.Config{}), url.Values{})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("delete group = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -223,8 +223,8 @@ func TestSubmitRevokeInvite_removesThePendingInvitation(t *testing.T) {
 		t.Fatal("the invitation was not created -- the fixture never reached the state under test")
 	}
 
-	rec := postAdminForm(t, store, ctx, installed, actorID, "/workspace-members/revoke-invite",
-		"/workspace-members/revoke-invite", submitRevokeInvite(store), url.Values{"email": {invited}})
+	rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
+		"/runtime-actions/revoke_invite?record="+url.QueryEscape(invited), runtimeAction(store, nil, config.Config{}), url.Values{})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
 		t.Fatalf("revoke invite = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
 	}
@@ -232,11 +232,11 @@ func TestSubmitRevokeInvite_removesThePendingInvitation(t *testing.T) {
 		t.Errorf("pending invites = %v after revoking, want none", emails)
 	}
 
-	// An empty email is refused rather than deleting nothing silently -- the difference between "that
-	// invitation is gone" and "the form sent nothing and the screen said it worked".
-	if rec := postAdminForm(t, store, ctx, installed, actorID, "/workspace-members/revoke-invite",
-		"/workspace-members/revoke-invite", submitRevokeInvite(store), url.Values{}); rec.Code != http.StatusUnprocessableEntity {
-		t.Errorf("revoke with no email = %d, want 422", rec.Code)
+	// No invitation named is refused rather than deleting nothing silently -- the difference between "that
+	// invitation is gone" and "the request named nothing and the screen said it worked".
+	if rec := postAdminForm(t, store, ctx, installed, actorID, "/runtime-actions/{action}",
+		"/runtime-actions/revoke_invite", runtimeAction(store, nil, config.Config{}), url.Values{}); rec.Code != http.StatusBadRequest {
+		t.Errorf("revoke naming no invitation = %d, want 400", rec.Code)
 	}
 }
 

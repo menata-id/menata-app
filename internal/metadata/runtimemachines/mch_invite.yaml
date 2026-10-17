@@ -1,0 +1,20 @@
+# The invitations nobody has accepted yet (registry.RuntimeSources: invites). An invitation is not a membership: it holds no
+# role in the Workspace until it is accepted and no name, so it is a source of its own. Read by admin pages only.
+id: mch_invite
+name: Invitation
+runtime: invites
+fields:
+  - { id: fld_id, name: Email, type: text }
+  - { id: fld_title, name: Email, type: text, required: true }
+  - { id: fld_status, name: Status, type: status, options: [Invited] }
+  - { id: fld_detail, name: Access, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_detail, role: detail }
+datasets:
+  - id: ds_runtime_invites
+    select: records
+    sort:
+      - { field: fld_title, direction: asc }
+    limit: 500

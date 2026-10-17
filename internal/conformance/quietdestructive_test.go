@@ -28,7 +28,7 @@ func TestQuietDestructiveActionsShareOneLook(t *testing.T) {
 			}
 		}
 	}
-	if seen < 4 {
+	if seen < 3 {
 		t.Fatalf("only %d buttons turning to the danger ink on hover were found -- the scan is measuring less than it appears to", seen)
 	}
 }
