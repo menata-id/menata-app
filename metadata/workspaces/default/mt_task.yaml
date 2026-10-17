@@ -101,9 +101,74 @@ events:
     schedule: { date_field: fld_next_due, when: overdue, guard_field: fld_status, guard_equals: scheduled }
     then: { service: set_field, target_field: fld_status, value: overdue }
 datasets:
-  # How many tasks are overdue, for the Workspace overview.
+  # The figures on the Due page (Case 04 C04a) and the Workspace overview. msr_overdue counts what the scheduler has
+  # flagged; the page's own Overdue list also holds a task past its date that the scheduler has not reached yet.
   - id: ds_maintenance_figures
     measures:
       - id: msr_overdue
         aggregate: count
         where: { field: fld_status, op: equals, value: overdue }
+      - id: msr_due_today
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_next_due, op: equals, value: $today }
+      - id: msr_due_week
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_next_due, op: gt, value: $today }
+            - { field: fld_next_due, op: lte, value: $today+7 }
+      - id: msr_done_month
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: equals, value: $done }
+            - { field: fld_last_done, op: gte, value: $today-30 }
+  # The Due page's four sections. Each is open work by due date; together they hold every task not done.
+  - id: ds_mt_overdue
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_next_due, op: lt, value: $today }
+    sort:
+      - { field: fld_next_due, direction: asc }
+    limit: 200
+  - id: ds_mt_due_today
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_next_due, op: equals, value: $today }
+    sort:
+      - { field: fld_equipment, direction: asc }
+    limit: 200
+  - id: ds_mt_next_week
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_next_due, op: gt, value: $today }
+        - { field: fld_next_due, op: lte, value: $today+7 }
+    sort:
+      - { field: fld_next_due, direction: asc }
+    limit: 200
+  - id: ds_mt_later
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_next_due, op: gt, value: $today+7 }
+    sort:
+      - { field: fld_next_due, direction: asc }
+    limit: 200
+  # The latest five completions: a window, not a cap, so the page claims no completeness over it.
+  - id: ds_mt_recently_done
+    select: records
+    where: { field: fld_status, op: equals, value: $done }
+    sort:
+      - { field: fld_last_done, direction: desc }
+    limit: 5

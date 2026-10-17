@@ -60,9 +60,17 @@ func RecordMoveRoute(recordRoute, direction string) string {
 // are another Machine's whole record set (007 §20) and a page cannot resolve them without reading it. The
 // loader turns a non-empty `unsupported` into an error, so a Form over such a Machine fails at load and does not
 // silently omit a Field the Machine marks required.
+//
+// A **status the Machine governs** (any `transitions:` names it) that declares a `default:` is not asked either: a
+// new record starts at that default and leaves it only along the declared edges, so a select of every option would
+// offer a borrower a loan that is already disbursed. Without a default the select stays, since nothing else would
+// give the record a status.
 func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 	for _, f := range m.Fields {
 		if f.Compute != nil || f.Stamp != "" || f.Type == FieldTypeFile {
+			continue
+		}
+		if f.Type == FieldTypeStatus && f.Default != nil && m.GovernsTransitions(f.ID) {
 			continue
 		}
 		if f.IsReference() || f.Type == FieldTypeGroup {

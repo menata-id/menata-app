@@ -23,6 +23,16 @@ fields:
       - overdue
       - paid
     default: open
+# What a page shows of an installment: the loan it belongs to, when it is due, how much, and where it stands.
+card_fields:
+  - field: fld_loan
+    role: container
+  - field: fld_due_date
+    role: date
+  - field: fld_amount
+    role: money
+  - field: fld_status
+    role: status
 views:
   - id: vw_table
     name: Table
@@ -67,3 +77,38 @@ events:
   - id: evt_inst_overdue_flag
     schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_status, guard_equals: open }
     then: { service: set_field, target_field: fld_status, value: overdue }
+datasets:
+  # The Repayments page (Case 14 C14c).
+  - id: ds_ln_installment_figures
+    measures:
+      - id: msr_overdue
+        aggregate: count
+        where: { field: fld_status, op: equals, value: overdue }
+      - id: msr_overdue_amount
+        aggregate: sum
+        field: fld_amount
+        where: { field: fld_status, op: equals, value: overdue }
+      - id: msr_due_soon
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: equals, value: open }
+            - { field: fld_due_date, op: lte, value: $today+14 }
+      - id: msr_paid
+        aggregate: count
+        where: { field: fld_status, op: equals, value: paid }
+  - id: ds_ln_inst_overdue
+    select: records
+    where: { field: fld_status, op: equals, value: overdue }
+    sort:
+      - { field: fld_due_date, direction: asc }
+    limit: 200
+  - id: ds_ln_inst_due_soon
+    select: records
+    where:
+      all:
+        - { field: fld_status, op: equals, value: open }
+        - { field: fld_due_date, op: lte, value: $today+14 }
+    sort:
+      - { field: fld_due_date, direction: asc }
+    limit: 200

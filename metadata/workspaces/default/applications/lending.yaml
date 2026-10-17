@@ -1,5 +1,6 @@
 id: app_lending
 name: Lending
+description: Loan applications, disbursement and the repayment schedule it generates.
 machines:
   - mch_ln_loan
   - mch_ln_installment
@@ -9,11 +10,290 @@ roles:
 icon: board
 color: blue
 navigation:
+  # Applications (Case 14 C14a): what waits for a loan officer and what is ready to pay out. Approve, Reject and
+  # Disburse are the Machine's declared edges, drawn only for someone holding the loan officer role; Disburse writes
+  # the whole repayment schedule (`generates:`). A borrower sees their own loans and the form to apply.
+  - id: nav_lending_applications
+    label: Applications
+    title: Loan applications
+    description: Decide on new applications and pay out approved loans. Disbursing writes the repayment schedule.
+    route: /pages/nav_lending_applications
+    priority: 1
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Waiting for a decision
+              tone: warn
+              binding: { dataset: ds_lending_figures, measure: msr_applied, rows: total }
+            - component: Metric
+              label: Approved, not paid out
+              binding: { dataset: ds_lending_figures, measure: msr_approved, rows: total }
+            - component: Metric
+              label: Loans paid out
+              binding: { dataset: ds_lending_figures, measure: msr_disbursed, rows: total }
+            - component: Metric
+              label: Amount paid out
+              binding: { dataset: ds_lending_figures, measure: msr_amount_out, rows: total }
+        - layout: stack
+          gap: default
+          empty: No application waits for a decision, and nothing approved waits to be paid out.
+          children:
+            - component: Collection
+              heading: Waiting for a decision
+              hint: oldest first
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_ln_waiting, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - static: caption
+                          from: { text: person }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: paragraph
+                          from: { text: money }
+                        - component: Button
+                          label: Approve
+                          variant: primary
+                          becomes: approved
+                          from: { describes: title }
+                          binding: { write: transition }
+                        - component: Button
+                          label: Reject
+                          variant: secondary
+                          becomes: rejected
+                          from: { describes: title }
+                          binding: { write: transition }
+            - component: Collection
+              heading: Approved, ready to pay out
+              hint: paying out writes the repayment schedule
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_ln_ready, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - static: caption
+                          from: { text: person }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: paragraph
+                          from: { text: money }
+                        - component: Button
+                          label: Disburse
+                          variant: primary
+                          becomes: disbursed
+                          from: { describes: title }
+                          binding: { write: transition }
+        - component: Collection
+          heading: My loans
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_ln_mine, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      count:
+                        of: rel_my_loan_open_installments
+                        one: "{n} installment still to pay"
+                        other: "{n} installments still to pay"
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: paragraph
+                      from: { text: money }
+                    - component: StatusBadge
+                      tone: neutral
+                      from: { label: status }
+        - component: Disclosure
+          summary: + Apply for a loan
+          children:
+            - component: Form
+              submit: Apply
+              binding: { dataset: ds_ln_waiting, write: create }
+  # Repayments (Case 14 C14b/C14c): installments past due and coming up, each marked paid where it stands, and every
+  # loan paid out with how much of its schedule is still open.
+  - id: nav_lending_repayments
+    label: Repayments
+    title: Repayments
+    description: Installments past due and due in the next two weeks. Mark one paid when the money arrives.
+    route: /pages/nav_lending_repayments
+    priority: 2
+    home_card: false
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Overdue installments
+              tone: bad
+              binding: { dataset: ds_ln_installment_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Amount overdue
+              tone: bad
+              binding: { dataset: ds_ln_installment_figures, measure: msr_overdue_amount, rows: total }
+            - component: Metric
+              label: Due in 14 days
+              binding: { dataset: ds_ln_installment_figures, measure: msr_due_soon, rows: total }
+            - component: Metric
+              label: Paid
+              binding: { dataset: ds_ln_installment_figures, measure: msr_paid, rows: total }
+        - layout: stack
+          gap: default
+          empty: Nothing is overdue or due in the next two weeks.
+          children:
+            - component: Collection
+              heading: Overdue
+              hint: flagged by the daily check
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_ln_inst_overdue, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: container, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: paragraph
+                          from: { text: money }
+                        - component: Button
+                          label: Mark paid
+                          variant: secondary
+                          becomes: paid
+                          from: { describes: container }
+                          binding: { write: transition }
+            - component: Collection
+              heading: Due in the next 14 days
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_ln_inst_due_soon, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: container, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - static: paragraph
+                          from: { text: money }
+                        - component: Button
+                          label: Mark paid
+                          variant: secondary
+                          becomes: paid
+                          from: { describes: container }
+                          binding: { write: transition }
+        - component: Collection
+          heading: Loans paid out
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_ln_active, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: person }
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: paragraph
+                      from: { text: money }
+                    - static: caption
+                      count:
+                        of: rel_loan_open_installments
+                        one: "{n} installment open"
+                        other: "{n} installments open"
   - id: nav_lending
     label: Loans
     route: /machines/mch_ln_loan
-    home_card: true
+    priority: 3
+    home_card: false
   - id: nav_lending_ln_installment
     label: Installments
     route: /machines/mch_ln_installment
+    priority: 4
     home_card: false

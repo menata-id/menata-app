@@ -1,5 +1,6 @@
 id: app_maintenance
 name: Maintenance
+description: Recurring equipment maintenance, by when it is due.
 machines:
   - mch_mt_task
 roles:
@@ -8,7 +9,170 @@ roles:
 icon: board
 color: blue
 navigation:
-  - id: nav_maintenance
-    label: Maintenance tasks
-    route: /machines/mch_mt_task
+  # Due (Case 04 C04a): what needs doing, by when. The four sections together hold every task that is not done, and
+  # "Complete" is the declared edge (technicians only), so the page names no status and no Field.
+  - id: nav_maintenance_due
+    label: Due
+    title: Due maintenance
+    description: Every task that is not done yet, soonest first. Complete one here without opening it.
+    route: /pages/nav_maintenance_due
+    priority: 1
     home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Overdue
+              hint: flagged by the daily check
+              tone: bad
+              binding: { dataset: ds_maintenance_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Due today
+              tone: warn
+              binding: { dataset: ds_maintenance_figures, measure: msr_due_today, rows: total }
+            - component: Metric
+              label: Next 7 days
+              binding: { dataset: ds_maintenance_figures, measure: msr_due_week, rows: total }
+            - component: Metric
+              label: Completed
+              hint: in the last 30 days
+              binding: { dataset: ds_maintenance_figures, measure: msr_done_month, rows: total }
+        - layout: stack
+          gap: default
+          empty: Nothing is due. Every task is done or scheduled further out.
+          children:
+            - component: Collection
+              heading: Overdue
+              hint: past the due date
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_mt_overdue, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - component: Button
+                      label: Complete
+                      variant: secondary
+                      becomes: $done
+                      from: { describes: title }
+                      binding: { write: transition }
+            - component: Collection
+              heading: Due today
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_mt_due_today, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - component: Button
+                      label: Complete
+                      variant: secondary
+                      becomes: $done
+                      from: { describes: title }
+                      binding: { write: transition }
+            - component: Collection
+              heading: Next 7 days
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_mt_next_week, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - static: link
+                          from: { text: title, href: record }
+                        - component: StatusBadge
+                          from: { label: "date:label", tone: "date:tone" }
+                    - component: Button
+                      label: Complete
+                      variant: secondary
+                      becomes: $done
+                      from: { describes: title }
+                      binding: { write: transition }
+            - component: Collection
+              heading: Later
+              gap: tight
+              divided: true
+              hide_empty: true
+              complete: true
+              binding: { dataset: ds_mt_later, rows: records }
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - component: StatusBadge
+                      from: { label: "date:label", tone: "date:tone" }
+        - component: Collection
+          heading: Recently completed
+          hint: the latest five
+          gap: tight
+          divided: true
+          hide_empty: true
+          binding: { dataset: ds_mt_recently_done, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: link
+                  from: { text: title, href: record }
+                - component: StatusBadge
+                  tone: good
+                  from: { label: status }
+        - component: Disclosure
+          summary: + Schedule maintenance
+          children:
+            - component: Form
+              submit: Schedule
+              binding: { dataset: ds_mt_due_today, write: create }
+        - static: link
+          list_of: ds_mt_later
+          text: All tasks, as a board or a table
+  # The Machine's own list: the board by status and the table, for anything the Due page does not show.
+  - id: nav_maintenance
+    label: All tasks
+    route: /machines/mch_mt_task
+    priority: 2
+    home_card: false

@@ -37,6 +37,8 @@ card_fields:
     role: status
   - field: fld_borrower
     role: person
+  - field: fld_amount
+    role: money
 views:
   - id: vw_board
     name: Board
@@ -109,3 +111,50 @@ datasets:
       - id: msr_disbursed
         aggregate: count
         where: { field: fld_status, op: equals, value: disbursed }
+      - id: msr_approved
+        aggregate: count
+        where: { field: fld_status, op: equals, value: approved }
+      - id: msr_amount_out
+        aggregate: sum
+        field: fld_amount
+        where: { field: fld_status, op: equals, value: disbursed }
+  # The Applications page (Case 14 C14a): what waits for an officer, what is ready to pay out, and a borrower's own.
+  - id: ds_ln_waiting
+    select: records
+    where: { field: fld_status, op: equals, value: applied }
+    sort:
+      - { field: created_at, direction: asc }
+    limit: 200
+  - id: ds_ln_ready
+    select: records
+    where: { field: fld_status, op: equals, value: approved }
+    sort:
+      - { field: created_at, direction: asc }
+    limit: 200
+  - id: ds_ln_mine
+    select: records
+    viewer_scoped: true
+    where: { field: fld_borrower, op: equals, value: $current_user }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 200
+    relations:
+      - id: rel_my_loan_open_installments
+        machine: mch_ln_installment
+        via: fld_loan
+        where: { field: fld_status, op: not_equals, value: paid }
+  # Loans paid out, each with how many of its installments are still to be paid (Case 14 C14b, in one line per loan).
+  - id: ds_ln_active
+    select: records
+    where: { field: fld_status, op: equals, value: disbursed }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 200
+    relations:
+      - id: rel_loan_installments
+        machine: mch_ln_installment
+        via: fld_loan
+      - id: rel_loan_open_installments
+        machine: mch_ln_installment
+        via: fld_loan
+        where: { field: fld_status, op: not_equals, value: paid }
