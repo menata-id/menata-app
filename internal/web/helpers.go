@@ -108,8 +108,9 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 }
 
-// maxUploadBytes bounds one multipart request body (development-history.md Phase 11) -- generous enough for
-// a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
+// maxUploadBytes bounds one record write's request body (development-history.md Phase 11; enforced by
+// parseRecordForm's MaxBytesReader since 2026-10-17) -- generous enough for a real PDF or a handful of images, small
+// enough that a malicious upload can't exhaust disk.
 const maxUploadBytes = 20 << 20 // 20MB
 
 // eventOldValues fetches a record's pre-write values, but only when machine actually declares an

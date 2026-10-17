@@ -393,3 +393,36 @@ func testWorkspaceFor(machines map[string]*domain.Machine) domain.Workspace {
 	}
 	return ws
 }
+
+// TestParseRecordFormRefusesABodyOverTheCap: a record write's body is capped before it is read. ParseMultipartForm's
+// argument alone is only an in-memory threshold, past which file parts spill to temporary files, so without the cap a
+// body of any size reached the disk. Over the cap the answer is 413; at the cap the body parses (Tahap 0.3).
+func TestParseRecordFormRefusesABodyOverTheCap(t *testing.T) {
+	build := func(size int) *http.Request {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("fld_file", "scan.pdf")
+		if err != nil {
+			t.Fatal(err)
+		}
+		part.Write(bytes.Repeat([]byte("x"), size))
+		writer.Close()
+		req := httptest.NewRequest(http.MethodPost, "/", &body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		return req
+	}
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+
+	rec := httptest.NewRecorder()
+	if parseRecordForm(rec, build(maxUploadBytes+1)) || rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("a body over the cap: parsed or answered %d, want 413", rec.Code)
+	}
+	if spilled, _ := os.ReadDir(tmp); len(spilled) != 0 {
+		t.Errorf("a refused body left %d temporary files", len(spilled))
+	}
+	rec = httptest.NewRecorder()
+	if !parseRecordForm(rec, build(1<<20)) {
+		t.Errorf("a 1 MB upload was refused with %d", rec.Code)
+	}
+}
