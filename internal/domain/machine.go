@@ -721,6 +721,32 @@ func (c *StatusCategories) CategoryOf(option string) (StatusCategory, bool) {
 	return v, ok
 }
 
+// StatusTone is the tone an option of status Field fieldID is drawn in, wherever a status is drawn -- the generic
+// list's cell, a declared page's Table or StatusBadge, a record's own page: the category m declares for it
+// (`status_categories:`) mapped to a tone the Theme already has, and neutral when m declares none for that option.
+// start is neutral, active info, attention warn, done good, stopped bad (muted is faint ink, which a status must not
+// be). One function, so "Overdue" cannot be red in the list and blue on the page that lists the same record.
+func (m *Machine) StatusTone(fieldID, option string) BadgeTone {
+	if m.StatusCategories == nil || m.StatusCategories.Field != fieldID {
+		return ToneNeutral
+	}
+	c, ok := m.StatusCategories.CategoryOf(option)
+	if !ok {
+		return ToneNeutral
+	}
+	switch c {
+	case StatusActive:
+		return ToneInfo
+	case StatusAttention:
+		return ToneWarn
+	case StatusDone:
+		return ToneGood
+	case StatusStopped:
+		return ToneBad
+	}
+	return ToneNeutral
+}
+
 // ReopenValue is what finishing's opposite writes: the completion Field's declared default when it has one,
 // else its first option. "" when m declares no completion.
 func (m *Machine) ReopenValue() string {

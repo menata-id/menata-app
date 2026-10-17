@@ -4,4 +4,18 @@ fields:
   - { id: fld_contract_no, name: Contract no., type: text, required: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_value, name: Contract value, type: money, required: true }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category }
   - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
+card_fields:
+  - { field: fld_contract_no, role: title }
+  - { field: fld_party_name, role: subtitle }
+  - { field: fld_payment_status, role: status }
+# The tone every screen draws a payment status in: the list, a page's Table, the record's own page.
+status_categories:
+  field: fld_payment_status
+  values: { In progress: active, Overdue: attention, Settled: done }
+datasets:
+  - id: ds_contracts
+    select: records
+    sort: [{ field: fld_contract_no }]
+    limit: 100

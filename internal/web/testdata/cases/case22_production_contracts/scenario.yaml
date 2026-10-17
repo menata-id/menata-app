@@ -10,9 +10,14 @@ steps:
     create: { machine: mch_contract, values: { fld_contract_no: CTR/C/025, fld_party_name: Nobody, fld_value: "a lot" } }
     expect: refused
 
+  - id: lead-cast
+    as: silvia
+    create: { machine: mch_category, values: { fld_category_name: Lead Cast } }
+    expect: ok
+
   - id: contract
     as: silvia
-    create: { machine: mch_contract, values: { fld_contract_no: CTR/C/026, fld_party_name: Reza Anggara, fld_value: "180000" } }
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/C/026, fld_party_name: Reza Anggara, fld_value: "180000", fld_category: $lead-cast } }
     expect: ok
     record: { fld_value: "180000", fld_payment_status: In progress }
 
@@ -45,6 +50,16 @@ steps:
     expect: ok
     record: { fld_term_status: Overdue }
     count: { machine: mch_contract, where: { fld_payment_status: Overdue }, equals: 1 }
+
+  # The contract list (K01b): the columns the page names by Field, the category by its label and not its id, money
+  # grouped, and Overdue in the attention tone status_categories gives it -- the same tone the generic list draws.
+  - id: contract-list-columns
+    as: silvia
+    view:
+      path: /pages/nav_contracts
+      shows: [CTR/C/026, Reza Anggara, Lead Cast, ">180,000<", 'text-tone-warn-ink">Overdue<']
+      hides: [$lead-cast, fld_category]
+    expect: ok
 
   # A plan that is only submitted says nothing about its instalment: Overdue stays (K-15).
   - id: plan-without-proof
@@ -95,3 +110,10 @@ steps:
     update: { ref: contract, values: { fld_party_name: Reza Anggara } }
     expect: ok
     record: { fld_payment_status: In progress }
+
+  - id: contract-detail-status-badge
+    as: silvia
+    view:
+      path: /machines/mch_contract/records/$contract
+      shows: ['text-tone-info-ink">In progress<']
+    expect: ok

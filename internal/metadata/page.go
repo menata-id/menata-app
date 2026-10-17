@@ -197,12 +197,14 @@ func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
 				c.Header = val.Value
 			case "from":
 				c.From = val.Value
+			case "field":
+				c.Field = val.Value
 			case "align":
 				c.Align = val.Value
 			case "href":
 				c.Href = val.Value
 			default:
-				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, align, href)", key.Line, key.Value)
+				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from or field, align, href)", key.Line, key.Value)
 			}
 		}
 		out = append(out, c)
@@ -375,6 +377,11 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 	}
 	if p.binding != nil {
 		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action}
+		for _, c := range p.columns {
+			if c.Field != "" && !slices.Contains(out.Binding.Fields, c.Field) {
+				out.Binding.Fields = append(out.Binding.Fields, c.Field)
+			}
+		}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -452,6 +459,11 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
 			rec[domain.PageGroupLabelRole] = "x"
 			rec[domain.PageCreatedLabelRole] = "x"
+			rec[domain.PageStatusToneRole] = string(domain.ToneNeutral)
+			// The Fields a Table names by id: whether each is a Field of the real Machine is `recordsBindingIssues`'.
+			for _, id := range b.Fields {
+				rec[domain.PageFieldRole(id)] = "x"
+			}
 			rec[string(domain.CardFieldRoleLink)] = "/x" // a destination the runtime would hand a page, so a link taking its href from it validates
 			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
 			// naming any other fails to lower -- the same way a mistyped role does.
@@ -780,9 +792,30 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if (readsDerivedRole(n.Children, domain.PageDateLabelRole) || readsDerivedRole(n.Children, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s/%s -- machine %q declares no card_fields role %q to derive them from", where, domain.PageDateLabelRole, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
 	}
+	if (readsDerivedRole(n.Children, domain.PageStatusToneRole) || columnsRead(n.Columns, domain.PageStatusToneRole)) && source.CardFieldFor(domain.CardFieldRoleStatus) == "" {
+		issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q declares no card_fields role %q to derive it from", where, domain.PageStatusToneRole, source.ID, domain.CardFieldRoleStatus))
+	}
+	if (columnsRead(n.Columns, domain.PageDateLabelRole) || columnsRead(n.Columns, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
+		issues = append(issues, fmt.Sprintf("%s: page: columns: %s -- machine %q declares no card_fields role %q to derive it from", where, domain.PageDateLabelRole, source.ID, domain.CardFieldRoleDate))
+	}
+	if columnsRead(n.Columns, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
+		issues = append(issues, fmt.Sprintf("%s: page: columns: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
+	}
+	for _, c := range n.Columns {
+		if c.Field == "" {
+			continue
+		}
+		f, ok := source.FieldByID(c.Field)
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("%s: page: columns: field: %s -- machine %q has no such Field", where, c.Field, source.ID))
+		case f.Type == domain.FieldTypeGroup:
+			issues = append(issues, fmt.Sprintf("%s: page: columns: field: %s -- a group Field is not yet a column (its label is the Workspace's group, read by no page binding)", where, c.Field))
+		}
+	}
 	roles := fromRoles(n.Children)
 	for _, c := range n.Columns {
-		if c.From != "" && c.From != domain.PageRecordRole {
+		if c.From != "" && c.From != domain.PageRecordRole && !domain.PageDerivedRole(c.From) {
 			roles[c.From] = true
 		}
 	}
@@ -797,6 +830,16 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		}
 	}
 	return issues
+}
+
+// columnsRead reports whether any of a Table's columns shows the given role.
+func columnsRead(cols []domain.PageColumn, role string) bool {
+	for _, c := range cols {
+		if c.From == role {
+			return true
+		}
+	}
+	return false
 }
 
 // readsDerivedRole reports whether any node under nodes reads the given derived role.

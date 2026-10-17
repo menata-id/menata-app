@@ -77,7 +77,9 @@ func TestLowerTableRefusesEachMisuseForItsOwnReason(t *testing.T) {
 		"too many columns":        {func(n *domain.PageNode) { n.Columns = many }, "at most"},
 		"a blank header":          {func(n *domain.PageNode) { n.Columns[0].Header = " " }, "header"},
 		"a header with a newline": {func(n *domain.PageNode) { n.Columns[0].Header = "A\nB" }, "header"},
-		"no role":                 {func(n *domain.PageNode) { n.Columns[0].From = "" }, "from:"},
+		"no role":                 {func(n *domain.PageNode) { n.Columns[0].From = "" }, "exactly one of from:"},
+		"a role and a field":      {func(n *domain.PageNode) { n.Columns[0].Field = "fld_title" }, "exactly one of from:"},
+		"a field nobody resolved": {func(n *domain.PageNode) { n.Columns[0] = domain.PageColumn{Header: "H", Field: "fld_party"} }, "does not project"},
 		"an unknown address":      {func(n *domain.PageNode) { n.Columns[0].Href = "/typed" }, "only address"},
 		"the address as text":     {func(n *domain.PageNode) { n.Columns[0].From = domain.PageRecordRole }, "href:"},
 		"a bad alignment":         {func(n *domain.PageNode) { n.Columns[0].Align = "centre" }, "start or end"},
@@ -102,6 +104,51 @@ func TestLowerTableRefusesEachMisuseForItsOwnReason(t *testing.T) {
 	_, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{noAddr}}, tableRecords(map[string]string{"title": "a"}))
 	if err == nil || !strings.Contains(err.Error(), "names no address") {
 		t.Errorf("a record with no address: %v", err)
+	}
+}
+
+// TestTableCellsTakeTheToneTheDataPlaneResolved: a status cell -- by role or by Field -- is a badge in the tone the
+// Machine's status_categories gave its option (resolved before lowering), neutral when none was given, and a Field
+// column shows the Field's display, not its stored value.
+func TestTableCellsTakeTheToneTheDataPlaneResolved(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentTable), string(domain.ComponentStatusBadge)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentTable)})
+	rec := map[string]string{"status": "Overdue", domain.PageStatusToneRole: "bad",
+		domain.PageFieldRole("fld_party"): "Reza Anggara", domain.PageFieldRole("fld_pay"): "Settled", domain.PageFieldToneRole("fld_pay"): "good",
+		domain.PageFieldRole("fld_value"): "180,000,000"}
+	plain := map[string]string{"status": "Draft", domain.PageStatusToneRole: "",
+		domain.PageFieldRole("fld_party"): "", domain.PageFieldRole("fld_pay"): "", domain.PageFieldRole("fld_value"): ""}
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{tableNode(
+		domain.PageColumn{Header: "Status", From: "status"},
+		domain.PageColumn{Header: "Party", Field: "fld_party"},
+		domain.PageColumn{Header: "Payment", Field: "fld_pay"},
+		domain.PageColumn{Header: "Value", Field: "fld_value", Align: "end"},
+	)}}
+	tree, err := Lower(root, tableRecords(rec, plain))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := tree.Children[0].Children
+	if c[0].Type != "StatusBadge" || c[0].Props["tone"] != "bad" {
+		t.Errorf("status role cell = %+v, want a bad-toned badge", c[0])
+	}
+	if c[1].Type != "paragraph" || c[1].Props["text"] != "Reza Anggara" {
+		t.Errorf("a Field column = %+v, want its display as text", c[1])
+	}
+	if c[2].Type != "StatusBadge" || c[2].Props["tone"] != "good" || c[2].Props["label"] != "Settled" {
+		t.Errorf("a status Field column = %+v, want a good-toned badge", c[2])
+	}
+	if c[3].Props["text"] != "180,000,000" {
+		t.Errorf("a money column = %+v", c[3])
+	}
+	if c[4].Type != "StatusBadge" || c[4].Props["tone"] != string(domain.ToneNeutral) {
+		t.Errorf("an option with no category = %+v, want neutral", c[4])
+	}
+	if c[6].Type != "paragraph" {
+		t.Errorf("an empty status Field = %+v, want no badge", c[6])
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("not a valid tree: %v", issues)
 	}
 }
 

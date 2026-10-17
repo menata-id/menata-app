@@ -548,30 +548,6 @@ func showMachineSchema(actor domain.Actor) bool {
 	return actor.WorkspaceRole == "admin"
 }
 
-// statusOptionTone is the tone a status option is drawn in: the category the Machine declares for it
-// (`status_categories:`) mapped to a tone the Theme already has, or neutral when the Machine declares none for that
-// option. start is neutral, active info, attention warn, done good, stopped bad (muted is faint ink, which a status must not be).
-func statusOptionTone(m *domain.Machine, fieldID, option string) domain.BadgeTone {
-	if m.StatusCategories == nil || m.StatusCategories.Field != fieldID {
-		return domain.ToneNeutral
-	}
-	c, ok := m.StatusCategories.CategoryOf(option)
-	if !ok {
-		return domain.ToneNeutral
-	}
-	switch c {
-	case domain.StatusActive:
-		return domain.ToneInfo
-	case domain.StatusAttention:
-		return domain.ToneWarn
-	case domain.StatusDone:
-		return domain.ToneGood
-	case domain.StatusStopped:
-		return domain.ToneBad
-	}
-	return domain.ToneNeutral
-}
-
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
 templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
@@ -1145,7 +1121,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 				} else if f.Type == domain.FieldTypeGroup {
 					{ GroupLabel(groups, toString(r.Values[f.ID])) }
 				} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
-					@statusBadge(toString(r.Values[f.ID]), statusOptionTone(m, f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
+					@statusBadge(toString(r.Values[f.ID]), m.StatusTone(f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 				} else {
 					{ valueText(f, r.Values[f.ID]) }
 				}

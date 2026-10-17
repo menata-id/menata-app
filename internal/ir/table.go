@@ -56,8 +56,8 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		switch {
 		case strings.TrimSpace(c.Header) == "" || strings.ContainsAny(c.Header, "\n\r"):
 			return nil, fmt.Errorf("%s: header: words on one line", where)
-		case c.From == "":
-			return nil, fmt.Errorf("%s: from: names the Projection role the column shows", where)
+		case (c.From == "") == (c.Field == ""):
+			return nil, fmt.Errorf("%s: a column shows exactly one of from: (a Projection role) or field: (a Field id)", where)
 		case c.Href != "" && c.Href != domain.PageRecordRole:
 			return nil, fmt.Errorf("%s: href: is %q, and the only address a cell may take is the record's own (href: %s)", where, c.Href, domain.PageRecordRole)
 		case c.From == domain.PageRecordRole:
@@ -86,9 +86,13 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, rec := range set.Records {
 		for j, c := range cols {
-			text, ok := rec[c.From]
+			key := c.From
+			if c.Field != "" {
+				key = domain.PageFieldRole(c.Field)
+			}
+			text, ok := rec[key]
 			if !ok {
-				return nil, fmt.Errorf("%s.columns[%d]: from: %s names the role %q, which the bound Dataset's Machine does not project (record %d)", path, j, c.From, c.From, i)
+				return nil, fmt.Errorf("%s.columns[%d]: the column shows %q, which the bound Dataset's Machine does not project (record %d)", path, j, key, i)
 			}
 			cell, err := tableCell(c, text, rec)
 			if err != nil {
@@ -101,8 +105,16 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 }
 
 // tableCell is one cell as a node the renderer already draws. A cell with an href is a link whatever its role; a
-// `status` role is a StatusBadge, the way a card draws it; anything else is a paragraph.
+// `status` role, or a status Field named by field:, is a StatusBadge in the tone the Machine's `status_categories:`
+// gives the option (resolved by the Data Plane, never here), the way the generic list draws it; anything else is a
+// paragraph.
 func tableCell(c domain.PageColumn, text string, rec map[string]string) (UINode, error) {
+	badge := func(tone string) UINode {
+		if !domain.KnownBadgeTones[domain.BadgeTone(tone)] {
+			tone = string(domain.ToneNeutral)
+		}
+		return UINode{Kind: NodeComponent, Type: string(domain.ComponentStatusBadge), Props: map[string]string{"label": text, "tone": tone, "size": string(domain.BadgeCompact)}}
+	}
 	switch {
 	case c.Href == domain.PageRecordRole:
 		href, ok := rec[domain.PageRecordRole]
@@ -110,8 +122,12 @@ func tableCell(c domain.PageColumn, text string, rec map[string]string) (UINode,
 			return UINode{}, fmt.Errorf("href: %s names no address, which the resolver gives a record of a Machine it can open", domain.PageRecordRole)
 		}
 		return UINode{Kind: NodeStatic, Type: string(domain.StaticLink), Props: map[string]string{"text": text, "href": href}}, nil
-	case c.From == string(domain.CardFieldRoleStatus):
-		return UINode{Kind: NodeComponent, Type: string(domain.ComponentStatusBadge), Props: map[string]string{"label": text, "tone": string(domain.ToneInfo), "size": string(domain.BadgeCompact)}}, nil
+	case c.From == string(domain.CardFieldRoleStatus) && text != "":
+		return badge(rec[domain.PageStatusToneRole]), nil
+	case c.Field != "" && text != "":
+		if tone, ok := rec[domain.PageFieldToneRole(c.Field)]; ok {
+			return badge(tone), nil
+		}
 	}
 	return UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": text}}, nil
 }

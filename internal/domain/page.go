@@ -82,12 +82,20 @@ type PageNode struct {
 	Children []PageNode
 }
 
-// PageColumn is one column of a declared Table. Header is the words in the column's header cell, From the Projection
-// role (`card_fields`, 007 §7.6) each row's cell takes, Align the edge its text sits on (empty is the start), and Href,
-// when it is PageRecordRole, makes the cell a link to the record's own page.
+// PageColumn is one column of a declared Table. Header is the words in the column's header cell, Align the edge its
+// text sits on (empty is the start), and Href, when it is PageRecordRole, makes the cell a link to the record's own
+// page. What the cell shows is exactly one of two things:
+//
+//   - From, a Projection role (`card_fields`, 007 §7.6) or a derived role (`created:label`, `date:label`): what the
+//     Machine already says about a record's shape, one Field per role;
+//   - Field, one Field of the Dataset's Machine by id: a list shows as many columns as the screen needs, and a
+//     Machine has one `title` role but a contract list shows its number, its party and its category side by side
+//     (mockup K01b; gap U-02). The cell is the Field's value as the record's own page shows it -- a figure grouped, a
+//     date as a day, a relation as the related record's label, a status as a badge in the tone its category gives.
 type PageColumn struct {
 	Header string
 	From   string
+	Field  string
 	Align  string
 	Href   string
 }
@@ -201,6 +209,10 @@ type PageBinding struct {
 	// Action, with `write: action`, names one of registry.RuntimeActions: what a Form or Button of the runtime's own pages
 	// performs. Nothing else about the request is written on the page.
 	Action string
+	// Fields is never written: it is the Fields a Table's `columns:` name by id (PageColumn.Field), copied here at load
+	// so the Data Plane resolves those Fields -- and a relation among them, in one statement by the ids listed -- and
+	// no other. A binding with none resolves only the Projection, as before.
+	Fields []string
 }
 
 // PageGroupDate buckets a records binding by the Machine's `date` card_fields role, one bucket per day of the
@@ -289,6 +301,19 @@ const (
 	PageDateToneRole  = "date:tone"
 )
 
+// PageStatusToneRole is the tone of a record's `status` card_fields role, derived from the Machine's
+// `status_categories:` (Machine.StatusTone): `from: {label: status, tone: "status:tone"}` draws the badge every other
+// screen draws for that option. Empty when the record has no status, and a node reading it is then not drawn.
+const PageStatusToneRole = "status:tone"
+
+// PageFieldRole is the key of one Field's display in a record row, for a Table column that names the Field
+// (PageColumn.Field), and PageFieldToneRole the key of its tone when the Field is a status. Reserved by their colon,
+// as the other derived roles are, so they can never be a Projection role.
+func PageFieldRole(fieldID string) string { return "field:" + fieldID }
+
+// PageFieldToneRole: see PageFieldRole.
+func PageFieldToneRole(fieldID string) string { return "tone:" + fieldID }
+
 // PageRowLabelRole and PageMeasureRole are the keys of the row map a Collection bound with `rows: dimension` hands
 // to its item template: the Dimension value's display (a status option, or a related record's title), and each of
 // the Dataset's Measures for that value, already formatted. Reserved like the count role -- the colon cannot appear
@@ -309,7 +334,7 @@ const PageGroupLabelRole = "group:label"
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole || role == PageCreatedLabelRole
+	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
 }
 
 // PageCreatedLabelRole is the derived role that says when a record was created ("2 Jan 2006 15:04"), which every record

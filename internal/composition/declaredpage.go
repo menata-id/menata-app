@@ -163,7 +163,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		return ir.RecordSet{}, err
 	}
 	records := sel.Records
-	people, err := recordRelations(ctx, l, src, records)
+	people, err := recordRelations(ctx, l, src, records, b.Fields...)
 	if err != nil {
 		return ir.RecordSet{}, err
 	}
@@ -183,6 +183,8 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = recordRouteOf(src, r.ID)
 		fillDerivedDate(item, src, r, now)
+		fillDerivedStatus(item, src, r)
+		fillFieldColumns(item, src, r, people, b.Fields)
 		fillCreatedAndLink(item, src, r)
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
@@ -328,8 +330,21 @@ func fillDerivedGroup(item map[string]string, src *domain.Machine, r *data.Recor
 //
 // A reference to someone or something that no longer exists gets an option with an empty label, not none: an
 // absent option makes RelationLabel fall back to the raw id, and an id is not something a page should print.
-func recordRelations(ctx context.Context, l *Loader, src *domain.Machine, records []*data.Record) (rendering.RelationOptions, error) {
+func recordRelations(ctx context.Context, l *Loader, src *domain.Machine, records []*data.Record, columns ...string) (rendering.RelationOptions, error) {
 	people, containers := map[string]string{}, map[string]string{}
+	// A Table column that names a reference Field (PageColumn.Field) is resolved the same bounded way: a person from
+	// the memoized member names, any other relation by the ids the listed records name, in one statement per Machine.
+	for _, id := range columns {
+		f, ok := src.FieldByID(id)
+		if !ok || !f.IsReference() {
+			continue
+		}
+		if f.RelatedMachine == domain.UserMachineID {
+			people[f.ID] = f.RelatedMachine
+		} else {
+			containers[f.ID] = f.RelatedMachine
+		}
+	}
 	for _, cf := range src.CardFields {
 		f, ok := src.FieldByID(cf.Field)
 		if !ok || !f.IsReference() {
@@ -626,6 +641,34 @@ func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record
 	item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = d.Label, string(d.Tone)
 	if !d.Present {
 		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
+	}
+}
+
+// fillDerivedStatus is PageStatusToneRole: the tone of the record's `status` role, from the Machine's own
+// `status_categories:`, so a page's badge and the generic list's cell cannot disagree about an option.
+func fillDerivedStatus(item map[string]string, src *domain.Machine, r *data.Record) {
+	fieldID := src.CardFieldFor(domain.CardFieldRoleStatus)
+	if fieldID == "" {
+		return
+	}
+	item[domain.PageStatusToneRole] = ""
+	if v := DisplayString(r.Values[fieldID]); v != "" {
+		item[domain.PageStatusToneRole] = string(src.StatusTone(fieldID, v))
+	}
+}
+
+// fillFieldColumns is the Fields a Table's columns name by id (PageColumn.Field): each as the record's own page shows
+// it, and a status Field's tone beside it. The loader has checked that every id is a Field of src.
+func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions, fields []string) {
+	for _, id := range fields {
+		f, ok := src.FieldByID(id)
+		if !ok {
+			continue
+		}
+		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations)
+		if v := DisplayString(r.Values[id]); f.Type == domain.FieldTypeStatus && v != "" {
+			item[domain.PageFieldToneRole(id)] = string(src.StatusTone(id, v))
+		}
 	}
 }
 

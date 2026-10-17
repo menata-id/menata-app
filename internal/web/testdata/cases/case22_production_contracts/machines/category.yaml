@@ -1,0 +1,6 @@
+id: mch_category
+name: Category
+fields:
+  - { id: fld_category_name, name: Name, type: text, required: true }
+card_fields:
+  - { field: fld_category_name, role: title }

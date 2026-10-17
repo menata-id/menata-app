@@ -58,6 +58,7 @@ type caseStep struct {
 	Update *caseUpdate `yaml:"update"`
 	Tick   *caseTick   `yaml:"tick"`
 	Delete *caseDelete `yaml:"delete"`
+	View   *caseView   `yaml:"view"`
 	Expect string      `yaml:"expect"`
 	// API sends the step through the JSON routes (/api/machines/...) instead of the form routes. Both end in the same
 	// guards, and a case that wants a refusal proved on both says so with a second, state-neutral step.
@@ -91,6 +92,16 @@ type caseUpdate struct {
 type caseTick struct {
 	Days int    `yaml:"days"`
 	Ref  string `yaml:"ref"`
+}
+
+// caseView opens a screen as the step's actor -- a route, with `$<step id>` filled -- and checks what it says: each of
+// Shows must appear in the answer and none of Hides may. It is how a screen capability is held to a case: what the
+// person reads, not how it is built. A string is matched against the HTML as sent, so `&` is written `&amp;`.
+// CASE_VIEW_DUMP=<dir> writes each viewed answer to <dir>/<step id>.html, to read what a failing check saw.
+type caseView struct {
+	Path  string   `yaml:"path"`
+	Shows []string `yaml:"shows"`
+	Hides []string `yaml:"hides"`
 }
 
 // caseDelete deletes the record an earlier step created.
@@ -136,7 +147,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 15, Steps: 15},
+	"case22_production_contracts": {Rejected: 0, Passed: 18, Steps: 18},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -290,6 +301,9 @@ func playCase(t *testing.T, pool any, dir string) caseReport {
 	app, err := metadata.LoadApplication(manifest)
 	if err != nil {
 		rep.Results = append(rep.Results, "NOT RUN: the case does not load: "+firstLine(err.Error()))
+		for _, line := range strings.Split(err.Error(), "\n")[1:] {
+			rep.Results = append(rep.Results, "         "+line)
+		}
 		return rep
 	}
 	rep.Loads = true
@@ -320,8 +334,10 @@ func scenarioProblem(sc caseScenario) string {
 			return fmt.Sprintf("step %s is taken by %q, who is not an actor", s.ID, s.As)
 		case s.Tick != nil && (s.As != "" || s.Expect != "ok"):
 			return fmt.Sprintf("step %s moves the clock; it takes no actor and expects ok", s.ID)
-		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil, s.Delete != nil) != 1:
-			return fmt.Sprintf("step %s must have exactly one of create, update, delete and tick", s.ID)
+		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil, s.Delete != nil, s.View != nil) != 1:
+			return fmt.Sprintf("step %s must have exactly one of create, update, delete, view and tick", s.ID)
+		case s.View != nil && (s.View.Path == "" || len(s.Record) > 0 || s.API):
+			return fmt.Sprintf("step %s views a screen: it names a path, and checks no record and takes no api", s.ID)
 		case s.Expect != "ok" && s.Expect != "refused":
 			return fmt.Sprintf("step %s expects %q; use ok or refused", s.ID, s.Expect)
 		}
@@ -614,6 +630,38 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		var code int
 		var machine, id string
 		var snapshot map[string]any
+		if s.View != nil {
+			path := subst(s.View.Path)
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookies[s.As]})
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if why := outcomeProblem(rec.Code, s.Expect); why != "" {
+				fail("%s %s", path, why)
+				continue
+			}
+			body, ok := rec.Body.String(), true
+			if dir := os.Getenv("CASE_VIEW_DUMP"); dir != "" {
+				os.WriteFile(filepath.Join(dir, s.ID+".html"), []byte(body), 0o644)
+			}
+			for _, want := range s.View.Shows {
+				if !strings.Contains(body, subst(want)) {
+					fail("%s does not show %q", path, subst(want))
+					ok = false
+				}
+			}
+			for _, not := range s.View.Hides {
+				if strings.Contains(body, subst(not)) {
+					fail("%s shows %q", path, subst(not))
+					ok = false
+				}
+			}
+			if ok {
+				passed++
+				lines = append(lines, "ok   "+s.ID)
+			}
+			continue
+		}
 		if s.Tick != nil {
 			machine, id = machineOf[s.Tick.Ref], recordOf[s.Tick.Ref]
 			if id == "" {

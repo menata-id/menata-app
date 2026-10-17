@@ -1688,8 +1688,23 @@ or a modal dialog.
   binding: { dataset: ds_tickets, rows: records }
 ```
 
-Each column's `from:` is a role the bound Dataset's Machine projects with `card_fields:` (`title`, `status`, `date`, `person`, ...);
-the loader refuses a role the Machine does not declare, the way it does for a Collection's item. `href: record` is the only address a
+Each column shows exactly one of two things. `from:` is a role the bound Dataset's Machine projects with `card_fields:` (`title`,
+`status`, `date`, `person`, ...) or a derived role (`created:label`, `date:label`, `group:label`); the loader refuses a role the
+Machine does not declare or cannot derive, the way it does for a Collection's item. **`field:` (2026-10-17) names one Field of the
+Machine by id**, so a list shows as many columns as the screen needs (a contract's number, party, category and value side by side):
+
+```yaml
+  columns:
+    - { header: Contract no., field: fld_contract_no, href: record }
+    - { header: Category, field: fld_category }           # a relation: the related record's label, never its id
+    - { header: Contract value, field: fld_value, align: end }   # money grouped: 180,000,000
+    - { header: Payment, field: fld_payment_status }       # a status: a badge toned from status_categories
+```
+
+The cell is the Field's value as the record's own page shows it. A relation or person Field is resolved for the listed records only,
+in one statement per related Machine. A Field the Machine does not have, and a `group` Field, are refused at load. **A status cell,
+by role or by Field, takes the tone `status_categories:` gives its option** (neutral without), the same tone the generic list and the
+record's own page draw; `from: {label: status, tone: "status:tone"}` gives a Collection's `StatusBadge` that tone too. `href: record` is the only address a
 cell may take and makes it a link to the record's own page. There are up to twelve columns. The cells are produced for you, so a Table holds no `children:`,
 and `headers` and `aligns` are never written. A Table is bound with `rows: records` only: a table of several Measures per Dimension
 (the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a window and claims nothing about completeness. **`stable`**: the
@@ -2350,7 +2365,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`). A Machine that is a *child* of another (a relation to it) and declares this plus a `title` card field is drawn on the parent's detail page as a **checklist** — "2 of 4", a completion circle per item, an add-item input — rather than a table (`mch_checklist_item`); declare nothing else |
-| `status_categories` | `{field: fld_*, values: {<option>: start\|active\|attention\|done\|stopped}}` | `field` must be a `status` field; each key one of its options; each value one of the five categories. Every state a `transitions:` edge on that Field starts or ends in must be categorised, and where `completion:` is declared on the same Field its `done` option is the one marked `done`. Read by the process map (not built yet); declare it on a Machine whose states someone will want drawn as a flow. Categories are business words, not colours |
+| `status_categories` | `{field: fld_*, values: {<option>: start\|active\|attention\|done\|stopped}}` | `field` must be a `status` field; each key one of its options; each value one of the five categories. Every state a `transitions:` edge on that Field starts or ends in must be categorised, and where `completion:` is declared on the same Field its `done` option is the one marked `done`. Every status badge takes its tone from it (the list, a page's Table, the record's own page); the process map will read it too. Categories are business words, not colours |
 | `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file\|comment\|container}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
 **There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until

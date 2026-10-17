@@ -193,6 +193,8 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 							{ GroupLabel(groups, toString(r.Values[f.ID])) }
 						} else if f.Type == domain.FieldTypeLongText {
 							@longText(toString(r.Values[f.ID]))
+						} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
+							@statusBadge(toString(r.Values[f.ID]), m.StatusTone(f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 						} else {
 							{ valueText(f, r.Values[f.ID]) }
 						}

@@ -4,6 +4,7 @@
 id: app_production_contracts
 name: Production Contracts
 machines:
+  - mch_category
   - mch_contract
   - mch_contract_term
   - mch_payment_plan
@@ -15,9 +16,27 @@ icon: file-text
 color: blue
 summary_machine: mch_contract
 navigation:
+  # The contract list as mockup K01b draws it: columns chosen by Field, a relation shown by its label, money grouped,
+  # the payment status in the tone its category gives it.
   - id: nav_contracts
     label: Contracts
-    route: /machines/mch_contract
+    route: /pages/nav_contracts
+    title: Contracts
+    page:
+      layout: stack
+      children:
+        - component: Table
+          label: Contracts
+          binding: { dataset: ds_contracts, rows: records }
+          columns:
+            - { header: Contract no., field: fld_contract_no, href: record }
+            - { header: Contracted party, field: fld_party_name }
+            - { header: Category, field: fld_category }
+            - { header: Contract value, field: fld_value, align: end }
+            - { header: Payment, field: fld_payment_status }
+  - id: nav_categories
+    label: Categories
+    route: /machines/mch_category
   - id: nav_instalments
     label: Instalments
     route: /machines/mch_contract_term

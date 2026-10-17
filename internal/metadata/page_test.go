@@ -1347,3 +1347,38 @@ func TestPage_anApplicationPageMayLinkToTheWorkspacesPagesButNotToAnotherApplica
 		t.Errorf("a link into another Application: %v, want a refusal naming it", err)
 	}
 }
+
+// TestTableColumnsNameFieldsAndDerivedRoles: a Table column may name any Field of the Dataset's Machine (a relation
+// too, resolved by the ids listed), and a derived role is a column like any other -- but a Field the Machine does not
+// have, a group Field, and a derived role the Machine has nothing to derive it from are refused at load, each by name.
+func TestTableColumnsNameFieldsAndDerivedRoles(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{
+		{ID: "fld_title", Type: domain.FieldTypeText},
+		{ID: "fld_party", Type: domain.FieldTypeRelation, RelatedMachine: "mch_party"},
+		{ID: "fld_team", Type: domain.FieldTypeGroup},
+	}, CardFields: []domain.CardField{{Field: "fld_title", Role: domain.CardFieldRoleTitle}}}
+	ds := domain.Dataset{ID: "ds_a", Source: "mch_x", Select: domain.SelectRecords}
+	run := func(cols ...domain.PageColumn) string {
+		table := domain.PageNode{Kind: "component", Type: "Table", Columns: cols,
+			Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords}}
+		return strings.Join(bindingIssues(table, map[string]domain.Dataset{"ds_a": ds}, map[string]*domain.Machine{"mch_x": m}, nil, "w"), "\n")
+	}
+	if got := run(domain.PageColumn{Header: "T", Field: "fld_title"}, domain.PageColumn{Header: "P", Field: "fld_party"},
+		domain.PageColumn{Header: "C", From: domain.PageCreatedLabelRole}, domain.PageColumn{Header: "Title", From: "title"}); got != "" {
+		t.Errorf("fields, a relation and a derived role were refused: %s", got)
+	}
+	for name, tc := range map[string]struct {
+		col  domain.PageColumn
+		want string
+	}{
+		"an unknown Field":         {domain.PageColumn{Header: "X", Field: "fld_nope"}, "has no such Field"},
+		"a group Field":            {domain.PageColumn{Header: "X", Field: "fld_team"}, "group Field"},
+		"a status tone, no status": {domain.PageColumn{Header: "X", From: domain.PageStatusToneRole}, "no card_fields role \"status\""},
+		"a date, no date role":     {domain.PageColumn{Header: "X", From: domain.PageDateLabelRole}, "no card_fields role \"date\""},
+		"an undeclared role":       {domain.PageColumn{Header: "X", From: "subtitle"}, "declares no card_fields role \"subtitle\""},
+	} {
+		if got := run(tc.col); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}
