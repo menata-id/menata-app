@@ -85,3 +85,14 @@ func TestEqualsReadsALargeFigureInFull(t *testing.T) {
 		t.Error("not_equals 180000000 matched a stored 180000000")
 	}
 }
+
+// TestContainsIgnoresCaseAndNeedsAValue: `contains` finds words in text whatever their case, and an absent Field
+// contains nothing -- the Go twin of the ILIKE internal/data runs, so a Measure and a Dataset agree.
+func TestContainsIgnoresCaseAndNeedsAValue(t *testing.T) {
+	c := Comparison{Field: "fld_party", Op: OpContains, Value: "reza"}
+	for v, want := range map[any]bool{"Reza Anggara": true, "MUHAMMAD REZA": true, "Dimas": false, nil: false} {
+		if got := c.Evaluate(map[string]any{"fld_party": v}); got != want {
+			t.Errorf("contains %q in %v = %v, want %v", c.Value, v, got, want)
+		}
+	}
+}

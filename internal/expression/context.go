@@ -144,6 +144,11 @@ func KnownSentinel(value string) bool {
 	return strings.HasPrefix(value, SentinelParameterPrefix) && len(value) > len(SentinelParameterPrefix)
 }
 
+// IsParameter reports whether value is a `$parameters.<name>`: a value the page's own request supplies.
+func IsParameter(value string) bool {
+	return strings.HasPrefix(value, SentinelParameterPrefix) && len(value) > len(SentinelParameterPrefix)
+}
+
 // Resolve turns a declared value into the one to compare against. A non-sentinel is returned
 // unchanged, so every existing declaration keeps its exact meaning.
 //

@@ -352,9 +352,11 @@ const PageCreatedLabelRole = "created:label"
 // dimension rows: it is the one with an `item` slot, so a list of already-composed items is exactly what a record
 // set is, and what a Dimension's groups are when each needs more than one figure (a bar of open out of all).
 var BindableComponents = map[ComponentType][]string{
-	ComponentMetric:     {PageRowsDimension, PageRowsTotal},
-	ComponentCollection: {PageRowsRecords, PageRowsDimension},
-	ComponentTable:      {PageRowsRecords},
+	ComponentFilterChips:  {PageRowsDimension},
+	ComponentFilterSelect: {PageRowsDimension},
+	ComponentMetric:       {PageRowsDimension, PageRowsTotal},
+	ComponentCollection:   {PageRowsRecords, PageRowsDimension},
+	ComponentTable:        {PageRowsRecords},
 }
 
 // TransitionAllRoute is the runtime's route for a `write: transition` Binding with `all: true`: the Machine, the Dataset

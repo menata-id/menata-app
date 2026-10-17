@@ -416,6 +416,8 @@ type navItemDoc struct {
 	Page *pageNodeDoc `yaml:"page"`
 	// OpenTo -- see domain.NavigationItem.OpenTo. Optional; only on a Workspace page.
 	OpenTo string `yaml:"open_to"`
+	// InMenu -- see domain.NavigationItem.NotInMenu. Optional; absent means true.
+	InMenu *bool `yaml:"in_menu"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -780,6 +782,15 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 	if !showNav {
 		navigation = nil
 	}
+	// An item declared `in_menu: false` is a screen reached from another one (a form a page's action opens), so it
+	// leaves the menu and keeps its route, by the same freeze: AllNavigation still resolves it by id.
+	var inMenu []domain.NavigationItem
+	for _, item := range navigation {
+		if !item.NotInMenu {
+			inMenu = append(inMenu, item)
+		}
+	}
+	navigation = inMenu
 
 	var workflow *domain.Workflow
 	if doc.Workflow != nil {
@@ -945,6 +956,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			SettingsHubMember: n.SettingsHubMember,
 			Page:              page,
 			OpenTo:            n.OpenTo,
+			NotInMenu:         n.InMenu != nil && !*n.InMenu,
 		})
 	}
 	return items
@@ -1201,6 +1213,10 @@ func relationWhereIssues(child *domain.Machine, where *expression.Predicate) []s
 			continue
 		}
 		if msg := emptyComparisonIssue(c); msg != "" {
+			issues = append(issues, msg)
+			continue
+		}
+		if msg := containsIssue(f, c); msg != "" {
 			issues = append(issues, msg)
 			continue
 		}

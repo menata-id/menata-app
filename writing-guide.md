@@ -1128,6 +1128,7 @@ Navigation item keys:
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
 | `page` | node tree | Optional (2026-10-07): declares the screen's **body**, so no Go renders it. The `route` must then be `/pages/<this id>`. See **`page:` — declaring a screen's body** below |
+| `in_menu` | bool | Optional (2026-10-17), default `true`. `false` keeps the item out of the Application's menu while its route stays valid and `to:` still resolves it: a screen another screen opens, such as the "New contract" form behind a list's action |
 
 **Icon names** (`domain.KnownIcons`, drawn by `internal/rendering/icons.templ`). A name, never a
 glyph or a path: metadata says *which* icon, the runtime says how it is drawn, so the whole set is
@@ -1272,6 +1273,9 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
 | `NavList` | stable | Declared by the runtime's own page for Groups, installed in every Workspace |
 | `SearchBox` | stable | Declared by the runtime's own page for Members, installed in every Workspace |
+| `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
+| `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
+| `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `Popover` | experimental | No installed `page:` declares one yet: the record page's "..." menu and the board header's "New <machine>" form draw it in Go, and no declared screen has a menu |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
@@ -1390,6 +1394,28 @@ empty value cannot, because an absent Field is not the empty string. An ordered 
 an empty Field, so "overdue" needs no `is_empty` guard, and "later" -- undated, or due past the window -- is
 `any: [{field: fld_due_date, op: is_empty}, {field: fld_due_date, op: gt, value: $today+7}]` beside the `all:` that
 names whose and whether open (the four `ds_my_tasks_*` Datasets in `task.yaml`).
+
+**`contains` and `optional: true` — a list people search and filter (2026-10-17).** `op: contains` holds when a text Field
+holds the words, ignoring case (`reza` finds "Reza Anggara"); it is for `text`/`long_text` Fields, and a `%` or `_` in the
+words is matched as itself, never as a pattern. A comparison on a records Dataset whose value is a `$parameters.<name>` may
+say **`optional: true`**: when the request does not send the parameter, or sends it empty, the comparison is left out --
+so the "All" chip and an empty search box list everything. Without `optional`, an absent parameter still lists nothing
+(fail closed). The usual shape is one optional `equals` per filter and one `any:` of optional `contains` for the search:
+
+```yaml
+- id: ds_contracts
+  select: records
+  where:
+    all:
+      - { field: fld_contract_kind, op: equals, value: $parameters.kind, optional: true }
+      - { field: fld_category, op: equals, value: $parameters.category, optional: true }
+    any:
+      - { field: fld_contract_no, op: contains, value: $parameters.q, optional: true }
+      - { field: fld_party_name, op: contains, value: $parameters.q, optional: true }
+  limit: 100
+```
+
+`optional` on a Measure, or on a value that is not a `$parameters.<name>`, is a load error.
 
 **`rows: records` — a list of a Machine's records.** A `component: Collection` may carry
 `binding: {dataset: ds_x, rows: records}` and **exactly one child**, the item template. The template is cloned once
@@ -1709,6 +1735,55 @@ cell may take and makes it a link to the record's own page. There are up to twel
 and `headers` and `aligns` are never written. A Table is bound with `rows: records` only: a table of several Measures per Dimension
 (the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a window and claims nothing about completeness. **`stable`**: the
 Helpdesk's All tickets page declares one.
+
+**`component: ActionBar`** (2026-10-17) is a page's primary actions, named as a group. Put it at the root of the page and it
+is drawn in the header row, opposite the heading; its links may take `variant: primary` (or `secondary`) to look like a
+button while staying a link:
+
+```yaml
+- component: ActionBar
+  label: Contract actions          # the group's accessible name: required
+  children:
+    - static: link
+      to: nav_new_contract         # a navigation item, usually one with in_menu: false
+      text: + New contract
+      variant: primary
+```
+
+**`component: FilterChips`** and **`component: FilterSelect`** (2026-10-17) are a list's filters: chips that count what
+each would list ("All 9 · Cast 3 · Crew 3"), and a drop-down for a Dimension with too many values to be chips ("All
+categories"). Both are bound to an aggregate Dataset's Dimension, so a choice exists for what the data holds and its count
+is the database's; both set one query parameter, which the list's Dataset reads with `optional: true` (above):
+
+```yaml
+- layout: row
+  gap: tight
+  children:
+    - component: FilterChips
+      label: Contract type            # the group's accessible name: required
+      query: kind                     # the parameter each chip sets
+      all: All                        # the chip that clears it, counting every record
+      binding: { dataset: ds_contracts_by_kind, measure: msr_contracts_by_kind, rows: dimension }
+    - component: FilterChips          # a second row of one chip: a subset of a Dimension, in your order
+      label: Payment
+      query: payment
+      options: Overdue=Overdue
+      binding: { dataset: ds_contracts_by_payment, measure: msr_contracts_by_payment, rows: dimension }
+    - component: SearchBox
+      label: Search contracts
+      query: q
+      placeholder: Search name or number
+    - component: FilterSelect
+      label: Category
+      query: category
+      all: All categories             # required: a filter you cannot clear is a trap
+      binding: { dataset: ds_contracts_by_category, measure: msr_contracts_by_category, rows: dimension }
+```
+
+**Every filter keeps the others**: a chip's link, the drop-down's form and the search box carry the request's other
+parameters, so choosing "Crew" keeps the words in the search box and a search keeps the chip. A relation Dimension is
+named by the related records' titles and sends the id. `chips`, `choices`, `selected` and `keep` are produced from the
+binding and the request and are never written.
 
 **`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one
 marked. `label` names the group for assistive technology, `query` is the query parameter the choice travels in,
@@ -2515,7 +2590,7 @@ shows for it with no code edit.
 | Services | `log_activity` `rollup_parent_status` `send_notification` | `registry.Services` |
 | Schedule triggers | `overdue` | `domain.KnownScheduleWhens` |
 | Notification preference keys | `assigned` `decided` `sla_breach` | `domain.KnownNotificationPreferenceKeys` |
-| Comparison operators | `equals` `not_equals` `is_empty` `lt` `lte` `gt` `gte` | `expression.KnownOps` |
+| Comparison operators | `equals` `not_equals` `is_empty` `lt` `lte` `gt` `gte` `contains` | `expression.KnownOps` |
 | Navigation badges | `approval_inbox_pending` | `domain.KnownNavigationBadges` |
 
 Every one of these is a deliberate static seam (007 §14). Writing a value outside the set fails the

@@ -4,6 +4,7 @@ fields:
   - { id: fld_contract_no, name: Contract no., type: text, required: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_value, name: Contract value, type: money, required: true }
+  - { id: fld_contract_kind, name: Type, type: status, default: Cast, options: [Cast, Crew, Item] }
   - { id: fld_category, name: Category, type: relation, machine: mch_category }
   - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
 card_fields:
@@ -15,7 +16,26 @@ status_categories:
   field: fld_payment_status
   values: { In progress: active, Overdue: attention, Settled: done }
 datasets:
+  # The list's filters are optional request parameters: a chip, the category drop-down and the search box each narrow it
+  # when the request sends one, and "All" (no parameter) lists every contract instead of none.
   - id: ds_contracts
     select: records
+    where:
+      all:
+        - { field: fld_contract_kind, op: equals, value: $parameters.kind, optional: true }
+        - { field: fld_payment_status, op: equals, value: $parameters.payment, optional: true }
+        - { field: fld_category, op: equals, value: $parameters.category, optional: true }
+      any:
+        - { field: fld_contract_no, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_party_name, op: contains, value: $parameters.q, optional: true }
     sort: [{ field: fld_contract_no }]
     limit: 100
+  - id: ds_contracts_by_kind
+    dimension: fld_contract_kind
+    measures: [{ id: msr_contracts_by_kind, aggregate: count }]
+  - id: ds_contracts_by_payment
+    dimension: fld_payment_status
+    measures: [{ id: msr_contracts_by_payment, aggregate: count }]
+  - id: ds_contracts_by_category
+    dimension: fld_category
+    measures: [{ id: msr_contracts_by_category, aggregate: count }]

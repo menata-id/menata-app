@@ -70,13 +70,14 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 			return bindingRecords(ctx, l, viewer, params, now, b)
 		},
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
-			return bindingForm(l, viewer, b)
+			return bindingForm(ctx, l, viewer, b)
 		},
 		Action: func(b domain.PageBinding, recordID string) (ir.FormSpec, error) {
 			return bindingAction(ctx, l, viewer, b, recordID)
 		},
 		Navigation: navigationSection,
 		Query:      func(name string) string { return params[name] },
+		Params:     func() map[string]string { return params },
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {
 			return bindingTransitionAll(ctx, l, viewer, params, now, b, becomes)
 		},
@@ -111,7 +112,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 // `Permitted` is the viewer's `create` Permission evaluated against no record (there is none yet), so a
 // Permission that depends on a record's own Field answers false and the form is hidden: fail closed. The create
 // route evaluates the real values and refuses on its own, which is why this is courtesy and not the enforcement.
-func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
+func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return ir.FormSpec{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -121,11 +122,40 @@ func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormS
 		return ir.FormSpec{}, fmt.Errorf("composition: dataset %q names machine %q, which this Workspace does not install", b.Dataset, ds.Source)
 	}
 	inputs, _ := src.CreateFormInputs()
+	if err := fillChoices(ctx, l, src, inputs); err != nil {
+		return ir.FormSpec{}, err
+	}
 	return ir.FormSpec{
 		Route:     domain.FormRoute(src.ID),
 		Permitted: authorization.AllowsAction(src, domain.ActionCreate, nil, viewer),
 		Inputs:    inputs,
 	}, nil
+}
+
+// fillChoices gives each reference select of a form its records: the related Machine's records by their labels, and the
+// Workspace's members by name -- read once per related Machine through the picker's own reader (RelationOptions), so a
+// page's form offers what the generic create form offers. Nothing is read for a form with no reference Field.
+func fillChoices(ctx context.Context, l *Loader, src *domain.Machine, inputs []domain.FormInput) error {
+	needs := false
+	for _, in := range inputs {
+		needs = needs || in.Reference != ""
+	}
+	if !needs {
+		return nil
+	}
+	options, err := l.RelationOptions(ctx, src)
+	if err != nil {
+		return err
+	}
+	for i, in := range inputs {
+		if in.Reference == "" {
+			continue
+		}
+		for _, o := range options[in.Reference] {
+			inputs[i].Choices = append(inputs[i].Choices, domain.FormChoice{Value: o.ID, Label: o.Label})
+		}
+	}
+	return nil
 }
 
 // bindingRecords is one records Binding: each record of the Dataset, as its Machine's own Projection roles,
@@ -150,7 +180,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	// page's `empty:` words are what the viewer sees, so an author writes them for this case too.
 	where := expression.Context{CurrentUser: viewerID, Parameters: params, Today: now.Format("2006-01-02")}
 	for _, c := range ds.Where.Comparisons() {
-		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional {
 			if _, ok := where.Resolve(c.Value); !ok {
 				return ir.RecordSet{}, nil
 			}
@@ -721,7 +751,7 @@ func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, p
 	}
 	where := expression.Context{CurrentUser: viewer.ID, Parameters: params, Today: now.Format("2006-01-02")}
 	for _, c := range ds.Where.Comparisons() {
-		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional {
 			if _, ok := where.Resolve(c.Value); !ok {
 				return src, target, nil, nil
 			}

@@ -28,7 +28,7 @@ var segmentedControlExempt = map[string]struct {
 	n   int
 	why string
 }{
-	"approvalinbox.templ": {1, "filterChip: a pill with a count, one per SLA filter; the active one is marked for assistive technology (gap-plan P3a). Folding it into the control would change its look and its count"},
+	"filter.templ": {1, "filterChipLink: a pill with a count, one per filter (the Approval Inbox's SLA chips, gap-plan P3a, and every declared FilterChips); the active one is marked for assistive technology. Folding it into the control would change its look and its count"},
 }
 
 func TestNoHandWrittenSegmentedControl(t *testing.T) {

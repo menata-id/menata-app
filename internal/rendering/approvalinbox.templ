@@ -382,17 +382,7 @@ func activeFilterKey(filters []FilterChip) string {
 // carries no query of its own yet; "&status=" on Assigned's, whose route already carries
 // "?tab=assigned" and must keep it).
 templ filterChip(f FilterChip, hrefPrefix string) {
-	<a
-		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
-		if f.Active {
-			aria-current="true"
-		}
-		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1", textClass(ctx, domain.RoleMeta),
-			templ.KV(inkEdgeClass(ctx) + " " + inkFillClass(ctx, domain.InkStrong) + " " + onFillClass(ctx), f.Active),
-			templ.KV(borderClass(ctx, domain.BorderControl)+" " + inkClass(ctx, domain.InkSecondary) + " " + accentEdgeHoverClass(ctx), !f.Active) }
-	>
-		{ f.Label } ({ fmt.Sprint(f.Count) })
-	</a>
+	@filterChipLink(f.Label, fmt.Sprint(f.Count), hrefPrefix+url.QueryEscape(f.Key), f.Active)
 }
 
 // pendingApprovalCard renders one PendingApprovalCard -- board 07's own grid card. A plain

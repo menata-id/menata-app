@@ -257,6 +257,10 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 		if item.SettingsHub || item.SettingsHubMember {
 			continue
 		}
+		// A screen another screen opens (`in_menu: false`, a form behind a list's "New" action) is not a menu entry.
+		if item.NotInMenu {
+			continue
+		}
 		filtered = append(filtered, item)
 	}
 

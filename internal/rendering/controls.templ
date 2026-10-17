@@ -134,6 +134,12 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 	}
 }
 
+// linkButton is a `static: link` declared with a `variant:`: a link that is an action ("New contract" opens the form),
+// drawn with the button's look so it reads as one, and still an <a> so it opens like a link.
+templ linkButton(label, href string, variant domain.ButtonVariant) {
+	<a href={ templ.URL(href) } class={ buttonClasses(ctx, variant) }>{ label }</a>
+}
+
 // button is the registered renderer for `domain.ComponentButton`: a real `<button type="submit">` with a
 // label and, optionally, the native name/value pair it posts. **Its signature is the contract's teeth** -- four
 // strings and a closed variant, no `any` to parse and no attribute map to pass `hx-*` through, which is what
@@ -240,8 +246,8 @@ templ formInput(id, name, kind, options, value string, required bool) {
 		case domain.InputSelect:
 			<select id={ id } name={ name } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
-				for _, opt := range strings.Split(options, domain.InputOptionsSep) {
-					<option value={ opt } selected?={ opt == value }>{ opt }</option>
+				for _, opt := range selectOptions(options) {
+					<option value={ opt.Value } selected?={ opt.Value == value }>{ opt.Label }</option>
 				}
 			</select>
 		case domain.InputMultiSelect:
@@ -266,6 +272,23 @@ templ formInput(id, name, kind, options, value string, required bool) {
 		default:
 			<input id={ id } type="text" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
 	}
+}
+
+// selectOptions decodes a select's `options`: one per line, either a status option (its own label) or a reference
+// choice, a stored id and the words it is shown by, separated by domain.InputChoiceSep. A blank line is no option.
+func selectOptions(options string) []multiSelectOption {
+	var out []multiSelectOption
+	for _, opt := range strings.Split(options, domain.InputOptionsSep) {
+		if opt == "" {
+			continue
+		}
+		v, label, _ := strings.Cut(opt, domain.InputChoiceSep)
+		if label == "" {
+			label = v
+		}
+		out = append(out, multiSelectOption{Value: v, Label: label})
+	}
+	return out
 }
 
 // multiSelectOption is one choice of a multiselect Input: the value the request carries, the words beside the box,

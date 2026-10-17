@@ -198,9 +198,16 @@ type relationDoc struct {
 // purpose: a bare field/op/value, which is what every filter in this repo already writes and what
 // 007 §7.7 keeps valid as syntax sugar, or an `all:` list when more than one must hold, with an `any:` list beside it when one of several must.
 type predicateDoc struct {
+	filterDoc `yaml:",inline"`
+	All       []filterDoc `yaml:"all"`
+	Any       []filterDoc `yaml:"any"`
+}
+
+// filterDoc is one comparison of a `where:`, which -- unlike a constraint's condition -- may be `optional: true`:
+// expression.Comparison.Optional, valid only on a records Dataset comparing against a `$parameters.<name>`.
+type filterDoc struct {
 	comparisonDoc `yaml:",inline"`
-	All           []comparisonDoc `yaml:"all"`
-	Any           []comparisonDoc `yaml:"any"`
+	Optional      bool `yaml:"optional"`
 }
 
 // predicate lowers the doc into the one representation, so a single comparison and a one-element
@@ -210,16 +217,16 @@ func (d *predicateDoc) predicate() *expression.Predicate {
 	if d == nil {
 		return nil
 	}
-	lower := func(docs []comparisonDoc) []expression.Comparison {
+	lower := func(docs []filterDoc) []expression.Comparison {
 		var out []expression.Comparison
 		for _, c := range docs {
-			out = append(out, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value})
+			out = append(out, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value, Optional: c.Optional})
 		}
 		return out
 	}
 	out := &expression.Predicate{All: lower(d.All), Any: lower(d.Any)}
-	if len(out.All) == 0 && (d.Field != "" || d.Op != "" || d.Value != "") {
-		out.All = lower([]comparisonDoc{d.comparisonDoc})
+	if len(out.All) == 0 && (d.Field != "" || d.Op != "" || d.Value != "" || d.Optional) {
+		out.All = lower([]filterDoc{d.filterDoc})
 	}
 	if len(out.All) == 0 && len(out.Any) == 0 {
 		return nil

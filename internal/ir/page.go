@@ -320,6 +320,9 @@ type Resolver struct {
 	// Query answers a SearchBox: the words the request carried under a query parameter, "" when none. Nil is the load-time
 	// placeholder, for which there is no request.
 	Query func(name string) string
+	// Params answers what a filter keeps: every parameter the request carried, so a chip, a drop-down and a search box
+	// change their own parameter and leave the others. Nil is the load-time placeholder, which has no request.
+	Params func() map[string]string
 	// TransitionAll answers a `write: transition` Button with `all: true`: where the request goes and how many records
 	// of the Dataset the viewer could move to the status `becomes` names (the Machine's `completion:` already applied
 	// to `$done`/`$reopen`). A count of none is the Button not being drawn.
@@ -458,6 +461,12 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentSearchBox) {
 		return lowerSearchBox(n, r, path)
+	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentFilterChips) {
+		return lowerFilterChips(n, r, path)
+	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentFilterSelect) {
+		return lowerFilterSelect(n, r, path)
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteAction {
 		return lowerAction(n, r, path, record)
@@ -723,6 +732,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 			return nil, fmt.Errorf("%s: list_of: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
 		}
 		return props, nil
+	}
+	if v, ok := n.Props["variant"]; ok && !domain.KnownLinkVariants[domain.ButtonVariant(v)] {
+		return nil, fmt.Errorf("%s: variant: %q -- a link is drawn as a link, or as a primary or secondary button", path, v)
 	}
 	if _, written := n.Props["href"]; written {
 		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id>, list_of: <dataset id> or, inside a record template, from: {href: %s}; never a typed href -- a route is declared once (001 #3, #8)", path, domain.PageRecordRole)
@@ -1593,8 +1605,10 @@ func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error
 	if len(n.Children) > 0 || n.Binding != nil || len(n.From) > 0 {
 		return nil, fmt.Errorf("%s: a SearchBox takes a label, a query and a placeholder and nothing else", path)
 	}
-	if _, written := n.Props["value"]; written {
-		return nil, fmt.Errorf("%s: value: is the words the request carried, produced by lowering, and is never written", path)
+	for _, p := range []string{"value", "keep"} {
+		if _, written := n.Props[p]; written {
+			return nil, fmt.Errorf("%s: %s: is produced by lowering from the request, and is never written", path, p)
+		}
 	}
 	if _, written := n.Props["action"]; written {
 		return nil, fmt.Errorf("%s: a SearchBox goes to a destination with to: <navigation item id>, never a typed action -- a route is declared once (001 #3, #8)", path)
@@ -1619,6 +1633,10 @@ func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error
 	} else if r.Query != nil && param != "" {
 		// A box that sends its words elsewhere does not carry the ones this request had: they were for this page.
 		props["value"] = r.Query(param)
+		// Nor the page's filters; on this page, a search keeps the chip and the drop-down it was typed under.
+		if keep := keepQuery(r, param); keep != "" {
+			props["keep"] = keep
+		}
 	}
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentSearchBox), Props: props}}, nil
 }
@@ -1743,6 +1761,13 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		}
 		if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
 			ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)
+		}
+		if in.Reference != "" {
+			lines := make([]string, 0, len(in.Choices))
+			for _, c := range in.Choices {
+				lines = append(lines, c.Value+domain.InputChoiceSep+c.Label)
+			}
+			ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
 		}
 		form.Children = append(form.Children, UINode{
 			Kind: NodeComponent, Type: string(domain.ComponentField),

@@ -193,7 +193,30 @@ const (
 	// hunk header, context), or a sentence saying nothing would change. The colours are the Theme's tones and the text is whatever the
 	// writer produced; the Component reads neither a file nor a record.
 	ComponentDiff ComponentType = "Diff"
+
+	// ComponentFilterChips is a row of filter chips over one query parameter, each counting the records it would list
+	// (mockup K01b: "All 9 · Cast 3 · Crew 3 · Item 3"). The chips and their counts are a Dimension's rows of an aggregate
+	// Dataset (`binding: {dataset, measure, rows: dimension}`), so a chip exists for what the data holds and the count is
+	// the database's; `options:` may name a subset in its own order, and `all:` adds the chip that clears the parameter.
+	// Each chip is a link that keeps the request's other parameters (a search, another filter), and the selected one is
+	// marked with aria-current. It narrows nothing itself: the list's Dataset reads the parameter (`optional: true`).
+	ComponentFilterChips ComponentType = "FilterChips"
+
+	// ComponentFilterSelect is the same choice as a drop-down, for a Dimension with too many values to be chips (mockup
+	// K01b's "All categories"): a GET form with one <select> over the Dimension's rows -- a relation's records named by
+	// their titles -- and an `all:` choice that clears it. It keeps the request's other parameters as hidden inputs, and
+	// submits on change, with a button for a browser without script.
+	ComponentFilterSelect ComponentType = "FilterSelect"
+
+	// ComponentActionBar is a page's primary actions (007 §12.3 `ActionBar`): "+ New contract" beside the heading of
+	// mockup K01b. It holds links and Buttons; at the root of a page it is drawn in the page's header row, opposite the
+	// heading, which is where a person looks for what they can do on the screen. Anywhere else it is a row of actions.
+	ComponentActionBar ComponentType = "ActionBar"
 )
+
+// KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action
+// ("New contract" opens the form). Empty is a plain link.
+var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecondary: true}
 
 // SearchParamsReserved are the query names a SearchBox may not use: the runtime owns them (the Application a page is
 // drawn in, a record page's id, the calendar's week).

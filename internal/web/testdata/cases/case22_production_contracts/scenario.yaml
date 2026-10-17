@@ -51,6 +51,76 @@ steps:
     record: { fld_term_status: Overdue }
     count: { machine: mch_contract, where: { fld_payment_status: Overdue }, equals: 1 }
 
+  - id: crew-contract
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/K/031, fld_party_name: Dimas Prayoga, fld_value: "84000", fld_contract_kind: Crew } }
+    expect: ok
+
+  # Search, chips and the category drop-down (K01b): each narrows by an optional parameter, keeps the others, and an
+  # unset one lists everything.
+  - id: chips-count-and-all-lists-everything
+    as: silvia
+    view:
+      path: /pages/nav_contracts
+      shows: ['aria-current="true"', ">All", ">2<", ">Cast", ">Crew", ">Overdue", "Reza Anggara", "Dimas Prayoga", ">All categories</option>", ">Lead Cast</option>"]
+    expect: ok
+  - id: search-finds-by-party-ignoring-case
+    as: silvia
+    view:
+      path: /pages/nav_contracts?q=REZA
+      shows: ["Reza Anggara", 'value="REZA"', "?kind=Crew&amp;q=REZA"]
+      hides: ["Dimas Prayoga"]
+    expect: ok
+  - id: search-finds-by-number
+    as: silvia
+    view:
+      path: /pages/nav_contracts?q=K/031
+      shows: ["Dimas Prayoga"]
+      hides: ["Reza Anggara"]
+    expect: ok
+  - id: a-wildcard-is-searched-as-itself
+    as: silvia
+    view:
+      path: /pages/nav_contracts?q=%25
+      hides: ["Reza Anggara", "Dimas Prayoga"]
+    expect: ok
+  - id: a-chip-narrows-and-keeps-the-search
+    as: silvia
+    view:
+      path: /pages/nav_contracts?kind=Crew
+      shows: ["Dimas Prayoga", 'name="kind" value="Crew"']
+      hides: ["Reza Anggara"]
+    expect: ok
+  - id: the-overdue-chip
+    as: silvia
+    view:
+      path: /pages/nav_contracts?payment=Overdue
+      shows: ["Reza Anggara"]
+      hides: ["Dimas Prayoga"]
+    expect: ok
+  - id: the-category-drop-down
+    as: silvia
+    view:
+      path: /pages/nav_contracts?category=$lead-cast
+      shows: ["Reza Anggara", "selected>Lead Cast</option>"]
+      hides: ["Dimas Prayoga"]
+    expect: ok
+
+  # The list's primary action opens the form, which offers the categories by name (a relation in a page form).
+  - id: new-contract-action-and-form
+    as: silvia
+    view:
+      path: /pages/nav_new_contract
+      shows: ['name="fld_category"', ">Lead Cast</option>", "Save contract"]
+    expect: ok
+  - id: the-action-sits-in-the-header
+    as: silvia
+    view:
+      path: /pages/nav_contracts
+      shows: ['role="group" aria-label="Contract actions"', 'href="/pages/nav_new_contract"', ">+ New contract</a>"]
+      hides: [">New contract<"]
+    expect: ok
+
   # The contract list (K01b): the columns the page names by Field, the category by its label and not its id, money
   # grouped, and Overdue in the attention tone status_categories gives it -- the same tone the generic list draws.
   - id: contract-list-columns
@@ -58,7 +128,7 @@ steps:
     view:
       path: /pages/nav_contracts
       shows: [CTR/C/026, Reza Anggara, Lead Cast, ">180,000<", 'text-tone-warn-ink">Overdue<']
-      hides: [$lead-cast, fld_category]
+      hides: [">$lead-cast<", fld_category]
     expect: ok
 
   # A plan that is only submitted says nothing about its instalment: Overdue stays (K-15).

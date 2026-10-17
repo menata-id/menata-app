@@ -261,6 +261,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   (`static: link` takes `to:` / `list_of:` / `from: {href: record}`, never a typed `href`),
   `TestNoPageClaimsCompletenessOverAWindow`, `TestEveryInstalledFormNamesNoRouteOrField`,
   `TestHandWrittenCreateFormsOnlyShrink`, `TestEveryInstalledButtonIsADeclaredRecordWrite` (delete/move/transition).
+  A list screen's vocabulary (2026-10-17): Table `columns: [{field: fld_x}]`, `where:` `contains` + `optional: true`,
+  `FilterChips`/`FilterSelect` (dimension-bound), `ActionBar` (lifted into the header), link `variant:`, nav `in_menu: false`.
   Board Settings is the first migrated screen. Never claim "screen X is declarative" without checking it is a `page:`.
 - **UI IR & placeholders**: `ir.TestValidateRejectsAllFiveMandatoryFaults`, `TestValidateAcceptsTheHeaderTree`,
   `TestValidateRefusesUnknownTypes`; `TestDeclaredPlaceholdersStayDeclared`, `TestPlaceholderDocsClaimNoContent`

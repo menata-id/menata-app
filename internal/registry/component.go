@@ -64,6 +64,128 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentNavList:          {Contract: navListContract, Validate: validateNavList},
 	domain.ComponentSearchBox:        {Contract: searchBoxContract, Validate: validateSearchBox},
 	domain.ComponentDiff:             {Contract: diffContract, Validate: validateDiff},
+	domain.ComponentFilterChips:      {Contract: filterChipsContract, Validate: validateFilterChips},
+	domain.ComponentFilterSelect:     {Contract: filterSelectContract, Validate: validateFilterSelect},
+	domain.ComponentActionBar:        {Contract: actionBarContract, Validate: validateActionBar},
+}
+
+// actionBarContract is a page's primary actions. `label` names the group for assistive technology ("Contract actions");
+// the actions are its children, links and Buttons, each already its own contract.
+var actionBarContract = domain.ComponentContract{
+	Type:   domain.ComponentActionBar,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+	},
+	Slots:         []string{"actions"},
+	Accessibility: "a group (role=group) named by `label`, holding real links and buttons in reading order",
+	Renderer:      "actionBar",
+}
+
+func validateActionBar(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(actionBarContract, inputs, "ActionBar")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "ActionBar label is blank -- the group's only accessible name")
+	}
+	return issues
+}
+
+// filterChipsContract is a row of counted filter chips over one query parameter.
+//
+// `label` names the group (required: a row of links with no name is a list nobody can find), `query` the parameter the
+// chips set, `options` an optional subset of the Dimension's values in the order they are drawn (`value=Label` lines),
+// and `all` the words of the chip that clears the parameter. `chips` is what lowering produced from the bound Dimension
+// and the request -- one line per chip, its label, count, address and whether it is the current one -- and is never
+// written. What the contract forces that a reviewer would not have asked for: every chip is a link that keeps the
+// request's other parameters, so choosing "Crew" does not throw away the words in the search box.
+var filterChipsContract = domain.ComponentContract{
+	Type:   domain.ComponentFilterChips,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+		{Name: "options", Kind: "string"},
+		{Name: "all", Kind: "string"},
+		{Name: "chips", Kind: "string"},
+	},
+	DataRequirements: []string{"an aggregate Dataset with a dimension and a measure: `binding: {dataset, measure, rows: dimension}`"},
+	Accessibility:    "a <nav> named by `label` holding one link per chip; the chip the request selected is a <span aria-current=\"true\">, and each chip's count is part of its text, so it is read with the label",
+	Renderer:         "filterChips",
+}
+
+func validateFilterChips(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(filterChipsContract, inputs, "FilterChips")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "FilterChips label is blank -- the group's only accessible name")
+	}
+	issues = append(issues, filterQueryIssues("FilterChips", inputs["query"])...)
+	for _, line := range nonEmptyLines(inputs["chips"]) {
+		if parts := strings.Split(line, "\t"); len(parts) != 4 || strings.TrimSpace(parts[0]) == "" || !strings.HasPrefix(parts[2], "?") {
+			issues = append(issues, fmt.Sprintf("FilterChips chip %q is not a label, a count, a ?query address and a current flag", line))
+		}
+	}
+	return issues
+}
+
+// filterSelectContract is the same choice as a drop-down.
+//
+// `label` names the control (a real <label>, visually hidden), `query` is the parameter, `all` the words of the choice
+// that clears it (required: a filter you cannot clear is a trap). `choices` (one `value<TAB>label` line per Dimension
+// row), `selected` (the request's value) and `keep` (the request's other parameters, as a query string) are produced by
+// lowering and never written.
+var filterSelectContract = domain.ComponentContract{
+	Type:   domain.ComponentFilterSelect,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+		{Name: "all", Kind: "string", Required: true},
+		{Name: "choices", Kind: "string"},
+		{Name: "selected", Kind: "string"},
+		{Name: "keep", Kind: "string"},
+	},
+	DataRequirements: []string{"an aggregate Dataset with a dimension and a measure: `binding: {dataset, measure, rows: dimension}`"},
+	Accessibility:    "a GET form holding one <select> named by a real <label> (visually hidden); it submits on change, and a submit button inside <noscript> does the same without script",
+	Renderer:         "filterSelect",
+}
+
+func validateFilterSelect(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(filterSelectContract, inputs, "FilterSelect")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "FilterSelect label is blank -- a select needs a name")
+	}
+	issues = append(issues, filterQueryIssues("FilterSelect", inputs["query"])...)
+	for _, line := range nonEmptyLines(inputs["choices"]) {
+		if parts := strings.Split(line, "\t"); len(parts) != 2 || parts[0] == "" || strings.TrimSpace(parts[1]) == "" {
+			issues = append(issues, fmt.Sprintf("FilterSelect choice %q is not a value and a label", line))
+		}
+	}
+	return issues
+}
+
+// filterQueryIssues is what a filter's parameter must be: a plain word, and not one the runtime owns.
+func filterQueryIssues(name, p string) []string {
+	if p == "" {
+		return nil
+	}
+	var issues []string
+	if !searchParamPattern.MatchString(p) {
+		issues = append(issues, fmt.Sprintf("%s query %q is not a plain word (letters, digits and underscore, starting with a letter)", name, p))
+	}
+	if domain.SearchParamsReserved[p] {
+		issues = append(issues, fmt.Sprintf("%s query %q is one the runtime owns", name, p))
+	}
+	return issues
+}
+
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		if l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // tableContract is a records table, the nameable form of `dataTable`.
@@ -999,6 +1121,7 @@ var searchBoxContract = domain.ComponentContract{
 		{Name: "value", Kind: "string"},
 		{Name: "action", Kind: "string"},
 		{Name: "submit", Kind: "string"},
+		{Name: "keep", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,

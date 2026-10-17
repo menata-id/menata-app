@@ -369,6 +369,10 @@ func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredi
 	}
 	for i, c := range comparisons {
 		value, ok := ctx.Resolve(c.Value)
+		if c.Optional && (!ok || value == "") {
+			// An optional filter nobody set is no filter: the "All" chip, the empty search box.
+			continue
+		}
 		if !ok {
 			return nil, fmt.Errorf("composition: dataset %s filters on %s, which this request cannot resolve", ds.ID, c.Value)
 		}
@@ -376,6 +380,7 @@ func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredi
 			Field:       c.Field,
 			Negate:      c.Op == expression.OpNotEquals,
 			Empty:       c.Op == expression.OpIsEmpty,
+			Contains:    c.Op == expression.OpContains,
 			Value:       value,
 			Alternative: i >= conjunction,
 		}

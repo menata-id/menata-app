@@ -116,15 +116,82 @@ navigation:
         - static: link
           list_of: ds_contracts_table
           text: All contracts, to add or edit one
-  # Contracts (K01b): the generic list, where a contract is created and edited. Its detail page lists the
-  # instalments (FindChildCollections).
+  # Contracts (K01b): chips by type with their counts and an Overdue chip, a search over number and party, a category
+  # drop-down, and the contracts by the columns the board draws. A contract opens on its own page, with its instalments.
   - id: nav_contracts
     label: Contracts
     title: Contracts
-    description: Every contract. Open one to see and edit its instalments.
-    route: /machines/mch_contract
+    route: /pages/nav_contracts
     priority: 2
     icon: file-text
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Contract actions
+          children:
+            - static: link
+              to: nav_new_contract
+              text: + New contract
+              variant: primary
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: FilterChips
+                  label: Contract type
+                  query: kind
+                  all: All
+                  binding: { dataset: ds_contracts_by_kind, measure: msr_contracts_by_kind, rows: dimension }
+                - component: FilterChips
+                  label: Payment
+                  query: payment
+                  options: Overdue=Overdue
+                  binding: { dataset: ds_contracts_by_payment, measure: msr_contracts_by_payment, rows: dimension }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search contracts
+                  query: q
+                  placeholder: Search name or number
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_contracts_by_category, measure: msr_category_count, rows: dimension }
+        - component: Table
+          label: Contracts
+          empty: No contract matches.
+          columns:
+            - { header: Contract no., field: fld_contract_no, href: record }
+            - { header: Contracted party, field: fld_party_name }
+            - { header: Category, field: fld_category }
+            - { header: Contract value, field: fld_value, align: end }
+            - { header: Status, field: fld_status }
+            - { header: Payment, field: fld_payment_status }
+          binding: { dataset: ds_contracts, rows: records }
+  # New contract: the form the list's action opens. Not a menu entry of its own.
+  - id: nav_new_contract
+    label: New contract
+    title: New contract
+    description: The instalments are added on the contract's own page once it is saved.
+    route: /pages/nav_new_contract
+    in_menu: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Save contract
+          binding: { dataset: ds_contracts, write: create }
   # Instalments are entered here, one row per instalment, naming their contract (adding one from the contract page is
   # plan direction B2).
   - id: nav_contract_instalments

@@ -20,7 +20,22 @@ type FormInput struct {
 	Default string
 	// Options are a select's values, in the order the Machine declares them.
 	Options []string
+	// Reference is the Machine a relation or person select chooses a record of; its Choices are that Machine's records,
+	// which only the Data Plane can list, so the domain names the target and the composition fills them in.
+	Reference string
+	// Choices are a reference select's records, each a stored id and the words it is shown by (the related record's
+	// label, a member's name).
+	Choices []FormChoice
 }
+
+// FormChoice is one record a reference select offers.
+type FormChoice struct {
+	Value, Label string
+}
+
+// InputChoiceSep separates a reference choice's stored id from its label inside an `Input`'s options (one choice per
+// InputOptionsSep line). A tab, which neither an id nor a record's label holds.
+const InputChoiceSep = "\t"
 
 // Form methods: the verb a Form lowers to. It is derived from the binding's mode (create posts, update patches)
 // and never written, for the reason `action` is not.
@@ -56,10 +71,11 @@ func RecordMoveRoute(recordRoute, direction string) string {
 //
 // The rule is the generic create form's own (`rendering.newCardPopover`): a Field is asked for unless it is
 // computed (derived on save), stamped (written by the runtime from the request) or a file (a form of a different
-// encoding). **A reference or group Field is not drawn, and is returned in `unsupported`**, because its options
-// are another Machine's whole record set (007 §20) and a page cannot resolve them without reading it. The
-// loader turns a non-empty `unsupported` into an error, so a Form over such a Machine fails at load and does not
-// silently omit a Field the Machine marks required.
+// encoding). **A relation or person Field is a select of the related Machine's records** (2026-10-17: an instalment is
+// created for a contract, mockup K01f) whose Choices the composition fills, the way the generic create form's picker
+// does. **A group Field is not drawn, and is returned in `unsupported`**: its options are the Workspace's Groups, which
+// no page reads yet. The loader turns a required one into an error, so a Form over such a Machine fails at load and
+// does not silently omit a Field the Machine marks required.
 //
 // A **status the Machine governs** (any `transitions:` names it) that declares a `default:` is not asked either: a
 // new record starts at that default and leaves it only along the declared edges, so a select of every option would
@@ -73,7 +89,7 @@ func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 		if f.Type == FieldTypeStatus && f.Default != nil && m.GovernsTransitions(f.ID) {
 			continue
 		}
-		if f.IsReference() || f.Type == FieldTypeGroup {
+		if f.Type == FieldTypeGroup {
 			unsupported = append(unsupported, f)
 			continue
 		}
@@ -130,6 +146,10 @@ func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 // formInputOf is the control a Field is drawn as, before any starting value.
 func formInputOf(f Field) FormInput {
 	in := FormInput{FieldID: f.ID, Label: f.Name, Required: f.Required && f.Type != FieldTypeBoolean}
+	if f.IsReference() {
+		in.Kind, in.Reference = InputSelect, f.RelatedMachine
+		return in
+	}
 	switch f.Type {
 	case FieldTypeStatus:
 		in.Kind, in.Options = InputSelect, f.Options

@@ -218,12 +218,18 @@ type FieldPredicate struct {
 	// Empty asks that the Field have no value (expression.OpIsEmpty): absent, or stored as nothing. Value,
 	// Negate and Order are ignored.
 	Empty bool
+	// Contains asks that the Field's text hold Value, ignoring case (expression.OpContains). Value is matched as
+	// words: `%`, `_` and `\` in it are escaped, so a search cannot become a pattern.
+	Contains bool
 	// Alternative marks this predicate as one of an OR-group. Every Alternative predicate of a statement is
 	// joined with OR into a single clause, which is then ANDed with the rest (expression.Predicate's Any).
 	Alternative bool
 }
 
 var orderedSQL = map[string]bool{"<": true, "<=": true, ">": true, ">=": true}
+
+// likeEscaper makes a searched value literal inside an ILIKE pattern whose escape character is a backslash.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // numberPattern is a stored value that reads as a plain number; anything else is not cast, because a
 // ::numeric on a non-number is an error that would fail the whole statement rather than one row.
@@ -334,6 +340,10 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 func predicateSQL(p FieldPredicate, args *[]any) (string, error) {
 	if p.Empty {
 		return fmt.Sprintf("(data->>'%s' IS NULL OR data->>'%s' = '')", p.Field, p.Field), nil
+	}
+	if p.Contains {
+		*args = append(*args, "%"+likeEscaper.Replace(p.Value)+"%")
+		return fmt.Sprintf("data->>'%s' ILIKE $%d ESCAPE '\\'", p.Field, len(*args)), nil
 	}
 	*args = append(*args, p.Value)
 	n := len(*args)

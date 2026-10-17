@@ -3,6 +3,7 @@ package expression
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Op is a bounded comparison operator. The set is closed and extended deliberately, not
@@ -24,6 +25,11 @@ const (
 	OpLessOrEqual    Op = "lte"
 	OpGreaterThan    Op = "gt"
 	OpGreaterOrEqual Op = "gte"
+
+	// OpContains holds when the Field's text holds the value, ignoring case: what a search box asks of a list
+	// ("reza" finds "Reza Anggara"). Text Fields only; the value is words, never a pattern -- a `%` or `_` typed
+	// into a search is matched as itself (internal/data escapes both).
+	OpContains Op = "contains"
 )
 
 // KnownOps is the closed set of operators Comparison understands.
@@ -36,6 +42,8 @@ var KnownOps = map[Op]bool{
 	OpLessOrEqual:    true,
 	OpGreaterThan:    true,
 	OpGreaterOrEqual: true,
+
+	OpContains: true,
 }
 
 // IsOrdered reports whether op compares by order rather than by identity.
@@ -110,6 +118,11 @@ type Comparison struct {
 	Field string
 	Op    Op
 	Value string
+	// Optional drops the comparison when its `$parameters.<name>` value is absent or empty, instead of failing closed:
+	// the "All" of a row of filter chips, and a search box nobody typed in, list everything rather than nothing. A
+	// comparison that is not optional keeps 007 §9.2's fail-closed meaning. Valid on a records Dataset's `where:` over a
+	// request parameter only (metadata.validateDataset).
+	Optional bool
 }
 
 // Evaluate reports whether values satisfies the comparison. An unknown Op evaluates to false
@@ -131,6 +144,8 @@ func (c Comparison) Evaluate(values map[string]any) bool {
 			return false
 		}
 		return Ordered(c.Op, actual, c.Value)
+	case OpContains:
+		return values[c.Field] != nil && strings.Contains(strings.ToLower(actual), strings.ToLower(c.Value))
 	default:
 		return false
 	}

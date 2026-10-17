@@ -3051,9 +3051,16 @@ func uiNode(n ir.UINode) templ.Component {
 		case ir.NodeStatic:
 			switch domain.StaticKind(n.Type) {
 			case domain.StaticLink:
-				templ_7745c5c3_Err = staticLink(n.Props["href"], n.Props["text"]).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+				if v := domain.ButtonVariant(n.Props["variant"]); v != "" && n.Props["href"] != "" {
+					templ_7745c5c3_Err = linkButton(n.Props["text"], n.Props["href"], v).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = staticLink(n.Props["href"], n.Props["text"]).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
 			default:
 				templ_7745c5c3_Err = staticText(domain.StaticKind(n.Type), n.Props["text"]).Render(ctx, templ_7745c5c3_Buffer)
@@ -3211,7 +3218,40 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentSearchBox:
-				templ_7745c5c3_Err = searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"], n.Props["action"], n.Props["submit"]).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"], n.Props["action"], n.Props["submit"], n.Props["keep"]).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			case domain.ComponentActionBar:
+				templ_7745c5c3_Var107 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+					if !templ_7745c5c3_IsBuffer {
+						defer func() {
+							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err == nil {
+								templ_7745c5c3_Err = templ_7745c5c3_BufErr
+							}
+						}()
+					}
+					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Err = uiChildren(n).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					return nil
+				})
+				templ_7745c5c3_Err = actionBar(n.Props["label"]).Render(templ.WithChildren(ctx, templ_7745c5c3_Var107), templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			case domain.ComponentFilterChips:
+				templ_7745c5c3_Err = filterChips(n.Props["label"], n.Props["chips"]).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			case domain.ComponentFilterSelect:
+				templ_7745c5c3_Err = filterSelect(n.Props["label"], n.Props["query"], n.Props["all"], n.Props["choices"], n.Props["selected"], n.Props["keep"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -3264,9 +3304,9 @@ func uiChildren(n ir.UINode) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var107 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var107 == nil {
-			templ_7745c5c3_Var107 = templ.NopComponent
+		templ_7745c5c3_Var108 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var108 == nil {
+			templ_7745c5c3_Var108 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		for _, c := range n.Children {

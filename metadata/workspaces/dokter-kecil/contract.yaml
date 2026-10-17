@@ -81,3 +81,26 @@ datasets:
     select: records
     sort: [{ field: fld_contract_no, direction: asc }]
     limit: 200
+  # The contract list (K01b): its chips, the category drop-down and the search box are optional request parameters,
+  # so an unset one lists every contract. A window of 100 (owner decision K2), said on the page when it bites.
+  - id: ds_contracts
+    select: records
+    where:
+      all:
+        - { field: fld_contract_kind, op: equals, value: $parameters.kind, optional: true }
+        - { field: fld_payment_status, op: equals, value: $parameters.payment, optional: true }
+        - { field: fld_category, op: equals, value: $parameters.category, optional: true }
+      any:
+        - { field: fld_contract_no, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_party_name, op: contains, value: $parameters.q, optional: true }
+    sort: [{ field: fld_contract_no, direction: asc }]
+    limit: 100
+  # The chips' counts: contracts by type, and by payment status (for the Overdue chip).
+  - id: ds_contracts_by_kind
+    dimension: fld_contract_kind
+    measures:
+      - { id: msr_contracts_by_kind, aggregate: count }
+  - id: ds_contracts_by_payment
+    dimension: fld_payment_status
+    measures:
+      - { id: msr_contracts_by_payment, aggregate: count }

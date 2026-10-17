@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/ir"
 	"menata.app/internal/registry"
 )
@@ -598,13 +599,19 @@ func TestWriteBindingIssues(t *testing.T) {
 	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{stamped}}); !strings.Contains(got, "no Field a form can ask for") {
 		t.Errorf("a Machine with only stamped Fields: %q", got)
 	}
+	// A relation is a select of the related Machine's records (an instalment is created for a contract), so a
+	// required one is asked for; a group Field is still one no page form can ask for.
 	ref := domain.Field{ID: "f3", Name: "Owner", Type: domain.FieldTypeRelation, RelatedMachine: "mch_y", Required: true}
-	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, ref}}); !strings.Contains(got, `requires field "f3"`) {
-		t.Errorf("a required reference no form can ask for: %q", got)
-	}
-	ref.Required = false
 	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, ref}}); got != "" {
-		t.Errorf("an optional reference is simply not asked for, got %q", got)
+		t.Errorf("a required relation was refused: %q", got)
+	}
+	group := domain.Field{ID: "f4", Name: "Team", Type: domain.FieldTypeGroup, Required: true}
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, group}}); !strings.Contains(got, `requires field "f4"`) {
+		t.Errorf("a required group no form can ask for: %q", got)
+	}
+	group.Required = false
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, group}}); got != "" {
+		t.Errorf("an optional group is simply not asked for, got %q", got)
 	}
 }
 
@@ -1378,6 +1385,39 @@ func TestTableColumnsNameFieldsAndDerivedRoles(t *testing.T) {
 		"an undeclared role":       {domain.PageColumn{Header: "X", From: "subtitle"}, "declares no card_fields role \"subtitle\""},
 	} {
 		if got := run(tc.col); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}
+
+// TestOptionalAndContainsAreHeldToTheirMeaning: `optional` belongs to a request parameter on a records Dataset, and
+// `contains` to a text Field with words to look for -- each misuse refused by name.
+func TestOptionalAndContainsAreHeldToTheirMeaning(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "fld_name", Type: domain.FieldTypeText}, {ID: "fld_value", Type: domain.FieldTypeMoney}}}
+	run := func(ds domain.Dataset) string {
+		ds.ID, ds.Source = "ds_x", "mch_x"
+		fields := map[string]domain.Field{}
+		for _, f := range m.Fields {
+			fields[f.ID] = f
+		}
+		return strings.Join(validateDataset(m, ds, fields, map[string]bool{}), "\n")
+	}
+	records := func(c expression.Comparison) domain.Dataset {
+		return domain.Dataset{Select: domain.SelectRecords, Limit: 10, Where: &expression.Predicate{All: []expression.Comparison{c}}}
+	}
+	if got := run(records(expression.Comparison{Field: "fld_name", Op: expression.OpContains, Value: "$parameters.q", Optional: true})); got != "" {
+		t.Errorf("an optional search was refused: %s", got)
+	}
+	for name, tc := range map[string]struct {
+		ds   domain.Dataset
+		want string
+	}{
+		"optional on a literal":  {records(expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}), "must be a $parameters."},
+		"contains on money":      {records(expression.Comparison{Field: "fld_value", Op: expression.OpContains, Value: "1"}), "looks for words in text"},
+		"contains with no words": {records(expression.Comparison{Field: "fld_name", Op: expression.OpContains}), "no words to look for"},
+		"optional in a measure":  {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "an aggregate has no request parameters"},
+	} {
+		if got := run(tc.ds); !strings.Contains(got, tc.want) {
 			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
 		}
 	}

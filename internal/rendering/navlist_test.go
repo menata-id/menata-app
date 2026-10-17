@@ -96,7 +96,7 @@ func TestCollection_blockDrawsEachItemAsOneColumnAndAPlainListStillWrapsInline(t
 
 func TestSearchField_isANamedSearchFormThatSubmitsByGetAndKeepsTheWords(t *testing.T) {
 	var buf bytes.Buffer
-	if err := searchField("Search members", "q", "Find…", `ri"na`, "", "").Render(context.Background(), &buf); err != nil {
+	if err := searchField("Search members", "q", "Find…", `ri"na`, "", "", "").Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()
@@ -125,7 +125,7 @@ func TestUINode_aLayoutWithAnAnchorIsWrappedInOneElementHoldingTheId(t *testing.
 
 func TestSearchField_goingElsewhereDrawsItsActionAndASubmitButton(t *testing.T) {
 	var buf bytes.Buffer
-	if err := searchField("Describe", "idea", "", "", "/new-application", "Start →").Render(context.Background(), &buf); err != nil {
+	if err := searchField("Describe", "idea", "", "", "/new-application", "Start →", "").Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()
@@ -133,7 +133,7 @@ func TestSearchField_goingElsewhereDrawsItsActionAndASubmitButton(t *testing.T) 
 		t.Errorf("a search box that goes elsewhere: %s", html)
 	}
 	var plain bytes.Buffer
-	if err := searchField("Search", "q", "", "", "", "").Render(context.Background(), &plain); err != nil {
+	if err := searchField("Search", "q", "", "", "", "", "").Render(context.Background(), &plain); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(plain.String(), "action=") || strings.Contains(plain.String(), "<button") {

@@ -850,6 +850,14 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if msg := emptyComparisonIssue(c); msg != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
 			}
+			if c.Optional && !expression.IsParameter(c.Value) {
+				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is optional, which means \"left out when the request does not send it\" -- so its value must be a %s<name>, not %q", ds.ID, c.Field, expression.SentinelParameterPrefix, c.Value))
+			}
+			if f, ok := fieldsByID[c.Field]; ok {
+				if msg := containsIssue(f, c); msg != "" {
+					issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
+				}
+			}
 			// 007 §9.2: "Access outside this context must fail closed." A sentinel the runtime cannot
 			// resolve must be refused here, because at runtime it would become a literal -- a filter
 			// comparing a Field against the string "$current_usr" matches nothing, renders an empty
@@ -940,6 +948,14 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if msg := emptyComparisonIssue(c); msg != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
 			}
+			if c.Optional {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional, and an aggregate has no request parameters to leave it out for", ds.ID, ms.ID, c.Field))
+			}
+			if ok {
+				if msg := containsIssue(whereField, c); msg != "" {
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
+				}
+			}
 			if ok {
 				switch {
 				case c.Value == expression.SentinelDone:
@@ -1012,6 +1028,20 @@ func doneIssue(m *domain.Machine, c expression.Comparison) string {
 func emptyComparisonIssue(c expression.Comparison) string {
 	if c.Op == expression.OpIsEmpty && c.Value != "" {
 		return fmt.Sprintf("op %q asks whether field %q has a value, so it takes none (got %q)", c.Op, c.Field, c.Value)
+	}
+	return ""
+}
+
+// containsIssue is what `contains` asks: words to look for, in a Field that holds text.
+func containsIssue(f domain.Field, c expression.Comparison) string {
+	if c.Op != expression.OpContains {
+		return ""
+	}
+	switch {
+	case f.Type != domain.FieldTypeText && f.Type != domain.FieldTypeLongText:
+		return fmt.Sprintf("op %q looks for words in text, and field %q is type %q", c.Op, f.ID, f.Type)
+	case c.Value == "":
+		return fmt.Sprintf("op %q on field %q has no words to look for", c.Op, f.ID)
 	}
 	return ""
 }
