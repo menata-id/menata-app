@@ -19,6 +19,12 @@ import (
 //go:embed runtimepages/*.yaml
 var runtimePageFiles embed.FS
 
+// runtimeMachineFiles holds the Machines the runtime provides rather than stores (domain.Machine.Runtime), by the same
+// reasoning: they ship with the binary and every Workspace has them.
+//
+//go:embed runtimemachines/*.yaml
+var runtimeMachineFiles embed.FS
+
 // runtimePageDoc is one file. It names the screen and declares only what the screen's identity does not already say:
 // who may open it and its body. Its route, label and heading are the RuntimeScreens entry's, so none of them is written
 // twice (001 #8).
@@ -106,4 +112,32 @@ func boundDatasets(n domain.PageNode) []string {
 		ids = append(ids, boundDatasets(c)...)
 	}
 	return ids
+}
+
+// loadRuntimeMachines reads every embedded runtime Machine, through the loader's own parse and validation, and refuses
+// a file that is not one (no `runtime:`): a stored Machine placed here would be neither listed nor routable.
+func loadRuntimeMachines() ([]*domain.Machine, error) {
+	entries, err := runtimeMachineFiles.ReadDir("runtimemachines")
+	if err != nil {
+		return nil, err
+	}
+	var out []*domain.Machine
+	for _, e := range entries {
+		raw, err := runtimeMachineFiles.ReadFile("runtimemachines/" + e.Name())
+		if err != nil {
+			return nil, err
+		}
+		m, err := Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("runtime machine %s: %w", e.Name(), err)
+		}
+		if m.Runtime == "" {
+			return nil, fmt.Errorf("runtime machine %s: declares no `runtime:`, so it is a stored Machine and belongs in a manifest", e.Name())
+		}
+		if err := Validate(m); err != nil {
+			return nil, fmt.Errorf("runtime machine %s: %w", e.Name(), err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }

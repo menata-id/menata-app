@@ -59,6 +59,10 @@ type Workspace struct {
 	// own route. Each item is the RuntimeScreens entry (identity, route, heading: declared once, in Go, 001 #8) with its
 	// Page and OpenTo. A screen of RuntimeScreens with no entry here is still a bespoke Go screen.
 	RuntimePages []NavigationItem
+	// RuntimeMachines are the Machines the runtime provides rather than stores (Machine.Runtime), the same in every
+	// Workspace. They are not Machines of this Workspace (not in Machines or MachineIDs, so no generic route, list or
+	// assistant sees them): they exist for the runtime's own pages to bind.
+	RuntimeMachines []*Machine
 	// SuggestedApplications are Workspace Home's own "Add an application" chips (Flow 2 canvas
 	// re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
 	// here rather than as literals in internal/rendering so a Workspace whose business the

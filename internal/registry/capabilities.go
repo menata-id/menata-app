@@ -69,6 +69,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "status_categories", "presentation", "experience", false, "process-map categories over a status (K-15); the only consumer is the Builder map, which no generated Application is drawn by yet"),
 	key("machineDoc", "card_tags", "presentation", "experience", false, "board card tags; no generated board"),
 	key("machineDoc", "append_only", "behaviour", "behavior", false, "no generated Machine is a log"),
+	key("machineDoc", "runtime", "data", "data", false, "a runtime-provided Machine belongs to the runtime (W2); a generated Application declares only stored Machines"),
 	key("machineDoc", "ensure", "behaviour", "behavior", true, ""),
 	key("machineDoc", "frozen_when", "behaviour", "behavior", true, ""),
 	// transitionDoc

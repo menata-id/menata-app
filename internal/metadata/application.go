@@ -592,11 +592,16 @@ func LoadApplication(path string) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	runtimeMachines, err := loadRuntimeMachines()
+	if err != nil {
+		return nil, err
+	}
 	app := &App{
 		Workspace: domain.Workspace{
 			Slug:                  doc.Workspace,
 			Navigation:            workspaceNav,
 			RuntimePages:          runtimePages,
+			RuntimeMachines:       runtimeMachines,
 			SuggestedApplications: suggestions,
 			Theme:                 theme,
 		},
@@ -609,6 +614,9 @@ func LoadApplication(path string) (*App, error) {
 		if err != nil {
 			return nil, fmt.Errorf("workspace %q: machine %s: %w", doc.Workspace, rel, err)
 		}
+		if m.Runtime != "" {
+			return nil, fmt.Errorf("workspace %q: machine %s declares runtime: %q, which only the runtime's own machines may", doc.Workspace, rel, m.Runtime)
+		}
 		app.Machines = append(app.Machines, m)
 		app.Workspace.MachineIDs = append(app.Workspace.MachineIDs, m.ID)
 	}
@@ -617,7 +625,7 @@ func LoadApplication(path string) (*App, error) {
 	}
 	// A runtime page is offered to a Workspace that has what it reads, the way an Application's route is absent from a
 	// Workspace that did not install it. Everything else about it is still checked below.
-	app.Workspace.RuntimePages = runtimePagesThisWorkspaceCanDraw(app.Workspace.RuntimePages, app.Machines)
+	app.Workspace.RuntimePages = runtimePagesThisWorkspaceCanDraw(app.Workspace.RuntimePages, append(slices.Clone(app.Machines), runtimeMachines...))
 
 	for _, rel := range doc.Applications {
 		application, err := loadApplicationFile(filepath.Join(dir, rel), doc.Workspace)
@@ -650,7 +658,7 @@ func LoadApplication(path string) (*App, error) {
 		{"workflow datasets", func() error { return validateWorkflowDatasets(apps, machines) }},
 		{"permission roles", func() error { return validatePermissionRoles(apps, machines) }},
 		{"pages", func() error {
-			return validatePages(apps, machines, app.Workspace.Navigation, app.Workspace.RuntimePages)
+			return validatePages(apps, machines, app.Workspace.Navigation, app.Workspace.RuntimePages, app.Workspace.RuntimeMachines)
 		}},
 		{"navigation ids", func() error { return validateNavigationIDsAreUnique(app.Workspace) }},
 		// After stampWorkflowRoles, because it asks which Machines an engine casts.

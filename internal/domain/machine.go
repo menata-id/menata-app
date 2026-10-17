@@ -648,6 +648,12 @@ type Machine struct {
 	// delete those rows through the generic CRUD screens -- an audit trail with no integrity
 	// property at all, found by the authorization review rather than by a case.
 	AppendOnly bool
+	// Runtime, when set, names one of registry.RuntimeSources: this Machine is not stored. Its rows are provided by the
+	// runtime for the viewer and the request (the Workspace's groups, members), it is never listed among a Workspace's
+	// own Machines, and the generic record routes do not know it. It exists to give a page of the runtime's own a
+	// Dataset to bind, so what a page can show of it is the same Projection every Machine offers. Read-only by
+	// construction: it declares no rule block.
+	Runtime string
 }
 
 // Completion names the one Field and the one option of it that mean "this record is finished"

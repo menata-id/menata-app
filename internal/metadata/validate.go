@@ -111,6 +111,8 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, fmt.Sprintf("machine %q: name is required", m.ID))
 	}
 
+	issues = append(issues, runtimeMachineIssues(m)...)
+
 	seen := make(map[string]bool, len(m.Fields))
 	fieldsByID := make(map[string]domain.Field, len(m.Fields))
 	for _, f := range m.Fields {
@@ -2045,6 +2047,29 @@ func validateStatusCategories(m *domain.Machine, fieldsByID map[string]domain.Fi
 				issues = append(issues, fmt.Sprintf("machine %q: status_categories marks %q done, but completion says %q is the finished value", m.ID, option, m.Completion.Done))
 			}
 		}
+	}
+	return issues
+}
+
+// runtimeMachineIssues holds what a Machine declaring `runtime:` promises: a source the registry knows, every Field the
+// source fills, and nothing that would make it writable or reactive -- it is read-only, so a Permission, an edge or an
+// Event on it would read as behaviour the runtime never performs.
+func runtimeMachineIssues(m *domain.Machine) []string {
+	if m.Runtime == "" {
+		return nil
+	}
+	src, ok := registry.RuntimeSources[m.Runtime]
+	if !ok {
+		return []string{fmt.Sprintf("machine %q: runtime: %q is not a source the runtime provides (%s)", m.ID, m.Runtime, strings.Join(registry.RuntimeSourceIDs(), ", "))}
+	}
+	var issues []string
+	for _, id := range src.Provides {
+		if _, ok := m.FieldByID(id); !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: runtime source %q fills %s, which this machine does not declare", m.ID, m.Runtime, id))
+		}
+	}
+	if blocks := m.DeclaredRuleBlocks(); len(blocks) > 0 {
+		issues = append(issues, fmt.Sprintf("machine %q: a runtime machine is read-only and declares no rule block, and this one declares %s", m.ID, strings.Join(blocks, ", ")))
 	}
 	return issues
 }

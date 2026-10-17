@@ -504,16 +504,40 @@ func ensureIRVocabulary() {
 // The tree is checked with a **placeholder row** standing in for each Binding, so shape, properties and
 // Component inputs are verified without a database: a bound Metric is validated as a Metric with a label and
 // a value.
-func validatePages(applications []domain.Application, machines []*domain.Machine, workspaceNav, runtimePages []domain.NavigationItem) error {
+func validatePages(applications []domain.Application, machines []*domain.Machine, workspaceNav, runtimePages []domain.NavigationItem, runtimeMachines []*domain.Machine) error {
 	datasets := map[string]domain.Dataset{}
 	byID := map[string]*domain.Machine{}
-	for _, m := range machines {
+	runtimeDatasets := map[string]bool{}
+	for _, m := range runtimeMachines {
 		byID[m.ID] = m
 		for _, ds := range m.Datasets {
 			datasets[ds.ID] = ds
+			runtimeDatasets[ds.ID] = true
 		}
 	}
 	var issues []string
+	for _, m := range machines {
+		if _, taken := byID[m.ID]; taken {
+			issues = append(issues, fmt.Sprintf("machine %q: this id is one the runtime's own machines use", m.ID))
+		}
+		byID[m.ID] = m
+		for _, ds := range m.Datasets {
+			if runtimeDatasets[ds.ID] {
+				issues = append(issues, fmt.Sprintf("machine %q: dataset %q: this id is one the runtime's own machines use", m.ID, ds.ID))
+			}
+			datasets[ds.ID] = ds
+		}
+	}
+	// What the runtime provides (its members, its groups) is read by the runtime's own pages and by no other: a
+	// Workspace's or an Application's page binding one would put the Workspace's people on a screen whose gate is
+	// not the one that was meant for them.
+	readsRuntime := func(item domain.NavigationItem, where string) {
+		for _, id := range boundDatasets(*item.Page) {
+			if runtimeDatasets[id] {
+				issues = append(issues, fmt.Sprintf("%s: page: dataset %q is provided by the runtime and is read by the runtime's own pages only", where, id))
+			}
+		}
+	}
 	for _, app := range applications {
 		for _, item := range app.AllNavigation {
 			if item.OpenTo != "" {
@@ -523,6 +547,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				continue
 			}
 			where := fmt.Sprintf("application %q: navigation item %q", app.ID, item.ID)
+			readsRuntime(item, where)
 			if want := "/pages/" + item.ID; item.Route != want {
 				issues = append(issues, fmt.Sprintf("%s: page: route is %q but a page is rendered at %q", where, item.Route, want))
 			}
@@ -550,6 +575,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			continue
 		}
 		where := fmt.Sprintf("workspace navigation item %q", item.ID)
+		if !domain.IsRuntimeScreenID(item.ID) {
+			readsRuntime(item, where)
+		}
 		if want := "/pages/" + item.ID; item.Route != want && !domain.IsRuntimeScreenID(item.ID) {
 			issues = append(issues, fmt.Sprintf("%s: page: route is %q but a page is rendered at %q", where, item.Route, want))
 		}

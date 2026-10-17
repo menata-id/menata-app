@@ -52,6 +52,8 @@ type machineDoc struct {
 	Views []viewDoc `yaml:"views"`
 	// AppendOnly -- see domain.Machine.AppendOnly.
 	AppendOnly bool `yaml:"append_only"`
+	// Runtime -- see domain.Machine.Runtime.
+	Runtime string `yaml:"runtime"`
 }
 
 // cardTagsDoc is the YAML serialization of a domain.CardTags.
@@ -694,6 +696,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 		m.StatusCategories = sc
 	}
 	m.AppendOnly = doc.AppendOnly
+	m.Runtime = doc.Runtime
 	for _, cf := range doc.CardFields {
 		m.CardFields = append(m.CardFields, domain.CardField{
 			Field: cf.Field,

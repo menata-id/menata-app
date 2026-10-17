@@ -252,6 +252,8 @@ type FullMachineCheckDoc struct {
 	CardFields       []any `yaml:"card_fields"`
 	Views            []any `yaml:"views"`
 	AppendOnly       bool  `yaml:"append_only"`
+	// Runtime is domain.Machine.Runtime, which only the runtime's own embedded Machines declare.
+	Runtime string `yaml:"runtime"`
 }
 
 type FullApplicationCheckDoc struct {

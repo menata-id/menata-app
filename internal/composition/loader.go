@@ -73,6 +73,11 @@ type Loader struct {
 
 	reads  int
 	served int
+
+	// runtimeViewer and hasRuntime are set by WithRuntime: who a runtime Machine's provider is asked for, and whether this
+	// Loader may read one at all.
+	runtimeViewer domain.Actor
+	hasRuntime    bool
 }
 
 // NewLoader returns a Loader for one request.
@@ -306,6 +311,14 @@ func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expr
 		return cached, l.truncated[datasetID], nil
 	}
 
+	if src := l.Machine(ds.Source); src != nil && src.Runtime != "" {
+		records, truncated, err := l.selectRuntime(ctx, ds, src, where)
+		if err != nil {
+			return nil, false, err
+		}
+		l.selected[datasetID], l.truncated[datasetID] = records, truncated
+		return records, truncated, nil
+	}
 	sort, err := sortKeysFor(l.Machine(ds.Source), ds.Sort)
 	if err != nil {
 		return nil, false, err

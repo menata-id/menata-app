@@ -1,0 +1,17 @@
+# The Workspace's Groups, as the runtime provides them (registry.RuntimeSources: groups). Not stored as records and not a
+# Machine of any Workspace: it exists so the runtime's own pages can bind a Dataset over it. Read by admin pages only.
+id: mch_group
+name: Group
+runtime: groups
+fields:
+  - { id: fld_name, name: Name, type: text, required: true }
+  - { id: fld_member_count, name: Members, type: text }
+  - { id: fld_grants, name: Grants, type: text }
+card_fields:
+  - { field: fld_name, role: title }
+datasets:
+  - id: ds_runtime_groups
+    select: records
+    sort:
+      - { field: fld_name, direction: asc }
+    limit: 200

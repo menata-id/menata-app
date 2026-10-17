@@ -57,19 +57,19 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 // administer the Workspace, as it was before the key existed. An id naming no page is judged by the admin gate before the
 // 404, so a non-admin cannot tell a missing page from a page that is not theirs.
 func showWorkspacePage(store *data.Store, cfg config.Config, navID string) http.Handler {
-	return gatedPage(store, cfg, navID, func(ws domain.Workspace) []domain.NavigationItem { return ws.Navigation })
+	return gatedPage(store, cfg, navID, false, func(ws domain.Workspace) []domain.NavigationItem { return ws.Navigation })
 }
 
 // showRuntimePage draws the page the runtime declares for one of the screens it owns (domain.Workspace.RuntimePages),
 // at that screen's own route: the same drawing and the same `open_to:` gate as a Workspace's page, with the page
 // found among the runtime's. A Workspace that lacks what the page reads has no such page, and answers 404.
 func showRuntimePage(store *data.Store, cfg config.Config, navID string) http.Handler {
-	return gatedPage(store, cfg, navID, func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
+	return gatedPage(store, cfg, navID, true, func(ws domain.Workspace) []domain.NavigationItem { return ws.RuntimePages })
 }
 
 // gatedPage is what showWorkspacePage and showRuntimePage share: find the item among those `items` names, gate by its
 // `open_to:`, lower its page for this viewer and draw it.
-func gatedPage(store *data.Store, cfg config.Config, navID string, items func(domain.Workspace) []domain.NavigationItem) http.Handler {
+func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool, items func(domain.Workspace) []domain.NavigationItem) http.Handler {
 	draw := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		ws := rendering.CurrentWorkspace(ctx)
@@ -77,7 +77,12 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, items func(do
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, ""), time.Now(), ws.LinkTargets(), *item.Page)
+			actor := currentActor(req, store, cfg)
+			loader := composition.NewLoader(store, machinesFor(ctx))
+			if runtime {
+				loader = loader.WithRuntime(ws.RuntimeMachines, actor)
+			}
+			body, err := composition.DeclaredPage(ctx, loader, actor, pageParams(req, ""), time.Now(), ws.LinkTargets(), *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return
