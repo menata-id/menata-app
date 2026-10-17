@@ -41,12 +41,11 @@ import (
 // one at `text-2xs` (16 sites in 6 files by exact literal, a caption that no text role names -- see domain.StaticNote), or one
 // using another ink shade. Concluding a muted sentence is absent still needs reading the screen.
 var handWrittenMutedParagraphs = map[string]int{
-	"approvalinbox.templ":      2, // the card's submitter line: "Not submitted" and "Submitted by <span>name</span>" hold inline markup and a conditional run
-	"inference.templ":          3, // `max-w-prose` (two) and `mt-3`: per-site width and spacing; the third is a multi-line sentence in a conditional
-	"installapplication.templ": 1, // `leading-6`: a roomier line height for a screen description, no text role names it
-	"newapplication.templ":     2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it; and an escaped quote around an expression
-	"appsettings.templ":        2, // `leading-6`: the hub's description and its permissions subtitle, a roomier line no text role names (as installapplication)
-	"rolematrix.templ":         4, // `leading-5`, a `max-w-[760px]` measure and `px-4 py-4`: per-site width and spacing the Static kinds must not accept
+	"approvalinbox.templ":  2, // the card's submitter line: "Not submitted" and "Submitted by <span>name</span>" hold inline markup and a conditional run
+	"inference.templ":      3, // `max-w-prose` (two) and `mt-3`: per-site width and spacing; the third is a multi-line sentence in a conditional
+	"newapplication.templ": 2, // + the thinking note (2026-10-13): `id` and `hidden`, a script toggles it; and an escaped quote around an expression
+	"appsettings.templ":    2, // `leading-6`: the hub's description and its permissions subtitle, a roomier line no text role names (as installapplication)
+	"rolematrix.templ":     4, // `leading-5`, a `max-w-[760px]` measure and `px-4 py-4`: per-site width and spacing the Static kinds must not accept
 }
 
 var (

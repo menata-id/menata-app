@@ -1,0 +1,26 @@
+# The ready-made applications of the template library (registry.RuntimeSources: templates), each with what installing it into this
+# Workspace would do. Read by the install screen only, and by its reader alone (the library's location is the process's own
+# configuration). A template that cannot be installed here carries its reasons in the changes line and the status Blocked.
+id: mch_template
+name: Ready-made application
+runtime: templates
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_description, name: Description, type: text }
+  - { id: fld_machines, name: What it brings, type: text }
+  - { id: fld_status, name: Status, type: status, options: [Ready, Blocked] }
+  - { id: fld_changes, name: Changes, type: text }
+  - { id: fld_roles, name: Roles, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_description, role: subtitle }
+  - { field: fld_machines, role: detail }
+  - { field: fld_status, role: status }
+  - { field: fld_changes, role: summary }
+datasets:
+  - id: ds_runtime_templates
+    select: records
+    sort:
+      - { field: fld_title, direction: asc }
+    limit: 100

@@ -447,3 +447,28 @@ func applicationMembersProvider(ctx context.Context, l *Loader, _ domain.Actor) 
 	}
 	return out, nil
 }
+
+// sourceRecordRoles is the roles a runtime source's record declares (a library template's `roles:`), read from the source's own
+// reader so the Form that offers them and the list that shows the record agree about what it is.
+func sourceRecordRoles(ctx context.Context, l *Loader, viewer domain.Actor, source, recordID string) ([]string, error) {
+	provider, ok := l.provider(source)
+	if !ok {
+		return nil, fmt.Errorf("composition: source %q has no provider", source)
+	}
+	rows, err := provider(ctx, l, viewer)
+	if err != nil {
+		return nil, err
+	}
+	var roles []string
+	for _, r := range rows {
+		if r.ID != recordID {
+			continue
+		}
+		for _, role := range strings.Split(DisplayString(r.Values["fld_roles"]), "\n") {
+			if role != "" {
+				roles = append(roles, role)
+			}
+		}
+	}
+	return roles, nil
+}

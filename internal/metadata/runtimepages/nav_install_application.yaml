@@ -1,0 +1,37 @@
+# The template library: each ready-made application with what installing it here would do, and an Install. The installed copy is
+# this Workspace's own (renaming any id this Workspace already uses), and the admin who installs it chooses the role they hold in
+# it, so they are not locked out of what they just installed. Admin only (the default).
+id: nav_install_application
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - component: Collection
+      gap: comfortable
+      block: true
+      empty: There are no ready-made applications in this installation's template library.
+      binding: { dataset: ds_runtime_templates, rows: records }
+      children:
+        - layout: section
+          gap: comfortable
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: subheading
+                  from: { text: title }
+                - static: message
+                  from: { text: subtitle }
+                - static: caption
+                  from: { text: detail }
+            - component: Callout
+              tone: warn
+              when: { role: status, is: Blocked }
+              from: { text: summary }
+            - static: caption
+              when: { role: status, is: Ready }
+              from: { text: summary }
+            - component: Form
+              submit: Install
+              when: { role: status, is: Ready }
+              binding: { write: action, action: install_application }

@@ -1252,7 +1252,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `StatusBadge` | stable | Declared by five installed pages (Calendar, Dashboard, both document lists, My Tasks) |
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
 | `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
-| `Callout` | experimental | No installed `page:` declares one yet: the account screens draw it, and no declared screen shows a message |
+| `Callout` | stable | Declared by the runtime's own page for the template library (a template that cannot be installed here, and why) |
 | `Disclosure` | stable | Declared by the runtime's own page for Groups ("+ New group"); Members still draws it in Go ("+ Invite member") |
 | `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |

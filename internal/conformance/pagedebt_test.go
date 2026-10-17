@@ -55,7 +55,6 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"WorkspaceHomePage":        {"workspace", "Workspace Home: aggregates every installed Application's home cards"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
 	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens. Re-read 2026-10-15: a page's write binding (create/update/delete/move/transition) writes a Machine's records, and this form writes a metadata file, which no binding names"},
-	"InstallApplicationPage":   {"workspace", "installs into the Workspace; re-read 2026-10-15: the write binding writes records, and an install writes the Workspace's metadata, which no binding names"},
 	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; re-read 2026-10-15: it starts an AI session, not a record write, so the record write binding does not reach it"},
 	"NewApplicationReviewPage": {"workspace", "the AI assistant's review pane; re-read 2026-10-15: it edits and publishes generated metadata, not records, so the record write binding does not reach it"},
 

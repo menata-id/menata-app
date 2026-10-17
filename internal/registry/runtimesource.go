@@ -39,6 +39,8 @@ var RuntimeSources = map[string]RuntimeSource{
 		Doc: "the Applications of this Workspace that declare roles and a settings hub, one record each, by the hub's navigation id: the Application's name, what its members screen says, how many active members have access, and the way back to its hub; for the Workspace's admins"},
 	"application_members": {ID: "application_members", Provides: []string{"fld_id", "fld_hub", "fld_title"},
 		Doc: "every member of the Workspace once for each Application that declares roles, keyed by the Application's settings hub id: who they are, the roles a Group adds, and the one role they hold directly there; for the Workspace's admins"},
+	"templates": {ID: "templates", Provides: []string{"fld_id", "fld_title"}, Provider: "web",
+		Doc: "the ready-made applications of the template library, each with what installing it into this Workspace would do (renames, references added, or why it cannot be installed); for the Workspace's admins"},
 	"snapshots": {ID: "snapshots", Provides: []string{"fld_id", "fld_title"}, Provider: "web",
 		Doc: "the Workspace's saved installations, newest first, each with when it was taken and how large; for the Workspace's admins"},
 	"groups": {ID: "groups", Provides: []string{"fld_name"}, RecordRoute: "/workspace-groups/{id}", Doc: "the Workspace's Groups, each with its member count and the role it grants per Application; for the Workspace's admins"},

@@ -37,7 +37,7 @@ func TestInstallApplication_endToEndOverACollision(t *testing.T) {
 
 	rec := s.post(t, url.Values{"template": {"app_document_approval"}, "role": {"approver"}})
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
-		t.Fatalf("POST /install-application = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("POST /runtime-actions/install_application = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
 	}
 	// Document Approval's own home_card route. Routes are never renamed on install (a collision there
 	// is refused outright), so the template's declared route is the installed copy's route.
@@ -103,6 +103,9 @@ func TestInstallApplication_listingShowsRenamesAndRefusals(t *testing.T) {
 	if !strings.Contains(body, "mch_document_approval") {
 		t.Error("the listing does not say what the colliding id will be renamed to -- an admin has to know before clicking")
 	}
+	if !strings.Contains(body, `hx-post="/runtime-actions/install_application?record=`) {
+		t.Error("the listing offers no Install for a template that can be installed")
+	}
 }
 
 // --- fixture -----------------------------------------------------------------------------------
@@ -114,6 +117,9 @@ type installTestSetup struct {
 	slug         string
 	deps         Deps
 	workspaces   map[string]domain.Workspace
+	store        *data.Store
+	wsID         string
+	actorID      string
 }
 
 // newInstallTestSetup builds a Workspace shaped like dokter-kecil -- its own mch_document, a generated
@@ -174,7 +180,8 @@ func newInstallTestSetup(t *testing.T, name string) *installTestSetup {
 		manifestPath: manifestPath,
 		slug:         slug,
 		workspaces:   map[string]domain.Workspace{slug: loaded.Workspace},
-		cookie:       sessionCookieValueForTest(t, config.Config{SessionSecret: name + "-secret"}, actor.ID, 0),
+		store:        store, wsID: ws.ID, actorID: actor.ID,
+		cookie: sessionCookieValueForTest(t, config.Config{SessionSecret: name + "-secret"}, actor.ID, 0),
 	}
 	s.deps = Deps{
 		UserMachine: userMachineFor(t, loaded),
@@ -209,7 +216,9 @@ func newInstallTestSetup(t *testing.T, name string) *installTestSetup {
 // renders and csrf_test.go already exercises.
 func (s *installTestSetup) post(t *testing.T, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
-	return s.postTo(t, "/install-application", form)
+	template := form.Get("template")
+	form.Del("template")
+	return s.postTo(t, "/runtime-actions/install_application?record="+url.QueryEscape(template), form)
 }
 
 func (s *installTestSetup) postTo(t *testing.T, path string, form url.Values) *httptest.ResponseRecorder {
@@ -428,5 +437,60 @@ func TestApplyFilesRouteReplacesAnExistingFileSnapshotsFirstAndRefusesWhatWouldN
 	snaps, err := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir)
 	if err != nil || len(snaps) == 0 {
 		t.Errorf("no snapshot was taken before the write: %v, %v", snaps, err)
+	}
+}
+
+// A template that cannot be installed here is explained and is not offered an Install: the page is not the gate, but it must not
+// hold out a button that then declines.
+func TestInstallApplication_aBlockedTemplateIsExplainedAndNotOffered(t *testing.T) {
+	s := newInstallTestSetup(t, "install_blocked")
+	if rec := s.post(t, url.Values{"template": {"app_document_approval"}}); rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
+		t.Fatalf("first install = %d: %s", rec.Code, rec.Body.String())
+	}
+	s.reloadWorkspace(t)
+	req := httptest.NewRequest(http.MethodGet, "/install-application", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: s.cookie})
+	rec := httptest.NewRecorder()
+	s.handler.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "/approval-inbox") {
+		t.Error("the listing does not say which route already answers")
+	}
+	if strings.Contains(body, `hx-post="/runtime-actions/install_application?record=app_document_approval"`) {
+		t.Error("a template that cannot be installed is offered an Install")
+	}
+	if !strings.Contains(body, `role="alert"`) && !strings.Contains(body, `role="status"`) {
+		t.Error("the refusal is not drawn as a message")
+	}
+}
+
+func (s *installTestSetup) membershipOf(t *testing.T) *data.Membership {
+	t.Helper()
+	m, err := s.store.GetMembership(context.Background(), s.wsID, s.actorID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func TestInstallApplication_theInstallerChoosesTheirRoleAndIsGrantedIt(t *testing.T) {
+	s := newInstallTestSetup(t, "install_role")
+	body := func() string {
+		req := httptest.NewRequest(http.MethodGet, "/install-application", nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: s.cookie})
+		rec := httptest.NewRecorder()
+		s.handler.ServeHTTP(rec, req)
+		return rec.Body.String()
+	}()
+	if !strings.Contains(body, `name="role"`) || !strings.Contains(body, "Your role here") || !strings.Contains(body, `<option value="approver" selected`) {
+		t.Error("the Install form does not ask the installer for their role, starting as the template's first")
+	}
+	if rec := s.post(t, url.Values{"template": {"app_document_approval"}, "role": {"approver"}}); rec.Code != http.StatusSeeOther {
+		t.Fatalf("install = %d: %s", rec.Code, rec.Body.String())
+	}
+	s.reloadWorkspace(t)
+	m := s.membershipOf(t)
+	if m.AppRoles["app_document_approval"] != "approver" {
+		t.Errorf("the installer holds %q in the Application they installed, want the role they chose", m.AppRoles["app_document_approval"])
 	}
 }

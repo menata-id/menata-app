@@ -49,7 +49,6 @@ var handWrittenRadii = map[string]struct {
 	"chooseworkspace.templ":    {1, "pre-auth dashed create-workspace link"},
 	"detail.templ":             {1, "rounded (4px) signature image: off the ladder, DS-D17"},
 	"documentsubmit.templ":     {1, "the approver step-number circle (geometry)"},
-	"installapplication.templ": {1, "the Application icon tile (brand-mark)"},
 	"login.templ":              {2, "pre-auth inputs: no theme reaches them"},
 	"segmentedcontrol.templ":   {2, "rounded (4px) knob and option link inside the control's rounded-md track (DS-D17, the view switch's own call); the track reads the Theme"},
 	"machine.templ":            {4, "rounded (4px) edit summary and tag-ish label (DS-D17); the tag dot and completion circle (geometry); the lane left this list on 2026-10-15 (gap plan K-01: it reads radius.surface now)"},

@@ -93,3 +93,14 @@ func TestLower_anActionFormMayAskForASetOfChoicesStartingTicked(t *testing.T) {
 		t.Errorf("input = %v", in.Props)
 	}
 }
+
+func TestLower_anActionFormThatAsksNothingIsJustItsSubmit(t *testing.T) {
+	res := Resolver{Action: func(domain.PageBinding, string) (FormSpec, error) { return FormSpec{Permitted: true}, nil }}
+	got, err := Lower(actionForm(), res)
+	if err != nil {
+		t.Fatalf("a Form with nothing to ask was refused: %v", err)
+	}
+	if f := got.Children[0]; f.Type != "Form" || len(f.Children) != 0 || f.Props["action"] != "/runtime-actions/create_group" {
+		t.Errorf("form = %+v", f)
+	}
+}

@@ -51,6 +51,7 @@ var runtimeActionRunners = map[string]actionRunner{
 	"deactivate_member":   runDeactivateMember,
 	"reactivate_member":   runReactivateMember,
 	"set_member_app_role": runSetMemberAppRole,
+	"install_application": runInstallApplication,
 	"reload_workspace":    runReloadWorkspace,
 	"restore_snapshot":    runRestoreSnapshot,
 	"archive_workspace":   runArchiveWorkspace,
@@ -392,4 +393,109 @@ func runSetMemberAppRole(w http.ResponseWriter, req *http.Request, env actionEnv
 		return "", false
 	}
 	return "", true
+}
+
+// runInstallApplication installs one library template (the record) into this Workspace as that Workspace's own copy and reloads
+// the route table live (Deps.ReloadMetadata, injected because this package may not import internal/metadata itself).
+//
+// Nothing partial survives a failure: installer.Install rolls its own writes back before returning, and a failed reload leaves
+// the previous route table serving traffic while the files on disk are correct for the next restart. What the page showed
+// (renames, references added, refusals) came from installer.PlanInstall, the function this runs, so the screen cannot promise
+// something the write then declines; reaching a refusal here means the Workspace changed underneath the page, which is a 422
+// with the reasons and not a generic failure.
+func runInstallApplication(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	manifestPath, ws, err := workspaceInstallation(ctx, env.store, env.cfg)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	template, err := installer.TemplateByID(env.cfg.TemplatePath, record)
+	if err != nil {
+		http.Error(w, "no such template", http.StatusNotFound)
+		return "", false
+	}
+	plan := installer.PlanInstall(template, ws)
+	if !plan.OK() {
+		http.Error(w, "this application cannot be installed here: "+strings.Join(plan.Refusals, "; "), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	snapshotBeforeWrite(env.cfg, manifestPath)
+	appID, err := installer.Install(plan, env.cfg.TemplatePath, manifestPath)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	if env.reload == nil {
+		serverError(w, fmt.Errorf("%s was installed but this process has no reload hook configured -- a restart will pick it up", appID))
+		return "", false
+	}
+	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
+		serverError(w, fmt.Errorf("%s was installed but the live reload failed -- a process restart will pick it up: %w", appID, err))
+		return "", false
+	}
+	if err := grantInstallerRole(ctx, req, env.store, env.cfg, appID, req.FormValue("role")); err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	return installedHomeRoute(plan), true
+}
+
+// templatesProvider is the reader of the `templates` source: each library template with what installing it into this Workspace
+// would do, from installer.PlanInstall. It lives here because the library's location is the process's configuration. A template
+// that cannot be installed here carries its reasons as its summary and is not offered an Install; one that can carries what will
+// change on the way in (an id this Workspace already uses is renamed, a shared Machine it lacks is referenced).
+func templatesProvider(cfg config.Config) composition.RuntimeProvider {
+	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		templates, err := installer.Templates(cfg.TemplatePath)
+		if err != nil {
+			return nil, err
+		}
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		ws := rendering.CurrentWorkspace(ctx)
+		out := make([]*data.Record, 0, len(templates))
+		for _, t := range templates {
+			plan := installer.PlanInstall(t, ws)
+			var machines []string
+			for _, tm := range t.Machines {
+				machines = append(machines, tm.Machine.Name)
+			}
+			status, summary := "Ready", installChanges(plan)
+			if !plan.OK() {
+				status, summary = "Blocked", strings.Join(plan.Refusals, " ")
+			}
+			out = append(out, &data.Record{ID: t.Application.ID, MachineID: "mch_template", WorkspaceID: workspaceID, Values: map[string]any{
+				"fld_id": t.Application.ID, "fld_title": t.Application.Name, "fld_description": t.Application.Description,
+				"fld_machines": machineLine(machines), "fld_status": status, "fld_changes": summary,
+				"fld_roles": strings.Join(t.Application.Roles, "\n"),
+			}})
+		}
+		return out, nil
+	}
+}
+
+// machineLine is the one line of what a template brings, by name and not id, count first so the shape of the Application is
+// readable before the list is.
+func machineLine(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	noun := "data models"
+	if len(names) == 1 {
+		noun = "data model"
+	}
+	return fmt.Sprintf("%d %s: %s", len(names), noun, strings.Join(names, ", "))
+}
+
+// installChanges says what installing a ready template into this Workspace will change on the way in, or nothing when it
+// changes nothing.
+func installChanges(plan installer.Plan) string {
+	var parts []string
+	for _, from := range sortedRenameKeys(plan.Renames) {
+		parts = append(parts, fmt.Sprintf("This workspace already uses %s, so the copy will be called %s.", from, plan.Renames[from]))
+	}
+	if len(plan.AddShared) > 0 {
+		parts = append(parts, fmt.Sprintf("Adds the shared %s this application needs.", strings.Join(plan.AddShared, " and ")))
+	}
+	return strings.Join(parts, " ")
 }

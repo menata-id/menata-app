@@ -59,7 +59,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// absorbing it would make the primitive accept a CSS class string, a second gap ladder, or an element choice
 	// the vocabulary has no word for (§12.5 Slot / §12.3 Component, Stage 2).
 	"row": {
-		"appsettings.templ": 1, "inference.templ": 1, "installapplication.templ": 1, "machine.templ": 1,
+		"appsettings.templ": 1, "inference.templ": 1, "machine.templ": 1,
 		"reviewdocument.templ": 2, "rolematrix.templ": 1,
 	},
 	// `split`: a main area beside a fixed-width aside. **§12.2 lists `split`, and an earlier measurement of
@@ -344,11 +344,10 @@ func joinClassLiterals(src string) string {
 // Shrink-only: a new literal fails and should read GapXtight if it is an inline label pair, or be argued here; a
 // lower count fails until the entry drops.
 var handWrittenHalfStepGaps = map[string]int{
-	"approvalinbox.templ":      1, // a card's stacked title and meta
-	"installapplication.templ": 2, // two stacked notice wells
-	"machine.templ":            4, // record card stack; card quick-edit form and its Save/Cancel row; move form
-	"newapplication.templ":     1, // stacked label and control
-	"workspacehome.templ":      1, // stacked heading block
+	"approvalinbox.templ":  1, // a card's stacked title and meta
+	"machine.templ":        4, // record card stack; card quick-edit form and its Save/Cancel row; move form
+	"newapplication.templ": 1, // stacked label and control
+	"workspacehome.templ":  1, // stacked heading block
 }
 
 func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {

@@ -345,8 +345,7 @@ func Routes(d Deps) http.Handler {
 			// metadata/applications/*.yaml at all. Same admin gate for the same stated reason:
 			// only workspace admins add applications. POST for the write, so the listing stays a
 			// read (TestGetRoutesDoNotWrite).
-			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
-			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Get("/install-application", showRuntimePage(d.Store, d.Cfg, "nav_install_application").ServeHTTP)
 			ar.Post("/runtime-actions/{action}", runtimeAction(d.Store, d.Mailer, d.Cfg, d.ReloadMetadata))
 			ar.Post("/workspace-settings/validate", submitValidateFiles(d.Store, d.Cfg))
 			ar.Get("/workspace-settings/files", showWorkspaceFiles(d.Store, d.Cfg))

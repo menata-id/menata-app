@@ -45,6 +45,10 @@ const (
 	// ActionInputMemberAppRole is one select of the roles of the Application a member-in-an-Application record belongs to,
 	// starting as the role that member holds there directly. The record id says both (`<hub id>:<user record id>`).
 	ActionInputMemberAppRole = "member_app_role"
+	// ActionInputTemplateRoles is one select of the roles a library template declares, starting as its first, so the admin who
+	// installs an Application holds a role in it at once (without one they would be locked out of what they just installed).
+	// A template that declares none asks nothing.
+	ActionInputTemplateRoles = "template_roles"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -64,6 +68,8 @@ var RuntimeActions = map[string]RuntimeAction{
 	"archive_workspace": {ID: "archive_workspace", Admin: true, Doc: "makes the Workspace read-only and hides it from its members until an admin restores it"},
 	"set_member_app_role": {ID: "set_member_app_role", Source: "application_members", Admin: true, Inputs: []ActionInput{{Name: "role", Label: "Role", Kind: ActionInputMemberAppRole}},
 		Doc: "sets one member's direct role in one Application and nothing else: not their Workspace role, not their roles elsewhere"},
+	"install_application": {ID: "install_application", Source: "templates", Admin: true, Inputs: []ActionInput{{Name: "role", Label: "Your role here", Kind: ActionInputTemplateRoles}},
+		Doc: "installs a library template into this Workspace as that Workspace's own copy, reloads it, and grants the installer the role they chose"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},

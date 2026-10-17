@@ -86,7 +86,7 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 			actor := currentActor(req, store, cfg)
 			loader := composition.NewLoader(store, machinesFor(ctx))
 			if runtime {
-				loader = loader.WithRuntime(ws.RuntimeMachines, actor).WithParams(pageParams(req, "")).WithRuntimeProvider("snapshots", snapshotsProvider(store, cfg))
+				loader = loader.WithRuntime(ws.RuntimeMachines, actor).WithParams(pageParams(req, "")).WithRuntimeProvider("snapshots", snapshotsProvider(store, cfg)).WithRuntimeProvider("templates", templatesProvider(cfg))
 			}
 			params := pageParams(req, "")
 			if recordParam != "" {

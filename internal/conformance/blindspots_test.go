@@ -26,7 +26,7 @@ var handWrittenVariantTokens = map[string]int{
 // (the artifact's type styles pair them), so each is a deliberate override: a roomier description (`leading-6`), a tight
 // single line (`leading-4`), a measure for a sentence (`leading-5`). 31 across 12 files, `rolematrix` the largest.
 var handWrittenLeading = map[string]int{
-	"appsettings.templ": 3, "appshell.templ": 2, "authshell.templ": 1, "chooseworkspace.templ": 1, "installapplication.templ": 5,
+	"appsettings.templ": 3, "appshell.templ": 2, "authshell.templ": 1, "chooseworkspace.templ": 1,
 	"machine.templ": 1, "reviewdocument.templ": 2, "rolematrix.templ": 7, "signatureplacement.templ": 1,
 	"workspacefiles.templ": 3, "workspacehome.templ": 4,
 }

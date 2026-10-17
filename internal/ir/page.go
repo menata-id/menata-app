@@ -1651,7 +1651,7 @@ func lowerAction(n domain.PageNode, r Resolver, path string, record map[string]s
 		return nil, fmt.Errorf("%s: write: %s is for a Form or a Button, not %s", path, domain.PageWriteAction, n.Type)
 	}
 	spec.Route = route
-	return buildForm(n, path, spec, domain.PageWriteCreate, "the action")
+	return buildForm(n, path, spec, domain.PageWriteAction, "the action")
 }
 
 // lowerTransitionAll turns a `Button` bound with `write: transition, all: true` into a Button that posts to the bulk
@@ -1706,7 +1706,8 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 	if !spec.Permitted {
 		return nil, nil
 	}
-	if len(spec.Inputs) == 0 {
+	// A form for a runtime action may ask nothing (a template that declares no role): it is its submit and the route.
+	if len(spec.Inputs) == 0 && mode != domain.PageWriteAction {
 		return nil, fmt.Errorf("%s: %s reads a Machine with no Field a form can ask for", path, what)
 	}
 	props := make(map[string]string, len(n.Props)+2)

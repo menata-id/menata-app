@@ -343,7 +343,7 @@ func CatalogueProblems() []string {
 // other three tones are `role="status"`.
 var calloutContract = domain.ComponentContract{
 	Type:   domain.ComponentCallout,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "text", Kind: "string", Required: true},
 		{Name: "tone", Kind: "BadgeTone", Required: true},
