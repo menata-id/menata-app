@@ -68,8 +68,6 @@ const (
 	wsAuditTitle         = "Audit log"
 	wsAuditBlurb         = "Permanent record of changes."
 	wsDangerTitle        = "Danger zone"
-	wsSectionMembers     = "members"
-	wsSectionGroups      = "groups"
 	wsDangerZoneAnchorID = "danger-zone"
 
 	wsInstallationAnchorID = "installation"
@@ -84,45 +82,9 @@ const (
 	wsRestoreConfirm       = "Restore this saved installation? The current one is saved first."
 )
 
-// workspaceSettingsFrame puts a sidebar of the Workspace's settings sections beside an admin screen (S2.3;
-// boards 04/05). Desktop only: below `sm` the aside is hidden and the hub (WorkspaceSettingsPage) is the
-// list, the same split ApplicationSettingsPage makes. The screens inside it keep their own headings, so
-// the frame adds navigation and nothing else.
-//
-// Every destination is a navigation item looked up by id. "Applications" is nav_home until S3.2 gives it a
-// page of its own (boards 04b/04c), and "Invitations" shares Members' route because one page lists both
-// (an invitation is not a membership, but it is drawn beside one).
 // settingsGroupHeading names one group of rows, in the hub and in the sidebar that mirrors it (boards 04, M04a).
 templ settingsGroupHeading(text string) {
 	<h2 class={ "m-0 px-3 pb-1", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ text }</h2>
-}
-
-templ workspaceSettingsFrame(active string) {
-	@columnsLayout(domain.GapLoose, domain.ColumnsAlignStart) {
-		<aside class={ "hidden w-55 shrink-0 flex-col", layoutGap(ctx, domain.GapLoose), "sm:flex" } aria-label={ labelByID(ctx, "nav_workspace_settings") }>
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "px-3 text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_workspace_settings") }</a>
-			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
-				@settingsGroupHeading(wsGroupWorkspace)
-				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)
-				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), "", false)
-			</div>
-			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
-				@settingsGroupHeading(wsGroupPeople)
-				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "", active == wsSectionMembers)
-				@settingsRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "", active == wsSectionGroups)
-				@settingsRow(routeByID(ctx, "nav_workspace_members"), wsInvitationsTitle, "", false)
-			</div>
-			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
-				@settingsGroupHeading(wsGroupSecurity)
-				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
-				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
-				@settingsRow(routeByID(ctx, "nav_workspace_settings")+"#"+wsDangerZoneAnchorID, wsDangerTitle, "", false)
-			</div>
-		</aside>
-		<div class={ "flex min-w-0 flex-1 flex-col", layoutGap(ctx, domain.GapComfortable) }>
-			{ children... }
-		</div>
-	}
 }
 
 templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string, snapshots []SnapshotRow) {

@@ -116,3 +116,38 @@ func TestRuntimeAction_anActionNotMarkedAdminIsNotRunByTheAdminRoute(t *testing.
 		t.Errorf("a non-admin action through the admin route = %d, ran=%v, want 403 and not run", rec.Code, ran)
 	}
 }
+
+// A workspace role is admin or member and nothing else, and a refused write changes nothing.
+func TestRuntimeAction_setMemberAccessRefusesAnInvalidWorkspaceRole(t *testing.T) {
+	h, cookie, ctx, store, _, _, _ := routerSetupFor(t, "memberaccess", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "ma_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+	if err := store.AddMember(ctx, wsID, u.ID, "ma_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	post := func(role string) int {
+		req := httptest.NewRequest(http.MethodPost, "/runtime-actions/set_member_access?record="+u.ID+"&workspace_role="+role, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		req.AddCookie(&http.Cookie{Name: authorization.CSRFCookieName, Value: "t"})
+		req.Header.Set("X-CSRF-Token", "t")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := post("emperor"); code != http.StatusUnprocessableEntity {
+		t.Errorf("an invalid workspace role = %d, want 422", code)
+	}
+	if m, _ := store.GetMembership(ctx, wsID, u.ID); m == nil || m.WorkspaceRole != "member" {
+		t.Errorf("a refused write changed the role: %+v", m)
+	}
+	if code := post("admin"); code != http.StatusSeeOther {
+		t.Errorf("a valid workspace role = %d, want the redirect", code)
+	}
+	if m, _ := store.GetMembership(ctx, wsID, u.ID); m == nil || m.WorkspaceRole != "admin" {
+		t.Errorf("the role did not land: %+v", m)
+	}
+}

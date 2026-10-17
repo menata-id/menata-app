@@ -321,11 +321,8 @@ func Routes(d Deps) http.Handler {
 			// hub belongs to. Same admin gate as the Workspace page it narrows.
 			ar.Get("/settings/{navID}/members", showApplicationMembers(d.Store, d.Cfg))
 			ar.Post("/settings/{navID}/members/{userRecordID}", submitApplicationMemberRole(d.Store))
-			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
-			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
+			ar.Get("/workspace-members/{userRecordID}/edit", showRuntimeRecordPage(d.Store, d.Cfg, "nav_workspace_member", "userRecordID").ServeHTTP)
 			// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27).
-			ar.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(d.Store))
-			ar.Post("/workspace-members/{userRecordID}/reactivate", submitReactivateMember(d.Store))
 
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
 			// gate as the member routes above.

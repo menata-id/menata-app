@@ -55,6 +55,12 @@ var RuntimeScreens = []NavigationItem{
 		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 1,
 	},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups", Description: "Assign a role to a Group once, then add or remove members instead of editing every person's own row. A member's effective role in an Application is their direct assignment plus every role their Groups hold there.", SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "People", Priority: 2},
+	// One member's own screen: their Workspace role, their role in each Application, and removing them from the Workspace.
+	// Not a settings row; it sits under Members.
+	{
+		ID: "nav_workspace_member", Label: "Member", Route: "/workspace-members", Title: "Member",
+		SettingsCurrent: "nav_workspace_members", OwnsHeading: true, RecordSource: "members",
+	},
 	// One Group's own screen: members, roles and delete, drawn for the record the route names. Not a settings row; it sits under
 	// Groups.
 	{

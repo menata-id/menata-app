@@ -10,14 +10,21 @@ fields:
   - { id: fld_email, name: Email, type: text }
   - { id: fld_status, name: Status, type: status, options: [Active, Deactivated] }
   - { id: fld_detail, name: Access, type: text }
+  - { id: fld_effective, name: Effective access, type: text }
 card_fields:
   - { field: fld_title, role: title }
   - { field: fld_email, role: subtitle }
   - { field: fld_status, role: status }
   - { field: fld_detail, role: detail }
+  - { field: fld_effective, role: summary }
 datasets:
   - id: ds_runtime_members
     select: records
     sort:
       - { field: fld_title, direction: asc }
     limit: 500
+  # One member, by the id a record page's route carries ($parameters.id).
+  - id: ds_runtime_member
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.id }
+    limit: 1

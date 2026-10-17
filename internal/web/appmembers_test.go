@@ -96,7 +96,7 @@ func TestApplicationMembersPageAndWorkspaceMembersShareOneRole(t *testing.T) {
 
 	// Pintu 1 -> Pintu 2.
 	other := app.Roles[0]
-	rec = do(http.MethodPost, "/workspace-members/"+member.ID+"/edit", adminCookie,
+	rec = do(http.MethodPost, "/runtime-actions/set_member_access?record="+member.ID, adminCookie,
 		url.Values{"workspace_role": {"member"}, appRoleField(app.ID): {other}})
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("POST edit member = %d: %s", rec.Code, firstChars(rec.Body.String()))

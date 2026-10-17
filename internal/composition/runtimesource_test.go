@@ -217,3 +217,14 @@ func TestHeldRoles_listsOnlyTheRolesHeldAndSaysWhenThereAreNone(t *testing.T) {
 		t.Errorf("none held = %v", got)
 	}
 }
+
+func TestEffectiveAccessLine_mergesDirectAndGroupRolesAndNamesTheGroups(t *testing.T) {
+	apps := []domain.Application{{ID: "a", Name: "Alpha", Roles: []string{"r", "s"}}}
+	m := data.Membership{AppRoles: map[string]string{"a": "r"}, Groups: []data.Group{{Name: "Fin", Grants: map[string]string{"a": "s"}}}}
+	if got := effectiveAccessLine(apps, m); got != "Alpha · r, Alpha · s, + Fin group" {
+		t.Errorf("line = %q, want the merged set and the group", got)
+	}
+	if got := effectiveAccessLine(apps, data.Membership{}); got != "No application access." {
+		t.Errorf("nothing held = %q", got)
+	}
+}

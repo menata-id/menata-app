@@ -40,6 +40,8 @@ type ActionInput struct {
 const (
 	ActionInputMembers  = "members"
 	ActionInputAppRoles = "app_roles"
+	// ActionInputWorkspaceRole is a select of the Workspace's two roles, starting as the member's own.
+	ActionInputWorkspaceRole = "workspace_role"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -49,6 +51,11 @@ var RuntimeActions = map[string]RuntimeAction{
 	"invite_member": {ID: "invite_member", Admin: true, Inputs: []ActionInput{{Name: "email", Label: "Email", Required: true}, {Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "records an invitation with the roles it will become and emails its link; the invitee states their own name when they accept"},
 	"revoke_invite": {ID: "revoke_invite", Source: "invites", Admin: true, Doc: "withdraws an invitation nobody has accepted; its emailed link stops working"},
+	"set_member_access": {ID: "set_member_access", Source: "members", Admin: true, Inputs: []ActionInput{
+		{Name: "workspace_role", Label: "Workspace role", Required: true, Kind: ActionInputWorkspaceRole}, {Name: "roles", Label: "Application access", Kind: ActionInputAppRoles}},
+		Doc: "sets a member's Workspace role and their direct role in each Application, from that Application's own declared roles"},
+	"deactivate_member": {ID: "deactivate_member", Source: "members", Admin: true, Doc: "gates a member out of this Workspace; refused while an approval would be left undecidable"},
+	"reactivate_member": {ID: "reactivate_member", Source: "members", Admin: true, Doc: "lets a deactivated member open this Workspace again"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},

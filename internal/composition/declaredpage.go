@@ -730,22 +730,28 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: options, Default: strings.Join(ticked, domain.InputOptionsSep)})
 		case registry.ActionInputAppRoles:
-			groups, err := l.Groups(ctx)
+			held, err := recordAppRoles(ctx, l, a.Source, recordID)
 			if err != nil {
 				return ir.FormSpec{}, err
-			}
-			var grants map[string]string
-			for _, g := range groups {
-				if g.ID == recordID {
-					grants = g.Grants
-				}
 			}
 			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
 				if len(app.Roles) == 0 {
 					continue
 				}
-				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: domain.AppRoleField(app.ID), Label: app.Name, Kind: domain.InputSelect, Options: app.Roles, Default: grants[app.ID]})
+				spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: domain.AppRoleField(app.ID), Label: app.Name, Kind: domain.InputSelect, Options: app.Roles, Default: held[app.ID]})
 			}
+		case registry.ActionInputWorkspaceRole:
+			members, err := l.Members(ctx)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			current := ""
+			for _, m := range members {
+				if m.UserRecordID == recordID {
+					current = m.WorkspaceRole
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: []string{domain.WorkspaceRoleAdmin, domain.WorkspaceRoleMember}, Default: current, Required: in.Required})
 		default:
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputText, Required: in.Required})
 		}
@@ -793,4 +799,32 @@ func recordRouteOf(src *domain.Machine, id string) string {
 		return strings.ReplaceAll(registry.RuntimeSources[src.Runtime].RecordRoute, "{id}", url.PathEscape(id))
 	}
 	return RecordRoute(src.ID, id)
+}
+
+// recordAppRoles is the role the record already holds in each Application, the state a role select starts as: a Group's
+// grants for a Group, a member's direct assignment for a member. Nothing for any other source.
+func recordAppRoles(ctx context.Context, l *Loader, source, recordID string) (map[string]string, error) {
+	switch source {
+	case "groups":
+		groups, err := l.Groups(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range groups {
+			if g.ID == recordID {
+				return g.Grants, nil
+			}
+		}
+	case "members":
+		members, err := l.Members(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range members {
+			if m.UserRecordID == recordID {
+				return m.AppRoles, nil
+			}
+		}
+	}
+	return nil, nil
 }

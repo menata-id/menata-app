@@ -1,7 +1,6 @@
 package rendering
 
 import "strings"
-import "menata.app/internal/data"
 import "menata.app/internal/domain"
 
 // RoleApplication is one Application a member can hold a role in, as the Members screens need it:
@@ -60,121 +59,6 @@ templ workspaceRoleBadge(role string) {
 	}
 }
 
-// EditMemberPage is one member's role editor, ported to
-// ui-sample/case-03-flow1/05-edit-member.html (Fase 2, 2026-09-20).
-//
-// The board's Application-access section lists three Applications because it assumes Procurement
-// and HR; this lists every Application that declares a roles: vocabulary, which today is Document
-// Approval alone.
-//
-// "Effective access" (Fase 4) renders data.EffectiveRoles -- the union of the direct assignment
-// above and every role this member's Groups hold. Per CAP-O07 the two paths grant identically, so
-// the panel shows the merged set rather than picking a winner, and it says plainly that
-// group-derived access is changed by editing the Group, not here: this screen writes only the
-// direct half.
-templ EditMemberPage(m data.Membership, name string, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
-		@workspaceSettingsFrame(wsSectionMembers) {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
-			← { labelByID(ctx, "nav_workspace_members") }
-		</a>
-		<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault) }>
-			@avatar(personInitials(name, m.Email), avatarLabel(name, m.Email), domain.AvatarLead, domain.AvatarPresent)
-			<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
-				if name != "" && name != m.Email {
-					<span class={ "truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ name }</span>
-					<span class={ "truncate", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ m.Email }</span>
-				} else {
-					<span class={ "truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ m.Email }</span>
-				}
-			</span>
-			if m.Deactivated {
-				@statusBadge("Deactivated", domain.ToneNeutral, domain.BadgeRegular)
-			} else {
-				@statusBadge("Active", domain.ToneGood, domain.BadgeRegular)
-			}
-		</div>
-		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
-			@csrfHiddenInput()
-			@sectionLayout(domain.GapComfortable) {
-				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					@staticText(domain.StaticPanelHeading, "Workspace role")
-					@staticText(domain.StaticCaption, "Controls workspace administration, independent of what they can do inside an application.")
-				</div>
-				@workspaceRoleChoice("admin", "Manages people, applications and workspace settings. Can open every application’s Settings.", m.WorkspaceRole == "admin")
-				@workspaceRoleChoice("member", "Uses the applications they have access to.", m.WorkspaceRole == "member")
-			}
-			@sectionLayout(domain.GapComfortable) {
-				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-					@staticText(domain.StaticPanelHeading, "Application access")
-					@staticText(domain.StaticCaption, "One role per application. Choosing No access removes them from that application; the same list can be edited inside the application itself.")
-				</div>
-				for _, app := range roleApps {
-					@columnsLayout(domain.GapTight, domain.ColumnsAlignCenter) {
-						<label for={ "role_" + app.ID } class={ textClass(ctx, domain.RoleBody) }>{ app.Name }</label>
-						@roleSelect("role_"+app.ID, app, m.AppRoles[app.ID])
-					}
-				}
-			}
-			<div class={ "flex items-center justify-end", layoutGap(ctx, domain.GapDefault) }>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkBody) }>Cancel</a>
-				@authSubmit("Save changes")
-			</div>
-		</form>
-		@removeFromWorkspaceSection(m, workspaceName)
-		@effectiveAccessPanel(m, roleApps)
-		}
-	}
-}
-
-// removeFromWorkspaceSection is MemberEdit.dc.html's own "Remove from workspace" (Flow 2 canvas
-// re-audit, ROADMAP.md, 2026-09-27) -- symmetric, unlike the board itself, which draws only
-// "Deactivate member": Reactivate mirrors the identical Archive/Restore shape
-// workspacesettings.templ's own Danger zone already established for a Workspace, one level down,
-// by owner instruction (2026-09-27) even though the board draws just the one direction. A
-// deactivated member's own mch_user record, and everything it authored, is untouched -- only
-// their ability to open this Workspace again is what either action changes
-// (data.Store.DeactivateMember/ReactivateMember's own doc comment).
-templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
-	<section class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad), paddingClass(ctx, domain.PaddingSection) }>
-		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<h2 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), toneInkClass(ctx, domain.ToneBad) }>Remove from workspace</h2>
-			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")
-			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
-				if m.Deactivated {
-					This member cannot open { workspaceName }. Their documents and approval history stay.
-				} else {
-					A deactivated member can no longer open { workspaceName }. Documents they submitted and their approval history stay.
-				}
-			</p>
-		</div>
-		if m.Deactivated {
-			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/reactivate") }>
-				@csrfHiddenInput()
-				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Reactivate member</button>
-			</form>
-		} else {
-			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/deactivate") } hx-confirm="Deactivate this member? They will no longer be able to open this workspace.">
-				@csrfHiddenInput()
-				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneBad), backgroundClass(ctx, domain.BackgroundRaised) + " px-3 " + textClass(ctx, domain.RoleBody), toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad) }>Deactivate member</button>
-			</form>
-		}
-	</section>
-}
-
-// workspaceRoleChoice is one radio card in the Workspace role fieldset: the value plus the
-// sentence explaining what holding it means, which the board puts under every option rather than
-// leaving "admin" and "member" to speak for themselves.
-templ workspaceRoleChoice(role, description string, selected bool) {
-	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" + " " + accentEdgeHoverClass(ctx) }>
-		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class={ "mt-0.5 size-4", controlAccentClass(ctx) }/>
-		<span class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ displayRole(role) }</span>
-			<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
-		</span>
-	</label>
-}
-
 // roleSelect is one Application's role dropdown, shared by Invite and Edit member. "" is offered
 // first and means no role in this Application -- stored as the absence of a row, not as a blank
 // value (internal/data.SetMemberAppRole).
@@ -189,39 +73,6 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 			<option value={ r } selected?={ r == selected }>{ r }</option>
 		}
 	</select>
-}
-
-// effectiveAccessPanel is board 05's own third section: what this member can actually do, once
-// their Groups are taken into account.
-//
-// It is outside the form deliberately. The form writes the direct assignment; a group-granted role
-// is changed by editing that Group, which is what the board's own sentence says and what this
-// panel repeats. Rendering it inside the form would suggest the whole picture is editable here.
-templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
-	@sectionLayout(domain.GapComfortable) {
-		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			@staticText(domain.StaticPanelHeading, "Effective access")
-			@staticText(domain.StaticCaption, "Direct roles combined with roles inherited from Groups.")
-		</div>
-		if len(m.Groups) == 0 {
-			@staticText(domain.StaticCaption, "This member belongs to no Group, so their effective access is exactly the direct assignment above.")
-		} else {
-			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>
-				Group-derived access cannot be removed from this screen; change the Group's own membership or roles instead.
-			</p>
-		}
-		{{ effective := data.EffectiveRoles(m.AppRoles, m.Groups) }}
-		@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
-			for _, app := range roleApps {
-				for _, role := range effective[app.ID] {
-					@statusBadge(app.Name+" · "+role, domain.ToneInfo, domain.BadgeRegular)
-				}
-			}
-			for _, g := range m.Groups {
-				@statusBadge("+ "+g.Name+" group", domain.ToneNeutral, domain.BadgeRegular)
-			}
-		}
-	}
 }
 
 // avatarLabel is an avatar's accessible name: the person's own name when known, their email otherwise.

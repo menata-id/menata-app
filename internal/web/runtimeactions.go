@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -35,6 +36,9 @@ var runtimeActionRunners = map[string]actionRunner{
 	"set_group_members": runSetGroupMembers,
 	"set_group_roles":   runSetGroupRoles,
 	"invite_member":     runInviteMember,
+	"set_member_access": runSetMemberAccess,
+	"deactivate_member": runDeactivateMember,
+	"reactivate_member": runReactivateMember,
 	"revoke_invite":     runRevokeInvite,
 }
 
@@ -191,6 +195,70 @@ func runRevokeInvite(w http.ResponseWriter, req *http.Request, env actionEnv, re
 	}
 	if err := env.store.DeletePendingInvite(req.Context(), workspaceID, email); err != nil {
 		serverError(w, err)
+		return "", false
+	}
+	return "", true
+}
+
+// runSetMemberAccess sets a member's Workspace role and their direct role in each Application, each checked against what it
+// may be: the Workspace role is admin or member, an Application's role is one that Application declares (submittedAppRoles).
+// UpdateMemberRole still writes the legacy single app_role column alongside the new rows (migration 008 keeps it so a rollback
+// loses nothing), fed Document Approval's role, which is what that column has always held.
+func runSetMemberAccess(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	workspaceRole := req.FormValue("workspace_role")
+	if workspaceRole != domain.WorkspaceRoleAdmin && workspaceRole != domain.WorkspaceRoleMember {
+		http.Error(w, "invalid workspace role", http.StatusUnprocessableEntity)
+		return "", false
+	}
+	appRoles, err := submittedAppRoles(req, rendering.CurrentWorkspace(ctx).Applications)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	if err := env.store.UpdateMemberRole(ctx, workspaceID, record, workspaceRole, appRoles[legacyAppRoleApplicationID]); err != nil {
+		recordError(w, err)
+		return "", false
+	}
+	for appID, role := range appRoles {
+		if err := env.store.SetMemberAppRole(ctx, workspaceID, record, appID, role); err != nil {
+			serverError(w, err)
+			return "", false
+		}
+	}
+	return "", true
+}
+
+// runDeactivateMember gates a member out of this Workspace. Their own mch_user record, and everything it authored, is
+// untouched: only their membership row's deactivated_at is set, checked fresh on every later request. A member with an open
+// pending Approval Step would otherwise become permanently undecidable by anyone the moment they can no longer be reached, so
+// the blocking reasons are asked first and a refusal is a plain 422 saying why.
+func runDeactivateMember(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	reasons, err := composition.BlockingReasonsForMemberRemoval(ctx, composition.NewLoader(env.store, machinesFor(ctx)), record)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	if len(reasons) > 0 {
+		http.Error(w, "cannot deactivate: "+strings.Join(reasons, "; "), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	if err := env.store.DeactivateMember(ctx, workspaceID, record); err != nil {
+		recordError(w, err)
+		return "", false
+	}
+	return "", true
+}
+
+// runReactivateMember reverses runDeactivateMember. It has no guard of its own, symmetric to the store having none: undoing a
+// restriction never needs the check that imposing one does.
+func runReactivateMember(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	workspaceID, _ := data.WorkspaceScope(req.Context())
+	if err := env.store.ReactivateMember(req.Context(), workspaceID, record); err != nil {
+		recordError(w, err)
 		return "", false
 	}
 	return "", true

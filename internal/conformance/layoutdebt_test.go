@@ -90,7 +90,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// heading a section *holds*, not a layout, and every caller now sits inside `stackLayout`.
 	"section": {
 		"account.templ": 1, "layout.templ": 2, "newapplication.templ": 1,
-		"workspacehome.templ": 2, "workspacemembers.templ": 1,
+		"workspacehome.templ": 2,
 	},
 }
 

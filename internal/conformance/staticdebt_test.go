@@ -215,7 +215,6 @@ var handWrittenCaptions = map[string]int{
 	"documentsubmit.templ":     2, // :102 multi-line with an expression run; :190 multi-line text
 	"reviewdocument.templ":     1, // `leading-5` plus an inline staticLink
 	"signatureplacement.templ": 2, // :157 multi-line text; :168 bordered well (`rounded-md bg-slate-50 p-3 leading-5`)
-	"workspacemembers.templ":   2, // :271 conditional branches; :337 apostrophe, multi-line
 }
 
 var captionPara = regexp.MustCompile(`(?s)<p\b[^>]*\bclass="([^"]*)"`)
@@ -288,8 +287,7 @@ var handWrittenButtonFloors = map[string]int{
 // outline is a control's rim, kept as it was) and stay floors; the fourth is a red `Deactivate` that stays literal. They are counted after
 // `joinClassExpressions`, because splicing a reader into the class made them invisible to the old pattern.
 var handWrittenButtonLiterals = map[string]int{
-	"chooseworkspace.templ":  1,
-	"workspacemembers.templ": 2,
+	"chooseworkspace.templ": 1,
 }
 
 var (

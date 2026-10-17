@@ -74,6 +74,9 @@ const (
 	// draws them without knowing what they are.
 	CardFieldRoleSubtitle CardFieldRole = "subtitle"
 	CardFieldRoleDetail   CardFieldRole = "detail"
+	// CardFieldRoleSummary is a longer plain sentence a record says about itself (what a member can actually do, once their
+	// Groups are counted), drawn as a paragraph beneath the lines above.
+	CardFieldRoleSummary CardFieldRole = "summary"
 )
 
 // SafeInAppPath reports whether s is a route inside this app: one slash then something that is not a second slash or
@@ -147,6 +150,7 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleLink:      true,
 	CardFieldRoleSubtitle:  true,
 	CardFieldRoleDetail:    true,
+	CardFieldRoleSummary:   true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

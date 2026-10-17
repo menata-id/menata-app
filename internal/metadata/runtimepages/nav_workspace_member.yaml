@@ -1,0 +1,82 @@
+# One member's own screen: their Workspace role and role in each Application, removing them from the Workspace, and what they
+# can actually do once their Groups are counted. Drawn for the member the route names ($parameters.id). Admin only.
+id: nav_workspace_member
+page:
+  layout: split
+  side: start
+  aside: compact
+  gap: loose
+  children:
+    - component: NavList
+      section: workspace_settings
+      variant: sidebar
+    - layout: stack
+      gap: comfortable
+      children:
+        - static: link
+          to: nav_workspace_members
+          text: "← Workspace Members"
+        - component: Collection
+          gap: comfortable
+          block: true
+          binding: { dataset: ds_runtime_member, rows: records }
+          children:
+            - layout: stack
+              gap: comfortable
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  children:
+                    - layout: stack
+                      gap: hair
+                      children:
+                        - static: heading
+                          from: { text: title }
+                        - static: caption
+                          from: { text: subtitle }
+                    - component: StatusBadge
+                      tone: good
+                      when: { role: status, is: Active }
+                      from: { label: status }
+                    - component: StatusBadge
+                      tone: neutral
+                      when: { role: status, is: Deactivated }
+                      from: { label: status }
+                - layout: section
+                  gap: comfortable
+                  children:
+                    - static: panel-heading
+                      text: Access
+                    - static: caption
+                      text: The workspace role controls administration, independent of what they can do inside an application. An admin manages people, applications and workspace settings; a member uses the applications they have access to. One role per application; choosing nothing removes them from that application, and the same list can be edited inside the application itself.
+                    - component: Form
+                      submit: Save changes
+                      binding: { write: action, action: set_member_access }
+                - layout: section
+                  gap: comfortable
+                  children:
+                    - static: panel-heading
+                      text: Remove from workspace
+                    - static: caption
+                      text: Affects this workspace only. Their account and other workspaces are untouched. A deactivated member can no longer open it; documents they submitted and their approval history stay.
+                    - component: Button
+                      label: Deactivate member
+                      variant: danger
+                      confirm: Deactivate this member? They will no longer be able to open this workspace.
+                      when: { role: status, is: Active }
+                      binding: { write: action, action: deactivate_member }
+                    - component: Button
+                      label: Reactivate member
+                      variant: secondary
+                      when: { role: status, is: Deactivated }
+                      binding: { write: action, action: reactivate_member }
+                - layout: section
+                  gap: comfortable
+                  children:
+                    - static: panel-heading
+                      text: Effective access
+                    - static: caption
+                      text: Direct roles combined with roles inherited from Groups. Access a Group grants cannot be removed here; change the Group's own membership or roles instead.
+                    - static: paragraph
+                      from: { text: summary }

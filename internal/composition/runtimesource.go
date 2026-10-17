@@ -257,7 +257,7 @@ func membersProvider(ctx context.Context, l *Loader, _ domain.Actor) ([]*data.Re
 			parts = append(parts, "Groups: "+strings.Join(gs, ", "))
 		}
 		out = append(out, &data.Record{ID: m.UserRecordID, MachineID: "mch_member", WorkspaceID: workspaceID,
-			Values: map[string]any{"fld_id": m.UserRecordID, "fld_title": title, "fld_email": email, "fld_status": status, "fld_detail": strings.Join(parts, " · ")}})
+			Values: map[string]any{"fld_id": m.UserRecordID, "fld_title": title, "fld_email": email, "fld_status": status, "fld_detail": strings.Join(parts, " · "), "fld_effective": effectiveAccessLine(apps, m)}})
 	}
 	return out, nil
 }
@@ -295,4 +295,24 @@ func heldRoles(apps []domain.Application, roles map[string]string) []string {
 		return []string{"no application role"}
 	}
 	return out
+}
+
+// effectiveAccessLine says what a member can actually do once their Groups are counted: the direct roles merged with every
+// role their Groups hold (data.EffectiveRoles), one phrase per role, and the Groups beside them. Direct and Group access
+// grant identically, so the line shows the merged set and does not pick a winner.
+func effectiveAccessLine(apps []domain.Application, m data.Membership) string {
+	effective := data.EffectiveRoles(m.AppRoles, m.Groups)
+	var parts []string
+	for _, app := range apps {
+		for _, role := range effective[app.ID] {
+			parts = append(parts, app.Name+" · "+role)
+		}
+	}
+	for _, g := range m.Groups {
+		parts = append(parts, "+ "+g.Name+" group")
+	}
+	if len(parts) == 0 {
+		return "No application access."
+	}
+	return strings.Join(parts, ", ")
 }

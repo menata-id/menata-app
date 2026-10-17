@@ -229,3 +229,73 @@ func TestMembersIsARuntimePage(t *testing.T) {
 		t.Errorf("a member opening the Members page = %d, want 403 and nobody's email", rec.Code)
 	}
 }
+
+// TestMemberIsARuntimePageForOneMember: /workspace-members/<id>/edit draws that member's own screen -- who they are and whether
+// they are active, a Workspace role select and a role select per Application starting as what they hold, Deactivate for an
+// active member and Reactivate for a deactivated one (never both), and what they can do once their Groups are counted;
+// an id the source does not hold is a 404.
+func TestMemberIsARuntimePageForOneMember(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "memberpage", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	mk := func(email string) string {
+		u, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": email})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", u.ID) })
+		if err := store.AddMember(ctx, wsID, u.ID, email, "member", ""); err != nil {
+			t.Fatal(err)
+		}
+		return u.ID
+	}
+	activeID, goneID := mk("mpg_active@example.com"), mk("mpg_gone@example.com")
+	if err := store.DeactivateMember(ctx, wsID, goneID); err != nil {
+		t.Fatal(err)
+	}
+	app := applicationWithRoles(t, ws)
+	if err := store.SetMemberAppRole(ctx, wsID, activeID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+	g, err := store.CreateGroup(ctx, wsID, "MPG-group")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteGroup(ctx, wsID, g.ID) })
+	if err := store.SetGroupMembers(ctx, g.ID, []string{activeID}); err != nil {
+		t.Fatal(err)
+	}
+
+	body := getPage(t, h, cookie, "/workspace-members/"+activeID+"/edit")
+	for _, want := range []string{
+		"mpg_active@example.com", ">Active<", `href="/workspace-members"`,
+		`hx-post="/runtime-actions/set_member_access?record=` + activeID + `"`, `name="workspace_role"`, `<option value="member" selected`,
+		`name="app_role[` + app.ID + `]"`, `<option value="` + app.Roles[0] + `" selected`, "Save changes",
+		`hx-post="/runtime-actions/deactivate_member?record=` + activeID + `"`, "hx-confirm=", "Deactivate member",
+		"Effective access", app.Name + " · " + app.Roles[0], "+ MPG-group group",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Member page does not contain %q", want)
+		}
+	}
+	if strings.Contains(body, "Reactivate member") {
+		t.Error("an active member is offered Reactivate")
+	}
+	if n := strings.Count(body, `aria-current="page"`); n != 1 || !strings.Contains(body, `href="/workspace-members" aria-current="page"`) {
+		t.Errorf("%d current settings rows, want exactly Members", n)
+	}
+	if strings.Count(body, "<h1") != 1 {
+		t.Errorf("%d headings, want the member's own", strings.Count(body, "<h1"))
+	}
+
+	gone := getPage(t, h, cookie, "/workspace-members/"+goneID+"/edit")
+	if !strings.Contains(gone, ">Deactivated<") || !strings.Contains(gone, `hx-post="/runtime-actions/reactivate_member?record=`+goneID+`"`) || strings.Contains(gone, "Deactivate member") {
+		t.Error("a deactivated member is not offered Reactivate and only Reactivate")
+	}
+	req := httptest.NewRequest(http.MethodGet, "/workspace-members/usr_nobody/edit", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("an unknown member = %d, want 404", rec.Code)
+	}
+}
