@@ -23,7 +23,7 @@ func renderTable(t *testing.T, label, empty, headers, aligns string, cells ...st
 		cs[i] = cellText(c)
 	}
 	var b bytes.Buffer
-	if err := table(label, empty, headers, aligns, cs).Render(assignedNavFixture(), &b); err != nil {
+	if err := table(label, empty, headers, aligns, Truncation{}, cs).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	return b.String()
@@ -78,5 +78,25 @@ func TestTable_escapesAHeaderAndNeverPanicsOnShortProps(t *testing.T) {
 	}
 	if cols := tableColumnsFromProps("A\nB", "end"); cols[0].Align != domain.TableAlignEnd || cols[1].Align == domain.TableAlignEnd {
 		t.Errorf("a short alignment list = %+v", cols)
+	}
+}
+
+// TestTableSaysWhatACutListWasCutFrom: a Table whose Dataset's bound cut it says so under the rows, with the count it was
+// cut from (owner decision K2), and says nothing when the bound did not bite.
+func TestTableSaysWhatACutListWasCutFrom(t *testing.T) {
+	var b strings.Builder
+	cell := templ.Raw("<span>a</span>")
+	if err := table("Contracts", "", "Contract", "start", truncationFromProp("100/340"), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "Showing the first 100 of 340") {
+		t.Errorf("a cut list does not say what it was cut from: %s", b.String())
+	}
+	b.Reset()
+	if err := table("Contracts", "", "Contract", "start", truncationFromProp(""), []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "Showing the first") {
+		t.Errorf("a list the bound did not cut says it was: %s", b.String())
 	}
 }

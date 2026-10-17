@@ -65,21 +65,27 @@ func recordTableColumns(fields []domain.Field) []TableColumn {
 // header, both produced by lowering from the page's `columns:`; the cells are row-major, so cell i belongs to column
 // i mod the number of headers and to row i div that number. A table with no cells and an `empty` text says that instead
 // of drawing a header over nothing.
-templ table(label, empty, headers, aligns string, cells []templ.Component) {
+templ table(label, empty, headers, aligns string, truncated Truncation, cells []templ.Component) {
 	{{ cols := tableColumnsFromProps(headers, aligns) }}
 	if len(cells) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else {
-		@dataTable(label, cols) {
-			for i := 0; i+len(cols) <= len(cells) && len(cols) > 0; i += len(cols) {
-				<tr>
-					for j, c := range cols {
-						<td class={ tableCellClasses(ctx), tableAlignClass(c.Align) }>
-							@cells[i+j]
-						</td>
-					}
-				</tr>
-			}
+		@tableBody(label, cols, cells)
+		@truncationNotice(truncated)
+	}
+}
+
+// tableBody is a Table's rows: the cells arrive row-major, one row's worth at a time.
+templ tableBody(label string, cols []TableColumn, cells []templ.Component) {
+	@dataTable(label, cols) {
+		for i := 0; i+len(cols) <= len(cells) && len(cols) > 0; i += len(cols) {
+			<tr>
+				for j, c := range cols {
+					<td class={ tableCellClasses(ctx), tableAlignClass(c.Align) }>
+						@cells[i+j]
+					</td>
+				}
+			</tr>
 		}
 	}
 }

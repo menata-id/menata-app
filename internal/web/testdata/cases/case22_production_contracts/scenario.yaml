@@ -56,6 +56,13 @@ steps:
     create: { machine: mch_contract, values: { fld_contract_no: CTR/K/031, fld_party_name: Dimas Prayoga, fld_value: "84000", fld_contract_kind: Crew } }
     expect: ok
 
+  - id: a-cut-list-says-what-it-was-cut-from
+    as: silvia
+    view:
+      path: /pages/nav_contracts_first
+      shows: ["Showing the first 1 of 2"]
+    expect: ok
+
   # Search, chips and the category drop-down (K01b): each narrows by an optional parameter, keeps the others, and an
   # unset one lists everything.
   - id: chips-count-and-all-lists-everything

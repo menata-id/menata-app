@@ -1780,9 +1780,12 @@ The cell is the Field's value as the record's own page shows it. A relation or p
 in one statement per related Machine. A Field the Machine does not have, and a `group` Field, are refused at load. **A status cell,
 by role or by Field, takes the tone `status_categories:` gives its option** (neutral without), the same tone the generic list and the
 record's own page draw; `from: {label: status, tone: "status:tone"}` gives a Collection's `StatusBadge` that tone too. `href: record` is the only address a
-cell may take and makes it a link to the record's own page. There are up to twelve columns. The cells are produced for you, so a Table holds no `children:`,
-and `headers` and `aligns` are never written. A Table is bound with `rows: records` only: a table of several Measures per Dimension
-(the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a window and claims nothing about completeness. **`stable`**: the
+cell may take and makes it a link to the record's own page. There are up to twelve columns. The cells are produced for you, so a Table's cells are produced from its columns
+(its `children:` are its row actions, below), and `headers` and `aligns` are never written. A Table is bound with `rows: records`
+only: a table of several Measures per Dimension (the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a
+window and claims nothing about completeness -- unless it says **`complete: true`** (2026-10-17, as a Collection may): then a list
+the bound cut says so under its rows, with the count it was cut from ("Showing the first 100 of 340"), which costs one count only
+when the bound bit. **`stable`**: the
 Helpdesk's All tickets page declares one.
 
 **`component: ActionBar`** (2026-10-17) is a page's primary actions, named as a group. Put it at the root of the page and it

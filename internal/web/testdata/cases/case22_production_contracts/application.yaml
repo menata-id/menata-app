@@ -82,6 +82,19 @@ navigation:
         - component: Form
           submit: Save contract
           binding: { dataset: ds_contracts, write: create }
+  - id: nav_contracts_first
+    label: First contract
+    route: /pages/nav_contracts_first
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Table
+          label: Contracts
+          complete: true
+          columns:
+            - { header: Contract no., field: fld_contract_no }
+          binding: { dataset: ds_contracts_first, rows: records }
   - id: nav_categories
     label: Categories
     route: /machines/mch_category

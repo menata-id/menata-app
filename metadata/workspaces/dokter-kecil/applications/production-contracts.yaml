@@ -170,6 +170,7 @@ navigation:
         - component: Table
           label: Contracts
           empty: No contract matches.
+          complete: true
           columns:
             - { header: Contract no., field: fld_contract_no, href: record }
             - { header: Contracted party, field: fld_party_name }

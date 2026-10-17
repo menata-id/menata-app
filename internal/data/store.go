@@ -284,21 +284,9 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	// value, expression index, stored column, generated column, materialized aggregate", and the
 	// runtime may change that without touching metadata.
 	args := []any{machineID, workspaceID}
-	filter := ""
-	var alternatives []string
-	for _, p := range where {
-		clause, err := predicateSQL(p, &args)
-		if err != nil {
-			return nil, false, err
-		}
-		if p.Alternative {
-			alternatives = append(alternatives, clause)
-			continue
-		}
-		filter += " AND " + clause
-	}
-	if len(alternatives) > 0 {
-		filter += " AND (" + strings.Join(alternatives, " OR ") + ")"
+	filter, err := predicatesFilter(where, &args)
+	if err != nil {
+		return nil, false, err
 	}
 
 	orderBy := "sort_order ASC, created_at ASC"
@@ -333,6 +321,50 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 		return rows[:limit], true, nil
 	}
 	return rows, false, nil
+}
+
+// predicatesFilter is a selection's WHERE beyond machine and Workspace: the conjunction, then the OR-group as one clause.
+func predicatesFilter(where []FieldPredicate, args *[]any) (string, error) {
+	filter := ""
+	var alternatives []string
+	for _, p := range where {
+		clause, err := predicateSQL(p, args)
+		if err != nil {
+			return "", err
+		}
+		if p.Alternative {
+			alternatives = append(alternatives, clause)
+			continue
+		}
+		filter += " AND " + clause
+	}
+	if len(alternatives) > 0 {
+		filter += " AND (" + strings.Join(alternatives, " OR ") + ")"
+	}
+	return filter, nil
+}
+
+// CountRecordsSelect is how many records of machineID the same predicates match, without the bound: what a list cut short
+// by its `limit:` says it is cut from ("the first 100 of 340"). The caller asks only when ListRecordsSelect reported a
+// cut, so a list that fits costs no second statement.
+func (s *Store) CountRecordsSelect(ctx context.Context, machineID, datasetID string, where []FieldPredicate) (int, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return 0, errNotScoped
+	}
+	readLogFrom(ctx).record(machineID + " count " + datasetID)
+	args := []any{machineID, workspaceID}
+	filter, err := predicatesFilter(where, &args)
+	if err != nil {
+		return 0, err
+	}
+	var n int
+	// #nosec G201 -- filter holds JSONB paths over load-validated Field ids; every value is a bind parameter.
+	err = s.q(ctx).QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FROM records WHERE machine_id = $1 AND workspace_id = $2%s`, filter), args...).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count records: %w", err)
+	}
+	return n, nil
 }
 
 // predicateSQL is one predicate's clause, its value (when it has one) appended to args as a bind parameter. Only

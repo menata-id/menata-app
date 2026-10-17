@@ -31,6 +31,11 @@ datasets:
         - { field: fld_party_name, op: contains, value: $parameters.q, optional: true }
     sort: [{ field: fld_contract_no }]
     limit: 100
+  # A window of one, to hold the cut list to what it says (owner decision K2).
+  - id: ds_contracts_first
+    select: records
+    sort: [{ field: fld_contract_no }]
+    limit: 1
   - id: ds_contracts_by_kind
     dimension: fld_contract_kind
     measures: [{ id: msr_contracts_by_kind, aggregate: count }]

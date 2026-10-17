@@ -249,6 +249,13 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		tagLists = append(tagLists, list)
 	}
 	set := ir.RecordSet{Records: out, Tags: tagLists, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}
+	if sel.Truncated {
+		// A list cut by its bound says what it was cut from ("the first 100 of 340", owner decision K2). One count,
+		// and only when the bound bit.
+		if set.Total, err = l.CountSelected(ctx, b.Dataset, where); err != nil {
+			return ir.RecordSet{}, err
+		}
+	}
 	if b.Group == domain.PageGroupDate {
 		if set.Buckets, set.BucketKeys, err = dateBuckets(ds, src, records, where); err != nil {
 			return ir.RecordSet{}, err

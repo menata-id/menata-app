@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -85,9 +86,18 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			Props: map[string]string{"gap": string(domain.GapTight), "align": string(domain.RowAlignCenter), "justify": string(domain.RowJustifyStart)}, Children: n.Children}
 		headers, aligns = append(headers, ""), append(aligns, string(domain.TableAlignEnd))
 	}
-	props := make(map[string]string, len(n.Props)+2)
-	for k, v := range n.Props {
+	// `complete: true` is the Collection's claim, read the same way (owner decision K2): a list cut by its Dataset's bound
+	// says so under the rows, with the count it was cut from when the resolver knows it.
+	base, err := lowerComplete(n, set, path)
+	if err != nil {
+		return nil, err
+	}
+	props := make(map[string]string, len(base)+2)
+	for k, v := range base {
 		props[k] = v
+	}
+	if t, cut := props[collectionTruncatedProp]; cut && set.Total > 0 {
+		props[collectionTruncatedProp] = t + "/" + strconv.Itoa(set.Total)
 	}
 	props[tableHeadersProp], props[tableAlignsProp] = strings.Join(headers, "\n"), strings.Join(aligns, ",")
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}

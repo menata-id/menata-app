@@ -219,6 +219,28 @@ func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expr
 	return sel.Records, nil
 }
 
+// CountSelected is how many records a `select: records` Dataset matches without its `limit:` -- asked only of a list the
+// bound cut, so it can say what it was cut from. A runtime-provided Machine has no count to ask and answers 0.
+func (l *Loader) CountSelected(ctx context.Context, datasetID string, where expression.Context) (int, error) {
+	ds, ok := l.Dataset(datasetID)
+	if !ok {
+		return 0, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
+	}
+	if src := l.Machine(ds.Source); src == nil || src.Runtime != "" {
+		return 0, nil
+	}
+	predicates, err := predicatesFor(ds, where)
+	if err != nil {
+		return 0, err
+	}
+	n, err := l.store.CountRecordsSelect(ctx, ds.Source, ds.ID, predicates)
+	if err != nil {
+		return 0, err
+	}
+	l.reads++
+	return n, nil
+}
+
 // SelectRelated is SelectDataset plus the children its Relations declare (007 §7.5).
 func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expression.Context) (Selection, error) {
 	records, truncated, err := l.selectRecords(ctx, datasetID, where)

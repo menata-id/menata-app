@@ -204,6 +204,9 @@ var tableContract = domain.ComponentContract{
 		{Name: "empty", Kind: "string"},
 		{Name: "headers", Kind: "string", Required: true},
 		{Name: "aligns", Kind: "string"},
+		// truncated is lowered from `complete: true` when the Dataset's bound cut the list: "100", or "100/340" when the
+		// count it was cut from is known. Never written.
+		{Name: "truncated", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"cell"},

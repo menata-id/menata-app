@@ -72,6 +72,9 @@ type RecordSet struct {
 	ShapeOnly    bool
 	Truncated    bool
 	Limit        int
+	// Total is how many records the Dataset matches without its bound, read only when Truncated: what a cut list says
+	// it was cut from. 0 when unknown.
+	Total int
 	// Buckets and BucketKeys serve a binding with `group:` (domain.PageGroupDate): the buckets in the order they
 	// are drawn, empty ones included, and for each record the Key of the bucket it sits in. A record whose key
 	// matches no bucket is a defect in the resolver -- the window comes from the Dataset's own `where:` -- and

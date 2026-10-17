@@ -305,6 +305,8 @@ templ csrfHiddenInput() {
 type Truncation struct {
 	Limit int
 	Hit   bool
+	// Total is how many matched, when known ("the first 100 of 340"); 0 says only that more matched.
+	Total int
 }
 
 // truncationNotice renders nothing at all when the bound did not bite, so a caller may pass its
@@ -312,7 +314,11 @@ type Truncation struct {
 templ truncationNotice(t Truncation) {
 	if t.Hit && t.Limit > 0 {
 		<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-3 py-2", textClass(ctx, domain.RoleCaption), toneInkClass(ctx, domain.ToneWarn) }>
-			Showing the first { fmt.Sprint(t.Limit) } only — more match than fit on this page.
+			if t.Total > 0 {
+				Showing the first { fmt.Sprint(t.Limit) } of { fmt.Sprint(t.Total) } — search or filter to narrow the list.
+			} else {
+				Showing the first { fmt.Sprint(t.Limit) } only — more match than fit on this page.
+			}
 		</p>
 	}
 }

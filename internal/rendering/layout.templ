@@ -1166,11 +1166,16 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 // hand-written lists use, so a bound reads one way on every screen. It is the zero value for every list that
 // did not claim completeness (or was not cut), and `truncationNotice` draws nothing for it.
 func truncationFromProp(limit string) Truncation {
+	limit, total, _ := strings.Cut(limit, "/")
 	n, err := strconv.Atoi(limit)
 	if err != nil || n <= 0 {
 		return Truncation{}
 	}
-	return Truncation{Limit: n, Hit: true}
+	t := Truncation{Limit: n, Hit: true}
+	if m, err := strconv.Atoi(total); err == nil && m > n {
+		t.Total = m
+	}
+	return t
 }
 
 templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, truncated Truncation, heading string, hint string, items []templ.Component) {
@@ -1540,7 +1545,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentNavList:
 					@navList(n.Props["label"], n.Props["variant"], n.Props["home"], n.Props["rows"])
 				case domain.ComponentTable:
-					@table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], uiChildComponents(n))
+					@table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
 				case domain.ComponentFormInput:
 					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true")
 			}
