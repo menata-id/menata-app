@@ -501,8 +501,11 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, m.Name)
-		<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
+		if showMachineSchema(actor) {
+			<code class={ "font-mono", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkFaint) }>{ m.ID }</code>
+		}
 	</div>
+	if showMachineSchema(actor) {
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
 		<div class={ surfaceClasses(ctx) }>
@@ -525,6 +528,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 			}
 		</div>
 	}
+	}
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
 		@viewSwitcher(m, v)
@@ -535,6 +539,37 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 				@tableLayout(m, records, relations, groups, actor, now)
 		}
 	}
+}
+
+// showMachineSchema is whether the generic Machine page shows its own plumbing -- the Machine id and the Field schema
+// table. That is what an author of the Workspace needs to read and what a member working in it does not: they came for
+// the records. A Workspace admin still sees it, so nothing an author relied on is gone.
+func showMachineSchema(actor domain.Actor) bool {
+	return actor.WorkspaceRole == "admin"
+}
+
+// statusOptionTone is the tone a status option is drawn in: the category the Machine declares for it
+// (`status_categories:`) mapped to a tone the Theme already has, or neutral when the Machine declares none for that
+// option. start is neutral, active info, attention warn, done good, stopped bad (muted is faint ink, which a status must not be).
+func statusOptionTone(m *domain.Machine, fieldID, option string) domain.BadgeTone {
+	if m.StatusCategories == nil || m.StatusCategories.Field != fieldID {
+		return domain.ToneNeutral
+	}
+	c, ok := m.StatusCategories.CategoryOf(option)
+	if !ok {
+		return domain.ToneNeutral
+	}
+	switch c {
+	case domain.StatusActive:
+		return domain.ToneInfo
+	case domain.StatusAttention:
+		return domain.ToneWarn
+	case domain.StatusDone:
+		return domain.ToneGood
+	case domain.StatusStopped:
+		return domain.ToneBad
+	}
+	return domain.ToneNeutral
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
@@ -1117,6 +1152,8 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 					{ RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 				} else if f.Type == domain.FieldTypeGroup {
 					{ GroupLabel(groups, toString(r.Values[f.ID])) }
+				} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
+					@statusBadge(toString(r.Values[f.ID]), statusOptionTone(m, f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 				} else {
 					{ fmt.Sprint(r.Values[f.ID]) }
 				}
