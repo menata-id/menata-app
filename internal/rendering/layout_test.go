@@ -1399,13 +1399,6 @@ func TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites(t *testing.T)
 	if !strings.Contains(modal, "border border-slate-300 p-3 bg-white text-slate-900 shadow-lg") {
 		t.Errorf("the signature dialog must take panel padding and the surface edge from the theme: %s", modal)
 	}
-	home := render(WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}))
-	if !strings.Contains(home, "border border-slate-300 bg-slate-50 px-3") {
-		t.Error("a suggestion chip's edge must follow theme.border.surface")
-	}
-	if !strings.Contains(home, `class="flex flex-col gap-3 rounded-lg border border-slate-300 bg-white p-4"`) {
-		t.Error("the home page's hand-written <section> must take section padding (p-4 here), not panel padding")
-	}
 }
 
 // Rencana 0.4, after the independent review: every surface edge that moved to borderClass(BorderSurface) is pinned
@@ -1426,7 +1419,6 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-47.5 shrink-0 flex-col gap-2 rounded-lg border border-slate-200 bg-slate-100 p-2`},
 		"pdf thumbnail":        {pdfThumbnail("mch_document", "rec_1"), `class="block max-w-40 rounded border border-slate-200 bg-white"`},
 		"placement page frame": {placementCanvas(PlacementView{DocumentID: "d", Page: 1, TotalPages: 1}), `class="block w-full rounded-md border border-slate-200 bg-white"`},
-		"home suggestion chip": {WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}), `class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"`},
 	} {
 		var buf strings.Builder
 		if err := tc.c.Render(context.Background(), &buf); err != nil {

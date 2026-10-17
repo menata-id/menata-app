@@ -19,7 +19,7 @@ var handWrittenVariantTokens = map[string]int{
 	"acceptinvite.templ": 1, "account.templ": 5, "appshell.templ": 13, "authshell.templ": 4, "checkyouremail.templ": 1,
 	"controls.templ": 1, "createworkspace.templ": 1, "deleteaccount.templ": 1, "forgotpassword.templ": 1, "layout.templ": 1,
 	"login.templ": 4, "register.templ": 1, "resendverification.templ": 1, "resetpassword.templ": 1, "rolematrix.templ": 1,
-	"workspacehome.templ": 3, "workspacemembers.templ": 1,
+	"workspacemembers.templ": 1,
 }
 
 // handWrittenLeading counts a `leading-*` line-height written beside a text role. A role's size comes with its own line height
@@ -28,7 +28,7 @@ var handWrittenVariantTokens = map[string]int{
 var handWrittenLeading = map[string]int{
 	"appsettings.templ": 3, "appshell.templ": 2, "authshell.templ": 1, "chooseworkspace.templ": 1,
 	"machine.templ": 1, "reviewdocument.templ": 2, "rolematrix.templ": 7, "signatureplacement.templ": 1,
-	"workspacefiles.templ": 3, "workspacehome.templ": 4,
+	"workspacefiles.templ": 3,
 }
 
 // handWrittenTracking counts `tracking-wide`, the artifact's 0.025em on eyebrows and table heads. It is not a Theme role (the

@@ -153,10 +153,21 @@ func TestRuntimeAction_setMemberAccessRefusesAnInvalidWorkspaceRole(t *testing.T
 }
 
 func TestWebProvidedRuntimeSourcesHaveAReader(t *testing.T) {
-	// Every source the registry leaves to the handler is one the handler supplies a reader for: snapshotsProvider and templatesProvider are the two.
+	// Every source the registry leaves to the handler has a reader the handler supplies, and the handler supplies none for a
+	// source composition provides.
+	supplied := webRuntimeProviders(nil, config.Config{})
 	for id, src := range registry.RuntimeSources {
-		if src.Provider == "web" && id != "snapshots" && id != "templates" {
+		_, has := supplied[id]
+		switch {
+		case src.Provider == "web" && !has:
 			t.Errorf("registry leaves source %q to the web package and nothing here supplies a reader for it", id)
+		case src.Provider != "web" && has:
+			t.Errorf("the web package supplies a reader for %q, which composition provides", id)
+		}
+	}
+	for id := range supplied {
+		if _, ok := registry.RuntimeSources[id]; !ok {
+			t.Errorf("the web package supplies a reader for %q, which is no source", id)
 		}
 	}
 }

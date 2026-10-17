@@ -247,7 +247,7 @@ func Routes(d Deps) http.Handler {
 		// every sign-in already lands on (/home). The list is still there, at /machines.
 		pr.Get("/", func(w http.ResponseWriter, req *http.Request) { http.Redirect(w, req, "/home", http.StatusSeeOther) })
 		pr.Get("/machines", showMachineList(d.Store, d.Cfg))
-		pr.Get("/home", showWorkspaceHome(d.Store, d.Cfg))
+		pr.Get("/home", showRuntimePage(d.Store, d.Cfg, "nav_home").ServeHTTP)
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
 		// Restore's mid-session counterpart -- allow-listed in blockWritesToArchivedWorkspace since
@@ -338,7 +338,6 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas
 			// re-audit, ROADMAP.md, 2026-09-27) -- same admin gate as the section that triggers it.
-			ar.Get("/api/home/draft-applications", showHomeDraftApplications(d.Store))
 
 			// Installing a ready-made Application from the template library (2026-09-28) -- the
 			// non-AI half of "add an application", and the first thing that can install

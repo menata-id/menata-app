@@ -52,7 +52,6 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	// workspace: runtime chrome registered as fixed literals in router.go, owned by no Application's
 	// `navigation:` (see runtimeLevelRoutes). Needs a Workspace-level `page:` to be declarable, which
 	// the plan does not build.
-	"WorkspaceHomePage":        {"workspace", "Workspace Home: aggregates every installed Application's home cards"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
 	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens. Re-read 2026-10-15: a page's write binding (create/update/delete/move/transition) writes a Machine's records, and this form writes a metadata file, which no binding names"},
 	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; re-read 2026-10-15: it starts an AI session, not a record write, so the record write binding does not reach it"},

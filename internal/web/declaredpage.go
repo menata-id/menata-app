@@ -83,10 +83,13 @@ func gatedPage(store *data.Store, cfg config.Config, navID string, runtime bool,
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			actor := currentActor(req, store, cfg)
+			actor := pageViewer(currentActor(req, store, cfg), cfg)
 			loader := composition.NewLoader(store, machinesFor(ctx))
 			if runtime {
-				loader = loader.WithRuntime(ws.RuntimeMachines, actor).WithParams(pageParams(req, "")).WithRuntimeProvider("snapshots", snapshotsProvider(store, cfg)).WithRuntimeProvider("templates", templatesProvider(cfg))
+				loader = loader.WithRuntime(ws.RuntimeMachines, actor).WithParams(pageParams(req, ""))
+				for source, provider := range webRuntimeProviders(store, cfg) {
+					loader = loader.WithRuntimeProvider(source, provider)
+				}
 			}
 			params := pageParams(req, "")
 			if recordParam != "" {
@@ -156,4 +159,28 @@ func pageParams(req *http.Request, applicationID string) map[string]string {
 	out := queryParams(req)
 	out["application"] = applicationID
 	return out
+}
+
+// pageViewer is the viewer a page is lowered for. The shared admin credential has no membership row and no Workspace role, and
+// the admin gate lets it through by id: what a page asks of the viewer (`when: {viewer: workspace_role, is: admin}`, whether an
+// admin action is offered) must say what the gate will do, so that identity is an admin here. It changes nothing a route
+// decides: every route reads the actor itself.
+func pageViewer(actor domain.Actor, cfg config.Config) domain.Actor {
+	if actor.ID != "" && actor.ID == cfg.AdminUserID && actor.WorkspaceRole == "" {
+		actor.WorkspaceRole = domain.WorkspaceRoleAdmin
+	}
+	return actor
+}
+
+// webRuntimeProviders are the readers of every source whose registry entry says `Provider: "web"`: they need what only a handler
+// holds (the store's per-request identity, the process's configuration). A source left to the web package with no reader here is
+// caught by TestWebProvidedRuntimeSourcesHaveAReader.
+func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]composition.RuntimeProvider {
+	return map[string]composition.RuntimeProvider{
+		"snapshots":          snapshotsProvider(store, cfg),
+		"templates":          templatesProvider(cfg),
+		"applications":       applicationsProvider(store, cfg),
+		"draft_applications": draftApplicationsProvider(store),
+		"current_workspace":  currentWorkspaceProvider(store),
+	}
 }

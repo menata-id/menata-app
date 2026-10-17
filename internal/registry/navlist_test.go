@@ -62,7 +62,7 @@ func TestValidateSearchBox(t *testing.T) {
 		"a blank label":    {"label": " ", "query": "q"},
 		"a reserved name":  {"label": "S", "query": "week"},
 		"not a plain word": {"label": "S", "query": "Q?x"},
-		"an undeclared":    {"label": "S", "query": "q", "action": "/x"},
+		"an undeclared":    {"label": "S", "query": "q", "class": "x"},
 	} {
 		if issues := validateSearchBox(in); len(issues) == 0 {
 			t.Errorf("%s was accepted", name)

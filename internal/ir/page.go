@@ -1596,6 +1596,9 @@ func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error
 	if _, written := n.Props["value"]; written {
 		return nil, fmt.Errorf("%s: value: is the words the request carried, produced by lowering, and is never written", path)
 	}
+	if _, written := n.Props["action"]; written {
+		return nil, fmt.Errorf("%s: a SearchBox goes to a destination with to: <navigation item id>, never a typed action -- a route is declared once (001 #3, #8)", path)
+	}
 	param := n.Props["query"]
 	if domain.SearchParamsReserved[param] {
 		return nil, fmt.Errorf("%s: SearchBox query %q is one the runtime owns", path, param)
@@ -1604,7 +1607,17 @@ func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error
 	for k, v := range n.Props {
 		props[k] = v
 	}
-	if r.Query != nil && param != "" {
+	if n.To != "" {
+		if r.Route == nil {
+			return nil, fmt.Errorf("%s: no resolver for routes", path)
+		}
+		route, _, ok := r.Route(n.To)
+		if !ok {
+			return nil, fmt.Errorf("%s: to: %s names no navigation item in this Application", path, n.To)
+		}
+		props["action"] = route
+	} else if r.Query != nil && param != "" {
+		// A box that sends its words elsewhere does not carry the ones this request had: they were for this page.
 		props["value"] = r.Query(param)
 	}
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentSearchBox), Props: props}}, nil

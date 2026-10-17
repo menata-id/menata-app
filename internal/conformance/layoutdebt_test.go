@@ -90,7 +90,6 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// heading a section *holds*, not a layout, and every caller now sits inside `stackLayout`.
 	"section": {
 		"account.templ": 1, "layout.templ": 2, "newapplication.templ": 1,
-		"workspacehome.templ": 2,
 	},
 }
 
@@ -347,7 +346,6 @@ var handWrittenHalfStepGaps = map[string]int{
 	"approvalinbox.templ":  1, // a card's stacked title and meta
 	"machine.templ":        4, // record card stack; card quick-edit form and its Save/Cancel row; move form
 	"newapplication.templ": 1, // stacked label and control
-	"workspacehome.templ":  1, // stacked heading block
 }
 
 func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {

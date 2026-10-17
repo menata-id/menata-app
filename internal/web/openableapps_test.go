@@ -13,6 +13,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
 )
 
@@ -75,7 +76,13 @@ func TestWorkspaceHomeAndLauncherListOnlyOpenableApplications(t *testing.T) {
 	}
 
 	const gated, open = "Gated Approvals", "Open Board"
+	// The runtime's own pages and machines are the binary's, the same in every Workspace: take them from a loaded one.
+	defaults, err := metadata.LoadApplication("../../metadata/workspaces/default.yaml")
+	if err != nil {
+		t.Fatalf("load default Workspace: %v", err)
+	}
 	workspace := domain.Workspace{
+		RuntimePages: defaults.Workspace.RuntimePages, RuntimeMachines: defaults.Workspace.RuntimeMachines,
 		Slug: ws.Slug,
 		Applications: []domain.Application{
 			{ID: "app_gated", Name: gated, Roles: []string{"approver"}},
@@ -91,7 +98,7 @@ func TestWorkspaceHomeAndLauncherListOnlyOpenableApplications(t *testing.T) {
 				next.ServeHTTP(w, req.WithContext(rendering.WithCurrentWorkspace(req.Context(), workspace, "Openable Apps", false)))
 			})
 		})
-		r.Get("/home", showWorkspaceHome(store, cfg))
+		r.Get("/home", showRuntimePage(store, cfg, "nav_home").ServeHTTP)
 		req := httptest.NewRequest(http.MethodGet, "/home", nil)
 		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
 		rec := httptest.NewRecorder()

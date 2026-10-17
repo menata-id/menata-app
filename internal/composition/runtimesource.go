@@ -3,6 +3,7 @@ package composition
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,11 +21,12 @@ import (
 type RuntimeProvider func(ctx context.Context, l *Loader, viewer domain.Actor) ([]*data.Record, error)
 
 var runtimeProviders = map[string]RuntimeProvider{
-	"groups":                groupsProvider,
-	"members":               membersProvider,
-	"invites":               invitesProvider,
-	"settings_applications": settingsApplicationsProvider,
-	"application_members":   applicationMembersProvider,
+	"groups":                  groupsProvider,
+	"members":                 membersProvider,
+	"invites":                 invitesProvider,
+	"settings_applications":   settingsApplicationsProvider,
+	"application_members":     applicationMembersProvider,
+	"application_suggestions": suggestionsProvider,
 }
 
 // RuntimeProviderIDs lists the sources a provider exists for, for the agreement test.
@@ -471,4 +473,19 @@ func sourceRecordRoles(ctx context.Context, l *Loader, viewer domain.Actor, sour
 		}
 	}
 	return roles, nil
+}
+
+// suggestionsProvider is the `application_suggestions` source: the Workspace's own example prompts for the assistant, in the order
+// its manifest lists them, each opening a conversation that starts from that prompt. The Workspace declares them, not the runtime
+// (owner instruction, 2026-09-27): a Workspace whose business the mockup's three examples do not fit declares its own, or none.
+func suggestionsProvider(ctx context.Context, _ *Loader, _ domain.Actor) ([]*data.Record, error) {
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	var out []*data.Record
+	for i, s := range rendering.CurrentWorkspace(ctx).SuggestedApplications {
+		id := "suggestion_" + strconv.Itoa(i)
+		out = append(out, &data.Record{ID: id, MachineID: "mch_application_suggestion", WorkspaceID: workspaceID, Values: map[string]any{
+			"fld_id": id, "fld_title": s.Label, "fld_link": domain.RuntimeScreenRoute("nav_new_application") + "?idea=" + url.QueryEscape(s.Prompt),
+		}})
+	}
+	return out, nil
 }

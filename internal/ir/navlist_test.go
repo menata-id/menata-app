@@ -115,3 +115,32 @@ func TestLower_aLayoutMayCarryAnAnchorThatIsAPlainWord(t *testing.T) {
 		}
 	}
 }
+
+func TestLower_aSearchBoxThatSendsItsWordsElsewhereNamesItsDestinationAndCarriesNoOldWords(t *testing.T) {
+	res := Resolver{
+		Query: func(string) string { return "old words" },
+		Route: func(id string) (string, string, bool) {
+			return "/new-application", "New application", id == "nav_new_application"
+		},
+	}
+	n := searchNode(map[string]string{"label": "Describe", "query": "idea", "submit": "Start"})
+	n.Children[0].To = "nav_new_application"
+	got, err := Lower(n, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Children[0].Props; p["action"] != "/new-application" || p["value"] != "" || p["submit"] != "Start" {
+		t.Errorf("props = %v, want the destination's route, no carried words and the submit label", p)
+	}
+	for name, mutate := range map[string]func(*domain.PageNode){
+		"a typed action":   func(n *domain.PageNode) { n.Props["action"] = "/somewhere" },
+		"an unknown route": func(n *domain.PageNode) { n.To = "nav_nobody" },
+	} {
+		bad := searchNode(map[string]string{"label": "Describe", "query": "idea"})
+		bad.Children[0].To = "nav_new_application"
+		mutate(&bad.Children[0])
+		if _, err := Lower(bad, res); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}

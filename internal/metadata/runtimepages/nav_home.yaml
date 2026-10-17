@@ -1,0 +1,109 @@
+# Workspace Home: the Applications the viewer can open, each with their own role and what is pending; and, for a Workspace's admins
+# only, the drafts the assistant has generated, the box that starts a new application, the library to install from, and a line
+# about managing the Workspace. Open to every member: the list is the viewer's own, and what only admins see is hidden by `when:` and
+# so is never read for anyone else.
+id: nav_home
+open_to: member
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - component: Collection
+      gap: default
+      block: true
+      divided: true
+      empty: No application to open here yet. An application appears once it is installed into this workspace and you hold a role in it; ask a workspace admin for one.
+      binding: { dataset: ds_runtime_home_applications, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: link
+                  from: { text: title, href: link }
+                - static: caption
+                  from: { text: subtitle }
+                - static: caption
+                  from: { text: detail }
+            - component: StatusBadge
+              tone: info
+              when: { role: status, is: Pending }
+              from: { label: summary }
+            - static: caption
+              when: { role: status, is: Count }
+              from: { text: summary }
+    - component: Collection
+      gap: default
+      block: true
+      divided: true
+      hide_empty: true
+      when: { viewer: workspace_role, is: admin }
+      binding: { dataset: ds_runtime_draft_applications, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: link
+                  from: { text: title, href: link }
+                - static: caption
+                  from: { text: subtitle }
+            - component: StatusBadge
+              tone: warn
+              from: { label: status }
+    - layout: section
+      gap: default
+      when: { viewer: workspace_role, is: admin }
+      children:
+        - static: panel-heading
+          text: Add an application
+        - static: message
+          text: Describe what your team needs. Menata asks a few questions, shows what it will build, then generates it as a draft; nobody else sees it until you publish.
+        - component: SearchBox
+          label: Describe the application you need
+          query: idea
+          placeholder: "e.g. Leave requests approved by a supervisor, then HR"
+          submit: Start →
+          to: nav_new_application
+        - component: Collection
+          gap: tight
+          hide_empty: true
+          binding: { dataset: ds_runtime_application_suggestions, rows: records }
+          children:
+            - static: link
+              from: { text: title, href: link }
+        - static: caption
+          text: Only workspace admins can add applications.
+        - static: link
+          to: nav_install_application
+          text: Already know what you need? Install an application →
+    - component: Collection
+      gap: tight
+      block: true
+      when: { viewer: workspace_role, is: admin }
+      binding: { dataset: ds_runtime_current_workspace, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - layout: row
+              gap: default
+              align: center
+              children:
+                - component: StatusBadge
+                  tone: neutral
+                  from: { label: status }
+                - static: paragraph
+                  from: { text: subtitle }
+            - static: link
+              to: nav_workspace_settings

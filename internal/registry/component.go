@@ -996,6 +996,8 @@ var searchBoxContract = domain.ComponentContract{
 		{Name: "query", Kind: "string", Required: true},
 		{Name: "placeholder", Kind: "string"},
 		{Name: "value", Kind: "string"},
+		{Name: "action", Kind: "string"},
+		{Name: "submit", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,

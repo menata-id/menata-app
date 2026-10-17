@@ -3170,7 +3170,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentSearchBox:
-				templ_7745c5c3_Err = searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"]).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"], n.Props["action"], n.Props["submit"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -3250,6 +3250,47 @@ func gridColsFromProp(v string) domain.GridCols {
 		}
 	}
 	return domain.GridCols1
+}
+
+// appIconClasses maps a declared colour token to the icon tile's classes.
+//
+// TWO THINGS ABOUT THIS FUNCTION ARE LOAD-BEARING, and neither is style preference.
+//
+// It lives in a .templ file because static/css/input.css scans `internal/rendering/*.templ` and
+// nothing else -- a Tailwind class string in a .go file, *including a .go file in this very
+// package*, is invisible to the scanner and silently never reaches app.css.
+//
+// It returns whole literal strings rather than building "bg-" + color + "-50", for the same
+// reason: the scanner reads source text, so a name assembled at runtime is never emitted. Both
+// failures show up as missing styling in a browser, never as a build error -- which is why
+// domain.KnownApplicationColors is a closed set that must be extended here in step.
+func appIconClasses(color string) string {
+	switch color {
+	// Each pair is a property, `--color-app-<colour>-bg|ink` (owner decision DK8, 2026-10-13), so dark mode gives it
+	// its own steps; input.css holds both.
+	case "blue":
+		return "bg-app-blue-bg text-app-blue-ink"
+	case "emerald":
+		return "bg-app-emerald-bg text-app-emerald-ink"
+	case "amber":
+		return "bg-app-amber-bg text-app-amber-ink"
+	default:
+		return "bg-app-slate-bg text-app-slate-ink"
+	}
+}
+
+func pluralS(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+func displayRole(role string) string {
+	if role == "" {
+		return "—"
+	}
+	return role
 }
 
 var _ = templruntime.GeneratedTemplate

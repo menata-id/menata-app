@@ -585,45 +585,6 @@ func firstMachineOf(change aiassist.GeneratedChange) string {
 	return ""
 }
 
-// showHomeDraftApplications serves Workspace Home's own lazily-fetched "draft Application" row(s)
-// (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27, workspacehome.templ's own hx-get placeholder) --
-// every ai_sessions row in this Workspace whose status is "generated" (a validated proposal
-// exists, not yet published or discarded), resolved via latestChange, the same pure decode of
-// already-stored turns showNewApplicationReview already uses -- no Gemini call. Not threaded
-// through showWorkspaceHome's own eager render: /home is already at this repo's hard query-cost
-// ceiling (maxQueriesPerAuthenticatedPage), so this query is paid here instead, only when the
-// admin-gated section that triggers it is even reachable.
-func showHomeDraftApplications(store *data.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		workspaceID, _ := data.WorkspaceScope(ctx)
-
-		sessions, err := store.ListAISessionsByStatus(ctx, workspaceID, aiassist.KindNewApplication, data.AISessionStatusGenerated)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		rows := make([]rendering.HomeDraftApplicationRow, 0, len(sessions))
-		for _, s := range sessions {
-			full, err := store.GetAISession(ctx, workspaceID, s.ID)
-			if err != nil {
-				serverError(w, err)
-				return
-			}
-			change, ok, err := latestChange(full)
-			if err != nil || !ok || change.Application == nil {
-				continue
-			}
-			rows = append(rows, rendering.HomeDraftApplicationRow{
-				Name:        change.Application.Name,
-				Description: change.Application.Description,
-				ReviewHref:  "/new-application/" + s.ID + "/review",
-			})
-		}
-		render(ctx, w, rendering.HomeDraftApplicationRows(rows, req.URL.Query().Get("in") == "list"))
-	}
-}
-
 // confirmRemovals reads the removals the owner ticked at review into the change and answers 422 itself when
 // the plan asks for one that is not ticked. The model cannot tick them: ConfirmedRemovals is not in its schema.
 func confirmRemovals(w http.ResponseWriter, req *http.Request, change *aiassist.GeneratedChange, ws domain.Workspace) bool {

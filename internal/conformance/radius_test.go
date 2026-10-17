@@ -56,7 +56,6 @@ var handWrittenRadii = map[string]struct {
 	"progress.templ":           {2, "the progress bar's track and fill (geometry)"},
 	"reviewdocument.templ":     {6, "rounded (4px) reference code and signature box (DS-D17); four signature-marker and timeline circles (geometry)"},
 	"signatureplacement.templ": {5, "rounded (4px) signature markers and width input (DS-D17); two marker circles (geometry)"},
-	"workspacehome.templ":      {3, "three Application icon tiles (brand-mark)"},
 }
 
 var radiusToken = regexp.MustCompile(`^rounded(?:-(?:sm|md|lg|xl|2xl|full))?$`)

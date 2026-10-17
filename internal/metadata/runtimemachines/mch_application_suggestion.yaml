@@ -1,0 +1,16 @@
+# The Workspace's own example prompts for the assistant (registry.RuntimeSources: application_suggestions), declared in its manifest
+# as `suggested_applications:`. Each row says what to show and where a conversation that starts from it begins.
+id: mch_application_suggestion
+name: Application suggestion
+runtime: application_suggestions
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Label, type: text, required: true }
+  - { id: fld_link, name: Starts at, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_application_suggestions
+    select: records
+    limit: 20

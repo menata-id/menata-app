@@ -1,0 +1,20 @@
+# The Applications the assistant has generated and nobody has published yet (registry.RuntimeSources: draft_applications), each with
+# where to review it. Read by the Workspace's admins' pages only.
+id: mch_draft_application
+name: Draft application
+runtime: draft_applications
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_description, name: Note, type: text }
+  - { id: fld_status, name: Status, type: status, options: [Draft] }
+  - { id: fld_link, name: Review at, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_description, role: subtitle }
+  - { field: fld_status, role: status }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_draft_applications
+    select: records
+    limit: 50

@@ -91,6 +91,12 @@ var RuntimeScreens = []NavigationItem{
 		ID: "nav_workspace_danger", Label: "Danger zone", Route: "/workspace-settings#danger-zone",
 		SettingsSection: NavSectionWorkspaceSettings, SettingsGroup: "Security", Priority: 3, SidebarOnly: true,
 	},
+	// nav_new_application (2026-10-17): the assistant's conversation, where an Application is described and generated as a draft.
+	// A runtime screen for the reason the rest are: it exists identically in a Workspace with ten Applications or none.
+	{
+		ID: "nav_new_application", Label: "New application", Route: "/new-application", Title: "New application",
+		Description: "Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.",
+	},
 	// nav_notifications (2026-10-17): the viewer's own notifications, across Applications. A runtime screen for the
 	// reason the rest are: it exists identically in a Workspace with any number of Applications. Its body is a runtime
 	// page (metadata/runtimepages), and its Dataset sits on mch_notification, which every Workspace shares.

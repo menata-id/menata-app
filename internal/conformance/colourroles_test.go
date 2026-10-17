@@ -30,13 +30,12 @@ var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", 
 	// 3.2d review's forms.
 	"surfaceFromSm", "openSurfaceClasses", "raisedTintClass", "unreadTintClass",
 	// Dark mode's categorical and scrim properties (DK8, DK10).
-	"scrimClass", "draftTileEdgeClass", "draftTileInkClass", "fileTypeTileClasses"}
+	"scrimClass", "draftTileEdgeClass", "draftTileInkClass", "fileTypeTileClasses", "appIconClasses"}
 
 // categoricalColourReaders are the readers of the categorical properties (DK8) that live beside their component rather
-// than in layout.templ: a Tag's hue and an Application icon's pair.
+// than in layout.templ: a Tag's hue (an Application icon's pair moved into layout.templ with the Home page's deletion).
 var categoricalColourReaders = map[string][]string{
-	"machine.templ":       {"tagClasses"},
-	"workspacehome.templ": {"appIconClasses"},
+	"machine.templ": {"tagClasses"},
 }
 
 // TestColourRoleClassesComeOnlyFromTheirReaders is a zero-floor gate beside DS-D15 stage 2. A colour role is a
@@ -88,7 +87,7 @@ func TestColourRoleClassesComeOnlyFromTheirReaders(t *testing.T) {
 	if readersSeen != len(colourRoleReaders) {
 		t.Fatalf("found %d of the %d colour-role readers in layout.templ -- a reader was renamed or moved; update colourRoleReaders", readersSeen, len(colourRoleReaders))
 	}
-	if want := len(categoricalColourReaders["machine.templ"]) + len(categoricalColourReaders["workspacehome.templ"]); categoricalSeen != want {
+	if want := len(categoricalColourReaders["machine.templ"]); categoricalSeen != want {
 		t.Fatalf("found %d of the %d categorical colour readers -- one was renamed or moved; update categoricalColourReaders", categoricalSeen, want)
 	}
 	files := make([]string, 0, len(found))

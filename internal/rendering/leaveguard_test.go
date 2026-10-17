@@ -18,7 +18,7 @@ func renderLeaveGuardShell(t *testing.T, workspaceRole, switchHref string) strin
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: all}, "Test Workspace", false)
 	var buf bytes.Buffer
-	if err := WorkspaceHomePage("Dokter Kecil", Viewer{Initials: "AN", WorkspaceRole: workspaceRole}, switchHref, nil, nil).Render(ctx, &buf); err != nil {
+	if err := appShell("Home", "Dokter Kecil", Viewer{Initials: "AN", WorkspaceRole: workspaceRole}, switchHref).Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()
@@ -36,7 +36,7 @@ func renderLeaveGuardInsideAnApplication(t *testing.T) string {
 	ctx = WithCurrentApplication(ctx, app)
 	ctx = WithCurrentPath(ctx, "/one", "")
 	var buf bytes.Buffer
-	if err := WorkspaceHomePage("Dokter Kecil", Viewer{Initials: "AN", WorkspaceRole: "admin"}, "/switch-workspace", nil, nil).Render(ctx, &buf); err != nil {
+	if err := appShell("Home", "Dokter Kecil", Viewer{Initials: "AN", WorkspaceRole: "admin"}, "/switch-workspace").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

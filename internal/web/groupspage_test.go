@@ -2,8 +2,10 @@ package web
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -471,5 +473,74 @@ func TestApplicationMembersShowsWhatAGroupAddsAndNotWhatTheMemberAlreadyHolds(t 
 	}
 	if body := getPage(t, h, cookie, hub.Route+"/members"); strings.Contains(body, "through a Group") {
 		t.Error("a role held both directly and through a Group is shown as the Group's too")
+	}
+}
+
+// TestHomeIsARuntimePageOpenToEveryMember: /home lists the Applications the viewer can open, each with the role they hold there,
+// to any member; and for the Workspace's admins only, the drafts the assistant generated, the box that starts a new application
+// (a GET form that sends `idea` to /new-application), the Workspace's own suggestions, the library link and the line about
+// managing the Workspace. What only admins see is hidden by `when:` and so never read for anyone else.
+func TestHomeIsARuntimePageOpenToEveryMember(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "homepage", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	app := applicationWithRoles(t, ws)
+	session := createGeneratedSession(t, ctx, store, wsID, "HP-Leave Requests")
+
+	body := getPage(t, h, cookie, "/home")
+	for _, want := range []string{
+		app.Name, "Your role:", `href="` + app.HomeRoute + `"`,
+		"HP-Leave Requests", `href="/new-application/` + session.ID + `/review"`, ">Draft<",
+		"Add an application", `role="search"`, `action="/new-application"`, `name="idea"`, "Start →",
+		`href="/install-application"`, "Install an application", "You manage",
+		`href="/workspace-settings"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("an admin's Home does not contain %q", want)
+		}
+	}
+	for _, s := range ws.SuggestedApplications {
+		if !strings.Contains(body, "/new-application?idea="+url.QueryEscape(s.Prompt)) || !strings.Contains(body, html.EscapeString(s.Label)) {
+			t.Errorf("the Workspace's suggestion %q is not offered as a link that starts the conversation", s.Label)
+		}
+	}
+
+	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "homepage_member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_user", member.ID) })
+	if err := store.AddMember(ctx, wsID, member.ID, "homepage_member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetMemberAppRole(ctx, wsID, member.ID, app.ID, app.Roles[0]); err != nil {
+		t.Fatal(err)
+	}
+	mck := sessionCookieValueForTest(t, config.Config{SessionSecret: "homepage-secret"}, member.ID, 0)
+	got := getPage(t, h, mck, "/home")
+	if !strings.Contains(got, app.Name) || !strings.Contains(got, "Your role: "+app.Roles[0]) {
+		t.Error("a member does not see the Application they hold a role in, with that role")
+	}
+	for _, hidden := range []string{"HP-Leave Requests", "Add an application", `name="idea"`, "Install an application", "You manage"} {
+		if strings.Contains(got, hidden) {
+			t.Errorf("a member's Home shows %q, which is for admins", hidden)
+		}
+	}
+}
+
+func TestPageViewer_theSharedAdminCredentialIsAnAdminForWhatAPageAsksAndNobodyElseChanges(t *testing.T) {
+	cfg := config.Config{AdminUserID: "usr_shared"}
+	if got := pageViewer(domain.Actor{ID: "usr_shared"}, cfg); got.WorkspaceRole != domain.WorkspaceRoleAdmin {
+		t.Errorf("the shared admin credential = %q, want admin", got.WorkspaceRole)
+	}
+	for name, a := range map[string]domain.Actor{
+		"a member":                  {ID: "usr_1", WorkspaceRole: domain.WorkspaceRoleMember},
+		"an unplaced person":        {ID: "usr_2"},
+		"nobody":                    {},
+		"the shared admin as admin": {ID: "usr_shared", WorkspaceRole: domain.WorkspaceRoleAdmin},
+	} {
+		want := a.WorkspaceRole
+		if got := pageViewer(a, cfg); got.WorkspaceRole != want {
+			t.Errorf("%s: role %q became %q", name, want, got.WorkspaceRole)
+		}
 	}
 }

@@ -1,0 +1,19 @@
+# The Workspace the request is in, as one record (registry.RuntimeSources: current_workspace): its name, a sentence about the
+# viewer's part in it and their role. A page of the runtime's own reads it to say "You manage <name>" without the name being
+# written anywhere.
+id: mch_current_workspace
+name: Workspace
+runtime: current_workspace
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_note, name: Note, type: text }
+  - { id: fld_role, name: Viewer's role, type: status, options: [admin, member] }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_note, role: subtitle }
+  - { field: fld_role, role: status }
+datasets:
+  - id: ds_runtime_current_workspace
+    select: records
+    limit: 1

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -98,15 +99,7 @@ func TestShowHomeDraftApplications_listsGeneratedSession(t *testing.T) {
 
 	session := createGeneratedSession(t, wsCtx, store, ws.ID, "Leave Requests")
 
-	req := httptest.NewRequest(http.MethodGet, "/api/home/draft-applications", nil)
-	req = req.WithContext(wsCtx)
-	rec := httptest.NewRecorder()
-	showHomeDraftApplications(store)(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
-	}
-	body := rec.Body.String()
+	body := draftRowsText(t, wsCtx, store)
 	if !strings.Contains(body, "Leave Requests") {
 		t.Errorf("body = %q, want it to name the generated Application", body)
 	}
@@ -143,15 +136,7 @@ func TestShowHomeDraftApplications_omitsOtherStatuses(t *testing.T) {
 		t.Fatalf("UpdateAISessionStatus(discarded): %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/home/draft-applications", nil)
-	req = req.WithContext(wsCtx)
-	rec := httptest.NewRecorder()
-	showHomeDraftApplications(store)(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
-	}
-	body := rec.Body.String()
+	body := draftRowsText(t, wsCtx, store)
 	if strings.Contains(body, "Already Published") || strings.Contains(body, "Discarded Idea") {
 		t.Errorf("body = %q, want neither published nor discarded sessions listed", body)
 	}
@@ -850,4 +835,19 @@ func TestBuildConversationView_offersReviewOnlyForAValidatedChange(t *testing.T)
 			t.Errorf("status %q: ReadyToReview = %v, want %v", status, view.ReadyToReview, want)
 		}
 	}
+}
+
+// draftRowsText is what the draft_applications source hands a page of the runtime's own, as the text a person would read: each
+// draft's name and where to review it.
+func draftRowsText(t *testing.T, ctx context.Context, store *data.Store) string {
+	t.Helper()
+	rows, err := draftApplicationsProvider(store)(ctx, nil, domain.Actor{})
+	if err != nil {
+		t.Fatalf("draftApplicationsProvider: %v", err)
+	}
+	var b strings.Builder
+	for _, r := range rows {
+		fmt.Fprintf(&b, "%v %v\n", r.Values["fld_title"], r.Values["fld_link"])
+	}
+	return b.String()
 }

@@ -18,7 +18,6 @@ var emptyStateExempt = map[string]struct {
 	// Workspace Home's two cards: a title and a description inside the box, roomier (`px-6 py-12`) than the one-message
 	// card's `p-8`. Both sit on one screen, so a second input and a second padding would be a shape for one case. They
 	// wait for another screen that needs a title and a description; folding the padding into `p-8` is a visible change.
-	"workspacehome.templ": {2, "title and description in a roomier box, on one screen only"},
 }
 
 // TestNoHandWrittenEmptyState is a zero-floor gate beside `EmptyState`, the twelfth registered Component (rencana 2.3c,
