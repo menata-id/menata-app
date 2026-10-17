@@ -154,7 +154,7 @@ func TestMachineBody_noSwitcherBelowTwoViews(t *testing.T) {
 }
 
 // TestRecordRowWritesFiguresAsPeopleReadThem: a stored figure is never printed the way Go's %v prints it (180000000
-// as "1.8e+08"). Money is grouped in thousands; a number is written in full (K-14).
+// as "1.8e+08"). Money is grouped in thousands; a number is written in full (K-14); an unset value is blank.
 func TestRecordRowWritesFiguresAsPeopleReadThem(t *testing.T) {
 	m := &domain.Machine{
 		ID:   "mch_contract",
@@ -163,6 +163,7 @@ func TestRecordRowWritesFiguresAsPeopleReadThem(t *testing.T) {
 			{ID: "fld_contract_no", Name: "Contract no.", Type: domain.FieldTypeText},
 			{ID: "fld_value", Name: "Contract value", Type: domain.FieldTypeMoney},
 			{ID: "fld_days", Name: "Shooting days", Type: domain.FieldTypeNumber},
+			{ID: "fld_position", Name: "Position", Type: domain.FieldTypeText},
 		},
 	}
 	r := &data.Record{ID: "rec_c1", Values: map[string]any{"fld_contract_no": "CTR/C/026", "fld_value": float64(180000000), "fld_days": float64(2400000)}}
@@ -178,5 +179,41 @@ func TestRecordRowWritesFiguresAsPeopleReadThem(t *testing.T) {
 	}
 	if strings.Contains(html, "e+0") {
 		t.Error("a figure was printed in exponent form")
+	}
+	// The detail page lists every Field, so an unset one is drawn there: as nothing, not "<nil>".
+	buf.Reset()
+	if err := RecordDetailView(m, r, nil, nil, nil, domain.Actor{ID: "rec_user1"}, nil, RecordExtras{}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("RecordDetailView: %v", err)
+	}
+	if strings.Contains(buf.String(), "&lt;nil&gt;") {
+		t.Error("an unset value was printed as <nil> on the detail page")
+	}
+	if !strings.Contains(buf.String(), "180,000,000") {
+		t.Error("the detail page does not show the money figure grouped")
+	}
+}
+
+// TestRecordRowLinksTheLabelAndNamesARelation: the row's link sits on the Field the record is named by (its title
+// role), and a relation in the first column is drawn as the related record's label, never its id.
+func TestRecordRowLinksTheLabelAndNamesARelation(t *testing.T) {
+	m := &domain.Machine{ID: "mch_contract_term", Name: "Instalment",
+		Fields: []domain.Field{
+			{ID: "fld_contract", Name: "Contract", Type: domain.FieldTypeRelation, RelatedMachine: "mch_contract"},
+			{ID: "fld_term_label", Name: "Label", Type: domain.FieldTypeText},
+		},
+		CardFields: []domain.CardField{{Field: "fld_term_label", Role: domain.CardFieldRoleTitle}},
+	}
+	r := &data.Record{ID: "rec_t1", Values: map[string]any{"fld_contract": "rec_c1", "fld_term_label": "Signing"}}
+	relations := RelationOptions{"mch_contract": {{ID: "rec_c1", Label: "CTR/C/026"}}}
+	var buf bytes.Buffer
+	if err := RecordRow(m, r, relations, nil, domain.Actor{ID: "rec_user1"}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `/machines/mch_contract_term/records/rec_t1">Signing</a>`) {
+		t.Error("the row does not link its label")
+	}
+	if !strings.Contains(html, "CTR/C/026") || strings.Contains(html, ">rec_c1<") {
+		t.Error("the relation in the first column is not named by its label")
 	}
 }

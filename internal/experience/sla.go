@@ -119,6 +119,18 @@ func ResolveSLABadge(value any, now time.Time) SLABadge {
 	return SLABadge{Label: label, Tone: tone, Detail: slaDetail(days), Urgent: days <= 0, Present: true}
 }
 
+// ResolveRecordSLABadge is ResolveSLABadge for a record that may be finished. A finished record is never overdue,
+// whatever its date says -- the rule ResolveCardDate already keeps on cards -- so it shows its date, good-toned,
+// instead of a countdown. Until 2026-10-17 a paid instalment on a contract's page read OVERDUE beside "Paid".
+func ResolveRecordSLABadge(value any, done bool, now time.Time) SLABadge {
+	badge := ResolveSLABadge(value, now)
+	if !badge.Present || !done {
+		return badge
+	}
+	due, _ := time.Parse("2006-01-02", fmt.Sprint(value))
+	return SLABadge{Label: due.Format("2 Jan 2006"), Tone: domain.ToneGood, Present: true}
+}
+
 // CardDate is the resolved input for a date pill on a card: the short date text, a tone, and whether the
 // record it belongs to is finished. Like SLABadge it carries nothing left to parse or compare.
 type CardDate struct {

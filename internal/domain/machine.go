@@ -813,6 +813,26 @@ func (m *Machine) CardFieldFor(role CardFieldRole) string {
 	return ""
 }
 
+// Finished reports whether values hold the value this Machine's `completion:` declares as done. False when it
+// declares none: a Machine that never says what finished means has no finished records.
+func (m *Machine) Finished(values map[string]any) bool {
+	return m.Completion != nil && fmt.Sprint(values[m.Completion.Field]) == m.Completion.Done
+}
+
+// LabelField is the Field a record of this Machine is named by -- in a picker, a relation cell, a page heading, a
+// container's line: its `title` card role, or its first Field when it declares none. One answer for every place
+// that names a record; until 2026-10-17 pickers and headings read the first Field only, so an instalment whose first
+// Field is its contract was named by that contract's id.
+func (m *Machine) LabelField() string {
+	if id := m.CardFieldFor(CardFieldRoleTitle); id != "" {
+		return id
+	}
+	if len(m.Fields) > 0 {
+		return m.Fields[0].ID
+	}
+	return ""
+}
+
 func (m *Machine) FieldByID(id string) (Field, bool) {
 	for _, f := range m.Fields {
 		if f.ID == id {

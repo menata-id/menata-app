@@ -711,7 +711,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					return templ_7745c5c3_Err
 				}
 				if f.ID == m.SLAField {
-					templ_7745c5c3_Err = slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now)).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = slaBadge(experience.ResolveRecordSLABadge(r.Values[f.ID], m.Finished(r.Values), now)).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2279,13 +2279,13 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 	})
 }
 
-// recordTitle uses the Machine's first Field as the record's display title, the same label-field
-// convention already used for relation options (main.go's loadRelationOptions).
+// recordTitle is the record's display title: its Machine's label Field (domain.Machine.LabelField), the same one a
+// relation picker names it by.
 func recordTitle(m *domain.Machine, r *data.Record) string {
 	if len(m.Fields) == 0 {
 		return r.ID
 	}
-	return toString(r.Values[m.Fields[0].ID])
+	return toString(r.Values[m.LabelField()])
 }
 
 // hiddenDetailField skips an Approval Step's own raw signature-placement fields from the

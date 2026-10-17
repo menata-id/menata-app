@@ -1050,15 +1050,7 @@ func completeLabel(done bool, title string) string {
 // cardTitleFieldID is the Field a composer's input fills: the Machine's `title` card role, or its first
 // Field when it declares no projection.
 func cardTitleFieldID(m *domain.Machine) string {
-	for _, cf := range m.CardFields {
-		if cf.Role == domain.CardFieldRoleTitle {
-			return cf.Field
-		}
-	}
-	if len(m.Fields) > 0 {
-		return m.Fields[0].ID
-	}
-	return ""
+	return m.LabelField()
 }
 
 // cardComposer is a column's "Add a card": a title and, hidden, the group value that places the new record
@@ -1140,12 +1132,12 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 // status-only, the same fallback canDeleteInView already uses when it can't find them either.
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
 	<tr id={ "record-" + r.ID }>
-		for i, f := range m.Fields {
+		for _, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
-				if i == 0 {
+				if f.ID == m.LabelField() {
 					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ valueText(f, r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
-					@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
+					@slaBadge(experience.ResolveRecordSLABadge(r.Values[f.ID], m.Finished(r.Values), now))
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
@@ -1217,12 +1209,12 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 }
 
 // valueText is a stored value as a table cell or a detail line shows it: a figure as domain.FormatFigure writes it
-// (never "1.8e+08"), anything else as it is stored.
+// (never "1.8e+08"), an unset value as nothing (never "<nil>"), anything else as it is stored.
 func valueText(f domain.Field, v any) string {
 	if s, ok := f.Figure(v); ok {
 		return s
 	}
-	return fmt.Sprint(v)
+	return toString(v)
 }
 
 // figureInputValue is a stored figure as a number input's starting value: written in full, since an edit form must

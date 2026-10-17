@@ -272,6 +272,22 @@ func TestChecklistFor_NeedsBothDeclarations(t *testing.T) {
 	}
 }
 
+// A child Machine that needs more than its text to be created keeps its table: "Add an item" writes only the text
+// and the parent, so a checklist of instalments (an amount and a due date required) offered an Add that could only
+// fail. A required Field with a default does not count against it.
+func TestChecklistFor_NeedsAnItemThatTheTextAloneCreates(t *testing.T) {
+	needsMore := checklistMachine()
+	needsMore.Fields = append(needsMore.Fields, domain.Field{ID: "fld_amount", Type: domain.FieldTypeMoney, Required: true})
+	if checklistFor(needsMore, "fld_task", nil) != nil {
+		t.Error("a Machine with another required Field was drawn as a checklist")
+	}
+	defaulted := checklistMachine()
+	defaulted.Fields = append(defaulted.Fields, domain.Field{ID: "fld_kind", Type: domain.FieldTypeStatus, Required: true, Options: []string{"a"}, Default: "a"})
+	if checklistFor(defaulted, "fld_task", nil) == nil {
+		t.Error("a required Field with a default stopped the checklist")
+	}
+}
+
 func attachmentMachine() *domain.Machine {
 	return &domain.Machine{ID: "mch_attachment",
 		Fields: []domain.Field{

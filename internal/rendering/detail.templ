@@ -181,7 +181,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					<dt class={ "self-center", textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ f.Name }</dt>
 					<dd class={ "m-0", inkClass(ctx, domain.InkStrong) }>
 						if f.ID == m.SLAField {
-							@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
+							@slaBadge(experience.ResolveRecordSLABadge(r.Values[f.ID], m.Finished(r.Values), now))
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])
 							if action.IsDocument(m) && f.ID == documentPreviewField(ctx) {
@@ -432,13 +432,13 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 	</div>
 }
 
-// recordTitle uses the Machine's first Field as the record's display title, the same label-field
-// convention already used for relation options (main.go's loadRelationOptions).
+// recordTitle is the record's display title: its Machine's label Field (domain.Machine.LabelField), the same one a
+// relation picker names it by.
 func recordTitle(m *domain.Machine, r *data.Record) string {
 	if len(m.Fields) == 0 {
 		return r.ID
 	}
-	return toString(r.Values[m.Fields[0].ID])
+	return toString(r.Values[m.LabelField()])
 }
 
 // hiddenDetailField skips an Approval Step's own raw signature-placement fields from the

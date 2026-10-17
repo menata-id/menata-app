@@ -579,7 +579,7 @@ func (l *Loader) optionsOf(ctx context.Context, machineID string) ([]rendering.R
 		}
 		return list, true, nil
 	}
-	labelFieldID := target.Fields[0].ID
+	labelFieldID := target.LabelField()
 	for _, r := range records {
 		list = append(list, rendering.RelationOption{ID: r.ID, Label: DisplayString(r.Values[labelFieldID])})
 	}
@@ -674,7 +674,7 @@ func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine, v domain.V
 	if err != nil {
 		return nil, err
 	}
-	labelFieldID := listMachine.Fields[0].ID
+	labelFieldID := listMachine.LabelField()
 	columns := make([]experience.Column, 0, len(records))
 	for _, r := range records {
 		columns = append(columns, experience.Column{ID: r.ID, Label: DisplayString(r.Values[labelFieldID])})
@@ -775,10 +775,7 @@ func (l *Loader) RelatedLabels(ctx context.Context, machineID string, ids []stri
 		return nil, err
 	}
 	l.reads++
-	labelField := FieldForRole(target, domain.CardFieldRoleTitle)
-	if labelField == "" {
-		labelField = target.Fields[0].ID
-	}
+	labelField := target.LabelField()
 	labels := make(map[string]string, len(records))
 	for _, r := range records {
 		labels[r.ID] = DisplayString(r.Values[labelField])

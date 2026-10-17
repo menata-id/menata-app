@@ -47,3 +47,17 @@ func TestFieldFigureOnlyFormatsStoredFigures(t *testing.T) {
 		t.Error("a text field was formatted as a figure")
 	}
 }
+
+// TestLabelFieldPrefersTheTitleRole: a record is named by its title role, and by its first Field only when it
+// declares none -- an instalment whose first Field is its contract is named by its own label, not the contract's id.
+func TestLabelFieldPrefersTheTitleRole(t *testing.T) {
+	m := &Machine{Fields: []Field{{ID: "fld_contract", Type: FieldTypeRelation}, {ID: "fld_term_label", Type: FieldTypeText}},
+		CardFields: []CardField{{Field: "fld_term_label", Role: CardFieldRoleTitle}}}
+	if got := m.LabelField(); got != "fld_term_label" {
+		t.Errorf("LabelField = %q, want the title role", got)
+	}
+	m.CardFields = nil
+	if got := m.LabelField(); got != "fld_contract" {
+		t.Errorf("LabelField with no title role = %q, want the first Field", got)
+	}
+}

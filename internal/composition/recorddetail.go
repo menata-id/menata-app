@@ -214,9 +214,13 @@ func moveScopes(m *domain.Machine, v domain.View, r *data.Record, relations rend
 // what "finished" means (`completion:`) and which Field is an item's text (a `title` card field), which
 // is everything a checklist needs, so nothing new is declared and a child Machine that lacks either keeps
 // its table. Nil for those.
+//
+// A checklist's "Add an item" writes the text and the parent and nothing else, so a child Machine that needs
+// more than that to be created -- a required Field with no default, like an instalment's amount and due date --
+// keeps its table too. Drawing a checklist for it offered an Add that could only fail (Dokter Kecil, 2026-10-17).
 func checklistFor(m *domain.Machine, parentField string, records []*data.Record) *rendering.Checklist {
 	text := FieldForRole(m, domain.CardFieldRoleTitle)
-	if m.Completion == nil || text == "" {
+	if m.Completion == nil || text == "" || !createdFromTextAlone(m, parentField, text) {
 		return nil
 	}
 	c := &rendering.Checklist{ParentField: parentField, TextField: text}
@@ -228,6 +232,20 @@ func checklistFor(m *domain.Machine, parentField string, records []*data.Record)
 		c.Items = append(c.Items, rendering.ChecklistItem{ID: r.ID, Text: DisplayString(r.Values[text]), Complete: *cardComplete(m, r)})
 	}
 	return c
+}
+
+// createdFromTextAlone reports whether a record of m can be created from its parent and its text: every other
+// required Field (or one required now, given the defaults) is filled by a default, a computation or a stamp.
+func createdFromTextAlone(m *domain.Machine, parentField, textField string) bool {
+	for _, f := range m.Fields {
+		if f.ID == parentField || f.ID == textField || f.Default != nil || f.Compute != nil || f.Stamp != "" {
+			continue
+		}
+		if f.Required {
+			return false
+		}
+	}
+	return true
 }
 
 // attachmentsFor is how a child collection becomes a list of uploaded files: its Machine names the Field
