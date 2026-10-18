@@ -112,11 +112,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// The notice's look, cloned by the script below: a class string written inside a script is one no reader moves.
 			<template id="htmx-error-template"><div role="alert" class={ htmxErrorToastClasses(ctx) }></div></template>
 			<script>
-				document.addEventListener("htmx:responseError", function (e) {
-					var xhr = e.detail.xhr;
-					var msg = xhr.status >= 500
-						? "Something went wrong on our side. Please try again."
-						: (xhr.responseText || "").trim().slice(0, 300) || "That request was refused.";
+				function notify(msg) {
 					var box = document.getElementById("htmx-error");
 					if (!box) {
 						box = document.getElementById("htmx-error-template").content.firstElementChild.cloneNode(true);
@@ -128,6 +124,21 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					box.hidden = false;
 					clearTimeout(box._t);
 					box._t = setTimeout(function () { box.hidden = true; }, 8000);
+				}
+				document.addEventListener("htmx:responseError", function (e) {
+					var xhr = e.detail.xhr;
+					notify(xhr.status >= 500
+						? "Something went wrong on our side. Please try again."
+						: (xhr.responseText || "").trim().slice(0, 300) || "That request was refused.");
+				});
+				// A form the browser holds back for a required control left empty sends nothing, so no response says why: the
+				// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.
+				document.addEventListener("htmx:validation:halted", function (e) {
+					var form = e.target;
+					var bad = form.querySelectorAll(":invalid");
+					var left = bad.length, el = bad[0];
+					notify(left > 1 ? left + " required fields are still empty. Fill them in, then save." : "A required field is still empty. Fill it in, then save.");
+					if (el && el.scrollIntoView) { el.scrollIntoView({ block: "center" }); }
 				});
 			</script>
 		</head>
