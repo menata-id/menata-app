@@ -50,7 +50,7 @@ func TestValidate_computedFieldRefusesWhatItCannotEvaluate(t *testing.T) {
 		"not a number":     {"    type: number\n    compute:", "    type: text\n    compute:", "only valid on a number or money field"},
 		"required":         {"    type: number\n    compute:", "    type: number\n    required: true\n    compute:", "cannot be required"},
 		"repeated operand": {"fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_pdam]", "more than once"},
-		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number or money field"},
+		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number, money or date field"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -70,9 +70,9 @@ func TestValidate_computedFieldRefusesWhatItCannotEvaluate(t *testing.T) {
 	}
 }
 
-// TestValidate_computedOperandMayNotBeComputed: chains are refused, which is what makes evaluation
-// order irrelevant and cycles impossible.
-func TestValidate_computedOperandMayNotBeComputed(t *testing.T) {
+// TestValidate_computedValuesChainButNeverInARing (plan A1, 2026-10-18): a computed value may read another (an outstanding
+// subtracts the paid), computed after it; two that read each other have no order and are refused, naming the ring.
+func TestValidate_computedValuesChainButNeverInARing(t *testing.T) {
 	src := waterMachine + `  - id: fld_double
     name: Double
     type: number
@@ -84,8 +84,78 @@ func TestValidate_computedOperandMayNotBeComputed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "is itself computed") {
-		t.Errorf("Validate() = %v, want a refusal of a computed operand", err)
+	if err := Validate(m); err != nil {
+		t.Fatalf("a chain was refused: %v", err)
+	}
+	values := map[string]any{"fld_pdam": 2.0, "fld_well": 3.0}
+	data := m.ComputeOrder()
+	if len(data) != 2 || data[0].ID != "fld_total" {
+		t.Fatalf("compute order = %v, want fld_total before fld_double", data)
+	}
+	ring := strings.Replace(src, "fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_double]", 1)
+	m, err = Parse([]byte(ring))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "ring") {
+		t.Errorf("Validate() = %v, want the ring refused", err)
+	}
+	_ = values
+}
+
+// TestComputeTreeParsesAndEvaluates: the tree shape -- an operation named as the key, operands that are Fields,
+// literals or other operations -- parses into the expression its YAML says and evaluates as arithmetic does.
+func TestComputeTreeParsesAndEvaluates(t *testing.T) {
+	src := `id: mch_term
+name: Term
+fields:
+  - { id: fld_gross, name: Gross, type: money }
+  - { id: fld_vat, name: VAT, type: money }
+  - { id: fld_wht, name: WHT, type: money, compute: { round: [{ multiply: [fld_gross, 0.02] }, 0] } }
+  - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
+  - { id: fld_half, name: Half, type: number, compute: { divide: [fld_gross, 0] } }
+`
+	m, err := Parse([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	values := map[string]any{"fld_gross": 54000.0}
+	for _, f := range m.ComputeOrder() {
+		if v, ok := f.Compute.Evaluate(values); ok {
+			values[f.ID] = v
+		}
+	}
+	if values["fld_wht"] != 1080.0 || values["fld_net"] != 52920.0 {
+		t.Errorf("wht %v net %v, want 1080 and 52920 (an empty VAT counts as nothing)", values["fld_wht"], values["fld_net"])
+	}
+	if _, divided := values["fld_half"]; divided {
+		t.Error("a division by zero wrote a value")
+	}
+	for name, bad := range map[string]string{
+		"an unknown operation": `{ average: [fld_gross, fld_vat] }`,
+		"a divide of three":    `{ divide: [fld_gross, fld_vat, fld_wht] }`,
+		"a date in a sum":      `{ sum: [fld_gross, fld_when] }`,
+		"round by a field":     `{ round: [fld_gross, fld_vat] }`,
+		"a parent off a money": `{ sum: [{ parent: fld_gross.fld_x }] }`,
+	} {
+		src := strings.Replace(`id: mch_term
+name: Term
+fields:
+  - { id: fld_gross, name: Gross, type: money }
+  - { id: fld_vat, name: VAT, type: money }
+  - { id: fld_when, name: When, type: date }
+  - { id: fld_x, name: X, type: money, compute: COMPUTE }
+`, "COMPUTE", bad, 1)
+		m, err := Parse([]byte(src))
+		if err == nil {
+			err = Validate(m)
+		}
+		if err == nil {
+			t.Errorf("%s was accepted", name)
+		}
 	}
 }
 

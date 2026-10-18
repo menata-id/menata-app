@@ -325,6 +325,40 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	return rows, false, nil
 }
 
+// EachRecordPage hands fn every record of machineID in this Workspace, a page of at most size records at a time in id
+// order (keyset, so a page costs the same however far in it is). It is for the one job that must visit every record --
+// recomputing stored values after a formula changes (owner decision K3) -- and holds one page in memory, never the
+// Machine; a screen reads a bounded Dataset instead (007 §7.9).
+func (s *Store) EachRecordPage(ctx context.Context, machineID string, size int, fn func([]*Record) error) error {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return errNotScoped
+	}
+	after := ""
+	for {
+		rows, err := s.queryRecords(ctx, `
+			SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
+			FROM records
+			WHERE machine_id = $1 AND workspace_id = $2 AND id > $3
+			ORDER BY id
+			LIMIT $4
+		`, machineID, workspaceID, after, size)
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+		if err := fn(rows); err != nil {
+			return err
+		}
+		if len(rows) < size {
+			return nil
+		}
+		after = rows[len(rows)-1].ID
+	}
+}
+
 // predicatesFilter is a selection's WHERE beyond machine and Workspace: the conjunction, then the OR-group as one clause.
 func predicatesFilter(where []FieldPredicate, args *[]any) (string, error) {
 	filter := ""

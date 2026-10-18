@@ -10,11 +10,15 @@ import "menata.app/internal/domain"
 // Runs on the full set of values about to be stored, after defaults, so an update computes from
 // the record as it will be, never from a partial submission.
 func ApplyComputed(m *domain.Machine, values map[string]any) {
-	for _, f := range m.Fields {
-		if f.Compute == nil {
-			continue
-		}
-		if v, ok := f.Compute.Evaluate(values); ok {
+	ApplyComputedWith(m, values, nil)
+}
+
+// ApplyComputedWith is ApplyComputed with what a computed value may read beyond the record (domain.ComputeEnv): the
+// record a relation points at, and the records pointing at this one. Fields are computed in dependency order
+// (Machine.ComputeOrder), so a value computed from another computed value reads it fresh.
+func ApplyComputedWith(m *domain.Machine, values map[string]any, env domain.ComputeEnv) {
+	for _, f := range m.ComputeOrder() {
+		if v, ok := f.Compute.EvaluateWith(values, env); ok {
 			values[f.ID] = v
 		} else {
 			delete(values, f.ID)

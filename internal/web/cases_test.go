@@ -152,7 +152,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 53, Steps: 53},
+	"case22_production_contracts": {Rejected: 0, Passed: 54, Steps: 54},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -661,6 +661,12 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			for _, not := range s.View.Hides {
 				if strings.Contains(body, subst(not)) {
 					fail("%s shows %q", path, subst(not))
+					ok = false
+				}
+			}
+			if s.Count != nil {
+				if n := countRecords(t, store, wsCtx, s.Count.Machine, s.Count.Where); n != s.Count.Equals {
+					fail("%s holds %d matching records, want %d", s.Count.Machine, n, s.Count.Equals)
 					ok = false
 				}
 			}

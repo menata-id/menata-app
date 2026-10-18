@@ -442,6 +442,12 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 		log.Printf("rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
 		return
 	}
+	// A rolled-up status can change what a grandparent adds up (an instalment marked Paid is in its contract's paid).
+	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
+		if err := RecomputeParents(ctx, store, machines, parentMachine, oldParentValues, parent.Values); err != nil {
+			log.Printf("rollup %s: recomputing above %s: %v", r.TargetField, parentID, err)
+		}
+	}
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
 		RunEvents(ctx, svc, machines, parentMachine, parent, actorID, oldParentValues, true)
 	}
@@ -527,6 +533,9 @@ func setField(ctx context.Context, svc Services, machines map[string]*domain.Mac
 	if err != nil {
 		log.Printf("set_field %s %s: %v", machine.ID, record.ID, err)
 		return
+	}
+	if err := RecomputeParents(ctx, svc.Store, machines, machine, record.Values, next); err != nil {
+		log.Printf("set_field %s %s: recomputing above: %v", machine.ID, record.ID, err)
 	}
 	RunEvents(ctx, svc, machines, machine, updated, actorID, record.Values, true)
 }

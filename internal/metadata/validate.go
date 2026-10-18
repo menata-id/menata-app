@@ -157,6 +157,7 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
 	issues = append(issues, validateDeleteGuards(m, fieldsByID)...)
+	issues = append(issues, validateComputeCycles(m)...)
 
 	if m.Frozen != nil {
 		via, ok := fieldsByID[m.Frozen.Via]
@@ -1640,8 +1641,13 @@ func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[st
 	case per.Type.IsNumeric() || per.Type == domain.FieldTypeDate || per.Type == domain.FieldTypeFile || per.Type == domain.FieldTypeBoolean:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: per %q must group records by a text, status, person or relation field, got %q", m.ID, b.ID, b.Per, per.Type))
 	}
+	if p := b.AtMostParent; p != nil {
+		if per, ok := fieldsByID[b.Per]; p.Via != b.Per || !ok || per.Type != domain.FieldTypeRelation {
+			issues = append(issues, fmt.Sprintf("machine %q: ensure %q: at_most: parent: goes through %q, and it must be the relation the bound groups by (per: %q)", m.ID, b.ID, p.Via, b.Per))
+		}
+	}
 	switch {
-	case b.AtLeast == nil && b.AtMost == nil:
+	case b.AtLeast == nil && b.AtMost == nil && b.AtMostParent == nil:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: declares neither at_least nor at_most, so it bounds nothing", m.ID, b.ID))
 	case b.AtLeast != nil && b.AtMost != nil && *b.AtLeast > *b.AtMost:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: at_least %v is above at_most %v, so no total could satisfy it", m.ID, b.ID, *b.AtLeast, *b.AtMost))
@@ -1830,30 +1836,13 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 		return nil
 	}
 	var issues []string
-	// What an operation produces and what it reads: sum adds figures (number or money) into a figure; add_days adds a
-	// number of days to a date and gives a date, so its operands are exactly [a date field, a number field].
-	type accepts struct {
-		name string
-		ok   func(domain.FieldType) bool
+	tree := f.Compute.Tree()
+	if !domain.KnownComputeOps[tree.Op] {
+		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, tree.Op, sortedComputeOps()))
+		return issues
 	}
-	figure := accepts{"number or money", domain.FieldType.IsNumeric}
-	result, operands := figure, []accepts{figure}
-	if f.Compute.Op == domain.ComputeAddDays {
-		date := accepts{"date", func(t domain.FieldType) bool { return t == domain.FieldTypeDate }}
-		days := accepts{"number", func(t domain.FieldType) bool { return t == domain.FieldTypeNumber }}
-		result, operands = date, []accepts{date, days}
-	}
-	if !result.ok(f.Type) {
-		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a %s field, got type %q", f.ID, f.Compute.Op, result.name, f.Type))
-	}
-	if !domain.KnownComputeOps[f.Compute.Op] {
-		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, f.Compute.Op, sortedComputeOps()))
-	}
-	if len(f.Compute.Fields) == 0 {
+	if f.Compute.Expr == nil && len(f.Compute.Fields) == 0 {
 		issues = append(issues, fmt.Sprintf("field %q: compute: needs at least one field to compute from", f.ID))
-	}
-	if f.Compute.Op == domain.ComputeAddDays && len(f.Compute.Fields) != 2 {
-		issues = append(issues, fmt.Sprintf("field %q: compute add_days takes exactly two fields, a date and a number of days", f.ID))
 	}
 	if f.Required {
 		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot be required -- nobody enters it", f.ID))
@@ -1861,26 +1850,219 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 	if f.Default != nil {
 		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot declare a default -- its value is always derived", f.ID))
 	}
-	seen := map[string]bool{}
-	for i, id := range f.Compute.Fields {
-		operand, ok := fieldsByID[id]
-		want := operands[min(i, len(operands)-1)]
-		switch {
-		case id == f.ID:
-			issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
-		case !ok:
-			issues = append(issues, fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, id))
-		case !want.ok(operand.Type):
-			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a %s field, got type %q", f.ID, id, want.name, operand.Type))
-		case operand.Compute != nil:
-			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q is itself computed -- compute from the fields it is computed from instead", f.ID, id))
+	// What the value is: a figure (number or money) or a date. The Field must hold what its expression gives.
+	kind, exprIssues := computeKind(f, tree, fieldsByID)
+	issues = append(issues, exprIssues...)
+	switch {
+	case kind == "date" && f.Type != domain.FieldTypeDate:
+		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a date field, got type %q", f.ID, tree.Op, f.Type))
+	case kind == "figure" && !f.Type.IsNumeric():
+		issues = append(issues, fmt.Sprintf("field %q: compute %s is only valid on a number or money field, got type %q", f.ID, tree.Op, f.Type))
+	}
+	if f.Compute.Expr == nil {
+		seen := map[string]bool{}
+		for _, id := range f.Compute.Fields {
+			if seen[id] {
+				issues = append(issues, fmt.Sprintf("field %q: compute: names %q more than once", f.ID, id))
+			}
+			seen[id] = true
 		}
-		if seen[id] {
-			issues = append(issues, fmt.Sprintf("field %q: compute: names %q more than once", f.ID, id))
-		}
-		seen[id] = true
 	}
 	return issues
+}
+
+// computeKind is what an expression gives -- "figure" or "date" -- and what is wrong with it: each operation's operands
+// and their number, each Field it reads (one of this Machine's, never the Field itself), each relation a parent: goes
+// through. What a parent: or an aggregate reads on another Machine is validateComputeTargets' question.
+func computeKind(f domain.Field, e domain.ComputeExpr, fieldsByID map[string]domain.Field) (string, []string) {
+	var issues []string
+	switch {
+	case e.Number != nil:
+		return "figure", nil
+	case e.Parent != nil:
+		via, ok := fieldsByID[e.Parent.Via]
+		if !ok || via.Type != domain.FieldTypeRelation {
+			return "figure", []string{fmt.Sprintf("field %q: compute: parent: %s.%s goes through %q, which is not a relation field of this machine", f.ID, e.Parent.Via, e.Parent.Field, e.Parent.Via)}
+		}
+		return "figure", nil
+	case e.Op == "" && e.Field != "":
+		operand, ok := fieldsByID[e.Field]
+		switch {
+		case e.Field == f.ID:
+			return "", []string{fmt.Sprintf("field %q: compute: names itself", f.ID)}
+		case !ok:
+			return "", []string{fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, e.Field)}
+		case operand.Type.IsNumeric():
+			return "figure", nil
+		case operand.Type == domain.FieldTypeDate:
+			return "date", nil
+		}
+		return "", []string{fmt.Sprintf("field %q: compute: operand %q must be a number, money or date field, got type %q", f.ID, e.Field, operand.Type)}
+	case e.Op == domain.ComputeSumChildren || e.Op == domain.ComputeCountChildren:
+		if e.Children == nil || e.Children.Machine == "" || e.Children.Via == "" || (e.Op == domain.ComputeSumChildren && e.Children.Field == "") {
+			return "figure", []string{fmt.Sprintf("field %q: compute: %s names the machine, the relation (via) that points here and, for a sum, the field", f.ID, e.Op)}
+		}
+		return "figure", nil
+	}
+	kinds := make([]string, len(e.Args))
+	for i, a := range e.Args {
+		k, sub := computeKind(f, a, fieldsByID)
+		kinds[i], issues = k, append(issues, sub...)
+	}
+	want := func(i int, k string) {
+		if kinds[i] != "" && kinds[i] != k {
+			issues = append(issues, fmt.Sprintf("field %q: compute %s: operand %d must be a %s, got a %s", f.ID, e.Op, i+1, k, kinds[i]))
+		}
+	}
+	arity := func(lo, hi int) bool {
+		if len(e.Args) < lo || (hi > 0 && len(e.Args) > hi) {
+			issues = append(issues, fmt.Sprintf("field %q: compute %s takes %s operands, got %d", f.ID, e.Op, arityWords(lo, hi), len(e.Args)))
+			return false
+		}
+		return true
+	}
+	switch e.Op {
+	case domain.ComputeAddDays, domain.ComputeAddMonths:
+		if arity(2, 2) {
+			want(0, "date")
+			want(1, "figure")
+			if e.Op == domain.ComputeAddDays && e.Args[1].Op == "" && e.Args[1].Field != "" && fieldsByID[e.Args[1].Field].Type != domain.FieldTypeNumber {
+				issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a number field, got type %q", f.ID, e.Args[1].Field, fieldsByID[e.Args[1].Field].Type))
+			}
+		}
+		return "date", issues
+	case domain.ComputeSum:
+		arity(1, 0)
+	case domain.ComputeSubtract, domain.ComputeMultiply, domain.ComputeMin, domain.ComputeMax:
+		arity(2, 0)
+	case domain.ComputeDivide:
+		arity(2, 2)
+	case domain.ComputeRound:
+		if arity(1, 2) && len(e.Args) == 2 && e.Args[1].Number == nil {
+			issues = append(issues, fmt.Sprintf("field %q: compute round: its second operand is the number of decimals, a literal", f.ID))
+		}
+	}
+	for i := range e.Args {
+		want(i, "figure")
+	}
+	return "figure", issues
+}
+
+func arityWords(lo, hi int) string {
+	switch {
+	case hi == 0:
+		return fmt.Sprintf("at least %d", lo)
+	case lo == hi:
+		return fmt.Sprintf("exactly %d", lo)
+	}
+	return fmt.Sprintf("%d to %d", lo, hi)
+}
+
+// validateComputeCycles refuses computed Fields that read each other in a ring: each is computed after what it reads
+// (Machine.ComputeOrder), which a ring has no order for.
+func validateComputeCycles(m *domain.Machine) []string {
+	reads := map[string][]string{}
+	for _, f := range m.Fields {
+		if f.Compute == nil {
+			continue
+		}
+		f.Compute.Tree().Leaves(func(l domain.ComputeExpr) {
+			if l.Op == "" && l.Field != "" {
+				reads[f.ID] = append(reads[f.ID], l.Field)
+			}
+		})
+	}
+	state := map[string]int{}
+	var issues []string
+	var visit func(id string, path []string)
+	visit = func(id string, path []string) {
+		switch state[id] {
+		case 1:
+			issues = append(issues, fmt.Sprintf("computed fields read each other in a ring: %s", strings.Join(append(path, id), " -> ")))
+			return
+		case 2:
+			return
+		}
+		state[id] = 1
+		for _, next := range reads[id] {
+			if _, computed := reads[next]; computed {
+				visit(next, append(path, id))
+			}
+		}
+		state[id] = 2
+	}
+	for _, f := range m.Fields {
+		if f.Compute != nil && state[f.ID] == 0 {
+			visit(f.ID, nil)
+		}
+	}
+	return issues
+}
+
+// validateComputeTargets holds what a computed value reads on another Machine: a parent: Field that exists on the Machine
+// its relation points at and is not computed itself (a parent's own computed value would go stale under the child), and
+// an aggregate over a Machine whose relation (via) points at this one, summing a figure, filtered by one of a status
+// Field's options -- a Machine every write of which recomputes this one, so one written by the runtime is refused.
+func validateComputeTargets(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		for _, f := range m.Fields {
+			if f.Compute == nil {
+				continue
+			}
+			f.Compute.Tree().Leaves(func(l domain.ComputeExpr) {
+				where := fmt.Sprintf("machine %q: field %q: compute", m.ID, f.ID)
+				if p := l.Parent; p != nil {
+					via, _ := m.FieldByID(p.Via)
+					parent := byID[via.RelatedMachine]
+					target, ok := domain.Field{}, false
+					if parent != nil {
+						target, ok = parent.FieldByID(p.Field)
+					}
+					switch {
+					case !ok:
+						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s -- %q has no field %q", where, p.Via, p.Field, via.RelatedMachine, p.Field))
+					case !target.Type.IsNumeric():
+						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is a %s field, and a computed value reads a figure", where, p.Via, p.Field, target.Type))
+					case target.Compute != nil:
+						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is itself computed, so this value would go stale when it changes", where, p.Via, p.Field))
+					}
+				}
+				if a := l.Children; a != nil {
+					child := byID[a.Machine]
+					if child == nil {
+						issues = append(issues, fmt.Sprintf("%s: %s: machine %q is not installed in this workspace", where, l.Op, a.Machine))
+						return
+					}
+					via, ok := child.FieldByID(a.Via)
+					if !ok || via.Type != domain.FieldTypeRelation || via.RelatedMachine != m.ID {
+						issues = append(issues, fmt.Sprintf("%s: %s: %s.%s is not a relation pointing at %q", where, l.Op, a.Machine, a.Via, m.ID))
+					}
+					if l.Op == domain.ComputeSumChildren {
+						if sum, ok := child.FieldByID(a.Field); !ok || !sum.Type.IsNumeric() {
+							issues = append(issues, fmt.Sprintf("%s: sum_children: %s.%s is not a number or money field", where, a.Machine, a.Field))
+						}
+					}
+					if w := a.Where; w != nil {
+						if st, ok := child.FieldByID(w.Field); !ok || st.Type != domain.FieldTypeStatus || !slices.Contains(st.Options, w.Equals) {
+							issues = append(issues, fmt.Sprintf("%s: %s: where %s equals %q is not a status field of %q holding that option", where, l.Op, w.Field, w.Equals, a.Machine))
+						}
+					}
+					if !child.GenericallyWritten() {
+						issues = append(issues, fmt.Sprintf("%s: %s: %q is written by the runtime itself, which would not recompute %q", where, l.Op, a.Machine, m.ID))
+					}
+				}
+			})
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }
 
 func sortedComputeOps() []string {

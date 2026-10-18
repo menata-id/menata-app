@@ -248,7 +248,33 @@ func (dh *dynamicHandler) Reload() error {
 		log.Printf("WORKSPACE UNAVAILABLE %q: %v", f.Slug, f.Err)
 	}
 	dh.install(metadataState{userMachine: userMachine, workspaces: workspaces, unavailable: unavailable})
+	for slug, ws := range workspaces {
+		dh.recompute(slug, ws)
+	}
 	return nil
+}
+
+// recompute brings one Workspace's stored computed values in line with the formulas its metadata now declares (owner
+// decision K3, plan A1): every record of a Machine with a computed Field is recomputed, and only one whose values change
+// is written. Run after every load, so a formula published or fixed reaches the records already stored. A failure is
+// logged and leaves the records as they were; it never blocks serving.
+func (dh *dynamicHandler) recompute(slug string, ws domain.Workspace) {
+	if dh.store == nil {
+		return
+	}
+	ctx := context.Background()
+	row, err := dh.store.WorkspaceBySlug(ctx, slug)
+	if err != nil {
+		return // a manifest with no Workspace row yet holds no records
+	}
+	n, err := execution.RecomputeAll(data.WithWorkspaceScope(ctx, row.ID), dh.store, ws.Machines)
+	if err != nil {
+		log.Printf("recompute %q: %v", slug, err)
+		return
+	}
+	if n > 0 {
+		log.Printf("recompute %q: %d record(s) now follow their formulas", slug, n)
+	}
 }
 
 // ReloadWorkspace re-reads one Workspace's manifest and swaps in a route table carrying it (K10). Every other
@@ -283,6 +309,7 @@ func (dh *dynamicHandler) ReloadWorkspace(slug string) error {
 	next.workspaces[slug] = app.Workspace
 	delete(next.unavailable, slug)
 	dh.install(next)
+	dh.recompute(slug, app.Workspace)
 	return nil
 }
 

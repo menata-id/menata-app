@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"time"
 
@@ -265,6 +266,9 @@ type AggregateBound struct {
 	SumOf, Per string
 	// AtLeast and AtMost are the bounds; at least one is set. A pointer, because zero is a real bound ("not below 0").
 	AtLeast, AtMost *float64
+	// AtMostParent (`at_most: {parent: fld_contract.fld_value}`) takes the upper bound from the record the group's own
+	// relation (Per) points at: the instalments of a contract may not add up past that contract's value. Via must be Per.
+	AtMostParent *ParentRef
 	// Reason is what a refused write is told; empty reads as a default naming the bound.
 	Reason string
 }
@@ -295,58 +299,285 @@ const (
 // KnownFieldStamps is the closed set of sources a stamped Field may declare.
 var KnownFieldStamps = map[FieldStamp]bool{FieldStampCurrentUser: true}
 
-// ComputeOp is one operation a computed Field may declare. A closed registry, like KnownAggregates:
-// an operation is added here, with its evaluation below, when a real case needs it.
+// ComputeOp is one operation a computed Field may declare. A closed registry, like KnownAggregates: an operation is
+// added here, with its evaluation in ComputeExpr.Eval, when a real case needs it (plan A1, 2026-10-18: a contract's net,
+// paid and outstanding).
 type ComputeOp string
 
 const (
-	// ComputeSum adds number Fields. The first case: a water-usage report totalling three meters.
+	// ComputeSum adds figures. The first case: a water-usage report totalling three meters.
 	ComputeSum ComputeOp = "sum"
-	// ComputeAddDays is a date: its two operands are a date Field and a number Field, and the value is the date plus that
-	// many days ("the next maintenance is the completion date plus the frequency"). Case 4.
+	// ComputeAddDays is a date: a date plus a number of days ("the next maintenance is the completion date plus the
+	// frequency"). Case 4.
 	ComputeAddDays ComputeOp = "add_days"
+	// ComputeSubtract is its first figure less every other one: an instalment's net is its gross less VAT and WHT.
+	ComputeSubtract ComputeOp = "subtract"
+	// ComputeMultiply is the product of its figures: a withholding of 2% of the gross.
+	ComputeMultiply ComputeOp = "multiply"
+	// ComputeDivide is its first figure over its second, and nothing when the second is zero.
+	ComputeDivide ComputeOp = "divide"
+	// ComputeRound rounds its first figure to the number of decimals its second (a literal, default 0) says.
+	ComputeRound ComputeOp = "round"
+	// ComputeMin and ComputeMax are the least and the greatest of the figures that hold a value.
+	ComputeMin ComputeOp = "min"
+	ComputeMax ComputeOp = "max"
+	// ComputeAddMonths is a date plus a number of months.
+	ComputeAddMonths ComputeOp = "add_months"
+	// ComputeSumChildren and ComputeCountChildren read the records of another Machine that point at this one (a
+	// contract's paid instalments): the sum of one of their figures, or how many there are, optionally only those whose
+	// status holds a value. Stored on this record and recomputed whenever one of them is written.
+	ComputeSumChildren   ComputeOp = "sum_children"
+	ComputeCountChildren ComputeOp = "count_children"
 )
 
 // KnownComputeOps is the closed set of operations a computed Field may declare.
-var KnownComputeOps = map[ComputeOp]bool{ComputeSum: true, ComputeAddDays: true}
+var KnownComputeOps = map[ComputeOp]bool{
+	ComputeSum: true, ComputeAddDays: true, ComputeSubtract: true, ComputeMultiply: true, ComputeDivide: true,
+	ComputeRound: true, ComputeMin: true, ComputeMax: true, ComputeAddMonths: true,
+	ComputeSumChildren: true, ComputeCountChildren: true,
+}
 
 // DateLayout is how a date Field is stored: a calendar day, no time.
 const DateLayout = "2006-01-02"
 
-// FieldCompute is how a computed Field derives its value: Op applied to Fields, in order. Operands
-// are number Fields of the same Machine that are not computed themselves, which is what makes the
-// evaluation order-free and cycle-free (internal/metadata validates both at load).
+// FieldCompute is how a computed Field derives its value. Two shapes, one meaning: the flat `{op, fields}` an author
+// (and the assistant) writes for an operation over Fields of the record -- `{op: subtract, fields: [fld_gross, fld_vat]}`
+// -- and Expr, the tree `{subtract: [fld_gross, {multiply: [fld_gross, 0.02]}]}` whose operands may also be a literal,
+// a Field of the record a relation points at (`parent:`), or an aggregate of the records pointing at this one. Expr is
+// nil for the flat shape; ComputeFieldExpr reads either. The operations are a closed set and there is no general
+// language (003): what a computed value can depend on is checked, acyclic, at load.
 type FieldCompute struct {
 	Op     ComputeOp
 	Fields []string
+	Expr   *ComputeExpr
 }
 
-// Evaluate derives the value from a record's own values. ok is false when no operand holds a value,
-// so a record nobody has filled in yet shows an empty total rather than a made-up zero; an operand
-// left empty otherwise counts as zero.
-func (c FieldCompute) Evaluate(values map[string]any) (v any, ok bool) {
-	switch c.Op {
+// ComputeExpr is one node of a computed value: an operation over its Args, or a leaf -- a Field of the record, a
+// Number, a Parent's Field, or (for sum_children/count_children) the Children it aggregates.
+type ComputeExpr struct {
+	Op       ComputeOp
+	Args     []ComputeExpr
+	Field    string
+	Number   *float64
+	Parent   *ParentRef
+	Children *ChildAggregate
+}
+
+// ParentRef is `parent: fld_contract.fld_value`: the Field Field of the record this record's relation Field Via points at.
+type ParentRef struct {
+	Via, Field string
+}
+
+// ChildAggregate is the records of Machine whose relation Field Via points at this record, optionally only those whose
+// status Field holds a value (Where); Field is the figure sum_children adds.
+type ChildAggregate struct {
+	Machine, Via, Field string
+	Where               *FieldCondition
+}
+
+// Tree is the computed value as one expression, whichever shape declared it.
+func (c FieldCompute) Tree() ComputeExpr {
+	if c.Expr != nil {
+		return *c.Expr
+	}
+	e := ComputeExpr{Op: c.Op}
+	for _, id := range c.Fields {
+		e.Args = append(e.Args, ComputeExpr{Field: id})
+	}
+	return e
+}
+
+// ComputeEnv is what a computed value may read beyond its own record: the record a relation points at, and the records
+// pointing at this one. A nil ComputeEnv reads nothing -- a new record has no children yet.
+type ComputeEnv interface {
+	Parent(via string) map[string]any
+	Children(agg ChildAggregate) []map[string]any
+}
+
+// Evaluate derives the value from a record's own values alone.
+func (c FieldCompute) Evaluate(values map[string]any) (any, bool) { return c.EvaluateWith(values, nil) }
+
+// EvaluateWith derives the value from a record's values and what env reads. ok is false when nothing the value is
+// made of holds a value, so a record nobody has filled in yet shows an empty total rather than a made-up zero.
+func (c FieldCompute) EvaluateWith(values map[string]any, env ComputeEnv) (any, bool) {
+	return c.Tree().Eval(values, env)
+}
+
+// Eval is one node's value. A sum counts an empty operand as zero and holds when any operand does; a subtraction needs
+// its first; a product, a quotient and a rounding need every operand; a date operation needs its date and its count.
+func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
+	switch {
+	case e.Number != nil:
+		return *e.Number, true
+	case e.Parent != nil:
+		if env == nil {
+			return nil, false
+		}
+		v, ok := env.Parent(e.Parent.Via)[e.Parent.Field]
+		return v, ok && v != nil
+	case e.Op == "" && e.Field != "":
+		v, ok := values[e.Field]
+		return v, ok && v != nil && fmt.Sprint(v) != ""
+	}
+	figure := func(a ComputeExpr) (float64, bool) {
+		v, ok := a.Eval(values, env)
+		n, isNum := v.(float64)
+		return n, ok && isNum
+	}
+	switch e.Op {
 	case ComputeSum:
 		var total float64
-		for _, id := range c.Fields {
-			if n, isNum := values[id].(float64); isNum {
-				total += n
-				ok = true
+		held := false
+		for _, a := range e.Args {
+			if n, ok := figure(a); ok {
+				total, held = total+n, true
 			}
 		}
-		return total, ok
-	case ComputeAddDays:
-		if len(c.Fields) != 2 {
+		return total, held
+	case ComputeSubtract:
+		if len(e.Args) == 0 {
 			return nil, false
 		}
-		day, err := time.Parse(DateLayout, fmt.Sprint(values[c.Fields[0]]))
-		days, isNum := values[c.Fields[1]].(float64)
-		if err != nil || !isNum {
+		total, ok := figure(e.Args[0])
+		if !ok {
 			return nil, false
 		}
-		return day.AddDate(0, 0, int(days)).Format(DateLayout), true
+		for _, a := range e.Args[1:] {
+			if n, ok := figure(a); ok {
+				total -= n
+			}
+		}
+		return total, true
+	case ComputeMultiply:
+		total := 1.0
+		for _, a := range e.Args {
+			n, ok := figure(a)
+			if !ok {
+				return nil, false
+			}
+			total *= n
+		}
+		return total, len(e.Args) > 0
+	case ComputeDivide:
+		if len(e.Args) != 2 {
+			return nil, false
+		}
+		a, okA := figure(e.Args[0])
+		b, okB := figure(e.Args[1])
+		if !okA || !okB || b == 0 {
+			return nil, false
+		}
+		return a / b, true
+	case ComputeRound:
+		if len(e.Args) == 0 {
+			return nil, false
+		}
+		n, ok := figure(e.Args[0])
+		if !ok {
+			return nil, false
+		}
+		digits := 0.0
+		if len(e.Args) > 1 {
+			if d, ok := figure(e.Args[1]); ok {
+				digits = d
+			}
+		}
+		scale := math.Pow(10, digits)
+		return math.Round(n*scale) / scale, true
+	case ComputeMin, ComputeMax:
+		var best float64
+		found := false
+		for _, a := range e.Args {
+			n, ok := figure(a)
+			if !ok {
+				continue
+			}
+			if !found || (e.Op == ComputeMin && n < best) || (e.Op == ComputeMax && n > best) {
+				best, found = n, true
+			}
+		}
+		return best, found
+	case ComputeAddDays, ComputeAddMonths:
+		if len(e.Args) != 2 {
+			return nil, false
+		}
+		d, ok := e.Args[0].Eval(values, env)
+		day, err := time.Parse(DateLayout, fmt.Sprint(d))
+		n, isNum := figure(e.Args[1])
+		if !ok || err != nil || !isNum {
+			return nil, false
+		}
+		if e.Op == ComputeAddMonths {
+			return day.AddDate(0, int(n), 0).Format(DateLayout), true
+		}
+		return day.AddDate(0, 0, int(n)).Format(DateLayout), true
+	case ComputeSumChildren, ComputeCountChildren:
+		if e.Children == nil {
+			return nil, false
+		}
+		var children []map[string]any
+		if env != nil {
+			children = env.Children(*e.Children)
+		}
+		var total float64
+		for _, c := range children {
+			if w := e.Children.Where; w != nil && fmt.Sprint(c[w.Field]) != w.Equals {
+				continue
+			}
+			if e.Op == ComputeCountChildren {
+				total++
+			} else if n, ok := c[e.Children.Field].(float64); ok {
+				total += n
+			}
+		}
+		return total, true
 	}
 	return nil, false
+}
+
+// ComputeOrder is m's computed Fields in an order each can be computed in: a Field after every computed Field it reads
+// (an outstanding after the paid it subtracts). The loader refuses a cycle, so the order exists.
+func (m *Machine) ComputeOrder() []Field {
+	byID := map[string]Field{}
+	for _, f := range m.Fields {
+		if f.Compute != nil {
+			byID[f.ID] = f
+		}
+	}
+	var out []Field
+	done := map[string]bool{}
+	var visit func(f Field, depth int)
+	visit = func(f Field, depth int) {
+		if done[f.ID] || depth > len(byID) {
+			return
+		}
+		f.Compute.Tree().Leaves(func(l ComputeExpr) {
+			if dep, ok := byID[l.Field]; ok && l.Op == "" && dep.ID != f.ID {
+				visit(dep, depth+1)
+			}
+		})
+		if !done[f.ID] {
+			done[f.ID] = true
+			out = append(out, f)
+		}
+	}
+	for _, f := range m.Fields {
+		if f.Compute != nil {
+			visit(f, 0)
+		}
+	}
+	return out
+}
+
+// Leaves calls visit on every leaf of the expression: what it is made of, for validation and for ordering.
+func (e ComputeExpr) Leaves(visit func(ComputeExpr)) {
+	if e.Op == "" || e.Op == ComputeSumChildren || e.Op == ComputeCountChildren {
+		visit(e)
+		return
+	}
+	for _, a := range e.Args {
+		a.Leaves(visit)
+	}
 }
 
 // IsReference reports whether f's value is a record id referencing another Machine -- true for

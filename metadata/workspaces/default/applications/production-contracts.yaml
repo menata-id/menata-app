@@ -102,6 +102,14 @@ navigation:
                       from: { text: measure:msr_category_count }
                     - static: paragraph
                       from: { text: measure:msr_category_value }
+                    - static: caption
+                      text: paid
+                    - static: paragraph
+                      from: { text: measure:msr_category_paid }
+                    - static: caption
+                      text: outstanding
+                    - static: paragraph
+                      from: { text: measure:msr_category_outstanding }
         - component: Table
           label: Contracts
           empty: No contracts yet.
@@ -178,6 +186,8 @@ navigation:
             - { header: Contracted party, field: fld_party_name }
             - { header: Category, field: fld_category }
             - { header: Contract value, field: fld_value, align: end }
+            - { header: Paid, field: fld_paid, align: end }
+            - { header: Outstanding, field: fld_outstanding, align: end }
             - { header: Status, field: fld_status }
             - { header: Payment, field: fld_payment_status }
           binding: { dataset: ds_contracts, rows: records }
@@ -320,6 +330,20 @@ navigation:
                           text: Contract value
                         - static: paragraph
                           from: { text: "field:fld_value" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Paid
+                        - static: paragraph
+                          from: { text: "field:fld_paid" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Outstanding
+                        - static: paragraph
+                          from: { text: "field:fld_outstanding" }
                     - layout: stack
                       gap: micro
                       children:

@@ -12,7 +12,8 @@ fields:
   - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_vat, name: VAT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_wht, name: WHT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
-  - { id: fld_net, name: Net, type: money }
+  # Net is gross less VAT and WHT, kept by the runtime (plan A1, K-9): nobody types it.
+  - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_due_date, name: Due date, type: date, required: true }
   # Two writers: the schedule below marks an unpaid instalment Overdue; a paid payment plan marks it Paid. Invoiced is
   # set by hand.
@@ -34,8 +35,13 @@ status_categories:
 # The instalments of a closed contract can no longer change.
 frozen_when: { via: fld_contract, field: fld_status, equals: Closed }
 
-# Not declared yet: "the instalments of one contract may not add up past its value". ensure: bounds are literals, and the
-# value differs per contract (K-1, plan direction A1).
+# The instalments of one contract may not add up past its value (K-1): the bound is that contract's own value.
+ensure:
+  - id: ens_terms_within_value
+    sum_of: fld_gross
+    per: fld_contract
+    at_most: { parent: fld_contract.fld_value }
+    reason: The instalments of a contract may not add up past its value.
 
 permissions:
   - { id: prm_term_delete, action: delete, roles: [admin] }

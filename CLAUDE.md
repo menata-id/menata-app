@@ -267,6 +267,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   `deletable_unless` -- a button reads the same rule the route enforces (`composition.heldRecords`).
   One record's page: nav `record_of:` (`/pages/<nav>/<id>`, `$parameters.id`, `where: {field: id}`), `field:`/`tone:`/
   `steps:` roles, `Stepper`, `binding: {transition: trn_x}` on a Button or Form, link `pass:`, Form `values:`/`then: record`.
+  `compute:` is one closed expression (`domain.ComputeExpr`; `parent:`, `sum_children`/`count_children`): a child's write
+  recomputes its parents in the same transaction (`execution.RecomputeParents`), and every load recomputes stored records.
   Board Settings is the first migrated screen. Never claim "screen X is declarative" without checking it is a `page:`.
 - **UI IR & placeholders**: `ir.TestValidateRejectsAllFiveMandatoryFaults`, `TestValidateAcceptsTheHeaderTree`,
   `TestValidateRefusesUnknownTypes`; `TestDeclaredPlaceholdersStayDeclared`, `TestPlaceholderDocsClaimNoContent`

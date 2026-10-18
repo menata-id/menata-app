@@ -73,7 +73,7 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 // the request itself when any step refuses, so a caller only continues on ok.
 func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config, machine *domain.Machine, values map[string]any) (*data.Record, domain.Actor, bool) {
 	data.ApplyDefaults(machine, values)
-	data.ApplyComputed(machine, values)
+	execution.ApplyComputed(req.Context(), store, machine, "", values)
 
 	actor := currentActor(req, store, cfg)
 	data.ApplyStamps(machine, values, actor.ID)
@@ -89,6 +89,11 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 		}
 		var err error
 		if record, err = store.CreateRecord(req.Context(), machine.ID, values); err != nil {
+			serverError(w, err)
+			return false
+		}
+		// What the new record changes in a parent's aggregates is written in the same transaction.
+		if err := execution.RecomputeParents(req.Context(), store, machines, machine, record.Values); err != nil {
 			serverError(w, err)
 			return false
 		}
@@ -286,7 +291,7 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 		if !keepsLockedFields(w, req, store, machine, id, values) {
 			return false
 		}
-		data.ApplyComputed(machine, values)
+		execution.ApplyComputed(req.Context(), store, machine, id, values)
 		if !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return false
 		}
@@ -300,6 +305,11 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 		var err error
 		if record, err = store.UpdateRecord(req.Context(), machine.ID, id, values); err != nil {
 			recordError(w, err)
+			return false
+		}
+		// Before and after: a record moved to another parent changes both parents' aggregates.
+		if err := execution.RecomputeParents(req.Context(), store, machines, machine, oldValues, record.Values); err != nil {
+			serverError(w, err)
 			return false
 		}
 		if created, err = insertGenerated(req.Context(), store, machines, batch); err != nil {
@@ -757,7 +767,33 @@ func withinBounds(w http.ResponseWriter, req *http.Request, store *data.Store, m
 			}
 		}
 	}
-	if err := behavior.CheckBounds(machine, id, values, siblings); err != nil {
+	// A bound taken from the group's parent (`at_most: {parent: fld_contract.fld_value}`) is read here, once per group,
+	// and checked as the literal it stands for: the parent's value now.
+	judged := machine
+	for i, b := range machine.Bounds {
+		p := b.AtMostParent
+		if p == nil {
+			continue
+		}
+		if judged == machine {
+			clone := *machine
+			clone.Bounds = slices.Clone(machine.Bounds)
+			judged = &clone
+		}
+		via, _ := machine.FieldByID(p.Via)
+		parent, err := store.GetRecord(req.Context(), via.RelatedMachine, fmt.Sprint(values[p.Via]))
+		if err != nil {
+			if errors.Is(err, data.ErrRecordNotFound) {
+				continue // a missing parent is ValidateRelations' to refuse
+			}
+			serverError(w, err)
+			return false
+		}
+		if n, ok := parent.Values[p.Field].(float64); ok {
+			judged.Bounds[i].AtMost = &n
+		}
+	}
+	if err := behavior.CheckBounds(judged, id, values, siblings); err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}
@@ -830,7 +866,16 @@ func deleteLocked(w http.ResponseWriter, req *http.Request, store *data.Store, m
 			http.Error(w, reason, status)
 			return false
 		}
+		existing, err := store.GetRecord(req.Context(), machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return false
+		}
 		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
+			serverError(w, err)
+			return false
+		}
+		if err := execution.RecomputeParents(req.Context(), store, machinesFor(req.Context()), machine, existing.Values); err != nil {
 			serverError(w, err)
 			return false
 		}

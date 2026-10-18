@@ -6,10 +6,10 @@ fields:
   - { id: fld_term_label, name: Label, type: text }
   # A paid instalment's figures are a record of a payment: they stay as they were paid.
   - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
-  # Deductions stored as negative figures, so net is a sum the runtime keeps (the K-9 half-way out of the mockup).
+  # VAT and WHT are typed as the figures on the invoice; net is gross less both (plan A1, K-9).
   - { id: fld_vat, name: VAT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_wht, name: WHT, type: money, locked_when: { field: fld_term_status, equals: Paid } }
-  - { id: fld_net, name: Net, type: money, compute: { op: sum, fields: [fld_gross, fld_vat, fld_wht] } }
+  - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_due_date, name: Due date, type: date, required: true }
   - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
 
@@ -29,9 +29,9 @@ datasets:
     where: { field: fld_contract, op: equals, value: $parameters.contract }
     limit: 1
 
-# The instalments of one contract may not add up past this; a literal stands in for the contract value (K-1).
+# The instalments of one contract may not add up past its value (K-1): the bound is the contract's own.
 ensure:
-  - { id: ens_terms_within_value, sum_of: fld_gross, per: fld_contract, at_most: 180000 }
+  - { id: ens_terms_within_value, sum_of: fld_gross, per: fld_contract, at_most: { parent: fld_contract.fld_value } }
 
 # Two writers on one status: the schedule marks an unpaid instalment overdue, a payment plan marks it paid.
 events:

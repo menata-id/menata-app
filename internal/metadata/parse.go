@@ -3,6 +3,9 @@ package metadata
 import (
 	"fmt"
 	"strconv"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -330,6 +333,95 @@ type defaultFromDoc struct {
 type computeDoc struct {
 	Op     string   `yaml:"op"`
 	Fields []string `yaml:"fields"`
+	// expr is the tree shape (`{subtract: [fld_gross, {multiply: [fld_gross, 0.02]}]}`), read by UnmarshalYAML; nil for
+	// the flat `{op, fields}`.
+	expr *domain.ComputeExpr
+}
+
+// UnmarshalYAML reads either shape of `compute:`: the flat `{op: subtract, fields: [...]}`, or one operation named as
+// the key with its operands as the value. An operand is a Field id, a number, `{parent: fld_via.fld_x}`, or another
+// operation; `sum_children`/`count_children` take `{machine, via, field, where: {field, equals}}`.
+func (c *computeDoc) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind != yaml.MappingNode {
+		return fmt.Errorf("line %d: compute: is a mapping -- {op, fields} or one operation such as {subtract: [fld_a, fld_b]}", n.Line)
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if k := n.Content[i].Value; k == "op" || k == "fields" {
+			type flat struct {
+				Op     string   `yaml:"op"`
+				Fields []string `yaml:"fields"`
+			}
+			var f flat
+			if err := n.Decode(&f); err != nil {
+				return err
+			}
+			c.Op, c.Fields = f.Op, f.Fields
+			return nil
+		}
+	}
+	e, err := parseComputeExpr(n)
+	if err != nil {
+		return err
+	}
+	c.Op, c.expr = string(e.Op), &e
+	return nil
+}
+
+// parseComputeExpr reads one node of a computed value's tree.
+func parseComputeExpr(n *yaml.Node) (domain.ComputeExpr, error) {
+	switch n.Kind {
+	case yaml.ScalarNode:
+		if v, err := strconv.ParseFloat(n.Value, 64); err == nil {
+			return domain.ComputeExpr{Number: &v}, nil
+		}
+		if n.Value == "" {
+			return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: an empty operand", n.Line)
+		}
+		return domain.ComputeExpr{Field: n.Value}, nil
+	case yaml.MappingNode:
+		if len(n.Content) != 2 {
+			return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: an operation is one key -- its name -- and its operands", n.Line)
+		}
+		key, val := n.Content[0].Value, n.Content[1]
+		switch op := domain.ComputeOp(key); {
+		case key == "parent":
+			via, field, ok := strings.Cut(val.Value, ".")
+			if val.Kind != yaml.ScalarNode || !ok || via == "" || field == "" {
+				return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: parent: names the relation and the related record's Field, such as fld_contract.fld_value", val.Line)
+			}
+			return domain.ComputeExpr{Parent: &domain.ParentRef{Via: via, Field: field}}, nil
+		case op == domain.ComputeSumChildren || op == domain.ComputeCountChildren:
+			var doc struct {
+				Machine string           `yaml:"machine"`
+				Via     string           `yaml:"via"`
+				Field   string           `yaml:"field"`
+				Where   *requiredWhenDoc `yaml:"where"`
+			}
+			if err := val.Decode(&doc); err != nil {
+				return domain.ComputeExpr{}, err
+			}
+			agg := &domain.ChildAggregate{Machine: doc.Machine, Via: doc.Via, Field: doc.Field}
+			if doc.Where != nil {
+				agg.Where = &domain.FieldCondition{Field: doc.Where.Field, Equals: doc.Where.Equals}
+			}
+			return domain.ComputeExpr{Op: op, Children: agg}, nil
+		case domain.KnownComputeOps[op]:
+			if val.Kind != yaml.SequenceNode {
+				return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: %s takes a list of operands", val.Line, key)
+			}
+			e := domain.ComputeExpr{Op: op}
+			for _, a := range val.Content {
+				arg, err := parseComputeExpr(a)
+				if err != nil {
+					return domain.ComputeExpr{}, err
+				}
+				e.Args = append(e.Args, arg)
+			}
+			return e, nil
+		}
+		return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: %q is not an operation (%v) or parent:", n.Line, key, sortedComputeOps())
+	}
+	return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: an operand is a Field id, a number, parent: or an operation", n.Line)
 }
 
 type frozenWhenDoc struct {
@@ -339,12 +431,42 @@ type frozenWhenDoc struct {
 }
 
 type ensureDoc struct {
-	ID      string   `yaml:"id"`
-	SumOf   string   `yaml:"sum_of"`
-	Per     string   `yaml:"per"`
-	AtLeast *float64 `yaml:"at_least"`
-	AtMost  *float64 `yaml:"at_most"`
-	Reason  string   `yaml:"reason"`
+	ID      string    `yaml:"id"`
+	SumOf   string    `yaml:"sum_of"`
+	Per     string    `yaml:"per"`
+	AtLeast *float64  `yaml:"at_least"`
+	AtMost  *boundDoc `yaml:"at_most"`
+	Reason  string    `yaml:"reason"`
+}
+
+// boundDoc is an `at_most:`: a number, or `{parent: fld_contract.fld_value}` -- a Field of the record the bound's `per:`
+// relation points at (plan A1: the instalments of a contract may not add up past its value).
+type boundDoc struct {
+	value  *float64
+	parent *domain.ParentRef
+}
+
+func (b *boundDoc) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		v, err := strconv.ParseFloat(n.Value, 64)
+		if err != nil {
+			return fmt.Errorf("line %d: at_most: is a number or {parent: fld_via.fld_x}", n.Line)
+		}
+		b.value = &v
+		return nil
+	}
+	var doc struct {
+		Parent string `yaml:"parent"`
+	}
+	if err := n.Decode(&doc); err != nil {
+		return err
+	}
+	via, field, ok := strings.Cut(doc.Parent, ".")
+	if !ok || via == "" || field == "" {
+		return fmt.Errorf("line %d: at_most: parent: names the relation and the related record's Field, such as fld_contract.fld_value", n.Line)
+	}
+	b.parent = &domain.ParentRef{Via: via, Field: field}
+	return nil
 }
 
 type constraintDoc struct {
@@ -471,7 +593,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 		}
 		var compute *domain.FieldCompute
 		if fd.Compute != nil {
-			compute = &domain.FieldCompute{Op: domain.ComputeOp(fd.Compute.Op), Fields: fd.Compute.Fields}
+			compute = &domain.FieldCompute{Op: domain.ComputeOp(fd.Compute.Op), Fields: fd.Compute.Fields, Expr: fd.Compute.expr}
 		}
 		var requiredWhen *domain.FieldCondition
 		if fd.RequiredWhen != nil {
@@ -533,7 +655,11 @@ func Parse(data []byte) (*domain.Machine, error) {
 		m.DeletableUnless = append(m.DeletableUnless, domain.DeleteGuard{Field: g.Field, Equals: g.Equals, Reason: g.Reason})
 	}
 	for _, ed := range doc.Ensure {
-		m.Bounds = append(m.Bounds, domain.AggregateBound{ID: ed.ID, SumOf: ed.SumOf, Per: ed.Per, AtLeast: ed.AtLeast, AtMost: ed.AtMost, Reason: ed.Reason})
+		bound := domain.AggregateBound{ID: ed.ID, SumOf: ed.SumOf, Per: ed.Per, AtLeast: ed.AtLeast, Reason: ed.Reason}
+		if ed.AtMost != nil {
+			bound.AtMost, bound.AtMostParent = ed.AtMost.value, ed.AtMost.parent
+		}
+		m.Bounds = append(m.Bounds, bound)
 	}
 	for _, bd := range doc.MemberRemovalBlocks {
 		block := domain.MemberRemovalBlock{ID: bd.ID, ActorField: bd.ActorField, Reason: bd.Reason}

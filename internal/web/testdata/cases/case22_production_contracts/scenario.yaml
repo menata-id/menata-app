@@ -19,12 +19,12 @@ steps:
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/C/026, fld_party_name: Reza Anggara, fld_value: "180000", fld_category: $lead-cast } }
     expect: ok
-    record: { fld_value: "180000", fld_payment_status: In progress }
+    record: { fld_value: "180000", fld_payment_status: In progress, fld_outstanding: "180000", fld_terms: "0" }
 
   # Net is computed from money fields (deductions stored negative), so it is a sum the runtime keeps.
   - id: signing
     as: silvia
-    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Signing, fld_gross: "54000", fld_wht: "-2700", fld_due_date: "2026-01-05" } }
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Signing, fld_gross: "54000", fld_wht: "2700", fld_due_date: "2026-01-05" } }
     expect: ok
     record: { fld_net: "51300", fld_term_status: Scheduled }
 
@@ -190,6 +190,13 @@ steps:
     expect: ok
     record: { fld_plan_status: Paid, fld_paid_date: "*" }
     count: { machine: mch_contract_term, where: { fld_term_status: Paid }, equals: 1 }
+  # The plan paid its instalment (a rollup), and the contract adds it up in the same moment: paid, outstanding, 1 of 3.
+  - id: the-contract-adds-up-what-is-paid
+    as: silvia
+    view:
+      path: /pages/nav_contracts_first
+    expect: ok
+    count: { machine: mch_contract, where: { fld_paid: "54000", fld_outstanding: "126000", fld_terms: "3", fld_terms_paid: "1" }, equals: 1 }
 
   # Step 2 (B1, B2): a contract's own page, and creating from it.
   - id: the-contract-page
@@ -260,7 +267,7 @@ steps:
     as: silvia
     update: { ref: contract, values: { fld_party_name: Reza Anggara } }
     expect: ok
-    record: { fld_payment_status: In progress }
+    record: { fld_payment_status: In progress, fld_paid: "54000", fld_terms_paid: "1" }
 
   - id: contract-detail-status-badge
     as: silvia
@@ -306,7 +313,7 @@ steps:
     update: { ref: signing, values: { fld_term_label: Signing -- 30% }, omit: [fld_wht] }
     api: true
     expect: ok
-    record: { fld_wht: "-2700", fld_net: "51300" }
+    record: { fld_wht: "2700", fld_net: "51300" }
   - id: the-same-figure-written-otherwise-is-no-change
     as: silvia
     update: { ref: signing, values: { fld_gross: "54000.00" } }
@@ -325,6 +332,7 @@ steps:
     as: silvia
     delete: { ref: wrap }
     expect: ok
+    count: { machine: mch_contract, where: { fld_terms: "2", fld_paid: "54000" }, equals: 1 }
   - id: a-contract-with-no-instalments-can-be-deleted
     as: silvia
     delete: { ref: crew-contract }

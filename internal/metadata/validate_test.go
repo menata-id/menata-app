@@ -1222,12 +1222,12 @@ func TestValidate_computeAddDaysAndTransitionSets(t *testing.T) {
 		want string
 	}{
 		"a number result":       {func(m *domain.Machine) { next(m).Type = domain.FieldTypeNumber }, "only valid on a date field"},
-		"one operand":           {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when"} }, "exactly two fields"},
-		"operands swapped":      {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_every", "fld_when"} }, "must be a date field"},
+		"one operand":           {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when"} }, "takes exactly 2 operands"},
+		"operands swapped":      {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_every", "fld_when"} }, "operand 1 must be a date"},
 		"a text second operand": {func(m *domain.Machine) { next(m).Compute.Fields = []string{"fld_when", "fld_note"} }, "must be a number field"},
 		"sum still wants numbers": {func(m *domain.Machine) {
 			next(m).Type, next(m).Compute = domain.FieldTypeNumber, &domain.FieldCompute{Op: domain.ComputeSum, Fields: []string{"fld_when"}}
-		}, "must be a number or money field"},
+		}, "operand 1 must be a figure, got a date"},
 		"sets on a decide edge": {func(m *domain.Machine) {
 			m.Transitions[0].Action, m.Transitions[0].Sets = domain.ActionDecide, map[string]string{"fld_when": "today"}
 		}, "only an edge with action"},

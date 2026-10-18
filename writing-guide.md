@@ -322,6 +322,41 @@ balanced. The assistant writes it too (2026-10-16), checked the same way, never 
 (add, change, remove) take the same lock inside a transaction (2026-10-16), so a line added at that very moment waits for the
 posting or is read by it. Stated limit: the lock is per entry and per process database, not a row lock on the lines themselves.
 
+### 3.0c. Computed values: one closed expression (2026-10-18, plan A1)
+
+`compute:` takes either the flat `{op, fields}` (an operation over Fields of the record) or **one operation as the key**
+with its operands as a list, nested as deep as the value needs:
+
+```yaml
+  - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
+  - { id: fld_wht, name: WHT, type: money, compute: { round: [{ multiply: [fld_gross, 0.02] }, 0] } }
+  # on the contract, from the instalments pointing at it:
+  - { id: fld_paid, name: Paid, type: money,
+      compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_gross,
+                                 where: { field: fld_term_status, equals: Paid } } } }
+  - { id: fld_outstanding, name: Outstanding, type: money, compute: { subtract: [fld_value, fld_paid] } }
+  - { id: fld_terms, name: Instalments, type: number, compute: { count_children: { machine: mch_contract_term, via: fld_contract } } }
+```
+
+| Operation | Operands | Gives |
+|---|---|---|
+| `sum` | one or more figures (an empty one counts 0) | a figure |
+| `subtract` | two or more: the first less the rest (the first must hold a value) | a figure |
+| `multiply`, `min`, `max` | two or more figures | a figure |
+| `divide` | exactly two; nothing when the second is 0 | a figure |
+| `round` | a figure and, optionally, a literal number of decimals | a figure |
+| `add_days`, `add_months` | a date and a figure | a date |
+| `sum_children`, `count_children` | `{machine, via, field, where: {field, equals}}`: the records of `machine` whose relation `via` points here | a figure |
+
+An operand is a Field id of the record, a number, `{parent: fld_contract.fld_value}` (a Field of the record a relation points
+at, which must not be computed itself), or another operation. A computed value may read another computed value of the same
+record (it is computed after it); two that read each other are refused, naming the ring. **An aggregate over children is
+stored on the parent and recomputed in the same transaction as every write of a child** -- create, edit, delete, a rollup or a
+scheduled `set_field` -- so a contract's paid figure never disagrees with its instalments. **When a formula changes, every
+stored record is recomputed when the Workspace's metadata loads** (start, reload, publish; owner decision K3), and only a
+record whose values change is written. `ensure:` may take its bound from the parent too: `at_most: {parent:
+fld_contract.fld_value}` (through the relation it groups by, `per:`).
+
 ### 3.0b. A date from a date, and a Field an edge writes from the clock (2026-10-16)
 
 `compute:` gained a second operation. `op: add_days` is a **date** Field computed as a date Field plus a number Field of days:

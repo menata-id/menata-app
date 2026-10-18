@@ -689,6 +689,7 @@ func LoadApplication(path string) (*App, error) {
 		{"parent actors", func() error { return validateParentActors(machines) }},
 		{"dataset ids", func() error { return validateDatasetIDsAreUnique(machines) }},
 		{"rollup targets", func() error { return validateRollupTargets(machines) }},
+		{"compute targets", func() error { return validateComputeTargets(machines) }},
 		{"composite targets", func() error { return validateCompositeTargets(machines) }},
 		{"sequencing modes", func() error { return validateSequencingModes(machines) }},
 	}); err != nil {
