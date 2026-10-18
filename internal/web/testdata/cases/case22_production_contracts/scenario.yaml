@@ -205,6 +205,12 @@ steps:
     delete: { ref: contract }
     api: true
     expect: refused
+  - id: the-record-page-says-why-it-cannot-be-deleted
+    as: silvia
+    view:
+      path: /machines/mch_contract/records/$contract
+      shows: ["Cannot delete: Instalment records point at it"]
+    expect: ok
   - id: the-list-offers-delete-only-where-it-would-be-taken
     as: silvia
     view:
@@ -220,6 +226,18 @@ steps:
     as: silvia
     update: { ref: signing, values: { fld_gross: "50000" } }
     expect: refused
+  # Leaving a locked Field out of a whole-record PUT keeps it: it is not erased, and the net stays what was paid.
+  - id: a-paid-instalment-keeps-a-field-left-out
+    as: silvia
+    update: { ref: signing, values: { fld_term_label: Signing -- 30% }, omit: [fld_wht] }
+    api: true
+    expect: ok
+    record: { fld_wht: "-2700", fld_net: "51300" }
+  - id: the-same-figure-written-otherwise-is-no-change
+    as: silvia
+    update: { ref: signing, values: { fld_gross: "54000.00" } }
+    api: true
+    expect: ok
   - id: an-unpaid-one-does-not
     as: silvia
     update: { ref: wrap, values: { fld_gross: "50000" } }

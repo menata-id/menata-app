@@ -85,6 +85,9 @@ type caseCreate struct {
 type caseUpdate struct {
 	Ref    string            `yaml:"ref"`
 	Values map[string]string `yaml:"values"`
+	// Omit leaves Fields out of a JSON PUT, which carries the whole record otherwise: what a client that drops a Field
+	// sends.
+	Omit []string `yaml:"omit"`
 }
 
 // caseTick moves the clock: the runtime's scheduler runs once as if Days had passed, and the step's record check
@@ -147,7 +150,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 38, Steps: 38},
+	"case22_production_contracts": {Rejected: 0, Passed: 41, Steps: 41},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -586,11 +589,14 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 
 	// sendJSON is the JSON route's twin of send: an update overlays the changed Fields on the stored record (a PUT carries
 	// the whole record), numbers go as numbers, and the answer is the status code alone.
-	sendJSON := func(method, path, actor string, stored map[string]any, changes map[string]string, machine string) int {
+	sendJSON := func(method, path, actor string, stored map[string]any, changes map[string]string, machine string, omit ...string) int {
 		tok := csrfTokenFor(t, h, path)
 		values := map[string]any{}
 		for k, v := range stored {
 			values[k] = v
+		}
+		for _, k := range omit {
+			delete(values, k)
 		}
 		var m *domain.Machine
 		for _, cand := range installed.Machines {
@@ -601,7 +607,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		for k, v := range changes {
 			v = subst(v)
 			values[k] = v
-			if f, ok := m.FieldByID(k); ok && f.Type == domain.FieldTypeNumber {
+			if f, ok := m.FieldByID(k); ok && f.Type.IsNumeric() {
 				if n, err := strconv.ParseFloat(v, 64); err == nil {
 					values[k] = n
 				}
@@ -730,7 +736,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 				}
 			}
 			if s.API {
-				code = sendJSON(http.MethodPut, "/api/machines/"+machine+"/records/"+id, s.As, snapshot, s.Update.Values, machine)
+				code = sendJSON(http.MethodPut, "/api/machines/"+machine+"/records/"+id, s.As, snapshot, s.Update.Values, machine, s.Update.Omit...)
 			} else {
 				code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, nil)
 			}

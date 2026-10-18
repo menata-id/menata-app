@@ -837,6 +837,9 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				issues = append(issues, fmt.Sprintf("dataset %q: relation %q declares no `via:` -- name the reference field on %q that points back at %q", ds.ID, rel.ID, rel.Machine, m.ID))
 			}
 		}
+		if msg := optionalAnyIssue(ds.Where); msg != "" {
+			issues = append(issues, fmt.Sprintf("dataset %q: %s", ds.ID, msg))
+		}
 		for _, c := range ds.Where.Comparisons() {
 			if _, ok := fieldsByID[c.Field]; !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is not a field of machine %q", ds.ID, c.Field, m.ID))
@@ -854,6 +857,11 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			}
 			if c.Optional && !expression.IsParameter(c.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is optional, which means \"left out when the request does not send it\" -- so its value must be a %s<name>, not %q", ds.ID, c.Field, expression.SentinelParameterPrefix, c.Value))
+			}
+			// A parameter the runtime sets itself (the Application a page is drawn in, a record page's id, the week) is a
+			// scope, not a filter a person chooses: left out, it would list every Application's rows.
+			if name, ok := strings.CutPrefix(c.Value, expression.SentinelParameterPrefix); c.Optional && ok && domain.SearchParamsReserved[name] {
+				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is optional on %s, which the runtime sets as a scope -- a scope is never left out", ds.ID, c.Field, c.Value))
 			}
 			if f, ok := fieldsByID[c.Field]; ok {
 				if msg := containsIssue(f, c); msg != "" {
@@ -1030,6 +1038,26 @@ func doneIssue(m *domain.Machine, c expression.Comparison) string {
 func emptyComparisonIssue(c expression.Comparison) string {
 	if c.Op == expression.OpIsEmpty && c.Value != "" {
 		return fmt.Sprintf("op %q asks whether field %q has a value, so it takes none (got %q)", c.Op, c.Field, c.Value)
+	}
+	return ""
+}
+
+// optionalAnyIssue refuses an `any:` group that mixes optional and required comparisons. An optional one left out
+// narrows nothing, but sent, it is OR-ed with the others -- so `any: [{owner equals $current_user}, {title contains
+// $parameters.q, optional}]` would list other people's records the moment someone searched (the review of step 1). In
+// one group, either every comparison is optional (a search over several Fields) or none is.
+func optionalAnyIssue(p *expression.Predicate) string {
+	if p == nil || len(p.Any) == 0 {
+		return ""
+	}
+	optional := 0
+	for _, c := range p.Any {
+		if c.Optional {
+			optional++
+		}
+	}
+	if optional > 0 && optional < len(p.Any) {
+		return "where any: mixes optional and required comparisons -- searching would widen the list past the required ones; make every one optional (a search over several Fields) or none"
 	}
 	return ""
 }
@@ -1614,6 +1642,11 @@ func validateLocks(f domain.Field, fieldsByID map[string]domain.Field) []string 
 	var issues []string
 	if (f.LockedWhen != nil || f.SetOnce) && (f.Compute != nil || f.Stamp != "") {
 		issues = append(issues, fmt.Sprintf("field %q: a computed or stamped field is written by the runtime, so locked_when/set_once would lock nothing a person writes", f.ID))
+	}
+	// A checkbox sends nothing when unticked, so a form cannot send a stored false back unchanged: the record could never
+	// be saved again.
+	if (f.LockedWhen != nil || f.SetOnce) && f.Type == domain.FieldTypeBoolean {
+		issues = append(issues, fmt.Sprintf("field %q: a boolean cannot be locked -- an unticked box sends nothing, so an edit could never carry it back unchanged", f.ID))
 	}
 	if lw := f.LockedWhen; lw != nil {
 		other, ok := fieldsByID[lw.Field]

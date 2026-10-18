@@ -34,7 +34,8 @@ type FormChoice struct {
 }
 
 // InputChoiceSep separates a reference choice's stored id from its label inside an `Input`'s options (one choice per
-// InputOptionsSep line). A tab, which neither an id nor a record's label holds.
+// InputOptionsSep line). A tab; lowering replaces any tab or line break a label holds (ir.oneField), so a record's title
+// cannot add a choice of its own.
 const InputChoiceSep = "\t"
 
 // Form methods: the verb a Form lowers to. It is derived from the binding's mode (create posts, update patches)

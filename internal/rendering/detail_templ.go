@@ -2345,6 +2345,17 @@ func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection,
 	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 		return false, "not allowed"
 	}
+	// `on_parent_delete: restrict`: the page already lists the records that point at this one, so the button the route
+	// would refuse (409) is not offered either.
+	for _, cc := range children {
+		for _, link := range domain.RestrictingChildren([]*domain.Machine{cc.Machine}, m.ID) {
+			for _, c := range cc.Records {
+				if toString(c.Values[link.Field]) == r.ID {
+					return false, fmt.Sprintf("%s records point at it", cc.Machine.Name)
+				}
+			}
+		}
+	}
 	return ok, reason
 }
 
@@ -2383,7 +2394,7 @@ func longText(text string) templ.Component {
 			var templ_7745c5c3_Var139 string
 			templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 509, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 520, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 			if templ_7745c5c3_Err != nil {
@@ -2401,7 +2412,7 @@ func longText(text string) templ.Component {
 			var templ_7745c5c3_Var140 string
 			templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(string([]rune(text)[:longTextFold]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 513, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 524, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 			if templ_7745c5c3_Err != nil {
@@ -2436,7 +2447,7 @@ func longText(text string) templ.Component {
 			var templ_7745c5c3_Var143 string
 			templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 516, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 527, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 			if templ_7745c5c3_Err != nil {

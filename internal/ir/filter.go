@@ -26,6 +26,15 @@ func keepQuery(r Resolver, except ...string) string {
 	return v.Encode() // sorted by key
 }
 
+// oneField is a value made safe to sit in one tab-separated field of one line: a label or value comes from the data (a
+// related record's title, a stored status), and a tab or a line break in it would otherwise start a field or a line of
+// its own -- a chip with an address the data chose (the review of step 1 drew `javascript:` that way).
+func oneField(s string) string {
+	return lineBreaker.Replace(s)
+}
+
+var lineBreaker = strings.NewReplacer("\t", " ", "\n", " ", "\r", " ")
+
 // filterHref is the address of one choice: the kept parameters, and the filter's own set to value ("" clears it).
 func filterHref(keep, query, value string) string {
 	v, _ := url.ParseQuery(keep)
@@ -99,7 +108,7 @@ func lowerFilterChips(n domain.PageNode, r Resolver, path string) ([]UINode, err
 		if current {
 			flag = "1"
 		}
-		lines = append(lines, strings.Join([]string{label, count, href, flag}, "\t"))
+		lines = append(lines, strings.Join([]string{oneField(label), oneField(count), href, flag}, "\t"))
 	}
 	if all := n.Props["all"]; all != "" {
 		line(all, total, filterHref(keep, query, ""), selected == "")
@@ -130,7 +139,7 @@ func lowerFilterSelect(n domain.PageNode, r Resolver, path string) ([]UINode, er
 	query := n.Props["query"]
 	var lines []string
 	for _, row := range rows {
-		lines = append(lines, row.linkValue()+"\t"+row.Label)
+		lines = append(lines, oneField(row.linkValue())+"\t"+oneField(row.Label))
 	}
 	props := map[string]string{"label": n.Props["label"], "query": query, "all": n.Props["all"], "choices": strings.Join(lines, "\n"), "keep": keepQuery(r, query)}
 	if r.Query != nil {

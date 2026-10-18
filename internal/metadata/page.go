@@ -812,6 +812,8 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 			issues = append(issues, fmt.Sprintf("%s: page: columns: field: %s -- machine %q has no such Field", where, c.Field, source.ID))
 		case f.Type == domain.FieldTypeGroup:
 			issues = append(issues, fmt.Sprintf("%s: page: columns: field: %s -- a group Field is not yet a column (its label is the Workspace's group, read by no page binding)", where, c.Field))
+		case f.Type == domain.FieldTypeFile:
+			issues = append(issues, fmt.Sprintf("%s: page: columns: field: %s -- a file Field's value is its storage key, which is not for reading; open the record to see the file", where, c.Field))
 		}
 	}
 	roles := fromRoles(n.Children)

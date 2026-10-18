@@ -385,6 +385,13 @@ deletable_unless:
 - `on_parent_delete: restrict` (a relation Field only) refuses deleting the record it points at while any record points at
   it (409: "cannot be deleted while 3 Instalment record(s) point at it"). `cascade` and `clear` are not built and are refused.
 - `deletable_unless` refuses deleting a record while its status Field holds the value, with the reason given.
+- A locked Field a whole-record update leaves out **keeps its stored value**; a figure written another way ("54000.00" for
+  54000) is no change. A boolean cannot be locked (an unticked box sends nothing).
+- These are rules for what a **person** writes through the generic routes. What the runtime writes itself -- an Event's
+  `set_field` or rollup, a workflow engine's own screens -- is not judged by them, as it is not judged by `required_when`.
+- `optional: true` is refused inside an `any:` group that also holds a required comparison (a search would widen the list
+  past it), and on a parameter the runtime sets as a scope (`application`, `id`, `week`). A Table column may not name a
+  `file` Field (its value is a storage key).
 - **A button is offered only where the route would take the write**: a page's Delete and Edit read the same rules (and
   `frozen_when:`) for the listed records, in one statement per related Machine, so a contract with instalments shows no
   Delete. The routes check again regardless.

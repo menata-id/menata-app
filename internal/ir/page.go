@@ -1768,7 +1768,7 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		if in.Reference != "" {
 			lines := make([]string, 0, len(in.Choices))
 			for _, c := range in.Choices {
-				lines = append(lines, c.Value+domain.InputChoiceSep+c.Label)
+				lines = append(lines, oneField(c.Value)+domain.InputChoiceSep+oneField(c.Label))
 			}
 			ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
 		}

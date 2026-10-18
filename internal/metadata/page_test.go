@@ -1412,10 +1412,14 @@ func TestOptionalAndContainsAreHeldToTheirMeaning(t *testing.T) {
 		ds   domain.Dataset
 		want string
 	}{
-		"optional on a literal":  {records(expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}), "must be a $parameters."},
-		"contains on money":      {records(expression.Comparison{Field: "fld_value", Op: expression.OpContains, Value: "1"}), "looks for words in text"},
-		"contains with no words": {records(expression.Comparison{Field: "fld_name", Op: expression.OpContains}), "no words to look for"},
-		"optional in a measure":  {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "an aggregate has no request parameters"},
+		"optional on a literal":           {records(expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}), "must be a $parameters."},
+		"contains on money":               {records(expression.Comparison{Field: "fld_value", Op: expression.OpContains, Value: "1"}), "looks for words in text"},
+		"contains with no words":          {records(expression.Comparison{Field: "fld_name", Op: expression.OpContains}), "no words to look for"},
+		"optional on the runtime's scope": {records(expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: "$parameters.application", Optional: true}), "never left out"},
+		"optional mixed in any:": {domain.Dataset{Select: domain.SelectRecords, Limit: 10, Where: &expression.Predicate{Any: []expression.Comparison{
+			{Field: "fld_name", Op: expression.OpEquals, Value: "$current_user"},
+			{Field: "fld_name", Op: expression.OpContains, Value: "$parameters.q", Optional: true}}}}, "mixes optional and required"},
+		"optional in a measure": {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "an aggregate has no request parameters"},
 	} {
 		if got := run(tc.ds); !strings.Contains(got, tc.want) {
 			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)

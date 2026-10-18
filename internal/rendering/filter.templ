@@ -21,7 +21,8 @@ func parseFilterChips(s string) []chipOfFilter {
 	var out []chipOfFilter
 	for _, line := range strings.Split(s, "\n") {
 		p := strings.Split(line, "\t")
-		if len(p) != 4 {
+		// A chip leads back to this page and nowhere else: an address that is not a query string is not drawn.
+		if len(p) != 4 || !strings.HasPrefix(p[2], "?") {
 			continue
 		}
 		out = append(out, chipOfFilter{Label: p[0], Count: p[1], Href: p[2], Current: p[3] == "1"})

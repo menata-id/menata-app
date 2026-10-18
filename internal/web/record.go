@@ -269,8 +269,11 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 		if !applyTransitionSets(w, req, store, machine, id, values) {
 			return false
 		}
+		if !keepsLockedFields(w, req, store, machine, id, values) {
+			return false
+		}
 		data.ApplyComputed(machine, values)
-		if !keepsLockedFields(w, req, store, machine, id, values) || !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
+		if !allowsTransition(w, req, store, machine, id, values, actor) || !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return false
 		}
 		batch, ok := planGenerated(w, req, store, machines, machine, id, values)
@@ -979,12 +982,21 @@ func sameStoredValue(submitted, stored any) bool {
 	if blank(submitted) && blank(stored) {
 		return true
 	}
+	// A figure is the same figure however it is written ("54000.00" and 54000).
+	a, aErr := strconv.ParseFloat(fmt.Sprint(submitted), 64)
+	b, bErr := strconv.ParseFloat(fmt.Sprint(stored), 64)
+	if aErr == nil && bErr == nil {
+		return a == b
+	}
 	return fmt.Sprint(submitted) == fmt.Sprint(stored)
 }
 
 // keepsLockedFields refuses an update that changes a Field its Machine locks for the record as stored (`locked_when:`,
-// `set_once:`, owner decision K1): a paid instalment's gross, a contract's number. A Field the request does not change
-// is not judged, so a form that sends the record back whole still saves. No read for a Machine that locks nothing.
+// `set_once:`, owner decision K1): a paid instalment's gross, a contract's number. A locked Field the request leaves out
+// keeps its stored value -- the whole-record routes write what they are sent, so leaving a Field out would otherwise erase
+// it (the review of step 1 did exactly that to a paid instalment's VAT). It runs before computed Fields are derived, so
+// they are derived from the kept values. A Field sent unchanged is not judged, so a form that sends the record back whole
+// still saves. No read for a Machine that locks nothing.
 func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
 	locks := false
 	for _, f := range machine.Fields {
@@ -999,11 +1011,18 @@ func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Sto
 		return false
 	}
 	for _, f := range machine.Fields {
-		v, sent := values[f.ID]
-		if !sent || sameStoredValue(v, existing.Values[f.ID]) {
+		locked, why := machine.LockedField(f, existing.Values)
+		if !locked {
 			continue
 		}
-		if locked, why := machine.LockedField(f, existing.Values); locked {
+		v, sent := values[f.ID]
+		if !sent {
+			if stored, ok := existing.Values[f.ID]; ok {
+				values[f.ID] = stored
+			}
+			continue
+		}
+		if !sameStoredValue(v, existing.Values[f.ID]) {
 			http.Error(w, why, http.StatusUnprocessableEntity)
 			return false
 		}
