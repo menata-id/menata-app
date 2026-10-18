@@ -114,6 +114,10 @@ type NavigationItem struct {
 	// "New contract" form a list's action opens (mockup K01b). It keeps its route and is resolved by id like any item
 	// (Application.AllNavigation); only the Application's menu leaves it out.
 	NotInMenu bool
+	// RecordOf (`record_of: mch_x`, 2026-10-17, plan B1) makes this page one record's page: it is opened at
+	// `/pages/<id>/<record id>`, reads the record as `$parameters.id`, draws its own heading, and is no menu entry. Every
+	// link to a record of that Machine opens it (Machine.RecordPage).
+	RecordOf string
 	// Icon must be one of KnownIcons, the same convention as Application.Icon. It was a single
 	// literal character until 2026-09-24 -- see KnownIcons for why that convention ended and what
 	// a name buys over a glyph.

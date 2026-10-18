@@ -113,3 +113,15 @@ datasets:
     where: { field: fld_term_status, op: not_equals, value: Paid }
     sort: [{ field: fld_due_date, direction: asc }]
     limit: 200
+  # A contract's own page (record_of): its instalments, the contract the route names being their parent.
+  - id: ds_contract_terms
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.id }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100
+  # The instalment form opened from a contract: the instalments already entered for it, below the form.
+  - id: ds_terms_of_contract
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.contract }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100

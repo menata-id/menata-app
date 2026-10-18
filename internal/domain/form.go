@@ -9,6 +9,13 @@ func FormRoute(machineID string) string {
 	return "/machines/" + machineID + "/records"
 }
 
+// FormThenParam is the request field a create Form sends `then: record` in, and FormThenRecord its one value: the create
+// route answers by opening the new record (its Machine's record page when it has one) rather than redrawing the form.
+const (
+	FormThenParam  = "_then"
+	FormThenRecord = "record"
+)
+
 // FormInput is one control of a create form, already decided: which Field it fills, what it is called, what
 // sort of control it is, and what it starts as.
 type FormInput struct {
@@ -23,6 +30,9 @@ type FormInput struct {
 	// Reference is the Machine a relation or person select chooses a record of; its Choices are that Machine's records,
 	// which only the Data Plane can list, so the domain names the target and the composition fills them in.
 	Reference string
+	// Fixed is a control whose value came from the request (a Form's `values:`): drawn as its words, carried in a hidden
+	// input, so "New instalment" opened from a contract shows the contract and does not offer another.
+	Fixed bool
 	// Choices are a reference select's records, each a stored id and the words it is shown by (the related record's
 	// label, a member's name).
 	Choices []FormChoice
@@ -146,6 +156,30 @@ func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 		inputs = append(inputs, in)
 	}
 	return inputs
+}
+
+// Input is the control f is drawn as on a page's form, before any starting value: the shape a transition's own form
+// asks its Fields in (a file as a file input).
+func (f Field) Input() FormInput {
+	if f.Type == FieldTypeFile {
+		return FormInput{FieldID: f.ID, Label: f.Name, Kind: InputFile, Required: true}
+	}
+	return formInputOf(f)
+}
+
+// TransitionInputs are what moving a record along e asks for: the Fields that become required when e's Field takes e's
+// `to` (`required_when:`), each required. "Mark as paid" asks for the proof of payment, so the form and the edge are
+// one submit (mockup K02d).
+func (m *Machine) TransitionInputs(e Transition) []FormInput {
+	var out []FormInput
+	for _, f := range m.Fields {
+		if rw := f.RequiredWhen; rw != nil && rw.Field == e.Field && rw.Equals == e.To {
+			in := f.Input()
+			in.Required = true
+			out = append(out, in)
+		}
+	}
+	return out
 }
 
 // formInputOf is the control a Field is drawn as, before any starting value.

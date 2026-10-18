@@ -102,6 +102,13 @@ func applicationForPath(ws domain.Workspace, path string) (domain.Application, b
 		}
 		return domain.Application{}, false
 	}
+	// One record's page (`/pages/{navID}/{recordID}`, `record_of:`) belongs to the Application whose navigation declares
+	// `/pages/{navID}`, so its roles gate it as they gate the list.
+	if rest, ok := strings.CutPrefix(path, "/pages/"); ok {
+		if navID, tail, found := strings.Cut(rest, "/"); found && navID != "" && tail != "" {
+			return ws.ApplicationForRoute("/pages/" + navID)
+		}
+	}
 	return ws.ApplicationForRoute(path)
 }
 

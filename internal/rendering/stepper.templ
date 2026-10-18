@@ -1,0 +1,51 @@
+package rendering
+
+import (
+	"context"
+	"strings"
+
+	"menata.app/internal/domain"
+)
+
+// stepOf is one step of a Stepper: its words and whether it is done, current or still to come.
+type stepOf struct{ Label, State string }
+
+func parseSteps(s string) []stepOf {
+	var out []stepOf
+	for _, line := range strings.Split(s, "\n") {
+		if label, state, ok := strings.Cut(line, "\t"); ok {
+			out = append(out, stepOf{Label: label, State: state})
+		}
+	}
+	return out
+}
+
+// stepper is the registered renderer for `domain.ComponentStepper`: the steps as pills joined by a rule, the current one
+// filled with the strong ink (as a chosen filter chip is), the ones passed in the good tone, the rest quiet. An ordered
+// list, so a reader hears the order and "current step".
+templ stepper(label, steps string) {
+	<ol aria-label={ label } class={ "m-0 flex flex-wrap items-center p-0 list-none", layoutGap(ctx, domain.GapTight) }>
+		for i, s := range parseSteps(steps) {
+			if i > 0 {
+				<li aria-hidden="true" class={ "h-px w-6", borderFillClass(ctx, domain.BorderControl) }></li>
+			}
+			<li
+				if s.State == "current" {
+					aria-current="step"
+				}
+				class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1", textClass(ctx, domain.RoleMeta), stepClasses(ctx, s.State) }
+			>{ s.Label }</li>
+		}
+	</ol>
+}
+
+// stepClasses is a step's look by its state, chosen in Go (two Theme readers never share a templ.KV expression).
+func stepClasses(ctx context.Context, state string) string {
+	switch state {
+	case "current":
+		return inkEdgeClass(ctx) + " " + inkFillClass(ctx, domain.InkStrong) + " " + onFillClass(ctx)
+	case "done":
+		return toneEdgeClass(ctx, domain.ToneGood) + " " + toneClass(ctx, domain.ToneGood)
+	}
+	return borderClass(ctx, domain.BorderControl) + " " + inkClass(ctx, domain.InkSecondary)
+}

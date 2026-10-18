@@ -418,6 +418,8 @@ type navItemDoc struct {
 	OpenTo string `yaml:"open_to"`
 	// InMenu -- see domain.NavigationItem.NotInMenu. Optional; absent means true.
 	InMenu *bool `yaml:"in_menu"`
+	// RecordOf -- see domain.NavigationItem.RecordOf. Optional.
+	RecordOf string `yaml:"record_of"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -644,6 +646,9 @@ func LoadApplication(path string) (*App, error) {
 	// been established.
 	stampApplicationIDs(app.Workspace.Applications, app.Machines)
 	stampWorkflowRoles(app.Workspace.Applications, app.Machines)
+	if err := stampRecordPages(app.Workspace.Applications, app.Machines); err != nil {
+		return nil, err
+	}
 	// After stamping, because it asks each cast Machine a question -- and before the Dataset validators
 	// below, so "the engine needs this Dataset" is reported ahead of "this Dataset is malformed".
 	//
@@ -689,6 +694,40 @@ func LoadApplication(path string) (*App, error) {
 	// has finished building and stamping them, so the two can never be out of step.
 	app.Workspace.Machines = app.Machines
 	return app, nil
+}
+
+// stampRecordPages gives each Machine an Application declares a record page for (`record_of:`) that page's route
+// (domain.Machine.RecordPage), so every link to one of its records -- a list's, a notification's, the generic route's --
+// opens the page the Application declared. A page names a Machine its own Application claims, one page per Machine, and
+// is a `page:` at `/pages/<its id>`.
+func stampRecordPages(apps []domain.Application, machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, app := range apps {
+		for _, item := range app.AllNavigation {
+			if item.RecordOf == "" {
+				continue
+			}
+			m, ok := byID[item.RecordOf]
+			switch {
+			case !ok || !slices.Contains(app.Machines, item.RecordOf):
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: record_of %q is not a Machine this Application claims", app.ID, item.ID, item.RecordOf))
+			case item.Page == nil || item.Route != "/pages/"+item.ID:
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: a record page declares page: and the route /pages/%s", app.ID, item.ID, item.ID))
+			case m.RecordPage != "":
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: machine %q already has a record page (%s)", app.ID, item.ID, m.ID, m.RecordPage))
+			default:
+				m.RecordPage = item.Route
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }
 
 // loadApplicationFile reads and validates one Application's own file.
@@ -956,7 +995,9 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			SettingsHubMember: n.SettingsHubMember,
 			Page:              page,
 			OpenTo:            n.OpenTo,
-			NotInMenu:         n.InMenu != nil && !*n.InMenu,
+			NotInMenu:         (n.InMenu != nil && !*n.InMenu) || n.RecordOf != "",
+			RecordOf:          n.RecordOf,
+			OwnsHeading:       n.RecordOf != "",
 		})
 	}
 	return items

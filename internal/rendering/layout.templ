@@ -1511,7 +1511,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentTag:
 					@tagChip(n.Props["label"], domain.TagColor(n.Props["color"]))
 				case domain.ComponentForm:
-					@form(n.Props["submit"], n.Props["action"], n.Props["method"]) {
+					@form(n.Props["submit"], n.Props["action"], n.Props["method"], n.Props["multipart"] == "true", n.Props["carries"], n.Props["then"]) {
 						@uiChildren(n)
 					}
 				case domain.ComponentProgress:
@@ -1534,6 +1534,8 @@ templ uiNode(n ir.UINode) {
 					@diffView(n.Props["label"], n.Props["text"])
 				case domain.ComponentSearchBox:
 					@searchField(n.Props["label"], n.Props["query"], n.Props["placeholder"], n.Props["value"], n.Props["action"], n.Props["submit"], n.Props["keep"])
+				case domain.ComponentStepper:
+					@stepper(n.Props["label"], n.Props["steps"])
 				case domain.ComponentActionBar:
 					@actionBar(n.Props["label"]) {
 						@uiChildren(n)
@@ -1547,7 +1549,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentTable:
 					@table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
 				case domain.ComponentFormInput:
-					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true")
+					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true", n.Props["fixed"] == "true")
 			}
 	}
 }

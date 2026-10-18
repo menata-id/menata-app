@@ -231,8 +231,8 @@ var allowedProps = map[string][]string{
 	"component/Field":            {"label", "for"},
 	"component/Button":           {"label", "variant", "name", "value", "confirm", "action", "method", "describes"},
 	"component/Tag":              {"label", "color"},
-	"component/Form":             {"submit", "action", "method"},
-	"component/Input":            {"id", "name", "kind", "options", "value", "required"},
+	"component/Form":             {"submit", "action", "method", "multipart", "carries", "then"},
+	"component/Input":            {"id", "name", "kind", "options", "value", "required", "fixed"},
 	"component/Progress":         {"label", "value", "max"},
 	"component/Callout":          {"text", "tone"},
 	"component/EmptyState":       {"text"},
@@ -246,6 +246,7 @@ var allowedProps = map[string][]string{
 	"component/FilterChips":      {"label", "query", "options", "all", "chips"},
 	"component/FilterSelect":     {"label", "query", "all", "choices", "selected", "keep"},
 	"component/ActionBar":        {"label"},
+	"component/Stepper":          {"label", "steps"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

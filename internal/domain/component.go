@@ -212,6 +212,11 @@ const (
 	// mockup K01b. It holds links and Buttons; at the root of a page it is drawn in the page's header row, opposite the
 	// heading, which is where a person looks for what they can do on the screen. Anywhere else it is a row of actions.
 	ComponentActionBar ComponentType = "ActionBar"
+
+	// ComponentStepper is where a record stands in its lifecycle (mockup K01d: Draft — Active — Closed): a status Field's
+	// options in order, the ones passed done, the current one marked, the rest to come. The steps are derived from the
+	// Field's options and `status_categories:` (`from: {steps: "steps:fld_status"}`), never written.
+	ComponentStepper ComponentType = "Stepper"
 )
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action
@@ -262,6 +267,9 @@ const (
 	// InputCode is a long text that is edited as text and not as prose: a monospace box of eighteen lines with spell-check off,
 	// for a file's content.
 	InputCode InputKind = "code"
+	// InputFile is a file chosen from the device and sent with the form (multipart): a proof of payment uploaded as the
+	// plan is marked paid (plan B2, mockup K02d).
+	InputFile InputKind = "file"
 )
 
 // KnownInputKinds is the closed set.
@@ -274,6 +282,7 @@ var KnownInputKinds = map[InputKind]bool{
 	InputSelect:      true,
 	InputMultiSelect: true,
 	InputCode:        true,
+	InputFile:        true,
 }
 
 // InputOptionsSep joins a select's options into the one string property an `Input` carries them in. A newline,

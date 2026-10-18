@@ -23,3 +23,9 @@ events:
       parent_field: fld_term
       target_field: fld_term_status
       any: { value: Paid, set: Paid }
+
+datasets:
+  - id: ds_plan_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1

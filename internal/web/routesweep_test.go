@@ -236,9 +236,16 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	pageCase := false
 	for _, app := range f.ws.Applications {
 		for _, item := range app.AllNavigation {
-			if item.Page != nil {
+			switch {
+			case item.Page != nil && item.RecordOf != "":
+				// One record's page: the seeded record of its Machine opens it, an id of no record is not found, and the
+				// list address without a record is not a page.
+				add("/pages/{navID}/{recordID}", "/pages/"+item.ID+"/"+f.records[item.RecordOf], http.StatusOK, "a record page opens for a record of its Machine")
+				add("/pages/{navID}/{recordID}", "/pages/"+item.ID+"/rec_not_a_record", http.StatusNotFound, "and is not found for an id that names none")
+				add("/pages/{navID}", "/pages/"+item.ID, http.StatusNotFound, "a record page without a record is not a page")
+			case item.Page != nil:
 				add("/pages/{navID}", "/pages/"+item.ID, http.StatusOK, "a navigation item declaring `page:` renders its body")
-			} else if !pageCase {
+			case !pageCase:
 				add("/pages/{navID}", "/pages/"+item.ID, http.StatusNotFound, "a navigation item with no `page:` is a bespoke screen, not a page")
 				pageCase = true
 			}

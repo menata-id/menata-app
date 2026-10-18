@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -30,7 +31,26 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, app.ID), time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
+			params := pageParams(req, app.ID)
+			// A record page is opened for one record, which the route names and which must be a record of its Machine in
+			// this Workspace; a list page has no record. Either way round is a 404, not an empty page.
+			recordID := chi.URLParam(req, "recordID")
+			if (item.RecordOf != "") != (recordID != "") {
+				http.NotFound(w, req)
+				return
+			}
+			if recordID != "" {
+				if _, err := store.GetRecord(ctx, item.RecordOf, recordID); err != nil {
+					if errors.Is(err, data.ErrRecordNotFound) {
+						http.NotFound(w, req)
+						return
+					}
+					serverError(w, err)
+					return
+				}
+				params["id"] = recordID
+			}
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), params, time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

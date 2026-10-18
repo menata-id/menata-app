@@ -1161,6 +1161,7 @@ Navigation item keys:
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
 | `page` | node tree | Optional (2026-10-07): declares the screen's **body**, so no Go renders it. The `route` must then be `/pages/<this id>`. See **`page:` — declaring a screen's body** below |
+| `record_of` | Machine id | Optional (2026-10-17). Makes the page **one record's page**: it opens at `/pages/<id>/<record id>`, reads the record as `$parameters.id`, draws its own heading, is no menu entry, and every link to a record of that Machine (a Table's `href: record`) opens it. See **One record's page** below |
 | `in_menu` | bool | Optional (2026-10-17), default `true`. `false` keeps the item out of the Application's menu while its route stays valid and `to:` still resolves it: a screen another screen opens, such as the "New contract" form behind a list's action |
 
 **Icon names** (`domain.KnownIcons`, drawn by `internal/rendering/icons.templ`). A name, never a
@@ -1306,6 +1307,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
 | `NavList` | stable | Declared by the runtime's own page for Groups, installed in every Workspace |
 | `SearchBox` | stable | Declared by the runtime's own page for Members, installed in every Workspace |
+| `Stepper` | stable | Declared by installed pages (Dokter Kecil's contract and payment plan pages) |
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
@@ -1794,6 +1796,42 @@ window and claims nothing about completeness -- unless it says **`complete: true
 the bound cut says so under its rows, with the count it was cut from ("Showing the first 100 of 340"), which costs one count only
 when the bound bit. **`framed: true`** draws the table on a surface, the bordered card the mockups put a list in. **`stable`**: the
 Helpdesk's All tickets page declares one.
+
+**One record's page (`record_of:`, 2026-10-17, plan B1).** A navigation item with `record_of: mch_contract` and a `page:`
+is a contract's own page (mockup K01d). The record is `$parameters.id`, which a Dataset selects with the record's own id,
+and its children by their relation:
+
+```yaml
+- id: ds_contract_one
+  select: records
+  where: { field: id, op: equals, value: $parameters.id }   # `id` is the record's own id; equals only
+  limit: 1
+- id: ds_contract_terms
+  select: records
+  where: { field: fld_contract, op: equals, value: $parameters.id }
+  limit: 100
+```
+
+A Collection over the first draws the record; inside its item template:
+
+- `from: {text: "field:fld_x"}` reads **any Field by id** (as a Table's `field:` column does), `tone:fld_x` a status
+  Field's tone and `steps:fld_x` its steps;
+- **`component: Stepper`** with `from: {steps: "steps:fld_status"}` draws the lifecycle (Draft — Active — Closed): steps
+  passed done, the current one marked, a `stopped` option shown only when the record is there;
+- a Button with `binding: {write: transition, transition: trn_contract_activate}` **takes that declared edge** on its own
+  Field, drawn only where the record stands at the edge's `from` and the viewer's roles allow it; its label defaults to the
+  edge's name;
+- a **Form** with `binding: {write: transition, transition: trn_plan_settle}` takes the edge **with what it asks**: the
+  Fields its `to` makes required (`required_when:`), a `file` among them as a file input, in one submit (K02d: proof, then
+  Paid);
+- a `static: link` with **`pass: {contract: "record:id"}`** carries the record to another page's request
+  (`?contract=<id>`): "+ Add instalment".
+
+A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value
+and is drawn as its words in a hidden input, not offered again. **`then: record`** opens the record it made (its record page
+when it has one). A record page answers 404 for an id that is not a record of its Machine in this Workspace, and the
+Application's roles gate it as they gate the list. A status Field may declare **`categories:`** (the same five as
+`status_categories:`) when it is not the Machine's lifecycle Field, so a second status (a contract's payment) has tones too.
 
 **`component: ActionBar`** (2026-10-17) is a page's primary actions, named as a group. Put it at the root of the page and it
 is drawn in the header row, opposite the heading; its links may take `variant: primary` (or `secondary`) to look like a

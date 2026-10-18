@@ -1,6 +1,9 @@
 package domain
 
-import "net/url"
+import (
+	"net/url"
+	"strings"
+)
 
 // PageNode is one node of a `page:` declaration: what an Application writes in a navigation item to say what
 // a screen's body is made of (007 §12.4, §15.1's first stage).
@@ -78,7 +81,15 @@ type PageNode struct {
 	// Columns are a Table's columns, in order (`columns: [{header: Title, from: title, href: record}]`): each names the
 	// Projection role its cell shows. Valid only on a `Table` bound with rows: records; `ir.Lower` builds the cells, so a
 	// Table holds no children of its own.
-	Columns  []PageColumn
+	Columns []PageColumn
+	// Pass (`pass: {contract: "record:id"}`, plan B2) is what a `static: link` inside a record template carries to its
+	// destination: each query parameter taken from a role of the record (its id, a Field read by id). "Add instalment"
+	// opens the instalment form already naming its contract.
+	Pass map[string]string
+	// Values (`values: {fld_contract: $parameters.contract}`) are what a create Form starts with from its request: each
+	// Field the form asks for, filled from a `$parameters.<name>` and drawn fixed (its words, not a control) when the
+	// request sends it. The route still validates the value as it validates any.
+	Values   map[string]string
 	Children []PageNode
 }
 
@@ -213,6 +224,12 @@ type PageBinding struct {
 	// so the Data Plane resolves those Fields -- and a relation among them, in one statement by the ids listed -- and
 	// no other. A binding with none resolves only the Projection, as before.
 	Fields []string
+	// Transition, with `write: transition` on a Button, names the declared edge it takes (`transition: trn_x`) instead of
+	// a target in `becomes:`: the edge's own Field and `to`, so any status Field of the Machine can be moved.
+	Transition string
+	// Values is the Form's `values:` (PageNode.Values), copied here at load so the resolver that builds the form reads
+	// them beside the request. Never written on a binding.
+	Values map[string]string
 	// CountCut is never written either: a Table that says `complete: true` asks, when its Dataset's bound cuts it, how
 	// many records it was cut from. Set at load, so a list that claims nothing pays no count.
 	CountCut bool
@@ -277,7 +294,7 @@ const (
 // WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
-	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction},
+	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction, PageWriteTransition},
 	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction},
 }
 
@@ -316,6 +333,20 @@ func PageFieldRole(fieldID string) string { return "field:" + fieldID }
 
 // PageFieldToneRole: see PageFieldRole.
 func PageFieldToneRole(fieldID string) string { return "tone:" + fieldID }
+
+// PageFieldStepsRole is the key of a status Field's steps for a Stepper: one `label<TAB>state` line per option in order,
+// state done, current or todo; an option the Machine categorises `stopped` is left out unless it is the current one.
+func PageFieldStepsRole(fieldID string) string { return "steps:" + fieldID }
+
+// PageFieldOfRole reads a Field-keyed role (`field:`, `tone:`, `steps:`) back into the Field it names, or false.
+func PageFieldOfRole(role string) (string, bool) {
+	for _, prefix := range []string{"field:", "tone:", "steps:"} {
+		if id, ok := strings.CutPrefix(role, prefix); ok && id != "" {
+			return id, true
+		}
+	}
+	return "", false
+}
 
 // PageRowLabelRole and PageMeasureRole are the keys of the row map a Collection bound with `rows: dimension` hands
 // to its item template: the Dimension value's display (a status option, or a related record's title), and each of

@@ -95,6 +95,79 @@ navigation:
           columns:
             - { header: Contract no., field: fld_contract_no }
           binding: { dataset: ds_contracts_first, rows: records }
+  # One contract's page (mockup K01d): its lifecycle as a Stepper, the moves its edges allow this viewer, "Add instalment"
+  # carrying the contract, and its instalments.
+  - id: nav_contract
+    label: Contract
+    route: /pages/nav_contract
+    record_of: mch_contract
+    page:
+      layout: stack
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_one, rows: records }
+          children:
+            - layout: stack
+              children:
+                - static: heading
+                  from: { text: "field:fld_contract_no" }
+                - component: StatusBadge
+                  from: { label: "field:fld_payment_status", tone: "tone:fld_payment_status" }
+                - component: Stepper
+                  label: Contract status
+                  from: { steps: "steps:fld_status" }
+                - layout: row
+                  children:
+                    - component: Button
+                      variant: primary
+                      binding: { write: transition, transition: trn_contract_activate }
+                    - component: Button
+                      variant: secondary
+                      binding: { write: transition, transition: trn_contract_close }
+                    - static: link
+                      to: nav_new_term
+                      text: + Add instalment
+                      variant: secondary
+                      pass: { contract: "record:id" }
+        - component: Table
+          label: Instalments
+          columns:
+            - { header: Label, field: fld_term_label }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_contract_terms, rows: records }
+  # The instalment form "Add instalment" opens: the contract comes from the request and is not offered again.
+  - id: nav_new_term
+    label: New instalment
+    route: /pages/nav_new_term
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Form
+          submit: Save instalment
+          values: { fld_contract: $parameters.contract }
+          binding: { dataset: ds_terms_new, write: create }
+  # One plan's page (mockup K02d): finance confirms the payment with its proof in one submit.
+  - id: nav_plan
+    label: Payment plan
+    route: /pages/nav_plan
+    record_of: mch_payment_plan
+    page:
+      layout: stack
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_one, rows: records }
+          children:
+            - layout: stack
+              children:
+                - static: heading
+                  from: { text: "field:fld_plan_no" }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
   - id: nav_categories
     label: Categories
     route: /machines/mch_category

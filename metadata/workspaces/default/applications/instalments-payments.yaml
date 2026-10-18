@@ -128,6 +128,13 @@ navigation:
             - { header: Gross, field: fld_gross, align: end }
             - { header: Status, field: fld_term_status }
           binding: { dataset: ds_instalments_unpaid, rows: records }
+          # Each instalment's working action (K02a): a plan for it, with the instalment already filled in.
+          children:
+            - static: link
+              to: nav_new_plan
+              text: Create plan
+              variant: secondary
+              pass: { term: "record:id" }
         - static: link
           list_of: ds_instalments_unpaid
           text: All instalments
@@ -190,7 +197,8 @@ navigation:
               becomes: Rejected
               from: { describes: title }
               binding: { write: transition }
-  # New payment plan: the form the list's action opens. A plan names its instalment; it is created Submitted.
+  # New payment plan (K02c): opened from an instalment's "Create plan", the instalment is filled in and shown, not
+  # offered; from the list's "+ New plan" it is chosen. Saving opens the plan's own page. It is created Submitted.
   - id: nav_new_plan
     label: New payment plan
     title: New payment plan
@@ -203,7 +211,101 @@ navigation:
       children:
         - component: Form
           submit: Submit plan
+          then: record
+          values: { fld_term: $parameters.term }
           binding: { dataset: ds_payment_plans, write: create }
+  # One payment plan's page (K02d): the plan, Approve or Reject for finance, and -- once approved -- the proof uploaded
+  # and the plan marked paid in one submit. Its payment date is written by the runtime, never typed.
+  - id: nav_plan
+    label: Payment plan
+    title: Payment plan
+    route: /pages/nav_plan
+    record_of: mch_payment_plan
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_one, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: heading
+                      from: { text: title }
+                    - component: StatusBadge
+                      from: { label: "field:fld_plan_status", tone: "tone:fld_plan_status" }
+                - component: Stepper
+                  label: Plan status
+                  from: { steps: "steps:fld_plan_status" }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Instalment
+                        - static: paragraph
+                          from: { text: "field:fld_term" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Planned amount (net)
+                        - static: paragraph
+                          from: { text: "field:fld_plan_amount" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Planned payment date
+                        - static: paragraph
+                          from: { text: "field:fld_plan_date" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Method
+                        - static: paragraph
+                          from: { text: "field:fld_method" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Approved on
+                        - static: paragraph
+                          from: { text: "field:fld_approved_on" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Payment date
+                        - static: paragraph
+                          from: { text: "field:fld_paid_date" }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      variant: primary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_plan_approve }
+                    - component: Button
+                      variant: secondary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_plan_reject }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
   - id: nav_payments_settings
     label: Settings
     title: Instalments & Payments settings

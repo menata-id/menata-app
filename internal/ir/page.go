@@ -106,6 +106,19 @@ type RecordTransition struct {
 	Done   string
 	Reopen string
 	Allows func(target string) (allowed, known bool)
+	// Edges are the Machine's declared transitions by id, each with whether this viewer may take it from where this
+	// record is now: what a Button naming its edge (`binding: {write: transition, transition: trn_x}`) moves, on any
+	// status Field of the Machine.
+	Edges map[string]EdgeOffer
+}
+
+// EdgeOffer is one declared transition as a record offers it: its name, the status Field it moves and to what, and
+// whether this viewer may take it from the record's current value.
+type EdgeOffer struct {
+	Name, Field, To string
+	Allowed         bool
+	// Inputs are what the edge asks for (domain.Machine.TransitionInputs): a Form that names the edge draws them.
+	Inputs []domain.FormInput
 }
 
 // RecordAction is the answer to a record-level write that asks nothing -- a delete: where the request goes and
@@ -453,6 +466,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
 		return lowerUpdateForm(n, path, record, writes)
 	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition && n.Binding.Transition != "" && n.Type == string(domain.ComponentForm) {
+		return lowerTransitionForm(n, path, record, writes)
+	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteDelete {
 		return lowerDeleteButton(n, path, record, writes)
 	}
@@ -524,7 +540,7 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if err != nil {
 		return nil, err
 	}
-	props, err = lowerLink(n, props, r, path)
+	props, err = lowerLink(n, props, r, path, record)
 	if err != nil {
 		return nil, err
 	}
@@ -714,7 +730,7 @@ func lowerComplete(n domain.PageNode, set RecordSet, path string) (map[string]st
 	return props, nil
 }
 
-func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
+func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string, record map[string]string) (map[string]string, error) {
 	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
 	for prop, role := range n.From {
 		if role == domain.PageRecordRole && !(isLink && prop == "href") {
@@ -784,6 +800,27 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		if value != "" {
 			out["href"] = route + "?" + url.QueryEscape(step.Parameter) + "=" + url.QueryEscape(value)
 		}
+	}
+	if len(n.Pass) > 0 {
+		// pass: carries the record's own values to the destination, so it needs a record and the link's own route.
+		if record == nil {
+			return nil, fmt.Errorf("%s: pass: carries a record's values to the destination, so it is valid only inside a record template", path)
+		}
+		if n.Step != nil {
+			return nil, fmt.Errorf("%s: a link takes pass: or step:, not both", path)
+		}
+		q := url.Values{}
+		for name, role := range n.Pass {
+			if domain.SearchParamsReserved[name] {
+				return nil, fmt.Errorf("%s: pass: %s is a parameter the runtime owns", path, name)
+			}
+			v, ok := record[role]
+			if !ok {
+				return nil, fmt.Errorf("%s: pass: %s takes the role %q, which the record does not have", path, name, role)
+			}
+			q.Set(name, v)
+		}
+		out["href"] = route + "?" + q.Encode()
 	}
 	if _, has := out["text"]; !has && n.From["text"] == "" {
 		out["text"] = label
@@ -1503,6 +1540,9 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it changes the status of the record of the Collection it sits in, and %q would be a join the page has no grammar for", path, domain.PageWriteTransition, n.Binding.Dataset)
 	}
 	becomes := n.Props[buttonBecomesProp]
+	if edge := n.Binding.Transition; edge != "" {
+		return lowerEdgeButton(n, path, record, writes, from, edge)
+	}
 	if becomes == "" {
 		return nil, fmt.Errorf("%s: a transition Button names the status it moves to in %s: -- a status option, %s or %s", path, buttonBecomesProp, domain.PageTransitionDone, domain.PageTransitionReopen)
 	}
@@ -1549,6 +1589,54 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	props[formMethodProp] = domain.ButtonMethodPatch
 	props["name"] = t.Field
 	props["value"] = target
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// lowerEdgeButton is a transition Button that names its declared edge (`transition: trn_contract_activate`): it moves the
+// edge's own status Field to the edge's `to`, so a record page offers Activate and Close on its lifecycle Field however
+// its `status` role is cast. Drawn only where the record stands at the edge's `from` and this viewer may take it; its
+// label defaults to the edge's name.
+func lowerEdgeButton(n domain.PageNode, path string, record map[string]string, writes *RecordWrites, from map[string]string, edge string) ([]UINode, error) {
+	if _, written := n.Props[buttonBecomesProp]; written {
+		return nil, fmt.Errorf("%s: a Button that names its transition takes no %s: -- the edge says where it goes", path, buttonBecomesProp)
+	}
+	for _, p := range []string{"name", "value", "confirm"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a transition Button's Field and value are its edge's, so it takes no %s", path, p)
+		}
+	}
+	if writes == nil || writes.Transition == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no transition for this record", path)
+	}
+	e, ok := writes.Transition.Edges[edge]
+	if !ok {
+		if writes.ShapeOnly {
+			e = EdgeOffer{Name: "x", Field: "x", To: "x", Allowed: true}
+		} else {
+			return nil, fmt.Errorf("%s: transition: %s is not a declared edge of the record's Machine", path, edge)
+		}
+	}
+	if !e.Allowed {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+4)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	if props["label"] == "" {
+		props["label"] = e.Name
+	}
+	if len(from) > 0 {
+		filled, err := fillFrom(domain.PageNode{Props: n.Props, From: from}, record, path)
+		if err != nil {
+			return nil, err
+		}
+		props[buttonDescribesProp] = filled[buttonDescribesProp]
+	}
+	props[formActionProp] = writes.Transition.Route
+	props[formMethodProp] = domain.ButtonMethodPatch
+	props["name"] = e.Field
+	props["value"] = e.To
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 
@@ -1735,13 +1823,46 @@ func lowerTransitionAll(n domain.PageNode, r Resolver, path string, record map[s
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 
+// lowerTransitionForm is a Form that takes a declared edge with what the edge asks (`binding: {write: transition,
+// transition: trn_plan_settle}`): its inputs are the Fields the move makes required, the move itself travels as the
+// edge's Field and `to`, and the form is drawn only where this viewer may take the edge from where the record is.
+func lowerTransitionForm(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: a transition Form acts on a record, so it is valid only inside a record template", path)
+	}
+	if writes == nil || writes.Transition == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no transition for this record", path)
+	}
+	e, ok := writes.Transition.Edges[n.Binding.Transition]
+	if !ok {
+		if !writes.ShapeOnly {
+			return nil, fmt.Errorf("%s: transition: %s is not a declared edge of the record's Machine", path, n.Binding.Transition)
+		}
+		e = EdgeOffer{Field: "x", To: "x", Allowed: true, Inputs: []domain.FormInput{{FieldID: "x", Label: "x", Kind: domain.InputFile, Required: true}}}
+	}
+	if !e.Allowed {
+		return nil, nil
+	}
+	spec := FormSpec{Route: writes.Transition.Route, Method: domain.FormMethodPatch, Permitted: true, Inputs: e.Inputs}
+	nodes, err := buildForm(n, path, spec, domain.PageWriteTransition, "the edge")
+	if err != nil || len(nodes) == 0 {
+		return nodes, err
+	}
+	nodes[0].Props[formMethodProp] = domain.FormMethodPatch
+	nodes[0].Props["carries"] = e.Field + "=" + e.To
+	return nodes, nil
+}
+
 // buildForm is the tree both modes lower to. A viewer the spec does not permit gets no node.
 func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string) ([]UINode, error) {
 	if !spec.Permitted {
 		return nil, nil
 	}
 	// A form for a runtime action may ask nothing (a template that declares no role): it is its submit and the route.
-	if len(spec.Inputs) == 0 && mode != domain.PageWriteAction {
+	if len(spec.Inputs) == 0 && mode != domain.PageWriteAction && mode != domain.PageWriteTransition {
 		return nil, fmt.Errorf("%s: %s reads a Machine with no Field a form can ask for", path, what)
 	}
 	props := make(map[string]string, len(n.Props)+2)
@@ -1753,6 +1874,11 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		props[formMethodProp] = domain.FormMethodPatch
 	}
 	form := UINode{Kind: NodeComponent, Type: string(domain.ComponentForm), Props: props}
+	for _, in := range spec.Inputs {
+		if in.Kind == domain.InputFile {
+			form.Props["multipart"] = "true"
+		}
+	}
 	for i, in := range spec.Inputs {
 		id := formControlID(path, i)
 		ctl := map[string]string{"id": id, "name": in.FieldID, "kind": string(in.Kind)}
@@ -1761,6 +1887,9 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		}
 		if in.Default != "" {
 			ctl["value"] = in.Default
+		}
+		if in.Fixed {
+			ctl["fixed"] = "true"
 		}
 		if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
 			ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)

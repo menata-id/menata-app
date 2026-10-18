@@ -20,7 +20,8 @@ fields:
   - { id: fld_status, name: Status, type: status, default: Draft, options: [Draft, Active, Closed, Cancelled] }
   - { id: fld_activated_on, name: Activated on, type: date }
   # Written by the instalments' rollup (contract_term.yaml), not by a person.
-  - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
+  - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled],
+      categories: { In progress: active, Overdue: attention, Settled: done } }
 
 card_fields:
   - { field: fld_contract_no, role: title }
@@ -106,3 +107,12 @@ datasets:
     dimension: fld_payment_status
     measures:
       - { id: msr_contracts_by_payment, aggregate: count }
+  # One contract's page (record_of): the record the route names; and the one an instalment form was opened from.
+  - id: ds_contract_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1
+  - id: ds_contract_of_form
+    select: records
+    where: { field: id, op: equals, value: $parameters.contract }
+    limit: 1

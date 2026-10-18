@@ -218,6 +218,8 @@ type FieldPredicate struct {
 	// Empty asks that the Field have no value (expression.OpIsEmpty): absent, or stored as nothing. Value,
 	// Negate and Order are ignored.
 	Empty bool
+	// RecordID compares the record's own id column instead of a Field (domain.RecordIDField), by equality.
+	RecordID bool
 	// Contains asks that the Field's text hold Value, ignoring case (expression.OpContains). Value is matched as
 	// words: `%`, `_` and `\` in it are escaped, so a search cannot become a pattern.
 	Contains bool
@@ -372,6 +374,10 @@ func (s *Store) CountRecordsSelect(ctx context.Context, machineID, datasetID str
 func predicateSQL(p FieldPredicate, args *[]any) (string, error) {
 	if p.Empty {
 		return fmt.Sprintf("(data->>'%s' IS NULL OR data->>'%s' = '')", p.Field, p.Field), nil
+	}
+	if p.RecordID {
+		*args = append(*args, p.Value)
+		return fmt.Sprintf("id = $%d", len(*args)), nil
 	}
 	if p.Contains {
 		*args = append(*args, "%"+likeEscaper.Replace(p.Value)+"%")

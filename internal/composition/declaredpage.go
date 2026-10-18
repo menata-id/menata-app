@@ -70,7 +70,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 			return bindingRecords(ctx, l, viewer, params, now, b)
 		},
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
-			return bindingForm(ctx, l, viewer, b)
+			return bindingForm(ctx, l, viewer, params, b)
 		},
 		Action: func(b domain.PageBinding, recordID string) (ir.FormSpec, error) {
 			return bindingAction(ctx, l, viewer, b, recordID)
@@ -112,7 +112,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 // `Permitted` is the viewer's `create` Permission evaluated against no record (there is none yet), so a
 // Permission that depends on a record's own Field answers false and the form is hidden: fail closed. The create
 // route evaluates the real values and refuses on its own, which is why this is courtesy and not the enforcement.
-func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
+func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, b domain.PageBinding) (ir.FormSpec, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return ir.FormSpec{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -124,6 +124,18 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, b domain.P
 	inputs, _ := src.CreateFormInputs()
 	if err := fillChoices(ctx, l, src, inputs); err != nil {
 		return ir.FormSpec{}, err
+	}
+	// `values:` from the request: a Field the request names starts as that value and is drawn fixed. One the request
+	// does not send stays an ordinary control.
+	ctxValues := expression.Context{CurrentUser: viewer.ID, Parameters: params}
+	for i, in := range inputs {
+		declared, ok := b.Values[in.FieldID]
+		if !ok {
+			continue
+		}
+		if v, ok := ctxValues.Resolve(declared); ok && v != "" {
+			inputs[i].Default, inputs[i].Fixed = v, true
+		}
 	}
 	return ir.FormSpec{
 		Route:     domain.FormRoute(src.ID),
@@ -229,7 +241,11 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		// deleted.
 		if held[r.ID].frozen {
 			edit.Permitted, del.Permitted, move = false, false, ir.RecordMove{Route: move.Route}
-			transition.Allows = func(string) (bool, bool) { return false, false }
+			transition.Allows = func(string) (bool, bool) { return false, true }
+			for id, e := range transition.Edges {
+				e.Allowed = false
+				transition.Edges[id] = e
+			}
 		}
 		if held[r.ID].pointedAt {
 			del.Permitted = false
@@ -520,11 +536,19 @@ func recordTransition(src *domain.Machine, r *data.Record, viewer domain.Actor) 
 	if src.Completion != nil {
 		t.Done = src.Completion.Done
 	}
+	editable := !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer)
+	t.Edges = make(map[string]ir.EdgeOffer, len(src.Transitions))
+	for _, e := range src.Transitions {
+		offer := ir.EdgeOffer{Name: e.Name, Field: e.Field, To: e.To, Inputs: src.TransitionInputs(e)}
+		next := map[string]any{e.Field: e.To}
+		offer.Allowed = editable && e.Action == domain.ActionEdit && DisplayString(r.Values[e.Field]) == e.From &&
+			behavior.CheckTransitions(src, domain.ActionEdit, r.Values, next) == nil && authorization.AllowsTransition(src, e, r.Values, viewer)
+		t.Edges[e.ID] = offer
+	}
 	f, ok := src.FieldByID(field)
 	if !ok {
 		return t
 	}
-	editable := !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer)
 	current := DisplayString(r.Values[field])
 	t.Allows = func(target string) (bool, bool) {
 		if !slices.Contains(f.Options, target) {
@@ -706,6 +730,18 @@ type held struct{ frozen, pointedAt bool }
 // routes, so a page offers no Edit or Delete the route would refuse. Nothing is read for a Machine that declares
 // neither.
 func heldRecords(ctx context.Context, l *Loader, src *domain.Machine, ds domain.Dataset, sel Selection) (map[string]held, error) {
+	if cached, ok := l.held[ds.ID]; ok {
+		l.served++
+		return cached, nil
+	}
+	out, err := readHeldRecords(ctx, l, src, ds, sel)
+	if err == nil {
+		l.held[ds.ID] = out
+	}
+	return out, err
+}
+
+func readHeldRecords(ctx context.Context, l *Loader, src *domain.Machine, ds domain.Dataset, sel Selection) (map[string]held, error) {
 	records := sel.Records
 	out := map[string]held{}
 	if len(records) == 0 {
@@ -794,10 +830,41 @@ func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Recor
 			continue
 		}
 		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations)
-		if v := DisplayString(r.Values[id]); f.Type == domain.FieldTypeStatus && v != "" {
+		if f.Type != domain.FieldTypeStatus {
+			continue
+		}
+		v := DisplayString(r.Values[id])
+		if v != "" {
 			item[domain.PageFieldToneRole(id)] = string(src.StatusTone(id, v))
 		}
+		item[domain.PageFieldStepsRole(id)] = statusSteps(src, f, v)
 	}
+}
+
+// statusSteps is a status Field's options as a Stepper draws them (domain.PageFieldStepsRole): done before the current
+// one, current, todo after; an option the Machine categorises `stopped` (Cancelled) is a way out, not a step, and is drawn
+// only when it is where the record is.
+func statusSteps(m *domain.Machine, f domain.Field, current string) string {
+	var lines []string
+	// A record that left by a way out (Cancelled) did not pass the steps written before it: none is drawn done.
+	reached := slices.Contains(f.Options, current)
+	if c, ok := m.OptionCategory(f.ID, current); ok && c == domain.StatusStopped {
+		reached = false
+	}
+	for _, o := range f.Options {
+		if c, ok := m.OptionCategory(f.ID, o); ok && c == domain.StatusStopped && o != current {
+			continue
+		}
+		state := "todo"
+		switch {
+		case o == current:
+			state, reached = "current", false
+		case reached:
+			state = "done"
+		}
+		lines = append(lines, o+"\t"+state)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // bindingTransitionAll is one bulk transition Binding: the route, and how many of the Dataset's records this viewer
@@ -995,6 +1062,9 @@ func navigationSection(section string) (ir.NavSection, error) {
 func recordRouteOf(src *domain.Machine, id string) string {
 	if src.Runtime != "" {
 		return strings.ReplaceAll(registry.RuntimeSources[src.Runtime].RecordRoute, "{id}", url.PathEscape(id))
+	}
+	if src.RecordPage != "" {
+		return src.RecordPage + "/" + url.PathEscape(id)
 	}
 	return RecordRoute(src.ID, id)
 }

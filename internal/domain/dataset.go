@@ -151,6 +151,11 @@ var KnownSortDirections = map[string]bool{SortAscending: true, SortDescending: t
 // Descending reports whether this key sorts downwards.
 func (k SortKey) Descending() bool { return k.Direction == SortDescending }
 
+// RecordIDField is the one record-level column a records Dataset's `where:` may compare besides a Field: the record's own
+// id, so a record page selects the record it was opened for (`{field: id, op: equals, value: $parameters.id}`, plan B1)
+// and its children by `via` the same way any list does.
+const RecordIDField = "id"
+
 // SortableColumns are the record-level columns a `sort:` may name besides a Field id, mapped to their
 // real column names.
 //

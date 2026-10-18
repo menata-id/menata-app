@@ -265,6 +265,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   `FilterChips`/`FilterSelect` (dimension-bound), `ActionBar` (lifted into the header), link `variant:`, nav `in_menu: false`,
   a Table's children = its row actions. Edit/delete rules: `set_once`, `locked_when`, `on_parent_delete: restrict`,
   `deletable_unless` -- a button reads the same rule the route enforces (`composition.heldRecords`).
+  One record's page: nav `record_of:` (`/pages/<nav>/<id>`, `$parameters.id`, `where: {field: id}`), `field:`/`tone:`/
+  `steps:` roles, `Stepper`, `binding: {transition: trn_x}` on a Button or Form, link `pass:`, Form `values:`/`then: record`.
   Board Settings is the first migrated screen. Never claim "screen X is declarative" without checking it is a `page:`.
 - **UI IR & placeholders**: `ir.TestValidateRejectsAllFiveMandatoryFaults`, `TestValidateAcceptsTheHeaderTree`,
   `TestValidateRefusesUnknownTypes`; `TestDeclaredPlaceholdersStayDeclared`, `TestPlaceholderDocsClaimNoContent`

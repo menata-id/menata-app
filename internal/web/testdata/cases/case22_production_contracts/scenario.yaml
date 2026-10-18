@@ -182,6 +182,67 @@ steps:
     record: { fld_plan_status: Paid, fld_paid_date: "*" }
     count: { machine: mch_contract_term, where: { fld_term_status: Paid }, equals: 1 }
 
+  # Step 2 (B1, B2): a contract's own page, and creating from it.
+  - id: the-contract-page
+    as: silvia
+    view:
+      path: /pages/nav_contract/$contract
+      shows: [">CTR/C/026<", 'aria-current="step"', ">Draft<", '&#34;fld_status&#34;:&#34;Active&#34;', ">Activate<", 'href="/pages/nav_new_term?contract=$contract"', ">+ Add instalment<", ">Signing<", 'text-tone-info-ink">In progress<']
+      hides: [">Close<"]
+    expect: ok
+  - id: a-record-page-needs-a-record-of-its-machine
+    as: silvia
+    view:
+      path: /pages/nav_contract/rec_nope
+    expect: refused
+  - id: a-record-page-is-not-a-list
+    as: silvia
+    view:
+      path: /pages/nav_contract
+    expect: refused
+  - id: the-contract-list-opens-the-contract-page
+    as: silvia
+    view:
+      path: /pages/nav_contracts
+      shows: ['href="/pages/nav_contract/$contract"']
+    expect: ok
+  - id: activate-from-the-page
+    as: silvia
+    update: { ref: contract, values: { fld_status: Active } }
+    expect: ok
+    record: { fld_status: Active }
+  - id: the-page-now-offers-close
+    as: silvia
+    view:
+      path: /pages/nav_contract/$contract
+      shows: [">Close<", 'aria-current="step"']
+      hides: [">Activate<"]
+    expect: ok
+  - id: add-instalment-opens-a-form-bound-to-the-contract
+    as: silvia
+    view:
+      path: /pages/nav_new_term?contract=$contract
+      shows: ['type="hidden" name="fld_contract" value="$contract"', ">CTR/C/026</p>", "Save instalment"]
+      hides: ['name="fld_contract" class=']
+    expect: ok
+  - id: finance-sees-the-confirm-form
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      shows: ['hx-encoding="multipart/form-data"', 'name="fld_plan_status" value="Paid"', 'type="file" name="fld_proof"', ">Mark as paid<"]
+    expect: ok
+  - id: production-does-not
+    as: silvia
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      hides: [">Mark as paid<"]
+    expect: ok
+  - id: paid-with-its-proof-in-one-submit
+    as: fina
+    update: { ref: plan-without-proof, values: { fld_plan_status: Paid }, files: { fld_proof: proof.pdf } }
+    expect: ok
+    record: { fld_plan_status: Paid, fld_proof: "*", fld_paid_date: "*" }
+
   - id: contract-is-in-progress-again
     as: silvia
     update: { ref: contract, values: { fld_party_name: Reza Anggara } }

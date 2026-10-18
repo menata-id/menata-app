@@ -135,6 +135,7 @@ var Capabilities = []Capability{
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 	key("fieldDoc", "locked_when", "behaviour", "behavior", false, editRuleReason),
+	key("fieldDoc", "categories", "presentation", "experience", false, "a second status Field's tones (2026-10-17, Dokter Kecil's payment status); the assistant writes the Machine's status_categories: and gains this slot with the edit/delete rules"),
 	key("fieldDoc", "set_once", "behaviour", "behavior", false, editRuleReason),
 	key("fieldDoc", "on_parent_delete", "behaviour", "behavior", false, editRuleReason),
 

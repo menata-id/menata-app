@@ -175,6 +175,10 @@ type Field struct {
 	// relation Fields only). ParentDeleteRestrict refuses the delete while any record points at it -- a contract with
 	// instalments (gap K-13). Empty leaves the parent free to go, as before.
 	OnParentDelete ParentDelete
+	// Categories (`categories:` on a status Field, 2026-10-17) categorise this Field's own options the way a Machine's
+	// `status_categories:` does for its one lifecycle Field, so a second status -- a contract's payment beside its
+	// lifecycle -- is drawn in the tones its options mean. Read by StatusTone only.
+	Categories map[string]StatusCategory
 }
 
 // ParentDelete is a relation Field's answer to its parent being deleted. One member is built; `cascade` and `clear`
@@ -664,6 +668,9 @@ type Machine struct {
 	Constraints    []Constraint
 	// Frozen makes a record read-only while the record it points at holds a value (`frozen_when:`): see FrozenWhen.
 	Frozen *FrozenWhen
+	// RecordPage is the route of the page an Application declares for one record of this Machine (`record_of:` on a
+	// navigation item), stamped at load; "" when none, and a record opens on the generic record route.
+	RecordPage string
 	// DeletableUnless are the states a record of this Machine may not be deleted in (`deletable_unless:`, owner decision
 	// K1): see DeleteGuard. Read by the delete routes and by every Delete a screen offers.
 	DeletableUnless []DeleteGuard
@@ -803,10 +810,7 @@ func (c *StatusCategories) CategoryOf(option string) (StatusCategory, bool) {
 // start is neutral, active info, attention warn, done good, stopped bad (muted is faint ink, which a status must not
 // be). One function, so "Overdue" cannot be red in the list and blue on the page that lists the same record.
 func (m *Machine) StatusTone(fieldID, option string) BadgeTone {
-	if m.StatusCategories == nil || m.StatusCategories.Field != fieldID {
-		return ToneNeutral
-	}
-	c, ok := m.StatusCategories.CategoryOf(option)
+	c, ok := m.OptionCategory(fieldID, option)
 	if !ok {
 		return ToneNeutral
 	}
@@ -821,6 +825,19 @@ func (m *Machine) StatusTone(fieldID, option string) BadgeTone {
 		return ToneBad
 	}
 	return ToneNeutral
+}
+
+// OptionCategory is the category of one option of status Field fieldID: from the Machine's `status_categories:` when it
+// names that Field, else from the Field's own `categories:`; false when neither categorises it.
+func (m *Machine) OptionCategory(fieldID, option string) (StatusCategory, bool) {
+	if m.StatusCategories != nil && m.StatusCategories.Field == fieldID {
+		return m.StatusCategories.CategoryOf(option)
+	}
+	if f, found := m.FieldByID(fieldID); found {
+		c, ok := f.Categories[option]
+		return c, ok
+	}
+	return "", false
 }
 
 // ReopenValue is what finishing's opposite writes: the completion Field's declared default when it has one,

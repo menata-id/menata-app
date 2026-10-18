@@ -58,6 +58,9 @@ type Loader struct {
 	// signature-placement embed and the PDF page count each fetched it through *store* rather than
 	// through this type, so there was nothing to memoize with.
 	record map[string]*data.Record
+	// held memoizes heldRecords by Dataset id: two nodes of one page over the same Dataset (a record page's card and its
+	// section heading) ask once.
+	held map[string]map[string]held
 
 	// personNames memoizes PersonNames for this request; nil means "not read yet", which is
 	// distinguishable from an empty Workspace because MemberNames always returns a non-nil map.
@@ -101,6 +104,7 @@ func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 		related:   map[string]map[string]map[string][]*data.Record{},
 		truncated: map[string]bool{},
 		record:    map[string]*data.Record{},
+		held:      map[string]map[string]held{},
 	}
 }
 
@@ -400,6 +404,7 @@ func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredi
 		}
 		p := data.FieldPredicate{
 			Field:       c.Field,
+			RecordID:    c.Field == domain.RecordIDField,
 			Negate:      c.Op == expression.OpNotEquals,
 			Empty:       c.Op == expression.OpIsEmpty,
 			Contains:    c.Op == expression.OpContains,

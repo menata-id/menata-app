@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"sort"
@@ -152,6 +153,7 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
 		issues = append(issues, validateLocks(f, fieldsByID)...)
+		issues = append(issues, validateFieldCategories(m, f)...)
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
 	issues = append(issues, validateDeleteGuards(m, fieldsByID)...)
@@ -841,6 +843,12 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			issues = append(issues, fmt.Sprintf("dataset %q: %s", ds.ID, msg))
 		}
 		for _, c := range ds.Where.Comparisons() {
+			if c.Field == domain.RecordIDField {
+				if c.Op != expression.OpEquals || c.Optional {
+					issues = append(issues, fmt.Sprintf("dataset %q: where field %q is the record's own id, which a Dataset compares with equals only and never leaves out", ds.ID, c.Field))
+				}
+				continue
+			}
 			if _, ok := fieldsByID[c.Field]; !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is not a field of machine %q", ds.ID, c.Field, m.ID))
 			}
@@ -1632,6 +1640,30 @@ func validateBound(m *domain.Machine, b domain.AggregateBound, fieldsByID map[st
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: declares neither at_least nor at_most, so it bounds nothing", m.ID, b.ID))
 	case b.AtLeast != nil && b.AtMost != nil && *b.AtLeast > *b.AtMost:
 		issues = append(issues, fmt.Sprintf("machine %q: ensure %q: at_least %v is above at_most %v, so no total could satisfy it", m.ID, b.ID, *b.AtLeast, *b.AtMost))
+	}
+	return issues
+}
+
+// validateFieldCategories holds a status Field's own `categories:` to its options and the five categories, and refuses
+// it on the Field the Machine's `status_categories:` already categorises (one statement per Field).
+func validateFieldCategories(m *domain.Machine, f domain.Field) []string {
+	if len(f.Categories) == 0 {
+		return nil
+	}
+	var issues []string
+	switch {
+	case f.Type != domain.FieldTypeStatus:
+		return []string{fmt.Sprintf("field %q: categories: belong to a status field, and this is %q", f.ID, f.Type)}
+	case m.StatusCategories != nil && m.StatusCategories.Field == f.ID:
+		return []string{fmt.Sprintf("field %q: categories: and the machine's status_categories: both categorise it -- say it once", f.ID)}
+	}
+	for _, option := range slices.Sorted(maps.Keys(f.Categories)) {
+		if !slices.Contains(f.Options, option) {
+			issues = append(issues, fmt.Sprintf("field %q: categories: %q is not one of its options %v", f.ID, option, f.Options))
+		}
+		if !domain.KnownStatusCategories[f.Categories[option]] {
+			issues = append(issues, fmt.Sprintf("field %q: categories: %q has unknown category %q (want start, active, attention, done or stopped)", f.ID, option, f.Categories[option]))
+		}
 	}
 	return issues
 }

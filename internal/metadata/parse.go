@@ -303,9 +303,11 @@ type fieldDoc struct {
 	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
 	// LockedWhen, SetOnce and OnParentDelete: see domain.Field.
-	LockedWhen     *requiredWhenDoc `yaml:"locked_when"`
-	SetOnce        bool             `yaml:"set_once"`
-	OnParentDelete string           `yaml:"on_parent_delete"`
+	// Categories: see domain.Field.Categories.
+	Categories     map[string]string `yaml:"categories"`
+	LockedWhen     *requiredWhenDoc  `yaml:"locked_when"`
+	SetOnce        bool              `yaml:"set_once"`
+	OnParentDelete string            `yaml:"on_parent_delete"`
 }
 
 // deleteGuardDoc is one `deletable_unless:` entry: see domain.DeleteGuard.
@@ -483,7 +485,15 @@ func Parse(data []byte) (*domain.Machine, error) {
 		if fd.LockedWhen != nil {
 			lockedWhen = &domain.FieldCondition{Field: fd.LockedWhen.Field, Equals: fd.LockedWhen.Equals}
 		}
+		var categories map[string]domain.StatusCategory
+		for option, c := range fd.Categories {
+			if categories == nil {
+				categories = map[string]domain.StatusCategory{}
+			}
+			categories[option] = domain.StatusCategory(c)
+		}
 		m.Fields = append(m.Fields, domain.Field{
+			Categories:     categories,
 			LockedWhen:     lockedWhen,
 			SetOnce:        fd.SetOnce,
 			OnParentDelete: domain.ParentDelete(fd.OnParentDelete),

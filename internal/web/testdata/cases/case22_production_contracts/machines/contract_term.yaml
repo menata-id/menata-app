@@ -16,6 +16,19 @@ fields:
 deletable_unless:
   - { field: fld_term_status, equals: Paid, reason: A paid instalment is a record of a payment and cannot be deleted. }
 
+datasets:
+  # A contract page's instalments: the record the route names is their parent.
+  - id: ds_contract_terms
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.id }
+    sort: [{ field: fld_due_date }]
+    limit: 100
+  # The instalment form's Dataset (it lists nothing; a create Form names the Machine through it).
+  - id: ds_terms_new
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.contract }
+    limit: 1
+
 # The instalments of one contract may not add up past this; a literal stands in for the contract value (K-1).
 ensure:
   - { id: ens_terms_within_value, sum_of: fld_gross, per: fld_contract, at_most: 180000 }

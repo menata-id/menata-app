@@ -250,6 +250,16 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 				out = append(out, groupProblems(n.Binding.Group, ds, m, len(n.Children))...)
 				out = append(out, eachProblems(n.Children, m)...)
 				for _, role := range fromRolesUnder(n.Children) {
+					// A Field read by id (`field:`, `tone:`, `steps:`, 2026-10-17): a Field of the Machine, never a group or
+					// a file; a reference among them is read bounded, by the ids the listed records name.
+					if id, byField := domain.PageFieldOfRole(role); byField {
+						if f, ok := m.FieldByID(id); !ok {
+							out = append(out, "from: "+role+" -- "+m.ID+" has no such Field")
+						} else if f.Type == domain.FieldTypeGroup || f.Type == domain.FieldTypeFile {
+							out = append(out, "from: "+role+" -- a "+string(f.Type)+" Field is not shown on a page")
+						}
+						continue
+					}
 					fieldID := m.CardFieldFor(domain.CardFieldRole(role))
 					f, ok := m.FieldByID(fieldID)
 					switch {
@@ -631,6 +641,18 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 						case len(item.EditFormInputs(nil)) == 0:
 							t.Errorf("%s: machine %s has no Field an edit form can ask for", where, item.ID)
 						}
+					case n.Binding != nil && n.Binding.Write == domain.PageWriteTransition:
+						// A Form that takes a declared edge with what the edge asks (2026-10-17, plan B2): inside a record
+						// template, naming an edit edge of that record's Machine, no dataset.
+						found := false
+						if item != nil {
+							for _, e := range item.Transitions {
+								found = found || (e.ID == n.Binding.Transition && e.Action == domain.ActionEdit)
+							}
+						}
+						if !found || n.Binding.Dataset != "" {
+							t.Errorf("%s: a transition Form sits in a record template and names an edit edge of its record's Machine (%q)", where, n.Binding.Transition)
+						}
 					case n.Binding == nil || n.Binding.Write != domain.PageWriteCreate:
 						t.Errorf("%s: a Form is bound with write: %s or %s", where, domain.PageWriteCreate, domain.PageWriteUpdate)
 					case n.Binding.Rows != "" || n.Binding.Measure != "":
@@ -739,6 +761,18 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						if _, asks := n.Props["confirm"]; asks {
 							t.Errorf("%s: a transition is undone by its opposite and asks nothing", where)
 						}
+						// A Button naming its edge (`transition: trn_x`) moves that edge's own Field: the edge must be one the
+						// Machine declares for the edit action, re-derived here and not from metadata's own check.
+						if edge := n.Binding.Transition; edge != "" {
+							found := false
+							for _, e := range item.machine.Transitions {
+								found = found || (e.ID == edge && e.Action == domain.ActionEdit)
+							}
+							if !found {
+								t.Errorf("%s: transition: %s is no edit edge of machine %s", where, edge, item.machine.ID)
+							}
+							break
+						}
 						// Re-derived from the Machine, not from metadata's own check: a `becomes:` the Machine cannot
 						// reach is a Button that is never drawn, which reads exactly like a page with nothing to do.
 						m := item.machine
@@ -773,7 +807,10 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 							t.Errorf("%s: a move sits over dataset %s, which declares a where: or sort:, so its list is not the Machine's order", where, item.dataset.ID)
 						}
 					}
-				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove || n.Binding.Write == domain.PageWriteTransition) {
+				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove || n.Binding.Write == domain.PageWriteTransition) &&
+					!(n.Type == string(domain.ComponentForm) && n.Binding.Write == domain.PageWriteTransition && n.Binding.Transition != "") {
+					// A Form may take a declared edge with what it asks (a proof with "Mark as paid"); nothing else but a
+					// Button deletes, moves or transitions.
 					t.Errorf("%s: write: %s is bound to a %s; only a Button deletes, moves or transitions", where, n.Binding.Write, n.Type)
 				}
 				childItem := item

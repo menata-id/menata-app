@@ -274,6 +274,8 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
 		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg))
+		// One record's page (`record_of:`): the same handler, with the record the route names.
+		pr.Get("/pages/{navID}/{recordID}", showDeclaredPage(d.Store, d.Cfg))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))

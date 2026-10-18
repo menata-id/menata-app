@@ -67,6 +67,33 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentFilterChips:      {Contract: filterChipsContract, Validate: validateFilterChips},
 	domain.ComponentFilterSelect:     {Contract: filterSelectContract, Validate: validateFilterSelect},
 	domain.ComponentActionBar:        {Contract: actionBarContract, Validate: validateActionBar},
+	domain.ComponentStepper:          {Contract: stepperContract, Validate: validateStepper},
+}
+
+// stepperContract is a record's place in its lifecycle. `label` names it ("Contract status"); `steps` is one
+// `label<TAB>state` line per step, state done, current or todo, derived from a status Field and never written.
+var stepperContract = domain.ComponentContract{
+	Type:   domain.ComponentStepper,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "steps", Kind: "string", Required: true},
+	},
+	Accessibility: "an ordered list named by `label`; the current step carries aria-current=\"step\", and each step's state is in its text for a reader that does not see colour",
+	Renderer:      "stepper",
+}
+
+func validateStepper(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(stepperContract, inputs, "Stepper")
+	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Stepper label is blank -- the list's only accessible name")
+	}
+	for _, line := range nonEmptyLines(inputs["steps"]) {
+		if p := strings.Split(line, "\t"); len(p) != 2 || (p[1] != "done" && p[1] != "current" && p[1] != "todo") {
+			issues = append(issues, fmt.Sprintf("Stepper step %q is not a label and done, current or todo", line))
+		}
+	}
+	return issues
 }
 
 // actionBarContract is a page's primary actions. `label` names the group for assistive technology ("Contract actions");
@@ -553,6 +580,13 @@ var formContract = domain.ComponentContract{
 		{Name: "submit", Kind: "string", Required: true},
 		{Name: "action", Kind: "route", Required: true},
 		{Name: "method", Kind: "string"},
+		// multipart is lowered when the form asks for a file; carries is a transition form's move (`field=to`), sent as
+		// a hidden input. Neither is written.
+		{Name: "multipart", Kind: "bool"},
+		{Name: "carries", Kind: "string"},
+		// then: record opens the record a create Form made (its record page when its Machine has one) instead of
+		// redrawing the form.
+		{Name: "then", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"field"},
@@ -567,6 +601,9 @@ var formContract = domain.ComponentContract{
 // hand-built tree cannot aim a form somewhere the generic routes do not own.
 func validateForm(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(formContract, inputs, "Form")
+	if t, ok := inputs["then"]; ok && t != domain.FormThenRecord {
+		issues = append(issues, fmt.Sprintf("Form then %q is not %q -- the one place a create can open is the record it made", t, domain.FormThenRecord))
+	}
 	a := inputs["action"]
 	if a == "" {
 		return issues
@@ -609,6 +646,8 @@ var formInputContract = domain.ComponentContract{
 		{Name: "options", Kind: "string"},
 		{Name: "value", Kind: "string"},
 		{Name: "required", Kind: "bool"},
+		// fixed is a value the request supplied (a Form's `values:`): drawn as words in a hidden input, never chosen.
+		{Name: "fixed", Kind: "bool"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,

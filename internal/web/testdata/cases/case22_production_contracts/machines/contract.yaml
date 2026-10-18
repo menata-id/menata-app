@@ -8,6 +8,9 @@ fields:
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, options: [Cast, Crew, Item] }
   - { id: fld_category, name: Category, type: relation, machine: mch_category }
   - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
+  # The contract's lifecycle beside its payment: a second status, toned by its own categories.
+  - { id: fld_status, name: Status, type: status, default: Draft, options: [Draft, Active, Closed, Cancelled],
+      categories: { Draft: start, Active: active, Closed: done, Cancelled: stopped } }
 card_fields:
   - { field: fld_contract_no, role: title }
   - { field: fld_party_name, role: subtitle }
@@ -16,7 +19,17 @@ card_fields:
 status_categories:
   field: fld_payment_status
   values: { In progress: active, Overdue: attention, Settled: done }
+transitions:
+  - { id: trn_contract_activate, name: Activate, field: fld_status, from: Draft, to: Active, action: edit, roles: [production_manager] }
+  - { id: trn_contract_close, name: Close, field: fld_status, from: Active, to: Closed, action: edit, roles: [production_manager] }
+  - { id: trn_contract_cancel, name: Cancel, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager] }
+
 datasets:
+  # One contract's page (record_of): the record the route names, by its id.
+  - id: ds_contract_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1
   # The list's filters are optional request parameters: a chip, the category drop-down and the search box each narrow it
   # when the request sends one, and "All" (no parameter) lists every contract instead of none.
   - id: ds_contracts

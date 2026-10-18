@@ -213,6 +213,224 @@ navigation:
         - component: Form
           submit: Save contract
           binding: { dataset: ds_contracts, write: create }
+  # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
+  # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.
+  - id: nav_contract
+    label: Contract
+    title: Contract
+    route: /pages/nav_contract
+    record_of: mch_contract
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_one, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: heading
+                          from: { text: title }
+                        - static: paragraph
+                          from: { text: subtitle }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from: { label: "field:fld_contract_kind" }
+                        - component: StatusBadge
+                          from: { label: "field:fld_status", tone: "tone:fld_status" }
+                        - component: StatusBadge
+                          from: { label: "field:fld_payment_status", tone: "tone:fld_payment_status" }
+                - component: Stepper
+                  label: Contract status
+                  from: { steps: "steps:fld_status" }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      variant: primary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_activate }
+                    - component: Button
+                      variant: secondary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_close }
+                    - component: Button
+                      variant: secondary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_cancel_draft }
+                    - component: Button
+                      variant: secondary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_cancel }
+                    - component: Popover
+                      label: Edit
+                      title: Edit contract
+                      trigger: secondary
+                      align: start
+                      density: regular
+                      children:
+                        - component: Form
+                          submit: Save
+                          binding: { write: update }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contracted party
+                        - static: paragraph
+                          from: { text: "field:fld_party_name" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Category
+                        - static: paragraph
+                          from: { text: "field:fld_category" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Type
+                        - static: paragraph
+                          from: { text: "field:fld_contract_kind" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contract value
+                        - static: paragraph
+                          from: { text: "field:fld_value" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Start date
+                        - static: paragraph
+                          from: { text: "field:fld_start_date" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Activated on
+                        - static: paragraph
+                          from: { text: "field:fld_activated_on" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Position
+                        - static: paragraph
+                          from: { text: "field:fld_position" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Item description
+                        - static: paragraph
+                          from: { text: "field:fld_item_desc" }
+                - layout: stack
+                  gap: micro
+                  children:
+                    - static: caption
+                      text: Notes
+                    - static: paragraph
+                      from: { text: "field:fld_description" }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_one, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: subheading
+                  text: Instalments
+                - static: link
+                  to: nav_new_term
+                  text: + Add instalment
+                  variant: secondary
+                  pass: { contract: "record:id" }
+        - component: Table
+          label: Instalments
+          empty: No instalment yet. Add the first one above.
+          framed: true
+          columns:
+            - { header: Label, field: fld_term_label }
+            - { header: Due date, field: fld_due_date }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: VAT, field: fld_vat, align: end }
+            - { header: WHT, field: fld_wht, align: end }
+            - { header: Net, field: fld_net, align: end }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_contract_terms, rows: records }
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit instalment
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this instalment?
+              binding: { write: delete }
+  # The instalment form "Add instalment" opens: the contract comes from the request and is shown, not offered; the
+  # instalments already entered for it are listed under the form, so several are added one after another.
+  - id: nav_new_term
+    label: New instalment
+    title: New instalment
+    route: /pages/nav_new_term
+    in_menu: false
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_of_form, rows: records }
+          children:
+            - static: link
+              from: { text: title, href: record }
+        - component: Form
+          submit: Save instalment
+          values: { fld_contract: $parameters.contract }
+          binding: { dataset: ds_terms_of_contract, write: create }
+        - component: Table
+          label: Instalments of this contract
+          empty: None yet.
+          framed: true
+          columns:
+            - { header: Label, field: fld_term_label }
+            - { header: Due date, field: fld_due_date }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_terms_of_contract, rows: records }
   # Instalments are entered here, one row per instalment, naming their contract (adding one from the contract page is
   # plan direction B2).
   - id: nav_contract_instalments

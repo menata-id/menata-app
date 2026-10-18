@@ -93,3 +93,8 @@ datasets:
     dimension: fld_plan_status
     measures:
       - { id: msr_plans_by_status, aggregate: count }
+  # One plan's page (record_of).
+  - id: ds_plan_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1

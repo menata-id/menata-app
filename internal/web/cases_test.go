@@ -85,6 +85,8 @@ type caseCreate struct {
 type caseUpdate struct {
 	Ref    string            `yaml:"ref"`
 	Values map[string]string `yaml:"values"`
+	// Files sends files with a form PATCH, as a transition form that asks for a proof does.
+	Files map[string]string `yaml:"files"`
 	// Omit leaves Fields out of a JSON PUT, which carries the whole record otherwise: what a client that drops a Field
 	// sends.
 	Omit []string `yaml:"omit"`
@@ -150,7 +152,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 41, Steps: 41},
+	"case22_production_contracts": {Rejected: 0, Passed: 51, Steps: 51},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -738,7 +740,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			if s.API {
 				code = sendJSON(http.MethodPut, "/api/machines/"+machine+"/records/"+id, s.As, snapshot, s.Update.Values, machine, s.Update.Omit...)
 			} else {
-				code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, nil)
+				code = send(http.MethodPatch, "/machines/"+machine+"/records/"+id, s.As, s.Update.Values, s.Update.Files)
 			}
 		}
 		machineOf[s.ID], recordOf[s.ID] = machine, id

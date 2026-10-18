@@ -50,8 +50,13 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		for k, v := range uploaded {
 			values[k] = v
 		}
-		_, actor, ok := createFromValues(w, req, store, files, mailer, cfg, machine, values)
+		record, actor, ok := createFromValues(w, req, store, files, mailer, cfg, machine, values)
 		if !ok {
+			return
+		}
+		// A form that says `then: record` opens what it made: the record's own page.
+		if req.Form.Get(domain.FormThenParam) == domain.FormThenRecord {
+			w.Header().Set("HX-Redirect", recordPageRoute(machine, record.ID))
 			return
 		}
 
@@ -94,6 +99,15 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 	}
 	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID)
 	return record, actor, true
+}
+
+// recordPageRoute is where a record of machine opens: the page its Application declares (`record_of:`), else the
+// generic record route.
+func recordPageRoute(machine *domain.Machine, id string) string {
+	if machine.RecordPage != "" {
+		return machine.RecordPage + "/" + url.PathEscape(id)
+	}
+	return "/machines/" + machine.ID + "/records/" + url.PathEscape(id)
 }
 
 // fromAnotherPage says the request came from a screen that is not this Machine's own page -- a Task's
@@ -335,6 +349,17 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 				values[f.ID] = submitted[f.ID]
 				changed++
 			}
+		}
+		// A file sent with the change (a proof of payment uploaded as the plan is marked paid) is stored as the edit
+		// route stores one.
+		uploaded, err := handleFileUploads(req, machine, files)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		for k, v := range uploaded {
+			values[k] = v
+			changed++
 		}
 		if changed == 0 {
 			http.Error(w, "no field of this machine was named", http.StatusBadRequest)

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"maps"
 	"menata.app/internal/expression"
 	"slices"
 	"sort"
@@ -43,6 +44,8 @@ type pageNodeDoc struct {
 	step     *domain.PageStep
 	window   string
 	columns  []domain.PageColumn
+	pass     map[string]string
+	values   map[string]string
 	children []pageNodeDoc
 }
 
@@ -54,6 +57,8 @@ type pageBindingDoc struct {
 	Group   string
 	All     bool
 	Action  string
+	// Transition: see domain.PageBinding.Transition.
+	Transition string
 }
 
 var pageDiscriminators = []string{"layout", "static", "component"}
@@ -147,6 +152,16 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.columns = cols
+		case "pass", "values":
+			m, err := decodePageFrom(val)
+			if err != nil {
+				return fmt.Errorf("line %d: %s: is a mapping of a name to one value -- %w", key.Line, key.Value, err)
+			}
+			if key.Value == "pass" {
+				p.pass = m
+			} else {
+				p.values = m
+			}
 		case "when":
 			w, err := decodePageWhen(val)
 			if err != nil {
@@ -358,31 +373,41 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Group = val.Value
 		case "action":
 			b.Action = val.Value
+		case "transition":
+			b.Transition = val.Value
 		case "all":
 			if val.Value != "true" && val.Value != "false" {
 				return nil, fmt.Errorf("line %d: binding.all: %q is not true or false", key.Line, val.Value)
 			}
 			b.All = val.Value == "true"
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all, action)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all, action, transition)", key.Line, key.Value)
 		}
 	}
 	return b, nil
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action, Transition: p.binding.Transition}
 		for _, c := range p.columns {
 			if c.Field != "" && !slices.Contains(out.Binding.Fields, c.Field) {
 				out.Binding.Fields = append(out.Binding.Fields, c.Field)
 			}
 		}
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
+		out.Binding.Values = p.values
+		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
+		// names it to the Data Plane the same way a Table's column does.
+		for _, id := range templateFieldRoles(p.children) {
+			if !slices.Contains(out.Binding.Fields, id) {
+				out.Binding.Fields = append(out.Binding.Fields, id)
+			}
+		}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -464,7 +489,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// The Fields a Table names by id: whether each is a Field of the real Machine is `recordsBindingIssues`'.
 			for _, id := range b.Fields {
 				rec[domain.PageFieldRole(id)] = "x"
+				rec[domain.PageFieldToneRole(id)] = string(domain.ToneNeutral)
+				rec[domain.PageFieldStepsRole(id)] = "x\tcurrent"
 			}
+			rec[domain.PageRecordIDRole] = "x"
 			rec[string(domain.CardFieldRoleLink)] = "/x" // a destination the runtime would hand a page, so a link taking its href from it validates
 			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
 			// naming any other fails to lower -- the same way a mistyped role does.
@@ -757,6 +785,19 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 			issues = append(issues, fmt.Sprintf("%s: page: write: machine %q requires field %q, which is a %s -- a page form cannot ask for it yet, so no form could be submitted", where, source.ID, f.ID, f.Type))
 		}
 	}
+	asked := map[string]bool{}
+	for _, in := range inputs {
+		asked[in.FieldID] = true
+	}
+	for _, field := range slices.Sorted(maps.Keys(b.Values)) {
+		v := b.Values[field]
+		switch {
+		case !asked[field]:
+			issues = append(issues, fmt.Sprintf("%s: page: values: %s is not a Field this form asks for", where, field))
+		case !expression.IsParameter(v):
+			issues = append(issues, fmt.Sprintf("%s: page: values: %s takes its value from the request ($parameters.<name>), not %q -- a fixed value is the Field's default:", where, field, v))
+		}
+	}
 	return issues
 }
 
@@ -802,10 +843,24 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if columnsRead(n.Columns, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: columns: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
 	}
+	fieldRefs := []string{}
 	for _, c := range n.Columns {
-		if c.Field == "" {
-			continue
+		if c.Field != "" {
+			fieldRefs = append(fieldRefs, c.Field)
 		}
+	}
+	for _, role := range fieldRolesOf(n.Children) {
+		if id, ok := domain.PageFieldOfRole(role); ok {
+			fieldRefs = append(fieldRefs, id)
+			if strings.HasPrefix(role, "steps:") || strings.HasPrefix(role, "tone:") {
+				if f, ok := source.FieldByID(id); ok && f.Type != domain.FieldTypeStatus {
+					issues = append(issues, fmt.Sprintf("%s: page: from: %s -- %q is a %s Field, and only a status has a tone and steps", where, role, id, f.Type))
+				}
+			}
+		}
+	}
+	for _, ref := range fieldRefs {
+		c := domain.PageColumn{Field: ref}
 		f, ok := source.FieldByID(c.Field)
 		switch {
 		case !ok:
@@ -833,6 +888,48 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		}
 	}
 	return issues
+}
+
+// fieldRolesOf is every Field-keyed role (`field:`, `tone:`, `steps:`) a records template reads, sorted, not looking into
+// a nested bound node.
+func fieldRolesOf(nodes []domain.PageNode) []string {
+	set := map[string]bool{}
+	var walk func([]domain.PageNode)
+	walk = func(ns []domain.PageNode) {
+		for _, n := range ns {
+			for _, role := range n.From {
+				if _, ok := domain.PageFieldOfRole(role); ok {
+					set[role] = true
+				}
+			}
+			if n.Binding == nil {
+				walk(n.Children)
+			}
+		}
+	}
+	walk(nodes)
+	return sortedKeys(set)
+}
+
+// templateFieldRoles is every Field a records template reads by id, in the order first read, not looking into a nested
+// node's own binding (its records are another Dataset's).
+func templateFieldRoles(children []pageNodeDoc) []string {
+	var out []string
+	for _, c := range children {
+		for _, role := range sortedKeys(rolesOf(c.from)) {
+			if id, ok := domain.PageFieldOfRole(role); ok && !slices.Contains(out, id) {
+				out = append(out, id)
+			}
+		}
+		if c.binding == nil {
+			for _, id := range templateFieldRoles(c.children) {
+				if !slices.Contains(out, id) {
+					out = append(out, id)
+				}
+			}
+		}
+	}
+	return out
 }
 
 // columnsRead reports whether any of a Table's columns shows the given role.
@@ -901,6 +998,20 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it changes the status of the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteTransition, b.Dataset)}
 	case item.AppendOnly:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be changed", where, domain.PageWriteTransition, item.ID)}
+	}
+	if n.Type == string(domain.ComponentForm) && b.Transition == "" {
+		return []string{fmt.Sprintf("%s: page: a transition Form names its edge (binding: {write: transition, transition: trn_x}): what it asks is what that edge makes required", where)}
+	}
+	if b.Transition != "" {
+		for _, e := range item.Transitions {
+			if e.ID == b.Transition {
+				if e.Action != domain.ActionEdit {
+					return []string{fmt.Sprintf("%s: page: transition: %s is taken by the %q action, and a page's Button takes edit edges only", where, e.ID, e.Action)}
+				}
+				return nil
+			}
+		}
+		return []string{fmt.Sprintf("%s: page: transition: %s is not a declared edge of machine %q", where, b.Transition, item.ID)}
 	}
 	return transitionTargetIssues(item, n.Props["becomes"], where)
 }
@@ -1078,7 +1189,7 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 			continue
 		}
 		for _, role := range n.From {
-			if role != domain.PageRecordRole && role != domain.PageBucketLabelRole && !domain.PageDerivedRole(role) { // reserved: the record's route, a bucket's name and the derived date roles, not Projection roles
+			if _, byField := domain.PageFieldOfRole(role); role != domain.PageRecordRole && role != domain.PageBucketLabelRole && !domain.PageDerivedRole(role) && !byField { // reserved: the record's route, a bucket's name, the derived roles and a Field read by id, not Projection roles
 				out[role] = true
 			}
 		}
