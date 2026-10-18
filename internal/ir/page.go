@@ -122,6 +122,9 @@ type RecordTransition struct {
 type EdgeOffer struct {
 	Name, Field, To string
 	Allowed         bool
+	// Blocked is the declared reason a Constraint holds this edge back for this record (domain.PageBlockedRole), "" when
+	// nothing does or the Constraint says none.
+	Blocked string
 	// Inputs are what the edge asks for (domain.Machine.TransitionInputs): a Form that names the edge draws them.
 	Inputs []domain.FormInput
 }
@@ -878,7 +881,12 @@ func omittedForWantOfDate(n domain.PageNode, record map[string]string) bool {
 		return false
 	}
 	for _, role := range n.From {
-		if v, present := record[role]; present && v == "" && domain.PageDerivedRole(role) {
+		v, present := record[role]
+		// A blocked: role is empty or absent when the record has no edge held back, and says nothing then.
+		if domain.PageBlockedRole(role) && v == "" {
+			return true
+		}
+		if present && v == "" && domain.PageDerivedRole(role) {
 			return true
 		}
 	}
@@ -895,7 +903,7 @@ func fillFrom(n domain.PageNode, record map[string]string, path string) (map[str
 			return nil, fmt.Errorf("%s: %q comes from %q, so it may not also be written on the node", path, prop, role)
 		}
 		v, ok := record[role]
-		if !ok {
+		if !ok && !domain.PageBlockedRole(role) {
 			return nil, fmt.Errorf("%s: from: %s names the role %q, which the bound Dataset's Machine does not project", path, prop, role)
 		}
 		props[prop] = v

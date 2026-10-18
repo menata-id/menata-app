@@ -2,6 +2,7 @@ package composition
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -265,6 +266,9 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		}
 		if err := offerEdges(ctx, l, src, r, &transition, constraintRecords); err != nil {
 			return ir.RecordSet{}, err
+		}
+		for id, e := range transition.Edges {
+			item[domain.PageBlockedRoleOf(id)] = e.Blocked
 		}
 		edits = append(edits, edit)
 		deletes = append(deletes, del)
@@ -791,8 +795,13 @@ func offerEdges(ctx context.Context, l *Loader, src *domain.Machine, r *data.Rec
 		if e.Allowed && constraintRecords != nil {
 			next := maps.Clone(r.Values)
 			next[e.Field] = e.To
-			if behavior.CheckConstraints(src, r.ID, next, constraintRecords) != nil {
+			if err := behavior.CheckConstraints(src, r.ID, next, constraintRecords); err != nil {
 				e.Allowed = false
+				// The edge is held back for its record: its Constraint's own words say why, for a screen that wants to.
+				var held *behavior.ConstraintError
+				if errors.As(err, &held) {
+					e.Blocked = strings.Join(held.Reasons, " ")
+				}
 			}
 		}
 		var inputs []domain.FormInput

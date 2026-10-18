@@ -36,6 +36,7 @@ constraints:
   - id: cst_close_needs_paid
     on: fld_status
     when_equals: Closed
+    reason: A contract cannot be closed while any instalment is not yet Paid.
     block_if:
       related_machine: mch_contract_term
       related_field: fld_contract

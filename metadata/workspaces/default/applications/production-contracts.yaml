@@ -398,6 +398,28 @@ navigation:
                       text: Document
                     - static: link
                       from: { text: "file:fld_doc", href: "filehref:fld_doc" }
+                # Status (K01d): where the contract stands and where its payment stands, and -- while a move is held back --
+                # why, in the Constraint's own words. Nothing is drawn for a move nothing holds back.
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: subheading
+                      text: Status
+                    - layout: row
+                      gap: default
+                      align: center
+                      children:
+                        - static: caption
+                          text: Contract
+                        - component: StatusBadge
+                          from: { label: "field:fld_status", tone: "tone:fld_status" }
+                        - static: caption
+                          text: Payment
+                        - component: StatusBadge
+                          from: { label: "field:fld_payment_status", tone: "tone:fld_payment_status" }
+                    - component: Callout
+                      tone: info
+                      from: { text: "blocked:trn_contract_close" }
         - component: Collection
           gap: default
           binding: { dataset: ds_contract_one, rows: records }

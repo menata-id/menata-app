@@ -268,7 +268,7 @@ steps:
     as: silvia
     view:
       path: /pages/nav_contract/$contract
-      shows: ['aria-current="step"', ">Active<"]
+      shows: ['aria-current="step"', ">Active<", "A contract cannot be closed while any instalment is not yet Paid."]
       hides: [">Activate<", ">Close<"]
     expect: ok
   - id: and-the-route-refuses-it
@@ -405,6 +405,14 @@ steps:
   - id: a-contract-nobody-uses
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/D/001, fld_party_name: Nobody Yet, fld_value: "1000" } }
+    expect: ok
+  # A move nothing holds back says nothing: a draft contract has no Close to explain.
+  - id: a-draft-contract-has-no-reason-to-show
+    as: silvia
+    view:
+      path: /pages/nav_contract/$a-contract-nobody-uses
+      shows: [">CTR/D/001<"]
+      hides: ["cannot be closed"]
     expect: ok
   - id: deleted-from-its-own-page-it-goes-back-to-the-list
     as: silvia

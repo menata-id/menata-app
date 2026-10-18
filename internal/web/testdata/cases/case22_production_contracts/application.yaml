@@ -120,6 +120,10 @@ navigation:
                 - component: Stepper
                   label: Contract status
                   from: { steps: "steps:fld_status" }
+                # Why Close is not offered, in the Constraint's own words; drawn only while something holds it back.
+                - component: Callout
+                  tone: info
+                  from: { text: "blocked:trn_contract_close" }
                 - layout: row
                   children:
                     - component: Button

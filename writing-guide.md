@@ -1936,6 +1936,13 @@ A Collection over the first draws the record; inside its item template:
 - a `static: link` with **`pass: {contract: "record:id"}`** carries the record to another page's request
   (`?contract=<id>`): "+ Add instalment".
 
+**Why an edge is not offered (2026-10-18, K01d's Status panel).** A Constraint may say **`reason:`** -- "A contract cannot be closed
+while any instalment is not yet Paid." -- and a record template reads it as the derived role **`blocked:trn_contract_close`**:
+the reason while a Constraint holds that edge back for this record (it stands at the edge's `from`, the viewer's roles allow
+it), and nothing otherwise, so a `Callout` reading it (`from: {text: "blocked:trn_contract_close"}`) is drawn only while there is
+something to say. The loader refuses a `blocked:` role naming a transition the Machine does not declare, or one no Constraint
+holds back with a `reason:`.
+
 An edge is offered only where the route would take it: the record stands at its `from`, the viewer's roles allow it,
 and no declared Constraint refuses it ("Close" is not drawn while an instalment is unpaid). An edge whose target makes a
 Field required is a **Form**'s, never a Button's (refused at load), and the Form does not ask again for what the record

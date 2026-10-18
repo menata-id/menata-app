@@ -1525,3 +1525,30 @@ func TestAFormStartsWithARequestValueOrIsFixedToItNeverBoth(t *testing.T) {
 		}
 	}
 }
+
+// TestABlockedRoleNamesATransitionAConstraintHoldsBack: `blocked:trn_x` is the declared reason of a Constraint holding
+// that edge back; the Machine must declare the edge, and some Constraint on it that says a reason -- otherwise there is
+// never anything to show and the page would carry a node that can never be drawn.
+func TestABlockedRoleNamesATransitionAConstraintHoldsBack(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x",
+		Fields:      []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"Open", "Closed"}}},
+		Transitions: []domain.Transition{{ID: "trn_close", Name: "Close", Field: "fld_status", From: "Open", To: "Closed"}},
+		Constraints: []domain.Constraint{{ID: "cst_x", On: "fld_status", WhenEquals: "Closed", Reason: "Not while something is open."}},
+		CardFields:  []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleTitle}}}
+	ds := domain.Dataset{ID: "ds_a", Source: "mch_x", Select: domain.SelectRecords}
+	run := func(m *domain.Machine, role string) string {
+		node := domain.PageNode{Kind: "component", Type: "Collection", Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+			Children: []domain.PageNode{{Kind: "component", Type: "Callout", From: map[string]string{"text": role}}}}
+		return strings.Join(bindingIssues(node, map[string]domain.Dataset{"ds_a": ds}, map[string]*domain.Machine{"mch_x": m}, nil, "w"), "\n")
+	}
+	if got := run(m, "blocked:trn_close"); got != "" {
+		t.Errorf("a held-back edge with a reason was refused: %s", got)
+	}
+	if got := run(m, "blocked:trn_gone"); !strings.Contains(got, `declares no transition "trn_gone"`) {
+		t.Errorf("an unknown edge: %q", got)
+	}
+	m.Constraints[0].Reason = ""
+	if got := run(m, "blocked:trn_close"); !strings.Contains(got, "declares a reason:") {
+		t.Errorf("a Constraint with no words: %q", got)
+	}
+}

@@ -417,7 +417,20 @@ const PageGroupLabelRole = "group:label"
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
+	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
+}
+
+// PageBlockedRolePrefix and PageBlockedRoleOf are the derived role that says why an edge is not offered: `blocked:trn_contract_close`
+// is the declared reason (Constraint.Reason) of a Constraint that holds back this edge for this record -- "A contract cannot
+// be closed while any instalment is not yet Paid." -- and empty when the edge is not held back, so a node reading it (a
+// Callout) is drawn only while there is something to say (mockup K01d's Status panel).
+const PageBlockedRolePrefix = "blocked:"
+
+func PageBlockedRoleOf(transitionID string) string { return PageBlockedRolePrefix + transitionID }
+
+// PageBlockedRole reports whether role is a blocked: role.
+func PageBlockedRole(role string) bool {
+	return strings.HasPrefix(role, PageBlockedRolePrefix) && len(role) > len(PageBlockedRolePrefix)
 }
 
 // PageCreatedLabelRole is the derived role that says when a record was created ("2 Jan 2006 15:04"), which every record

@@ -500,6 +500,7 @@ type constraintDoc struct {
 	ID         string `yaml:"id"`
 	On         string `yaml:"on"`
 	WhenEquals string `yaml:"when_equals"`
+	Reason     string `yaml:"reason"`
 	BlockIf    struct {
 		RelatedMachine string `yaml:"related_machine"`
 		RelatedField   string `yaml:"related_field"`
@@ -665,6 +666,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ID:         cd.ID,
 			On:         cd.On,
 			WhenEquals: cd.WhenEquals,
+			Reason:     strings.TrimSpace(cd.Reason),
 			BlockIf: domain.RelationBlock{
 				RelatedMachine: cd.BlockIf.RelatedMachine,
 				RelatedField:   cd.BlockIf.RelatedField,

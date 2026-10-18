@@ -658,6 +658,9 @@ type Constraint struct {
 	On         string
 	WhenEquals string
 	BlockIf    RelationBlock
+	// Reason is what a person is told while the move is blocked ("A contract cannot be closed while any instalment is not
+	// yet Paid."): the words a screen shows beside the edge it does not offer (`blocked:` role). Empty says nothing.
+	Reason string
 }
 
 // RelationBlock names a related Machine, the Field on that Machine that relates back to this

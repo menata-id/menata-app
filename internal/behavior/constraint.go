@@ -8,6 +8,7 @@ package behavior
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"menata.app/internal/data"
@@ -18,6 +19,9 @@ import (
 // data.RecordValidationError so callers can present every problem at once.
 type ConstraintError struct {
 	Issues []string
+	// Reasons are the declared words (Constraint.Reason) of each Constraint that fired, for a screen to say beside the move
+	// it does not offer; a Constraint that declares none contributes none.
+	Reasons []string
 }
 
 func (e *ConstraintError) Error() string {
@@ -29,7 +33,7 @@ func (e *ConstraintError) Error() string {
 // against relatedRecords -- every record of each Constraint's block_if.related_machine, keyed by
 // that Machine's ID. The caller fetches relatedRecords; CheckConstraints performs no I/O.
 func CheckConstraints(m *domain.Machine, recordID string, values map[string]any, relatedRecords map[string][]*data.Record) error {
-	var issues []string
+	var issues, reasons []string
 
 	for _, c := range m.Constraints {
 		newVal, present := values[c.On]
@@ -47,12 +51,15 @@ func CheckConstraints(m *domain.Machine, recordID string, values map[string]any,
 					c.ID, c.On, c.WhenEquals, c.BlockIf.RelatedMachine, r.ID,
 					c.BlockIf.Condition.Field, c.BlockIf.Condition.Op, c.BlockIf.Condition.Value,
 				))
+				if c.Reason != "" && !slices.Contains(reasons, c.Reason) {
+					reasons = append(reasons, c.Reason)
+				}
 			}
 		}
 	}
 
 	if len(issues) > 0 {
-		return &ConstraintError{Issues: issues}
+		return &ConstraintError{Issues: issues, Reasons: reasons}
 	}
 	return nil
 }

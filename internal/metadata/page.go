@@ -916,6 +916,25 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 			issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s is not a Relation dataset %q declares", where, c.Related, ds.ID))
 		}
 	}
+	for _, role := range blockedRolesOf(n.Children) {
+		// A blocked: role is a transition of the Machine this list reads, and says something only if a Constraint holds that
+		// edge back and declares its reason.
+		id := strings.TrimPrefix(role, domain.PageBlockedRolePrefix)
+		var edge *domain.Transition
+		for i := range source.Transitions {
+			if source.Transitions[i].ID == id {
+				edge = &source.Transitions[i]
+			}
+		}
+		switch {
+		case edge == nil:
+			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q declares no transition %q", where, role, source.ID, id))
+		case !slices.ContainsFunc(source.Constraints, func(c domain.Constraint) bool {
+			return c.On == edge.Field && c.WhenEquals == edge.To && c.Reason != ""
+		}):
+			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- no Constraint of machine %q holds %q back and declares a reason:, so there is never anything to say", where, role, source.ID, id))
+		}
+	}
 	for _, role := range fieldRolesOf(n.Children) {
 		if id, ok := domain.PageFieldOfRole(role); ok {
 			if strings.HasPrefix(role, "file:") || strings.HasPrefix(role, "filehref:") {
@@ -964,6 +983,26 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		}
 	}
 	return issues
+}
+
+// blockedRolesOf is every blocked: role a records template reads, sorted, not looking into a nested bound node.
+func blockedRolesOf(nodes []domain.PageNode) []string {
+	set := map[string]bool{}
+	var walk func([]domain.PageNode)
+	walk = func(ns []domain.PageNode) {
+		for _, n := range ns {
+			for _, role := range n.From {
+				if domain.PageBlockedRole(role) {
+					set[role] = true
+				}
+			}
+			if n.Binding == nil {
+				walk(n.Children)
+			}
+		}
+	}
+	walk(nodes)
+	return sortedKeys(set)
 }
 
 // whenFieldRoles is the Fields a template's `when:` reads by id, which the Data Plane must resolve as it does a `from:`.
