@@ -1169,7 +1169,7 @@ func TestPage_eachTableMisuseIsALoadError(t *testing.T) {
 		"a role the machine does not project": {"from: title, href: record }\n            - { header: Start, from: owner2", "from: title, href: record }\n            - { header: Start, from: date", "no card_fields role"},
 		"a dataset that is an aggregate":      {"dataset: ds_rows", "dataset: ds_flat", "aggregate"},
 		"a column with no header":             {"{ header: Status, from: status }", "{ header: \"\", from: status }", "header"},
-		"a dimension binding":                 {"rows: records }", "rows: dimension }", "takes a binding"},
+		"a dimension binding":                 {"rows: records }", "rows: dimension }", "a dimension binding needs an aggregate dataset"},
 	} {
 		nav := strings.Replace(validTablePage, tc.from, tc.to, 1)
 		if name == "a role the machine does not project" {
@@ -1249,7 +1249,7 @@ func TestWorkspacePage_isHeldToTheSameRulesAsAnApplicationsPage(t *testing.T) {
 		"a link to an item nobody declares":   {"to: nav_docs", "to: nav_nobody", "nav_nobody"},
 		"a route that is not /pages/<id>":     {"route: /pages/nav_ws_overview", "route: /overview", "rendered at"},
 		"a root that is not a layout":         {"      layout: stack\n      children:\n", "      component: Metric\n      children:\n", "root must be a layout"},
-		"a role the machine does not project": {"{ header: Title, from: title }", "{ header: Title, from: owner }", "does not project"},
+		"a role the machine does not project": {"{ header: Title, from: title }", "{ header: Title, from: owner }", "declares no card_fields role"},
 		"a Table over an aggregate dataset":   {"dataset: ds_rows", "dataset: ds_figures", "aggregate"},
 	} {
 		err := workspacePageFixture(t, strings.Replace(validWorkspacePage, tc.from, tc.to, 1))

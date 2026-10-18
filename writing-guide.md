@@ -1807,6 +1807,43 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
     - { header: Payment, field: fld_payment_status }       # a status: a badge toned from status_categories
 ```
 
+**A Table that reads like the mockups (2026-10-18, plan U-02/A2).**
+
+```yaml
+- component: Table                       # a Dimension's rows: one per category
+  label: Contracts by category
+  columns:
+    - { header: Category, from: "row:label", total_label: Total }
+    - { header: Kind, from: "row:fld_cat_kind" }                    # a Field of the category record itself
+    - { header: Instalments, from: "measure:msr_terms_paid", of: msr_terms, total: msr_terms_paid/msr_terms }
+    - { header: Contract value, from: "measure:msr_value", align: end, total: msr_value }
+  binding: { dataset: ds_contracts_by_category, rows: dimension }
+- component: Table                       # records, with a total row read from an aggregate
+  label: Contracts
+  totals: ds_contract_totals
+  columns:
+    - { header: Contract no., field: fld_contract_no, href: record, total: msr_count, total_label: contracts }
+    - { header: Instalments, field: fld_terms_paid, of: fld_terms }       # "1/3" with a bar
+    - { header: Payment plan, related: rel_term_plans }                    # the first plan: its name and status
+```
+
+- **`rows: dimension`** on a Table: columns read `row:label`, `measure:<id>`, and (for a Dimension over a relation)
+  `row:<field>`, a Field of the related record.
+- **`of:`** draws a fraction with a bar ("1/3"): beside `field:` it names the Field it is over, beside `from: measure:<a>` the
+  Measure `b`.
+- **`total:`** puts a column in the total row: a Measure, or `msr_a/msr_b` as a fraction; `total_label:` words it (alone, it
+  is a label: "Total"). A records Table names its aggregate Dataset in **`totals:`**; a Dimension's Table totals its own.
+- **`related: rel_x`** shows the first record a Dataset's Relation found for the row (named by its title, else its first
+  Field of its own words, never an id) and its status in its tone.
+- A row action may read a Field by id in `when:` -- `when: {role: "field:fld_plans", is: "0"}` draws "Create plan" only
+  where an instalment has none.
+- **Money and days:** a `money` Field may declare **`currency: IDR`** ("Rp 180,000,000"; also USD, EUR, GBP, SGD, MYR, AUD,
+  JPY), and every date reads "02 Nov 2026". The derived role **`date:relative`** says the date against today ("12 days late",
+  "today", "in 5 days").
+- **Chips over named views:** a FilterChips bound with `rows: total` lists `options:` (`overdue=Overdue` lines) and counts
+  each with `counts: {all: msr_unpaid, overdue: msr_overdue}`; the list's Dataset says what each view selects with
+  **`if_param: view=overdue`** on a comparison (applied only when the request's `view` is `overdue`).
+
 **A Table's `children:` are its row actions** (2026-10-17): a template drawn once per record in a last, unnamed column --
 an Edit (`Popover` holding a `Form` with `binding: {write: update}`), a Delete (`Button` with `binding: {write: delete}`),
 a transition -- each drawn only where that record's own rules let this viewer, exactly as inside a Collection's item:

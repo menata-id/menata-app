@@ -24,6 +24,11 @@ type Row struct {
 	// reads Value (its one bound Measure); a Collection bound with `rows: dimension` hands all of them to its item
 	// template under domain.PageMeasureRole.
 	Measures map[string]string
+	// Numbers is every Measure as a bare number, what a fraction's bar is drawn from.
+	Numbers map[string]string
+	// Attrs is, for a Dimension over a relation, the related record's own Fields as a reader reads them (a category's
+	// type), keyed by Field id.
+	Attrs map[string]string
 }
 
 func (r Row) linkValue() string {
@@ -458,7 +463,7 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		return nil, fmt.Errorf("%s: columns: declares a Table's columns, so it is valid only on a Table", path)
 	}
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentTable) && (n.Binding == nil || n.Binding.Write != "") {
-		return nil, fmt.Errorf("%s: a Table lists records, so it is bound with rows: %s", path, domain.PageRowsRecords)
+		return nil, fmt.Errorf("%s: a Table lists records or a Dimension's rows, so it is bound with rows: %s or %s", path, domain.PageRowsRecords, domain.PageRowsDimension)
 	}
 	if n.Window != "" && NodeKind(n.Kind) != NodeStatic {
 		return nil, fmt.Errorf("%s: window: produces text, so it is valid only on a static node", path)

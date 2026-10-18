@@ -123,6 +123,10 @@ type Comparison struct {
 	// comparison that is not optional keeps 007 §9.2's fail-closed meaning. Valid on a records Dataset's `where:` over a
 	// request parameter only (metadata.validateDataset).
 	Optional bool
+	// IfParam (`if_param: view=overdue`) applies the comparison only when the request's parameter holds that value: a
+	// named view of a list ("Overdue", "Due within 7 days", "No plan") is a set of comparisons a chip switches on. Unset,
+	// the comparison always applies. Records Datasets only.
+	IfParam string
 }
 
 // Evaluate reports whether values satisfies the comparison. An unknown Op evaluates to false

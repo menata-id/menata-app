@@ -269,6 +269,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   `steps:` roles, `Stepper`, `binding: {transition: trn_x}` on a Button or Form, link `pass:`, Form `values:`/`then: record`.
   `compute:` is one closed expression (`domain.ComputeExpr`; `parent:`, `sum_children`/`count_children`): a child's write
   recomputes its parents in the same transaction (`execution.RecomputeParents`), and every load recomputes stored records.
+  Table (2026-10-18): `rows: dimension` (`row:`/`measure:`), `total:`/`totals:`, `of:`, `related:`; money `currency:`;
+  `date:relative`; FilterChips `rows: total` + `counts:` over `if_param:` views.
   Board Settings is the first migrated screen. Never claim "screen X is declarative" without checking it is a `page:`.
 - **UI IR & placeholders**: `ir.TestValidateRejectsAllFiveMandatoryFaults`, `TestValidateAcceptsTheHeaderTree`,
   `TestValidateRefusesUnknownTypes`; `TestDeclaredPlaceholdersStayDeclared`, `TestPlaceholderDocsClaimNoContent`

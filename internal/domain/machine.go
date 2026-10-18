@@ -178,6 +178,9 @@ type Field struct {
 	// relation Fields only). ParentDeleteRestrict refuses the delete while any record points at it -- a contract with
 	// instalments (gap K-13). Empty leaves the parent free to go, as before.
 	OnParentDelete ParentDelete
+	// Currency (`currency: IDR` on a money Field, plan A2) is the currency its figures are written in: "Rp 180,000,000".
+	// One of KnownCurrencies; an input still takes the bare number.
+	Currency string
 	// Categories (`categories:` on a status Field, 2026-10-17) categorise this Field's own options the way a Machine's
 	// `status_categories:` does for its one lifecycle Field, so a second status -- a contract's payment beside its
 	// lifecycle -- is drawn in the tones its options mean. Read by StatusTone only.
@@ -1202,12 +1205,19 @@ func (m *Machine) Finished(values map[string]any) bool {
 }
 
 // LabelField is the Field a record of this Machine is named by -- in a picker, a relation cell, a page heading, a
-// container's line: its `title` card role, or its first Field when it declares none. One answer for every place
+// container's line: its `title` card role, or its first Field of its own words when it declares none. One answer for every place
 // that names a record; until 2026-10-17 pickers and headings read the first Field only, so an instalment whose first
 // Field is its contract was named by that contract's id.
 func (m *Machine) LabelField() string {
 	if id := m.CardFieldFor(CardFieldRoleTitle); id != "" {
 		return id
+	}
+	// The first Field that holds words of its own: a relation's value is another record's id, which is never a name
+	// (a payment plan whose first Field is its instalment is named by its plan number, 2026-10-18).
+	for _, f := range m.Fields {
+		if !f.IsReference() && f.Type != FieldTypeRelation && f.Type != FieldTypePerson && f.Type != FieldTypeFile && f.Type != FieldTypeGroup {
+			return f.ID
+		}
 	}
 	if len(m.Fields) > 0 {
 		return m.Fields[0].ID

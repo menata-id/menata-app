@@ -117,9 +117,16 @@ navigation:
                       from: { text: container }
                 - static: caption
                   from: { text: money }
+        - component: FilterChips
+          label: Instalment views
+          query: view
+          all: All
+          options: "overdue=Overdue\ndue=Due ≤ 7 days\nnoplan=No plan"
+          counts: { all: msr_unpaid_count, overdue: msr_overdue_count, due: msr_due_soon_count, noplan: msr_no_plan_count }
+          binding: { dataset: ds_instalment_figures, rows: total }
         - component: Table
           label: Unpaid instalments
-          empty: Every instalment is paid.
+          empty: Nothing in this view.
           framed: true
           columns:
             - { header: Due date, field: fld_due_date }
@@ -127,14 +134,17 @@ navigation:
             - { header: Contract, field: fld_contract }
             - { header: Gross, field: fld_gross, align: end }
             - { header: Status, field: fld_term_status }
+            - { header: Payment plan, related: rel_term_plans }
           binding: { dataset: ds_instalments_unpaid, rows: records }
-          # Each instalment's working action (K02a): a plan for it, with the instalment already filled in.
+          # Each instalment's working action (K02a): a plan for it, with the instalment already filled in -- only where
+          # it has none yet.
           children:
             - static: link
               to: nav_new_plan
               text: Create plan
               variant: secondary
               pass: { term: "record:id" }
+              when: { role: "field:fld_plans", is: "0" }
         - static: link
           list_of: ds_instalments_unpaid
           text: All instalments
@@ -176,10 +186,11 @@ navigation:
           empty: No payment plan matches.
           framed: true
           complete: true
+          totals: ds_plan_totals
           columns:
-            - { header: Plan no., field: fld_plan_no, href: record }
+            - { header: Plan no., field: fld_plan_no, href: record, total: msr_plan_count, total_label: plans }
             - { header: Instalment, field: fld_term }
-            - { header: Net, field: fld_plan_amount, align: end }
+            - { header: Net, field: fld_plan_amount, align: end, total: msr_plan_amount }
             - { header: Planned, field: fld_plan_date }
             - { header: Paid on, field: fld_paid_date }
             - { header: Status, field: fld_plan_status }

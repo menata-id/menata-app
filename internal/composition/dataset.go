@@ -30,11 +30,13 @@ type Aggregation struct {
 	// read: a total of money grouped in thousands. A count, or any Measure absent here, is written as a plain number.
 	// Aggregate leaves it empty; the Loader, which knows the source Machine, fills it.
 	Types map[string]domain.FieldType
+	// Currencies maps a sum Measure's id to its Field's currency, so a total of money reads "Rp 966,000,000".
+	Currencies map[string]string
 }
 
 // Format writes one of this Aggregation's figures for a page (domain.FormatFigure).
 func (a Aggregation) Format(measure string, v float64) string {
-	return domain.FormatFigure(a.Types[measure], v)
+	return domain.WithCurrency(a.Currencies[measure], domain.FormatFigure(a.Types[measure], v))
 }
 
 // Aggregate evaluates ds over records: 007 §7.2-§7.4 (Dataset, Dimension, Measure) made

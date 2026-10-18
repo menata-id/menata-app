@@ -237,6 +237,9 @@ var tableContract = domain.ComponentContract{
 		// framed draws the table on a surface (the bordered card the mockups put a list in); absent, it is unframed and
 		// the layout around it decides.
 		{Name: "framed", Kind: "boolean"},
+		// footer is the total row lowering produced from the columns' `total:` (and the Table's `totals:` Dataset, which
+		// lowering reads and drops), one tab-separated cell per column, never written.
+		{Name: "footer", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"cell"},
@@ -536,6 +539,9 @@ var progressContract = domain.ComponentContract{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "value", Kind: "number", Required: true},
 		{Name: "max", Kind: "number", Required: true},
+		// size: compact draws the bar and "value/max" only, for a Table cell where the column's header names it (K01b's
+		// Instalments "1/3"); the label still names the bar for assistive technology.
+		{Name: "size", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
@@ -550,6 +556,9 @@ var plainNumber = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
 
 func validateProgress(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(progressContract, inputs, "Progress")
+	if s, ok := inputs["size"]; ok && s != "compact" {
+		issues = append(issues, fmt.Sprintf("Progress size %q is not compact", s))
+	}
 	for _, k := range []string{"value", "max"} {
 		v, ok := inputs[k]
 		if !ok {

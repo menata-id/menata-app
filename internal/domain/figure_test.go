@@ -57,7 +57,11 @@ func TestLabelFieldPrefersTheTitleRole(t *testing.T) {
 		t.Errorf("LabelField = %q, want the title role", got)
 	}
 	m.CardFields = nil
+	if got := m.LabelField(); got != "fld_term_label" {
+		t.Errorf("LabelField with no title role = %q, want the first Field that is not a reference (an id is never a name)", got)
+	}
+	m.Fields = m.Fields[:1]
 	if got := m.LabelField(); got != "fld_contract" {
-		t.Errorf("LabelField with no title role = %q, want the first Field", got)
+		t.Errorf("LabelField of a Machine of references only = %q, want its first Field", got)
 	}
 }

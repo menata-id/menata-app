@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -394,6 +395,9 @@ func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredi
 		conjunction = len(ds.Where.All)
 	}
 	for i, c := range comparisons {
+		if name, want, conditional := strings.Cut(c.IfParam, "="); conditional && ctx.Parameters[name] != want {
+			continue // a named view the request did not choose
+		}
 		value, ok := ctx.Resolve(c.Value)
 		if c.Optional && (!ok || value == "") {
 			// An optional filter nobody set is no filter: the "All" chip, the empty search box.
@@ -622,33 +626,40 @@ func (l *Loader) RelationOptions(ctx context.Context, m *domain.Machine) (render
 // not loaded or declares no Field to label by -- the two cases RelationOptions has always left out. Shared with a
 // Dimension over a reference Field, which names its rows the way a picker names its choices.
 func (l *Loader) optionsOf(ctx context.Context, machineID string) ([]rendering.RelationOption, bool, error) {
+	list, _, ok, err := l.optionRecords(ctx, machineID)
+	return list, ok, err
+}
+
+// optionRecords is optionsOf with the records the options were read from, for a Dimension over a relation whose Table
+// shows the related record's own Fields (a category's type): one read, the options and the records together.
+func (l *Loader) optionRecords(ctx context.Context, machineID string) ([]rendering.RelationOption, []*data.Record, bool, error) {
 	target, ok := l.machines[machineID]
 	if !ok {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 	if target.ID != domain.UserMachineID && len(target.Fields) == 0 {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 	records, err := l.ListRecords(ctx, target.ID)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	list := make([]rendering.RelationOption, 0, len(records))
 	if target.ID == domain.UserMachineID {
 		names, err := l.PersonNames(ctx)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		for _, r := range records {
 			list = append(list, rendering.RelationOption{ID: r.ID, Label: names[r.ID]})
 		}
-		return list, true, nil
+		return list, records, true, nil
 	}
 	labelFieldID := target.LabelField()
 	for _, r := range records {
 		list = append(list, rendering.RelationOption{ID: r.ID, Label: DisplayString(r.Values[labelFieldID])})
 	}
-	return list, true, nil
+	return list, records, true, nil
 }
 
 // GroupOptions fetches the Workspace Groups a `group` field on m could select (CAP-F24, Fase
@@ -923,10 +934,10 @@ func (l *Loader) AggregateDataset(ctx context.Context, datasetID string, where e
 		return agg, err
 	}
 	if m := l.Machine(ds.Source); m != nil {
-		agg.Types = map[string]domain.FieldType{}
+		agg.Types, agg.Currencies = map[string]domain.FieldType{}, map[string]string{}
 		for _, ms := range ds.Measures {
 			if f, ok := m.FieldByID(ms.Field); ok && ms.Aggregate == domain.AggregateSum {
-				agg.Types[ms.ID] = f.Type
+				agg.Types[ms.ID], agg.Currencies[ms.ID] = f.Type, f.Currency
 			}
 		}
 	}

@@ -45,6 +45,8 @@ type pageNodeDoc struct {
 	window   string
 	columns  []domain.PageColumn
 	pass     map[string]string
+	totals   string
+	counts   map[string]string
 	values   map[string]string
 	children []pageNodeDoc
 }
@@ -152,6 +154,17 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.columns = cols
+		case "totals":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: totals: names one aggregate dataset, the one a Table's total row reads", key.Line)
+			}
+			p.totals = val.Value
+		case "counts":
+			m, err := decodePageFrom(val)
+			if err != nil {
+				return fmt.Errorf("line %d: counts: maps each chip's value to the Measure it counts -- %w", key.Line, err)
+			}
+			p.counts = m
 		case "pass", "values":
 			m, err := decodePageFrom(val)
 			if err != nil {
@@ -218,8 +231,16 @@ func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
 				c.Align = val.Value
 			case "href":
 				c.Href = val.Value
+			case "of":
+				c.Of = val.Value
+			case "related":
+				c.Related = val.Value
+			case "total":
+				c.Total = val.Value
+			case "total_label":
+				c.TotalLabel = val.Value
 			default:
-				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from or field, align, href)", key.Line, key.Value)
+				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, field or related, of, align, href, total, total_label)", key.Line, key.Value)
 			}
 		}
 		out = append(out, c)
@@ -388,22 +409,24 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Totals: p.totals, Counts: p.counts}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
 	if p.binding != nil {
 		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action, Transition: p.binding.Transition}
 		for _, c := range p.columns {
-			if c.Field != "" && !slices.Contains(out.Binding.Fields, c.Field) {
-				out.Binding.Fields = append(out.Binding.Fields, c.Field)
+			for _, id := range []string{c.Field, c.Of} {
+				if id != "" && c.Field != "" && !slices.Contains(out.Binding.Fields, id) {
+					out.Binding.Fields = append(out.Binding.Fields, id)
+				}
 			}
 		}
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 		out.Binding.Values = p.values
 		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
 		// names it to the Data Plane the same way a Table's column does.
-		for _, id := range templateFieldRoles(p.children) {
+		for _, id := range append(templateFieldRoles(p.children), whenFieldRoles(p.children)...) {
 			if !slices.Contains(out.Binding.Fields, id) {
 				out.Binding.Fields = append(out.Binding.Fields, id)
 			}
@@ -439,7 +462,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			for _, m := range datasets[b.Dataset].Measures {
 				measures[m.ID] = "0"
 			}
-			return []ir.Row{{Label: "label", Value: "0", Measures: measures}}, nil
+			return []ir.Row{{Label: "label", Value: "0", Measures: measures, Numbers: measures}}, nil
 		},
 		// A non-zero figure, so a `tone:` on a total is checked rather than dropped as a zero's would be.
 		Total: func(domain.PageBinding) (string, error) { return "1", nil },
@@ -483,11 +506,13 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
 			// The derived date roles: a label, and a tone out of the closed set a StatusBadge validates against.
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
+			rec[domain.PageDateRelativeRole] = "x"
 			rec[domain.PageGroupLabelRole] = "x"
 			rec[domain.PageCreatedLabelRole] = "x"
 			rec[domain.PageStatusToneRole] = string(domain.ToneNeutral)
 			// The Fields a Table names by id: whether each is a Field of the real Machine is `recordsBindingIssues`'.
 			for _, id := range b.Fields {
+				rec[domain.PageRowNumberRole(id)] = "1"
 				rec[domain.PageFieldRole(id)] = "x"
 				rec[domain.PageFieldToneRole(id)] = string(domain.ToneNeutral)
 				rec[domain.PageFieldStepsRole(id)] = "x\tcurrent"
@@ -498,6 +523,9 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// naming any other fails to lower -- the same way a mistyped role does.
 			for _, rel := range datasets[b.Dataset].Relations {
 				rec[domain.PageCountRole(rel.ID)] = "0"
+				rec[domain.PageRelatedRole(rel.ID)] = "x"
+				rec[domain.PageRelatedStatusRole(rel.ID)] = "x"
+				rec[domain.PageRelatedToneRole(rel.ID)] = string(domain.ToneNeutral)
 			}
 			// One edit form, text-shaped, for the same reason the create form's is: whether the real Machine
 			// has anything to edit is `updateBindingIssues`' question, which has the Machine.
@@ -684,13 +712,25 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
 		case b.Rows == domain.PageRowsRecords:
 			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], where)...)
+			issues = append(issues, tableTotalsIssues(n, datasets, where)...)
 			childItem = machines[ds.Source]
 		case ds.Select != "":
 			issues = append(issues, fmt.Sprintf("%s: page: binding dataset %q selects records, and a dimension binding needs an aggregate dataset with measures (use rows: %s on a Collection to list records)", where, b.Dataset, domain.PageRowsRecords))
 		default:
 			// A Collection bound to dimension rows names its Measures in its template (`measure:<id>`), which the
 			// placeholder rows check; every other bound node names its one Measure here.
-			dimensionCollection := b.Rows == domain.PageRowsDimension && n.Type == string(domain.ComponentCollection)
+			viewChips := b.Rows == domain.PageRowsTotal && n.Type == string(domain.ComponentFilterChips)
+			if viewChips {
+				for _, key := range slices.Sorted(maps.Keys(n.Counts)) {
+					if !slicesHasMeasure(ds, n.Counts[key]) {
+						issues = append(issues, fmt.Sprintf("%s: page: counts: %s names measure %q, which dataset %q does not declare", where, key, n.Counts[key], b.Dataset))
+					}
+				}
+			}
+			dimensionCollection := viewChips || b.Rows == domain.PageRowsDimension && (n.Type == string(domain.ComponentCollection) || n.Type == string(domain.ComponentTable))
+			if b.Rows == domain.PageRowsDimension && n.Type == string(domain.ComponentTable) {
+				issues = append(issues, dimensionTableIssues(n, ds, machines[ds.Source], machines, where)...)
+			}
 			if !dimensionCollection && !slicesHasMeasure(ds, b.Measure) {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no measure %q", where, b.Dataset, b.Measure))
 			}
@@ -831,7 +871,7 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if readsDerivedRole(n.Children, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
 	}
-	if (readsDerivedRole(n.Children, domain.PageDateLabelRole) || readsDerivedRole(n.Children, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
+	if (readsDerivedRole(n.Children, domain.PageDateLabelRole) || readsDerivedRole(n.Children, domain.PageDateToneRole) || readsDerivedRole(n.Children, domain.PageDateRelativeRole) || columnsRead(n.Columns, domain.PageDateRelativeRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s/%s -- machine %q declares no card_fields role %q to derive them from", where, domain.PageDateLabelRole, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
 	}
 	if (readsDerivedRole(n.Children, domain.PageStatusToneRole) || columnsRead(n.Columns, domain.PageStatusToneRole)) && source.CardFieldFor(domain.CardFieldRoleStatus) == "" {
@@ -847,6 +887,17 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	for _, c := range n.Columns {
 		if c.Field != "" {
 			fieldRefs = append(fieldRefs, c.Field)
+		}
+		if c.Of != "" {
+			fieldRefs = append(fieldRefs, c.Of)
+			for _, id := range []string{c.Field, c.Of} {
+				if f, ok := source.FieldByID(id); ok && !f.Type.IsNumeric() {
+					issues = append(issues, fmt.Sprintf("%s: page: columns: of: draws %s over %s, and %q is a %s Field, not a figure", where, c.Field, c.Of, id, f.Type))
+				}
+			}
+		}
+		if c.Related != "" && !slices.ContainsFunc(ds.Relations, func(r domain.Relation) bool { return r.ID == c.Related }) {
+			issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s is not a Relation dataset %q declares", where, c.Related, ds.ID))
 		}
 	}
 	for _, role := range fieldRolesOf(n.Children) {
@@ -890,6 +941,26 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	return issues
 }
 
+// whenFieldRoles is the Fields a template's `when:` reads by id, which the Data Plane must resolve as it does a `from:`.
+func whenFieldRoles(children []pageNodeDoc) []string {
+	var out []string
+	for _, c := range children {
+		if c.when != nil {
+			if id, ok := domain.PageFieldOfRole(c.when.Role); ok && !slices.Contains(out, id) {
+				out = append(out, id)
+			}
+		}
+		if c.binding == nil {
+			for _, id := range whenFieldRoles(c.children) {
+				if !slices.Contains(out, id) {
+					out = append(out, id)
+				}
+			}
+		}
+	}
+	return out
+}
+
 // fieldRolesOf is every Field-keyed role (`field:`, `tone:`, `steps:`) a records template reads, sorted, not looking into
 // a nested bound node.
 func fieldRolesOf(nodes []domain.PageNode) []string {
@@ -930,6 +1001,88 @@ func templateFieldRoles(children []pageNodeDoc) []string {
 		}
 	}
 	return out
+}
+
+// tableTotalsIssues holds a records Table's total row to the Dataset it names in `totals:`: an aggregate this Workspace
+// declares, with every Measure a column's `total:` names.
+func tableTotalsIssues(n domain.PageNode, datasets map[string]domain.Dataset, where string) []string {
+	if n.Type != string(domain.ComponentTable) {
+		return nil
+	}
+	name, named := n.Totals, n.Totals != ""
+	var measures []string
+	for _, c := range n.Columns {
+		if c.Total != "" {
+			a, b, _ := strings.Cut(c.Total, "/")
+			measures = append(measures, a)
+			if b != "" {
+				measures = append(measures, b)
+			}
+		}
+	}
+	switch {
+	case len(measures) == 0 && named:
+		return []string{fmt.Sprintf("%s: page: totals: %s names a Dataset no column's total: reads", where, name)}
+	case len(measures) == 0:
+		return nil
+	}
+	ds, ok := datasets[name]
+	if !ok || ds.Select != "" {
+		return []string{fmt.Sprintf("%s: page: a column asks for a total, so totals: names an aggregate Dataset of this Workspace (got %q)", where, name)}
+	}
+	var issues []string
+	for _, m := range measures {
+		if !slicesHasMeasure(ds, m) {
+			issues = append(issues, fmt.Sprintf("%s: page: total: %s is not a Measure of dataset %q", where, m, name))
+		}
+	}
+	return issues
+}
+
+// dimensionTableIssues holds a Table of a Dimension's rows to its Dataset: every `measure:<id>` (and a fraction's `of:`,
+// and a `total:`) a Measure the Dataset declares, every `row:<field>` a Field of the Machine the Dimension's relation
+// points at.
+func dimensionTableIssues(n domain.PageNode, ds domain.Dataset, source *domain.Machine, machines map[string]*domain.Machine, where string) []string {
+	var issues []string
+	measure := func(id string) {
+		if !slicesHasMeasure(ds, id) {
+			issues = append(issues, fmt.Sprintf("%s: page: column names measure %q, which dataset %q does not declare", where, id, ds.ID))
+		}
+	}
+	for _, c := range n.Columns {
+		switch {
+		case c.From == domain.PageRowLabelRole:
+		case strings.HasPrefix(c.From, "measure:"):
+			measure(strings.TrimPrefix(c.From, "measure:"))
+			if c.Of != "" {
+				measure(c.Of)
+			}
+		case strings.HasPrefix(c.From, "row:"):
+			var target *domain.Machine
+			if source != nil {
+				if dim, ok := source.FieldByID(ds.Dimension); ok && dim.IsReference() {
+					target = machines[dim.RelatedMachine]
+				}
+			}
+			found := false
+			if target != nil {
+				_, found = target.FieldByID(strings.TrimPrefix(c.From, "row:"))
+			}
+			if !found {
+				issues = append(issues, fmt.Sprintf("%s: page: column %s -- the Dimension's related Machine has no such Field", where, c.From))
+			}
+		default:
+			issues = append(issues, fmt.Sprintf("%s: page: a Dimension's row shows %s, %s<id> or row:<field>, not %q", where, domain.PageRowLabelRole, "measure:", c.From))
+		}
+		if c.Total != "" {
+			a, b, _ := strings.Cut(c.Total, "/")
+			measure(a)
+			if b != "" {
+				measure(b)
+			}
+		}
+	}
+	return issues
 }
 
 // columnsRead reports whether any of a Table's columns shows the given role.
@@ -1127,6 +1280,10 @@ func conditionIssues(c domain.PageCondition, item *domain.Machine, where string)
 		return []string{fmt.Sprintf("%s: page: when: is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageRowsRecords)}
 	}
 	fieldID := item.CardFieldFor(domain.CardFieldRole(c.Role))
+	// A Field read by id (`when: {role: "field:fld_plans", is: "0"}`): an instalment's "Create plan" only where it has none.
+	if id, byField := domain.PageFieldOfRole(c.Role); byField && strings.HasPrefix(c.Role, "field:") {
+		fieldID = id
+	}
 	field, ok := item.FieldByID(fieldID)
 	if fieldID == "" || !ok {
 		return []string{fmt.Sprintf("%s: page: when: role %q -- machine %q declares no card_fields entry for it", where, c.Role, item.ID)}

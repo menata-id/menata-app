@@ -135,6 +135,7 @@ navigation:
           columns:
             - { header: Label, field: fld_term_label }
             - { header: Gross, field: fld_gross, align: end }
+            - { header: Due, field: fld_due_date }
             - { header: Status, field: fld_term_status }
           binding: { dataset: ds_contract_terms, rows: records }
   # The instalment form "Add instalment" opens: the contract comes from the request and is not offered again.
@@ -168,6 +169,57 @@ navigation:
                 - component: Form
                   submit: Mark as paid
                   binding: { write: transition, transition: trn_plan_settle }
+  # Step 4 (K01a, K01b, K02a): a Table of a Dimension's rows with a total row, a fraction with its bar, the plan each
+  # instalment has, and chips over named views.
+  - id: nav_by_category
+    label: By category
+    route: /pages/nav_by_category
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Table
+          label: Contracts by category
+          columns:
+            - { header: Category, from: "row:label", total: msr_contracts_by_category, total_label: contracts }
+            - { header: Type, from: "row:fld_category_kind" }
+            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: msr_category_terms_paid/msr_category_terms }
+            - { header: Value, from: "measure:msr_category_value", align: end, total: msr_category_value }
+          binding: { dataset: ds_contracts_by_category, rows: dimension }
+        - component: Table
+          label: Contracts
+          totals: ds_contract_figures
+          columns:
+            - { header: Contract no., field: fld_contract_no, total: msr_contract_count, total_label: contracts }
+            - { header: Instalments, field: fld_terms_paid, of: fld_terms }
+            - { header: Value, field: fld_value, align: end, total: msr_contract_value }
+          binding: { dataset: ds_contracts, rows: records }
+  - id: nav_unpaid
+    label: Unpaid
+    route: /pages/nav_unpaid
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: FilterChips
+          label: Instalment views
+          query: view
+          all: All
+          options: "overdue=Overdue\nnoplan=No plan"
+          counts: { all: msr_unpaid, overdue: msr_overdue, noplan: msr_no_plan }
+          binding: { dataset: ds_term_views, rows: total }
+        - component: Table
+          label: Unpaid instalments
+          columns:
+            - { header: Instalment, field: fld_term_label }
+            - { header: Payment plan, related: rel_plans }
+          binding: { dataset: ds_terms_unpaid, rows: records }
+          children:
+            - static: link
+              to: nav_unpaid
+              text: Create plan
+              variant: secondary
+              when: { role: "field:fld_plans", is: "0" }
   - id: nav_categories
     label: Categories
     route: /machines/mch_category

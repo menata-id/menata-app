@@ -192,7 +192,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	// page's `empty:` words are what the viewer sees, so an author writes them for this case too.
 	where := expression.Context{CurrentUser: viewerID, Parameters: params, Today: now.Format("2006-01-02")}
 	for _, c := range ds.Where.Comparisons() {
-		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional && c.IfParam == "" {
 			if _, ok := where.Resolve(c.Value); !ok {
 				return ir.RecordSet{}, nil
 			}
@@ -265,7 +265,27 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		moves = append(moves, move)
 		transitions = append(transitions, transition)
 		for _, rel := range ds.Relations {
-			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
+			children := sel.Related(rel.ID, r.ID)
+			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(children))
+			// The first record the Relation found, for a Table's `related:` column: its title, and its status in its tone.
+			item[domain.PageRelatedRole(rel.ID)] = ""
+			if child := l.Machine(rel.Machine); child != nil && len(children) > 0 {
+				// Named as a record is named everywhere (its title role, else its first Field); its status, when it declares one.
+				item[domain.PageRelatedRole(rel.ID)] = DisplayString(children[0].Values[child.LabelField()])
+				statusField := child.CardFieldFor(domain.CardFieldRoleStatus)
+				if statusField == "" {
+					for _, f := range child.Fields {
+						if f.Type == domain.FieldTypeStatus {
+							statusField = f.ID
+							break
+						}
+					}
+				}
+				if st := DisplayString(children[0].Values[statusField]); statusField != "" && st != "" {
+					item[domain.PageRelatedStatusRole(rel.ID)] = st
+					item[domain.PageRelatedToneRole(rel.ID)] = string(child.StatusTone(statusField, st))
+				}
+			}
 		}
 		out = append(out, item)
 		var list []map[string]string
@@ -637,7 +657,7 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 		if k == "" {
 			continue // records with the Dimension unset have no label to show
 		}
-		rows = append(rows, ir.Row{Label: k, Value: agg.Format(b.Measure, agg.ByDimension[k][b.Measure]), Measures: rowMeasures(agg, k)})
+		rows = append(rows, ir.Row{Label: k, Value: agg.Format(b.Measure, agg.ByDimension[k][b.Measure]), Measures: rowMeasures(agg, k), Numbers: rowNumbers(agg, k)})
 	}
 	return rows, nil
 }
@@ -648,7 +668,7 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 // leaving it to map iteration. A value naming no record that exists (one deleted since) has no title to show and is
 // left out, as an unset one is, rather than drawn as an opaque id.
 func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggregation, measure string) ([]ir.Row, error) {
-	options, _, err := l.optionsOf(ctx, dim.RelatedMachine)
+	options, optionRecords, _, err := l.optionRecords(ctx, dim.RelatedMachine)
 	if err != nil {
 		return nil, err
 	}
@@ -668,11 +688,36 @@ func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggrega
 		}
 		return keys[i] < keys[j]
 	})
+	// The related records themselves, for a Table's `row:<field>` columns (a category's type): the read optionsOf made,
+	// served again from the Loader's memo.
+	related := map[string]*data.Record{}
+	target := l.Machine(dim.RelatedMachine)
+	for _, r := range optionRecords {
+		related[r.ID] = r
+	}
 	rows := make([]ir.Row, 0, len(keys))
 	for _, k := range keys {
-		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: agg.Format(measure, agg.ByDimension[k][measure]), Measures: rowMeasures(agg, k)})
+		row := ir.Row{Label: titles[k], Key: k, Value: agg.Format(measure, agg.ByDimension[k][measure]), Measures: rowMeasures(agg, k), Numbers: rowNumbers(agg, k)}
+		if r := related[k]; r != nil && target != nil {
+			row.Attrs = map[string]string{}
+			for _, f := range target.Fields {
+				if !f.IsReference() {
+					row.Attrs[f.ID] = projectedFieldDisplay(f, r.Values[f.ID], nil)
+				}
+			}
+		}
+		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// rowNumbers is every Measure of one Dimension value as a bare number, what a fraction's bar reads.
+func rowNumbers(agg Aggregation, key string) map[string]string {
+	out := make(map[string]string, len(agg.Total))
+	for id := range agg.Total {
+		out[id] = strconv.FormatFloat(agg.ByDimension[key][id], 'f', -1, 64)
+	}
+	return out
 }
 
 // bindingTotal is one `rows: total` Binding: the Measure's figure over every record the Dataset reads.
@@ -726,8 +771,9 @@ func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record
 	}
 	d := experience.ResolveCardDate(r.Values[fieldID], IsComplete(src, r), now)
 	item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = d.Label, string(d.Tone)
+	item[domain.PageDateRelativeRole] = relativeDay(DisplayString(r.Values[fieldID]), d.Done, now)
 	if !d.Present {
-		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
+		item[domain.PageDateLabelRole], item[domain.PageDateToneRole], item[domain.PageDateRelativeRole] = "", "", ""
 	}
 }
 
@@ -869,6 +915,9 @@ func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Recor
 			continue
 		}
 		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations)
+		if n, ok := domain.FigureOf(r.Values[id]); ok && f.Type.IsNumeric() {
+			item[domain.PageRowNumberRole(id)] = strconv.FormatFloat(n, 'f', -1, 64)
+		}
 		if f.Type != domain.FieldTypeStatus {
 			continue
 		}
@@ -904,6 +953,31 @@ func statusSteps(m *domain.Machine, f domain.Field, current string) string {
 		lines = append(lines, o+"\t"+state)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// relativeDay is a stored day said against now's (domain.PageDateRelativeRole): "12 days late", "1 day late",
+// "today", "tomorrow", "in 5 days"; a finished record's day is said as its date, since lateness no longer applies.
+func relativeDay(stored string, done bool, now time.Time) string {
+	due, err := time.Parse(domain.DateLayout, stored)
+	if err != nil {
+		return ""
+	}
+	if done {
+		return domain.FormatDay(stored)
+	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	days := int(due.Sub(today).Hours() / 24)
+	switch {
+	case days == 0:
+		return "today"
+	case days == 1:
+		return "tomorrow"
+	case days == -1:
+		return "1 day late"
+	case days < 0:
+		return strconv.Itoa(-days) + " days late"
+	}
+	return "in " + strconv.Itoa(days) + " days"
 }
 
 // bindingTransitionAll is one bulk transition Binding: the route, and how many of the Dataset's records this viewer
@@ -955,7 +1029,7 @@ func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, p
 	}
 	where := expression.Context{CurrentUser: viewer.ID, Parameters: params, Today: now.Format("2006-01-02")}
 	for _, c := range ds.Where.Comparisons() {
-		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional && c.IfParam == "" {
 			if _, ok := where.Resolve(c.Value); !ok {
 				return src, target, nil, nil
 			}

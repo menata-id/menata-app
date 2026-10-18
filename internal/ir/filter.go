@@ -76,6 +76,9 @@ func lowerFilterChips(n domain.PageNode, r Resolver, path string) ([]UINode, err
 			return nil, fmt.Errorf("%s: %s: is produced by lowering from the bound Dimension and is never written", path, p)
 		}
 	}
+	if n.Binding != nil && n.Binding.Rows == domain.PageRowsTotal {
+		return lowerViewChips(n, r, path)
+	}
 	rows, total, err := filterRows(n, r, path)
 	if err != nil {
 		return nil, err
@@ -119,6 +122,56 @@ func lowerFilterChips(n domain.PageNode, r Resolver, path string) ([]UINode, err
 			count = "0"
 		}
 		line(c.label, count, filterHref(keep, query, c.value), selected == c.value)
+	}
+	props := map[string]string{"label": n.Props["label"], "query": query, "chips": strings.Join(lines, "\n")}
+	return []UINode{{Kind: NodeComponent, Type: n.Type, Props: props}}, nil
+}
+
+// lowerViewChips is a FilterChips over named views of a list (`binding: {dataset, rows: total}`, `options:` the views,
+// `counts:` the Measure each counts, `all` the clearing chip's): "All 27 · Overdue 2 · Due within 7 days 5 · No plan 4".
+// The list's Dataset says what each view selects (`if_param: view=overdue`).
+func lowerViewChips(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	if r.Total == nil {
+		return nil, fmt.Errorf("%s: no resolver for totals", path)
+	}
+	opts := domain.ParseSegmentOptions(n.Props["options"])
+	if len(opts) == 0 {
+		return nil, fmt.Errorf("%s: a FilterChips over named views lists them in options: (value=Label lines)", path)
+	}
+	query := n.Props["query"]
+	selected := ""
+	if r.Query != nil {
+		selected = r.Query(query)
+	}
+	keep := keepQuery(r, query)
+	count := func(key string) (string, error) {
+		m, ok := n.Counts[key]
+		if !ok {
+			return "", fmt.Errorf("%s: counts: names no Measure for %q", path, key)
+		}
+		return r.Total(domain.PageBinding{Dataset: n.Binding.Dataset, Measure: m, Rows: domain.PageRowsTotal})
+	}
+	var lines []string
+	line := func(label, c, href string, current bool) {
+		flag := "0"
+		if current {
+			flag = "1"
+		}
+		lines = append(lines, strings.Join([]string{oneField(label), oneField(c), href, flag}, "\t"))
+	}
+	if all := n.Props["all"]; all != "" {
+		c, err := count("all")
+		if err != nil {
+			return nil, err
+		}
+		line(all, c, filterHref(keep, query, ""), selected == "")
+	}
+	for _, o := range opts {
+		c, err := count(o.Value)
+		if err != nil {
+			return nil, err
+		}
+		line(o.Label, c, filterHref(keep, query, o.Value), selected == o.Value)
 	}
 	props := map[string]string{"label": n.Props["label"], "query": query, "chips": strings.Join(lines, "\n")}
 	return []UINode{{Kind: NodeComponent, Type: n.Type, Props: props}}, nil

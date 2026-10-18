@@ -1196,6 +1196,9 @@ func valueText(f domain.Field, v any) string {
 	if s, ok := f.Figure(v); ok {
 		return s
 	}
+	if f.Type == domain.FieldTypeDate {
+		return domain.FormatDay(toString(v))
+	}
 	return toString(v)
 }
 

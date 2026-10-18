@@ -10,8 +10,24 @@ import (
 // progressRow is the registered renderer for `domain.ComponentProgress`: a label, a bar filled to value out of
 // max, and the same two numbers in words beside it -- a percentage-only bar tells a screen-reader user nothing
 // about how many. The numbers arrive resolved; this computes only the fill, and a max of zero is an empty bar.
-templ progressRow(label, value, max string) {
+templ progressRow(label, value, max, size string) {
 	{{ pct := progressShare(value, max) }}
+	if size == "compact" {
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+			<div
+				role="progressbar"
+				aria-label={ label }
+				aria-valuenow={ fmt.Sprint(pct) }
+				aria-valuemin="0"
+				aria-valuemax="100"
+				aria-valuetext={ value + " of " + max }
+				class={ "h-1.5 w-12 overflow-hidden", radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken) }
+			>
+				<div class={ "h-full", radiusClass(ctx, domain.RadiusPill), markGoodFill() } style={ fmt.Sprintf("width:%d%%", pct) }></div>
+			</div>
+			<span class={ textClass(ctx, domain.RoleMeta), "whitespace-nowrap", inkClass(ctx, domain.InkSecondary) }>{ value + "/" + max }</span>
+		}
+	} else {
 	// w-full: inside a Collection item (itself a wrapping flex row) a wrapper only as wide as its content leaves
 	// the bar's `grow` nothing to fill, and the bar drew 0px wide.
 	<div class="w-full">
@@ -31,6 +47,7 @@ templ progressRow(label, value, max string) {
 		<span class={ "w-16 shrink-0 text-right", textClass(ctx, domain.RoleMeta), "whitespace-nowrap", inkClass(ctx, domain.InkSecondary) }>{ value + " of " + max }</span>
 	}
 	</div>
+	}
 }
 
 // progressShare is value as a whole percentage of max, clamped to 0..100; anything unparseable, or a max of zero,

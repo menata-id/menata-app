@@ -4,7 +4,7 @@ fields:
   # A contract's number is its identity on paper: set once (owner decision K1).
   - { id: fld_contract_no, name: Contract no., type: text, required: true, set_once: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
-  - { id: fld_value, name: Contract value, type: money, required: true }
+  - { id: fld_value, name: Contract value, type: money, required: true, currency: IDR }
   # What its instalments say, kept on the contract (plan A1): paid in gross, what is left, and how many of how many.
   - { id: fld_paid, name: Paid, type: money,
       compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_gross, where: { field: fld_term_status, equals: Paid } } } }
@@ -74,4 +74,12 @@ datasets:
     measures: [{ id: msr_contracts_by_payment, aggregate: count }]
   - id: ds_contracts_by_category
     dimension: fld_category
-    measures: [{ id: msr_contracts_by_category, aggregate: count }]
+    measures:
+      - { id: msr_contracts_by_category, aggregate: count }
+      - { id: msr_category_value, aggregate: sum, field: fld_value }
+      - { id: msr_category_terms, aggregate: sum, field: fld_terms }
+      - { id: msr_category_terms_paid, aggregate: sum, field: fld_terms_paid }
+  - id: ds_contract_figures
+    measures:
+      - { id: msr_contract_count, aggregate: count }
+      - { id: msr_contract_value, aggregate: sum, field: fld_value }

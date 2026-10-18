@@ -3152,7 +3152,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentProgress:
-				templ_7745c5c3_Err = progressRow(n.Props["label"], n.Props["value"], n.Props["max"]).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = progressRow(n.Props["label"], n.Props["value"], n.Props["max"], n.Props["size"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -3271,7 +3271,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentTable:
-				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["footer"], uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

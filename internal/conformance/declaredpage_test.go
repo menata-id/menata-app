@@ -901,12 +901,25 @@ func totalBindingProblems(n domain.PageNode, datasets map[string]domain.Dataset,
 		case ds.Select != "":
 			out = append(out, "total over "+ds.ID+", which selects records and so has no Measure to total")
 		default:
-			found := false
-			for _, ms := range ds.Measures {
-				found = found || ms.ID == b.Measure
+			// A FilterChips over named views (2026-10-18) totals one Measure per chip, named in counts:.
+			measures := []string{b.Measure}
+			if n.Type == string(domain.ComponentFilterChips) {
+				measures = nil
+				for _, key := range sortedKeys(n.Counts) {
+					measures = append(measures, n.Counts[key])
+				}
+				if len(measures) == 0 {
+					out = append(out, "a FilterChips over named views names each chip's Measure in counts:")
+				}
 			}
-			if !found {
-				out = append(out, "total names measure "+b.Measure+", which "+ds.ID+" does not declare")
+			for _, m := range measures {
+				found := false
+				for _, ms := range ds.Measures {
+					found = found || ms.ID == m
+				}
+				if !found {
+					out = append(out, "total names measure "+m+", which "+ds.ID+" does not declare")
+				}
 			}
 		}
 		if strings.TrimSpace(n.Props["label"]) == "" {

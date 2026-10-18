@@ -86,6 +86,12 @@ type PageNode struct {
 	// destination: each query parameter taken from a role of the record (its id, a Field read by id). "Add instalment"
 	// opens the instalment form already naming its contract.
 	Pass map[string]string
+	// Counts (`counts: {all: msr_unpaid, overdue: msr_overdue}` on a FilterChips bound with `rows: total`) is the Measure
+	// each named view's chip counts: chips over named views of a list, not over a Dimension's values (mockup K02a).
+	Counts map[string]string
+	// Totals (`totals: ds_x` on a records Table) names the aggregate Dataset its columns' `total:` read; a Dimension's
+	// Table reads its own binding.
+	Totals string
 	// Values (`values: {fld_contract: $parameters.contract}`) are what a create Form starts with from its request: each
 	// Field the form asks for, filled from a `$parameters.<name>` and drawn fixed (its words, not a control) when the
 	// request sends it. The route still validates the value as it validates any.
@@ -109,7 +115,27 @@ type PageColumn struct {
 	Field  string
 	Align  string
 	Href   string
+	// Of, beside field:, draws the cell as a fraction with a bar ("1/3"): the column's Field over this one (plan U-02,
+	// mockup K01b's Instalments). On a dimension-bound Table, beside from: measure:<a>, it names measure <b>.
+	Of string
+	// Related (`related: rel_x`) shows the first record a Dataset's Relation found for the row -- its title and, when it
+	// has one, its status in its tone (K02a's "PP-0146 Submitted").
+	Related string
+	// Total puts this column's figure in the Table's total row: a Measure of the Table's totals Dataset ("msr_x"), or
+	// two as a fraction ("msr_a/msr_b"). TotalLabel words it ("9 contracts" from total: msr_count, total_label:
+	// contracts).
+	Total, TotalLabel string
 }
+
+// PageRowNumberRole is the key of a Field's or a Measure's bare number in a row (`num:fld_x`, `num:msr_x`), what a
+// fraction's bar is drawn from; the figure a person reads is the field: or measure: one.
+func PageRowNumberRole(id string) string { return "num:" + id }
+
+// PageRelatedRole and PageRelatedToneRole are the keys of a Relation's first record in a row: its title, its status,
+// and the status's tone (PageColumn.Related).
+func PageRelatedRole(relation string) string       { return "related:" + relation }
+func PageRelatedStatusRole(relation string) string { return "related:" + relation + ":status" }
+func PageRelatedToneRole(relation string) string   { return "related:" + relation + ":tone" }
 
 // PageStep is a link's request-relative parameter: Parameter is the one the runtime names (PageParameterWeek) and
 // By the whole number of steps from the request's own value, never zero (a link to where you already are is a
@@ -319,6 +345,9 @@ const PageRecordRole = "record"
 const (
 	PageDateLabelRole = "date:label"
 	PageDateToneRole  = "date:tone"
+	// PageDateRelativeRole is the same date said against the request's day (plan U-08, mockup K01a's "12 days"): "12
+	// days late", "today", "in 5 days"; a finished record's date is said as its day.
+	PageDateRelativeRole = "date:relative"
 )
 
 // PageStatusToneRole is the tone of a record's `status` card_fields role, derived from the Machine's
@@ -368,7 +397,7 @@ const PageGroupLabelRole = "group:label"
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
+	return role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
 }
 
 // PageCreatedLabelRole is the derived role that says when a record was created ("2 Jan 2006 15:04"), which every record
@@ -386,11 +415,11 @@ const PageCreatedLabelRole = "created:label"
 // dimension rows: it is the one with an `item` slot, so a list of already-composed items is exactly what a record
 // set is, and what a Dimension's groups are when each needs more than one figure (a bar of open out of all).
 var BindableComponents = map[ComponentType][]string{
-	ComponentFilterChips:  {PageRowsDimension},
+	ComponentFilterChips:  {PageRowsDimension, PageRowsTotal},
 	ComponentFilterSelect: {PageRowsDimension},
 	ComponentMetric:       {PageRowsDimension, PageRowsTotal},
 	ComponentCollection:   {PageRowsRecords, PageRowsDimension},
-	ComponentTable:        {PageRowsRecords},
+	ComponentTable:        {PageRowsRecords, PageRowsDimension},
 }
 
 // TransitionAllRoute is the runtime's route for a `write: transition` Binding with `all: true`: the Machine, the Dataset

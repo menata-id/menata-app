@@ -2,5 +2,6 @@ id: mch_category
 name: Category
 fields:
   - { id: fld_category_name, name: Name, type: text, required: true }
+  - { id: fld_category_kind, name: Type, type: status, options: [Cast, Crew, Item] }
 card_fields:
   - { field: fld_category_name, role: title }

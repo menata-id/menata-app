@@ -196,6 +196,8 @@ var structuredDomainFacts = map[string]string{
 		"still coerces the value, internal/rendering still picks the control, and 007 §14 permits each of " +
 		"those as its own resolution point. It exists to kill a prose copy in internal/aiassist, not to " +
 		"dispatch",
+	"KnownCurrencies": "a currency's symbol is what the currency is written as (\"Rp\" for IDR) -- a fact about the " +
+		"value a money Field holds, read to write its figure, never to decide what to run (2026-10-18, plan A2)",
 }
 
 // closedSetValueTypes returns each package-level `map[...]T` variable whose name starts with a capital and

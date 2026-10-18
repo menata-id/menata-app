@@ -66,7 +66,7 @@ func TestLowerTableRefusesEachMisuseForItsOwnReason(t *testing.T) {
 		edit func(n *domain.PageNode)
 		want string
 	}{
-		"a dimension binding":     {func(n *domain.PageNode) { n.Binding.Rows = domain.PageRowsDimension }, "takes a binding with rows: records"},
+		"a total binding":         {func(n *domain.PageNode) { n.Binding.Rows = domain.PageRowsTotal }, "takes a binding with rows: records or dimension"},
 		"a measure":               {func(n *domain.PageNode) { n.Binding.Measure = "msr" }, "no measure and no group"},
 		"a group":                 {func(n *domain.PageNode) { n.Binding.Group = domain.PageGroupDate }, "no measure and no group"},
 		"from on the table":       {func(n *domain.PageNode) { n.From = map[string]string{"label": "title"} }, "do not belong on a Table"},

@@ -155,6 +155,13 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
 		issues = append(issues, validateLocks(f, fieldsByID)...)
 		issues = append(issues, validateFieldCategories(m, f)...)
+		if f.Currency != "" {
+			if f.Type != domain.FieldTypeMoney {
+				issues = append(issues, fmt.Sprintf("field %q: currency: belongs to a money field, and this is %q", f.ID, f.Type))
+			} else if _, ok := domain.KnownCurrencies[f.Currency]; !ok {
+				issues = append(issues, fmt.Sprintf("field %q: currency %q is not one this runtime writes (%v)", f.ID, f.Currency, slices.Sorted(maps.Keys(domain.KnownCurrencies))))
+			}
+		}
 		issues = append(issues, validateDefaultFrom(f, fieldsByID)...)
 	}
 	issues = append(issues, validateDeleteGuards(m, fieldsByID)...)
@@ -870,6 +877,12 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if msg := emptyComparisonIssue(c); msg != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
 			}
+			if c.IfParam != "" {
+				name, value, ok := strings.Cut(c.IfParam, "=")
+				if !ok || name == "" || value == "" || domain.SearchParamsReserved[name] || strings.ContainsAny(name+value, " &?#") {
+					issues = append(issues, fmt.Sprintf("dataset %q: where if_param %q is <parameter>=<value>, a plain word the runtime does not own", ds.ID, c.IfParam))
+				}
+			}
 			if c.Optional && !expression.IsParameter(c.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is optional, which means \"left out when the request does not send it\" -- so its value must be a %s<name>, not %q", ds.ID, c.Field, expression.SentinelParameterPrefix, c.Value))
 			}
@@ -973,8 +986,8 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if msg := emptyComparisonIssue(c); msg != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
 			}
-			if c.Optional {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional, and an aggregate has no request parameters to leave it out for", ds.ID, ms.ID, c.Field))
+			if c.Optional || c.IfParam != "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional or if_param, and an aggregate has no request parameters", ds.ID, ms.ID, c.Field))
 			}
 			if ok {
 				if msg := containsIssue(whereField, c); msg != "" {

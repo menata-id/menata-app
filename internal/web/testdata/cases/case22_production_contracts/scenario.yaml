@@ -12,7 +12,7 @@ steps:
 
   - id: lead-cast
     as: silvia
-    create: { machine: mch_category, values: { fld_category_name: Lead Cast } }
+    create: { machine: mch_category, values: { fld_category_name: Lead Cast, fld_category_kind: Cast } }
     expect: ok
 
   - id: contract
@@ -134,7 +134,7 @@ steps:
     as: silvia
     view:
       path: /pages/nav_contracts
-      shows: [CTR/C/026, Reza Anggara, Lead Cast, ">180,000<", 'text-tone-warn-ink">Overdue<']
+      shows: [CTR/C/026, Reza Anggara, Lead Cast, ">Rp 180,000<", 'text-tone-warn-ink">Overdue<']
       hides: [">$lead-cast<", fld_category]
     expect: ok
 
@@ -203,7 +203,7 @@ steps:
     as: silvia
     view:
       path: /pages/nav_contract/$contract
-      shows: [">CTR/C/026<", 'aria-current="step"', ">Draft<", '&#34;fld_status&#34;:&#34;Active&#34;', ">Activate<", 'href="/pages/nav_new_term?contract=$contract"', ">+ Add instalment<", ">Signing<", 'text-tone-info-ink">In progress<']
+      shows: [">CTR/C/026<", 'aria-current="step"', ">Draft<", '&#34;fld_status&#34;:&#34;Active&#34;', ">Activate<", 'href="/pages/nav_new_term?contract=$contract"', ">+ Add instalment<", ">Signing<", 'text-tone-info-ink">In progress<', ">05 Jan 2026<"]
       hides: [">Close<"]
     expect: ok
   - id: a-record-page-needs-a-record-of-its-machine
@@ -268,6 +268,33 @@ steps:
     update: { ref: contract, values: { fld_party_name: Reza Anggara } }
     expect: ok
     record: { fld_payment_status: In progress, fld_paid: "54000", fld_terms_paid: "1" }
+
+  # Step 4 (K01a, K01b): a Table of a Dimension's rows -- its related record's type, a fraction with a bar, a total row --
+  # and a records Table whose total row reads an aggregate.
+  - id: contracts-by-category
+    as: silvia
+    view:
+      path: /pages/nav_by_category
+      shows: [">Lead Cast<", ">Cast<", 'role="progressbar"', ">1/3<", ">2 contracts<", ">Rp 264,000<", ">Rp 180,000<"]
+    expect: ok
+  - id: a-plan-for-the-second-instalment
+    as: silvia
+    create: { machine: mch_payment_plan, values: { fld_term: $first-shooting-day, fld_plan_no: PP-0150, fld_plan_amount: "72000" } }
+    expect: ok
+  # K02a: chips over named views counted by their Measures, the plan each instalment has, and Create plan only where none.
+  - id: unpaid-instalments-and-their-plans
+    as: silvia
+    view:
+      path: /pages/nav_unpaid
+      shows: [">All", ">2<", ">No plan", ">1<", ">First shooting day<", ">PP-0150<", ">Submitted<", ">Wrap<", ">Create plan<"]
+    expect: ok
+  - id: the-no-plan-view
+    as: silvia
+    view:
+      path: /pages/nav_unpaid?view=noplan
+      shows: [">Wrap<", ">Create plan<", 'aria-current="true"']
+      hides: [">First shooting day<", ">PP-0150<"]
+    expect: ok
 
   - id: contract-detail-status-badge
     as: silvia

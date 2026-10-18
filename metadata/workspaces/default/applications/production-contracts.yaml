@@ -77,39 +77,23 @@ navigation:
                   children:
                     - static: caption
                       from: { text: money }
+                    - static: caption
+                      from: { text: "date:label" }
                     - component: StatusBadge
-                      from: { label: "date:label", tone: "date:tone" }
-        - component: Collection
-          heading: Contracts by category
-          hint: contract value, cancelled contracts left out
-          gap: tight
-          divided: true
+                      from: { label: "date:relative", tone: "date:tone" }
+        - component: Table
+          label: Contracts by category
           empty: No contracts yet. Add a category under Settings, then a contract.
+          framed: true
+          columns:
+            - { header: Category, from: "row:label", total_label: Total }
+            - { header: Kind, from: "row:fld_cat_kind" }
+            - { header: Contracts, from: "measure:msr_category_count", align: end, total: msr_category_count }
+            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: msr_category_terms_paid/msr_category_terms }
+            - { header: Contract value, from: "measure:msr_category_value", align: end, total: msr_category_value }
+            - { header: Paid, from: "measure:msr_category_paid", align: end, total: msr_category_paid }
+            - { header: Outstanding, from: "measure:msr_category_outstanding", align: end, total: msr_category_outstanding }
           binding: { dataset: ds_contracts_by_category, rows: dimension }
-          children:
-            - layout: row
-              gap: default
-              align: center
-              justify: spread
-              children:
-                - static: paragraph
-                  from: { text: row:label }
-                - layout: row
-                  gap: default
-                  align: center
-                  children:
-                    - static: caption
-                      from: { text: measure:msr_category_count }
-                    - static: paragraph
-                      from: { text: measure:msr_category_value }
-                    - static: caption
-                      text: paid
-                    - static: paragraph
-                      from: { text: measure:msr_category_paid }
-                    - static: caption
-                      text: outstanding
-                    - static: paragraph
-                      from: { text: measure:msr_category_outstanding }
         - component: Table
           label: Contracts
           empty: No contracts yet.
@@ -181,13 +165,15 @@ navigation:
           empty: No contract matches.
           framed: true
           complete: true
+          totals: ds_contract_totals
           columns:
-            - { header: Contract no., field: fld_contract_no, href: record }
+            - { header: Contract no., field: fld_contract_no, href: record, total: msr_total_count, total_label: contracts }
             - { header: Contracted party, field: fld_party_name }
             - { header: Category, field: fld_category }
-            - { header: Contract value, field: fld_value, align: end }
-            - { header: Paid, field: fld_paid, align: end }
-            - { header: Outstanding, field: fld_outstanding, align: end }
+            - { header: Instalments, field: fld_terms_paid, of: fld_terms, total: msr_total_terms_paid/msr_total_terms }
+            - { header: Contract value, field: fld_value, align: end, total: msr_total_value }
+            - { header: Paid, field: fld_paid, align: end, total: msr_total_paid }
+            - { header: Outstanding, field: fld_outstanding, align: end, total: msr_total_outstanding }
             - { header: Status, field: fld_status }
             - { header: Payment, field: fld_payment_status }
           binding: { dataset: ds_contracts, rows: records }

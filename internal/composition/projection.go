@@ -71,9 +71,7 @@ func projectedFieldDisplay(f domain.Field, value any, relations rendering.Relati
 		return rendering.RelationLabel(relations, f.RelatedMachine, DisplayString(value))
 	}
 	if f.Type == domain.FieldTypeDate {
-		if due, err := time.Parse("2006-01-02", DisplayString(value)); err == nil {
-			return due.Format("2 Jan 2006")
-		}
+		return domain.FormatDay(DisplayString(value))
 	}
 	if figure, ok := f.Figure(value); ok {
 		return figure

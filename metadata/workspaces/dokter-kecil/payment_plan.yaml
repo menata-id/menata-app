@@ -8,7 +8,7 @@ fields:
   # An instalment with a payment plan cannot be deleted from under it.
   - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true, on_parent_delete: restrict }
   - { id: fld_plan_no, name: Plan no., type: text, required: true, set_once: true }
-  - { id: fld_plan_amount, name: Planned amount (net), type: money, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
+  - { id: fld_plan_amount, name: Planned amount (net), type: money, currency: IDR, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
   - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
   - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }
   - { id: fld_requested_by, name: Requested by, type: person, stamp: current_user }
@@ -98,3 +98,8 @@ datasets:
     select: records
     where: { field: id, op: equals, value: $parameters.id }
     limit: 1
+  # The plan list's total row (K02b).
+  - id: ds_plan_totals
+    measures:
+      - { id: msr_plan_count, aggregate: count }
+      - { id: msr_plan_amount, aggregate: sum, field: fld_plan_amount }

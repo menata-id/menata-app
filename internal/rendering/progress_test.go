@@ -47,7 +47,7 @@ func TestProgressRow_fillsToTheShareAndSaysItInWords(t *testing.T) {
 		{"2", "3", "width:66%"}, {"3", "3", "width:100%"}, {"5", "3", "width:100%"}, {"0", "0", "width:0%"}, {"1", "0", "width:0%"}, {"-2", "3", "width:0%"},
 	} {
 		var buf bytes.Buffer
-		if err := progressRow("Silvia", tc.value, tc.max).Render(context.Background(), &buf); err != nil {
+		if err := progressRow("Silvia", tc.value, tc.max, "").Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
 		html := buf.String()

@@ -1481,7 +1481,7 @@ func TestWells_followTheirBackgroundRole(t *testing.T) {
 	}}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
 	var buf strings.Builder
-	if err := progressRow("Ana", "1", "2").Render(ctx, &buf); err != nil {
+	if err := progressRow("Ana", "1", "2", "").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(resolveColourRoles(t, ctx, buf.String()), "h-2 grow overflow-hidden rounded-full bg-white") {

@@ -634,8 +634,10 @@ func TestDeclaredPage_aReferenceDimensionIsNamedByTheRelatedRecordsTitle(t *test
 			t.Fatal(err)
 		}
 		want := []ir.Row{
-			{Label: "Alpha launch", Key: ids["Alpha launch"], Value: "2", Measures: map[string]string{"msr_total": "2"}},
-			{Label: "Zebra launch", Key: ids["Zebra launch"], Value: "1", Measures: map[string]string{"msr_total": "1"}},
+			// Numbers (the bare figures a fraction's bar reads) and Attrs (the related record's own Fields, a Table's
+			// `row:<field>` columns) ride along since 2026-10-18.
+			{Label: "Alpha launch", Key: ids["Alpha launch"], Value: "2", Measures: map[string]string{"msr_total": "2"}, Numbers: map[string]string{"msr_total": "2"}, Attrs: map[string]string{"fld_name": "Alpha launch"}},
+			{Label: "Zebra launch", Key: ids["Zebra launch"], Value: "1", Measures: map[string]string{"msr_total": "1"}, Numbers: map[string]string{"msr_total": "1"}, Attrs: map[string]string{"fld_name": "Zebra launch"}},
 		}
 		if !reflect.DeepEqual(rows, want) {
 			t.Fatalf("run %d: rows = %v, want %v", i, rows, want)

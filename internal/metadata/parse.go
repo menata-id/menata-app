@@ -213,7 +213,8 @@ type predicateDoc struct {
 // expression.Comparison.Optional, valid only on a records Dataset comparing against a `$parameters.<name>`.
 type filterDoc struct {
 	comparisonDoc `yaml:",inline"`
-	Optional      bool `yaml:"optional"`
+	Optional      bool   `yaml:"optional"`
+	IfParam       string `yaml:"if_param"`
 }
 
 // predicate lowers the doc into the one representation, so a single comparison and a one-element
@@ -226,12 +227,12 @@ func (d *predicateDoc) predicate() *expression.Predicate {
 	lower := func(docs []filterDoc) []expression.Comparison {
 		var out []expression.Comparison
 		for _, c := range docs {
-			out = append(out, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value, Optional: c.Optional})
+			out = append(out, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value, Optional: c.Optional, IfParam: c.IfParam})
 		}
 		return out
 	}
 	out := &expression.Predicate{All: lower(d.All), Any: lower(d.Any)}
-	if len(out.All) == 0 && (d.Field != "" || d.Op != "" || d.Value != "" || d.Optional) {
+	if len(out.All) == 0 && (d.Field != "" || d.Op != "" || d.Value != "" || d.Optional || d.IfParam != "") {
 		out.All = lower([]filterDoc{d.filterDoc})
 	}
 	if len(out.All) == 0 && len(out.Any) == 0 {
@@ -307,6 +308,8 @@ type fieldDoc struct {
 	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
 	// LockedWhen, SetOnce and OnParentDelete: see domain.Field.
+	// Currency: see domain.Field.Currency.
+	Currency string `yaml:"currency"`
 	// Categories: see domain.Field.Categories.
 	Categories     map[string]string `yaml:"categories"`
 	LockedWhen     *requiredWhenDoc  `yaml:"locked_when"`
@@ -619,6 +622,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			categories[option] = domain.StatusCategory(c)
 		}
 		m.Fields = append(m.Fields, domain.Field{
+			Currency:       fd.Currency,
 			Categories:     categories,
 			LockedWhen:     lockedWhen,
 			SetOnce:        fd.SetOnce,
