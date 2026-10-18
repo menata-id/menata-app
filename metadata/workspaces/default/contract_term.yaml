@@ -8,6 +8,13 @@ fields:
   # A contract with instalments cannot be deleted from under them (K-13).
   - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
   - { id: fld_term_label, name: Label, type: text, required: true }
+  # What an instalment says of its contract, kept on it by the runtime so the instalments of every contract can be listed,
+  # searched and filtered by them (K02a): the contract's party, number and category (inherited fields), and the instalment
+  # as people name it, "Dimas Prayoga -- Week 2".
+  - { id: fld_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }
+  - { id: fld_contract_ref, name: Contract no., type: text, compute: { parent: fld_contract.fld_contract_no } }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+  - { id: fld_term_title, name: Instalment, type: text, compute: { join: { with: " — ", of: [fld_party, fld_term_label] } } }
   # A paid instalment's figures are the record of a payment: they stay as they were paid (owner decision K1).
   - { id: fld_gross, name: Gross, type: money, currency: IDR, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_vat, name: VAT, type: money, currency: IDR, locked_when: { field: fld_term_status, equals: Paid } }
@@ -29,7 +36,7 @@ fields:
         - { count_children: { machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, equals: Rejected } } }
 
 card_fields:
-  - { field: fld_term_label, role: title }
+  - { field: fld_term_title, role: title }
   - { field: fld_contract, role: container }
   - { field: fld_gross, role: money }
   - { field: fld_term_status, role: status }
@@ -135,10 +142,14 @@ datasets:
     where:
       all:
         - { field: fld_term_status, op: not_equals, value: Paid }
+        - { field: fld_category, op: equals, value: $parameters.category, optional: true }
         - { field: fld_term_status, op: equals, value: Overdue, if_param: view=overdue }
         - { field: fld_term_status, op: not_equals, value: Overdue, if_param: view=due }
         - { field: fld_due_date, op: lte, value: $today+7, if_param: view=due }
         - { field: fld_plans, op: equals, value: "0", if_param: view=noplan }
+      any:
+        - { field: fld_party, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_contract_ref, op: contains, value: $parameters.q, optional: true }
     relations:
       - { id: rel_term_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
     sort: [{ field: fld_due_date, direction: asc }]
@@ -155,3 +166,8 @@ datasets:
     where: { field: fld_contract, op: equals, value: $parameters.contract }
     sort: [{ field: fld_due_date, direction: asc }]
     limit: 100
+  # The category dropdown of the instalment list (K02a): the unpaid instalments by their contract's category.
+  - id: ds_instalments_by_category
+    dimension: fld_category
+    measures:
+      - { id: msr_unpaid_by_category, aggregate: count, where: { field: fld_term_status, op: not_equals, value: Paid } }

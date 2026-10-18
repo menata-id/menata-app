@@ -117,21 +117,39 @@ navigation:
                       from: { text: container }
                 - static: caption
                   from: { text: money }
-        - component: FilterChips
-          label: Instalment views
-          query: view
-          all: All
-          options: "overdue=Overdue\ndue=Due ≤ 7 days\nnoplan=No plan"
-          counts: { all: msr_unpaid_count, overdue: msr_overdue_count, due: msr_due_soon_count, noplan: msr_no_plan_count }
-          binding: { dataset: ds_instalment_figures, rows: total }
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - component: FilterChips
+              label: Instalment views
+              query: view
+              all: All
+              options: "overdue=Overdue\ndue=Due ≤ 7 days\nnoplan=No plan"
+              counts: { all: msr_unpaid_count, overdue: msr_overdue_count, due: msr_due_soon_count, noplan: msr_no_plan_count }
+              binding: { dataset: ds_instalment_figures, rows: total }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search instalments
+                  query: q
+                  placeholder: Search counterparty or contract
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_instalments_by_category, measure: msr_unpaid_by_category, rows: dimension }
         - component: Table
           label: Unpaid instalments
           empty: Nothing in this view.
           framed: true
           columns:
             - { header: Due date, field: fld_due_date }
-            - { header: Instalment, field: fld_term_label, href: record }
-            - { header: Contract, field: fld_contract }
+            - { header: Instalment, field: fld_term_title, href: record, under: fld_contract_ref }
+            - { header: Category, field: fld_category }
             - { header: Gross, field: fld_gross, align: end }
             - { header: Status, field: fld_term_status }
             - { header: Payment plan, related: rel_term_plans }
@@ -177,10 +195,19 @@ navigation:
               query: status
               all: All
               binding: { dataset: ds_plans_by_status, measure: msr_plans_by_status, rows: dimension }
-            - component: SearchBox
-              label: Search payment plans
-              query: q
-              placeholder: Search plan number
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search payment plans
+                  query: q
+                  placeholder: Search number or counterparty
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_plans_by_category, measure: msr_plans_by_category, rows: dimension }
         - component: Table
           label: Payment plans
           empty: No payment plan matches.
@@ -189,6 +216,7 @@ navigation:
           columns:
             - { header: Plan no., field: fld_plan_no, href: record, total: count, total_label: plans }
             - { header: Instalment, field: fld_term }
+            - { header: Category, field: fld_plan_category }
             - { header: Net, field: fld_plan_amount, align: end, total: sum }
             - { header: Planned, field: fld_plan_date }
             - { header: Paid on, field: fld_paid_date }

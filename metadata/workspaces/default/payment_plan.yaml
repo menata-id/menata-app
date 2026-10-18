@@ -8,6 +8,9 @@ fields:
   # An instalment with a payment plan cannot be deleted from under it.
   - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true, on_parent_delete: restrict }
   - { id: fld_plan_no, name: Plan no., type: text, required: true, set_once: true }
+  # What a plan says of its instalment's contract (K02b): searched by counterparty and filtered by category, two hops down.
+  - { id: fld_plan_party, name: Contracted party, type: text, compute: { parent: fld_term.fld_party } }
+  - { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }
   - { id: fld_plan_amount, name: Planned amount (net), type: money, currency: IDR, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
   - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
   - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }
@@ -86,7 +89,10 @@ datasets:
     where:
       all:
         - { field: fld_plan_status, op: equals, value: $parameters.status, optional: true }
+        - { field: fld_plan_category, op: equals, value: $parameters.category, optional: true }
+      any:
         - { field: fld_plan_no, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_plan_party, op: contains, value: $parameters.q, optional: true }
     sort: [{ field: fld_plan_no, direction: desc }]
     limit: 100
   - id: ds_plans_by_status
@@ -103,3 +109,8 @@ datasets:
     measures:
       - { id: msr_plan_count, aggregate: count }
       - { id: msr_plan_amount, aggregate: sum, field: fld_plan_amount }
+  # The category dropdown of the plan list (K02b).
+  - id: ds_plans_by_category
+    dimension: fld_plan_category
+    measures:
+      - { id: msr_plans_by_category, aggregate: count }

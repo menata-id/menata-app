@@ -215,6 +215,7 @@ navigation:
     title: Contract
     route: /pages/nav_contract
     record_of: mch_contract
+    back_to: nav_contracts
     page:
       layout: stack
       gap: comfortable
@@ -282,6 +283,11 @@ navigation:
                         - component: Form
                           submit: Save
                           binding: { write: update }
+                    - component: Button
+                      label: Delete
+                      variant: danger
+                      confirm: Delete this contract?
+                      binding: { write: delete }
                 - layout: grid
                   gap: default
                   columns: 2
@@ -385,12 +391,13 @@ navigation:
           empty: No instalment yet. Add the first one above.
           framed: true
           columns:
-            - { header: Label, field: fld_term_label }
+            - { header: "#", from: "row:number" }
+            - { header: Label, field: fld_term_label, total: count, total_label: instalments }
             - { header: Due date, field: fld_due_date }
-            - { header: Gross, field: fld_gross, align: end }
-            - { header: VAT, field: fld_vat, align: end }
-            - { header: WHT, field: fld_wht, align: end }
-            - { header: Net, field: fld_net, align: end }
+            - { header: Gross, field: fld_gross, align: end, total: sum }
+            - { header: VAT, field: fld_vat, align: end, total: sum }
+            - { header: WHT, field: fld_wht, align: end, total: sum }
+            - { header: Net, field: fld_net, align: end, total: sum }
             - { header: Status, field: fld_term_status }
           binding: { dataset: ds_contract_terms, rows: records }
           children:
