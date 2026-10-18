@@ -229,12 +229,14 @@ func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
 				c.Of = val.Value
 			case "related":
 				c.Related = val.Value
+			case "under":
+				c.Under = val.Value
 			case "total":
 				c.Total = val.Value
 			case "total_label":
 				c.TotalLabel = val.Value
 			default:
-				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, field or related, of, align, href, total, total_label)", key.Line, key.Value)
+				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, field or related, under, of, align, href, total, total_label)", key.Line, key.Value)
 			}
 		}
 		out = append(out, c)
@@ -410,7 +412,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 	if p.binding != nil {
 		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action, Transition: p.binding.Transition}
 		for _, c := range p.columns {
-			for _, id := range []string{c.Field, c.Of} {
+			for _, id := range []string{c.Field, c.Of, c.Under} {
 				if id != "" && c.Field != "" && !slices.Contains(out.Binding.Fields, id) {
 					out.Binding.Fields = append(out.Binding.Fields, id)
 				}
@@ -882,6 +884,9 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		if c.Field != "" {
 			fieldRefs = append(fieldRefs, c.Field)
 		}
+		if c.Under != "" {
+			fieldRefs = append(fieldRefs, c.Under)
+		}
 		if c.Of != "" {
 			fieldRefs = append(fieldRefs, c.Of)
 			for _, id := range []string{c.Field, c.Of} {
@@ -921,7 +926,7 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	}
 	roles := fromRoles(n.Children)
 	for _, c := range n.Columns {
-		if c.From != "" && c.From != domain.PageRecordRole && !domain.PageDerivedRole(c.From) {
+		if c.From != "" && c.From != domain.PageRecordRole && c.From != domain.PageRowPositionColumn && !domain.PageDerivedRole(c.From) {
 			roles[c.From] = true
 		}
 	}

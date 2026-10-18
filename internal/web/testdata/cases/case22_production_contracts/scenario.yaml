@@ -307,14 +307,14 @@ steps:
     as: silvia
     view:
       path: /pages/nav_unpaid
-      shows: [">All", ">2<", ">No plan", ">1<", ">First shooting day<", ">PP-0150<", ">Submitted<", ">Wrap<", ">Create plan<"]
+      shows: [">All", ">2<", ">No plan", ">1<", ">1<", ">Reza Anggara — First shooting day<", ">CTR/C/026<", ">PP-0150<", ">Submitted<", ">Reza Anggara — Wrap<", ">Create plan<"]
     expect: ok
   - id: the-no-plan-view
     as: silvia
     view:
       path: /pages/nav_unpaid?view=noplan
-      shows: [">Wrap<", ">Create plan<", 'aria-current="true"']
-      hides: [">First shooting day<", ">PP-0150<"]
+      shows: [">Reza Anggara — Wrap<", ">Create plan<", 'aria-current="true"']
+      hides: [">Reza Anggara — First shooting day<", ">PP-0150<"]
     expect: ok
   # A rejected plan is not a plan (owner, 2026-10-18): the instalment stays in No plan, with Create plan, and the
   # Payment plan column does not name the rejected one.
@@ -346,7 +346,7 @@ steps:
     as: silvia
     view:
       path: /pages/nav_unpaid?view=noplan
-      shows: [">Wrap<", ">Create plan<"]
+      shows: [">Reza Anggara — Wrap<", ">Create plan<"]
       hides: [">PP-0151<", ">Rejected<"]
     expect: ok
 

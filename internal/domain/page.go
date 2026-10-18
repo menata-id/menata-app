@@ -118,11 +118,18 @@ type PageColumn struct {
 	// Related (`related: rel_x`) shows the first record a Dataset's Relation found for the row -- its title and, when it
 	// has one, its status in its tone (K02a's "PP-0146 Submitted").
 	Related string
+	// Under, beside field:, draws a second line in the cell: another Field of the same record, smaller, under the first
+	// ("Dimas Prayoga -- Week 2" over "CTR/K/031", mockup K02a's Instalment).
+	Under string
 	// Total puts this column in the Table's total row, added up from the rows shown: `sum` (a fraction's both figures,
 	// with `of:`) or `count`. TotalLabel words it ("9 contracts" from total: count, total_label: contracts; alone, a
 	// label such as "Total").
 	Total, TotalLabel string
 }
+
+// PageRowPositionColumn is a column's `from:` that shows the row's own place in the list, 1 first (mockup K01d's "#"). It
+// is a position, never a stored value, so no Dataset or Machine is asked for it.
+const PageRowPositionColumn = "row:number"
 
 // PageRowNumberRole is the key of a Field's or a Measure's bare number in a row (`num:fld_x`, `num:msr_x`), what a
 // fraction's bar is drawn from; the figure a person reads is the field: or measure: one.

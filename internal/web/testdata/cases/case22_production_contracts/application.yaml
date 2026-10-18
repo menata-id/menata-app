@@ -210,7 +210,8 @@ navigation:
         - component: Table
           label: Unpaid instalments
           columns:
-            - { header: Instalment, field: fld_term_label }
+            - { header: "#", from: "row:number" }
+            - { header: Instalment, field: fld_term_title, under: fld_contract_ref }
             - { header: Payment plan, related: rel_plans }
           binding: { dataset: ds_terms_unpaid, rows: records }
           children:

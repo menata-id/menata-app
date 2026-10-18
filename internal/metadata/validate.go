@@ -1868,6 +1868,9 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 	if tree.Inherited() {
 		return validateInherited(f, tree, fieldsByID)
 	}
+	if tree.Op == domain.ComputeJoin {
+		return validateJoin(f, tree, fieldsByID)
+	}
 	if !domain.KnownComputeOps[tree.Op] {
 		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, tree.Op, sortedComputeOps()))
 		return issues
@@ -1905,6 +1908,45 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 // validateInherited holds an inherited Field (`compute: {parent: fld_contract.fld_category}`: the value is the related
 // record's own, whatever its type) to what such a Field is: written by the runtime, reached through a relation of this
 // Machine. That the parent's Field exists and is of the same type is validateComputeTargets' question.
+// validateJoin holds a joined Field to what it is: a text Field written by the runtime from the words of text or status
+// Fields of its own record (never itself) or of a related record's (`parent:`, whose type validateComputeTargets reads).
+func validateJoin(f domain.Field, tree domain.ComputeExpr, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	if f.Type != domain.FieldTypeText {
+		issues = append(issues, fmt.Sprintf("field %q: compute join is only valid on a text field, got type %q", f.ID, f.Type))
+	}
+	if f.Required {
+		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot be required -- nobody enters it", f.ID))
+	}
+	if f.Default != nil {
+		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot declare a default -- its value is always derived", f.ID))
+	}
+	if len(tree.Args) == 0 {
+		issues = append(issues, fmt.Sprintf("field %q: compute join: needs at least one operand in of:", f.ID))
+	}
+	for _, a := range tree.Args {
+		switch {
+		case a.Parent != nil:
+			if via, ok := fieldsByID[a.Parent.Via]; !ok || via.Type != domain.FieldTypeRelation {
+				issues = append(issues, fmt.Sprintf("field %q: compute: parent: %s.%s goes through %q, which is not a relation field of this machine", f.ID, a.Parent.Via, a.Parent.Field, a.Parent.Via))
+			}
+		case a.Op == "" && a.Field != "":
+			operand, ok := fieldsByID[a.Field]
+			switch {
+			case a.Field == f.ID:
+				issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
+			case !ok:
+				issues = append(issues, fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, a.Field))
+			case operand.Type != domain.FieldTypeText && operand.Type != domain.FieldTypeStatus:
+				issues = append(issues, fmt.Sprintf("field %q: compute join: operand %q must be a text or status field, got type %q", f.ID, a.Field, operand.Type))
+			}
+		default:
+			issues = append(issues, fmt.Sprintf("field %q: compute join: an operand is a Field id or parent:, not a number or an operation", f.ID))
+		}
+	}
+	return issues
+}
+
 // describeField is a Field's type as an issue says it: "relation to mch_category", "status [A B]".
 func describeField(f domain.Field) string {
 	switch {
@@ -2097,6 +2139,10 @@ func validateComputeTargets(machines []*domain.Machine) error {
 						// to the same Machine, a status with the same options): what is stored is then what is read.
 						if target.Type != f.Type || target.RelatedMachine != f.RelatedMachine || !slices.Equal(target.Options, f.Options) {
 							issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is %s, and this field is %s: an inherited field is declared as the field it takes", where, p.Via, p.Field, describeField(target), describeField(f)))
+						}
+					case f.Compute.Tree().Op == domain.ComputeJoin:
+						if target.Type != domain.FieldTypeText && target.Type != domain.FieldTypeStatus {
+							issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is a %s field, and a join writes words from text or status fields", where, p.Via, p.Field, target.Type))
 						}
 					case !target.Type.IsNumeric():
 						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is a %s field, and a computed value reads a figure", where, p.Via, p.Field, target.Type))

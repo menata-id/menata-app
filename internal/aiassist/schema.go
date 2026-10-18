@@ -171,7 +171,7 @@ func computeOpEnum() []string {
 		// The assistant writes the flat shape -- an operation over Fields -- so an operation that needs a literal (round)
 		// or another Machine (sum_children, count_children) is not offered: it would only ever be refused.
 		switch op {
-		case domain.ComputeRound, domain.ComputeSumChildren, domain.ComputeCountChildren:
+		case domain.ComputeRound, domain.ComputeSumChildren, domain.ComputeCountChildren, domain.ComputeJoin:
 			continue
 		}
 		ops = append(ops, string(op))

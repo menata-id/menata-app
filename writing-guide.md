@@ -347,6 +347,7 @@ with its operands as a list, nested as deep as the value needs:
 | `round` | a figure and, optionally, a literal number of decimals | a figure |
 | `add_days`, `add_months` | a date and a figure | a date |
 | `sum_children`, `count_children` | `{machine, via, field, where: {field, equals}}`: the records of `machine` whose relation `via` points here | a figure |
+| `join` | `{with: " — ", of: [fld_party, fld_term_label]}`: text or status Fields (or `parent:`) written one after another, empty ones skipped | text (on a `text` Field) |
 
 An operand is a Field id of the record, a number, `{parent: fld_contract.fld_value}` (a Field of the record a relation points
 at, which must not be computed itself), or another operation. A computed value may read another computed value of the same
@@ -1853,6 +1854,10 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   Dataset's bound cut has no total row.
 - **`related: rel_x`** shows the first record a Dataset's Relation found for the row (named by its title, else its first
   Field of its own words, never an id) and its status in its tone.
+- **`under: fld_x`** beside `field:` draws a second line in the cell, smaller: another Field of the same record
+  (`{header: Instalment, field: fld_term_title, under: fld_contract_ref}` -- K02a's "Dimas Prayoga — Week 2" over
+  "CTR/K/031"). Nothing in it leaves the cell as it was. **`from: "row:number"`** shows the row's place, 1 first (K01d's
+  "#").
 - A row action may read a Field by id in `when:` -- `when: {role: "field:fld_plans", is: "0"}` draws "Create plan" only
   where an instalment has none.
 - **Money and days:** a `money` Field may declare **`currency: IDR`** ("Rp 180,000,000"; also USD, EUR, GBP, SGD, MYR, AUD,

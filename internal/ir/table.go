@@ -59,6 +59,8 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		switch {
 		case strings.TrimSpace(c.Header) == "" || strings.ContainsAny(c.Header, "\n\r"):
 			return nil, fmt.Errorf("%s: header: words on one line", where)
+		case c.Under != "" && (c.Field == "" || c.Of != ""):
+			return nil, fmt.Errorf("%s: under: is a second line under a Field's value, so it sits beside field: and not of:", where)
 		case countNonEmpty(c.From, c.Field, c.Related) != 1:
 			return nil, fmt.Errorf("%s: a column shows exactly one of from: (a Projection role, or row:/measure: on a Dimension's rows), field: (a Field id) or related: (a Relation)", where)
 		case c.Of != "" && c.Field == "" && !strings.HasPrefix(c.From, "measure:"):
@@ -145,11 +147,17 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 				key = domain.PageRelatedRole(c.Related)
 			}
 			text, ok := rec[key]
+			if c.From == domain.PageRowPositionColumn {
+				text, ok = strconv.Itoa(i+1), true
+			}
 			// A Dimension row's related-record Field may be unset (a category with no type yet): an empty cell.
 			if !ok && !set.ShapeOnly && !(dimension && strings.HasPrefix(key, "row:")) {
 				return nil, fmt.Errorf("%s.columns[%d]: the column shows %q, which the bound Dataset's Machine does not project (record %d)", path, j, key, i)
 			}
 			cell, err := tableCell(c, text, rec)
+			if err == nil && c.Under != "" {
+				cell = underCell(cell, rec[domain.PageFieldRole(c.Under)])
+			}
 			if err != nil {
 				return nil, fmt.Errorf("%s.columns[%d]: record %d: %w", path, j, i, err)
 			}
@@ -315,6 +323,16 @@ func countNonEmpty(values ...string) int {
 // `status` role, or a status Field named by field:, is a StatusBadge in the tone the Machine's `status_categories:`
 // gives the option (resolved by the Data Plane, never here), the way the generic list draws it; anything else is a
 // paragraph.
+// underCell is a cell with a second line under it: a stack of the cell and a caption, so one row reads as two lines in
+// one column. Nothing under it leaves the cell as it was.
+func underCell(cell UINode, under string) UINode {
+	if under == "" {
+		return cell
+	}
+	return UINode{Kind: NodeLayout, Type: string(domain.LayoutStack), Props: map[string]string{"gap": string(domain.GapMicro)},
+		Children: []UINode{cell, {Kind: NodeStatic, Type: string(domain.StaticCaption), Props: map[string]string{"text": under}}}}
+}
+
 func tableCell(c domain.PageColumn, text string, rec map[string]string) (UINode, error) {
 	badge := func(tone string) UINode {
 		if !domain.KnownBadgeTones[domain.BadgeTone(tone)] {

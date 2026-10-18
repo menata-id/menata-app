@@ -333,13 +333,17 @@ const (
 	// status holds a value. Stored on this record and recomputed whenever one of them is written.
 	ComputeSumChildren   ComputeOp = "sum_children"
 	ComputeCountChildren ComputeOp = "count_children"
+	// ComputeJoin is words from words: the non-empty values of its operands (text or status Fields of the record, or a
+	// related record's, `parent:`) written one after another with a separator between -- "Dimas Prayoga — Week 2" from the
+	// contract's party and the instalment's label. A text Field, never a figure.
+	ComputeJoin ComputeOp = "join"
 )
 
 // KnownComputeOps is the closed set of operations a computed Field may declare.
 var KnownComputeOps = map[ComputeOp]bool{
 	ComputeSum: true, ComputeAddDays: true, ComputeSubtract: true, ComputeMultiply: true, ComputeDivide: true,
 	ComputeRound: true, ComputeMin: true, ComputeMax: true, ComputeAddMonths: true,
-	ComputeSumChildren: true, ComputeCountChildren: true,
+	ComputeSumChildren: true, ComputeCountChildren: true, ComputeJoin: true,
 }
 
 // DateLayout is how a date Field is stored: a calendar day, no time.
@@ -360,6 +364,8 @@ type FieldCompute struct {
 // ComputeExpr is one node of a computed value: an operation over its Args, or a leaf -- a Field of the record, a
 // Number, a Parent's Field, or (for sum_children/count_children) the Children it aggregates.
 type ComputeExpr struct {
+	// Sep is what ComputeJoin writes between its operands (`join: {with: " — ", of: [...]}`).
+	Sep      string
 	Op       ComputeOp
 	Args     []ComputeExpr
 	Field    string
@@ -552,6 +558,16 @@ func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
 			return addMonths(day, int(n)).Format(DateLayout), true
 		}
 		return day.AddDate(0, 0, int(n)).Format(DateLayout), true
+	case ComputeJoin:
+		var words []string
+		for _, a := range e.Args {
+			if v, ok := a.Eval(values, env); ok {
+				if s := strings.TrimSpace(fmt.Sprint(v)); s != "" {
+					words = append(words, s)
+				}
+			}
+		}
+		return strings.Join(words, e.Sep), len(words) > 0
 	case ComputeSumChildren, ComputeCountChildren:
 		if e.Children == nil {
 			return nil, false

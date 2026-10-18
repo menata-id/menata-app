@@ -319,3 +319,42 @@ func TestAMoneyTotalOfZeroDropsItsAlarm(t *testing.T) {
 		}
 	}
 }
+
+// TestATableCellMaySayASecondLineAndARowItsPlace: `under:` draws another Field of the record as a caption under the
+// cell ("Dimas Prayoga -- Week 2" over "CTR/K/031", K02a), `from: row:number` the row's own place (K01d's "#"); an empty
+// second line leaves the cell as it was, and `under:` beside anything but `field:` is refused.
+func TestATableCellMaySayASecondLineAndARowItsPlace(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentTable)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentTable)})
+	rec := func(title, ref string) map[string]string {
+		return map[string]string{"field:fld_title": title, "field:fld_ref": ref}
+	}
+	root := func(cols ...domain.PageColumn) domain.PageNode {
+		return domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{tableNode(cols...)}}
+	}
+	tree, err := Lower(root(
+		domain.PageColumn{Header: "#", From: domain.PageRowPositionColumn},
+		domain.PageColumn{Header: "Instalment", Field: "fld_title", Under: "fld_ref"},
+	), tableRecords(rec("Dimas — Week 2", "CTR/K/031"), rec("Nadia — Week 2", "")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cells := tree.Children[0].Children
+	if cells[0].Props["text"] != "1" || cells[2].Props["text"] != "2" {
+		t.Errorf("row places %q and %q, want 1 and 2", cells[0].Props["text"], cells[2].Props["text"])
+	}
+	two := cells[1]
+	if two.Type != string(domain.LayoutStack) || len(two.Children) != 2 || two.Children[0].Props["text"] != "Dimas — Week 2" ||
+		two.Children[1].Type != string(domain.StaticCaption) || two.Children[1].Props["text"] != "CTR/K/031" {
+		t.Errorf("the second line is %+v, want the cell over a caption of the contract no.", two)
+	}
+	if one := cells[3]; one.Type != string(domain.StaticParagraph) || one.Props["text"] != "Nadia — Week 2" {
+		t.Errorf("a cell with nothing under it is %+v, want the plain cell", one)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a lowered Table is not a valid tree: %v", issues)
+	}
+	if _, err := Lower(root(domain.PageColumn{Header: "X", From: "title", Under: "fld_ref"}), tableRecords(rec("a", "b"))); err == nil || !strings.Contains(err.Error(), "under:") {
+		t.Errorf("under: beside from: was not refused: %v", err)
+	}
+}

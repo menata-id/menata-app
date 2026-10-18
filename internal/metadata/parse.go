@@ -412,6 +412,26 @@ func parseComputeExpr(n *yaml.Node) (domain.ComputeExpr, error) {
 				agg.Where = &domain.FieldCondition{Field: doc.Where.Field, Equals: doc.Where.Equals}
 			}
 			return domain.ComputeExpr{Op: op, Children: agg}, nil
+		case op == domain.ComputeJoin:
+			var doc struct {
+				With string      `yaml:"with"`
+				Of   []yaml.Node `yaml:"of"`
+			}
+			if val.Kind != yaml.MappingNode {
+				return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: join is {with: \" -- \", of: [fld_a, fld_b]}", val.Line)
+			}
+			if err := val.Decode(&doc); err != nil {
+				return domain.ComputeExpr{}, err
+			}
+			e := domain.ComputeExpr{Op: op, Sep: doc.With}
+			for i := range doc.Of {
+				arg, err := parseComputeExpr(&doc.Of[i])
+				if err != nil {
+					return domain.ComputeExpr{}, err
+				}
+				e.Args = append(e.Args, arg)
+			}
+			return e, nil
 		case domain.KnownComputeOps[op]:
 			if val.Kind != yaml.SequenceNode {
 				return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: %s takes a list of operands", val.Line, key)

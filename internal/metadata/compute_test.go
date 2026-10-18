@@ -283,3 +283,43 @@ fields:
 		})
 	}
 }
+
+// TestAJoinedFieldIsTextFromWords: `compute: {join: {with: " — ", of: [fld_party, fld_label]}}` is a text Field written
+// from the words of text or status Fields (its own record's, or a parent's), never a figure or itself.
+func TestAJoinedFieldIsTextFromWords(t *testing.T) {
+	const src = `id: mch_term
+name: Term
+fields:
+  - { id: fld_party, name: Party, type: text }
+  - { id: fld_label, name: Label, type: text }
+  - { id: fld_n, name: N, type: number }
+  - { id: fld_title, name: Title, type: text, compute: { join: { with: " — ", of: [fld_party, fld_label] } } }
+`
+	load := func(s string) error {
+		m, err := Parse([]byte(s))
+		if err != nil {
+			return err
+		}
+		return Validate(m)
+	}
+	if err := load(src); err != nil {
+		t.Fatalf("a well-formed join was refused: %v", err)
+	}
+	for name, tc := range map[string]struct{ from, to, want string }{
+		"on a number":      {"{ id: fld_title, name: Title, type: text", "{ id: fld_title, name: Title, type: number", "only valid on a text field"},
+		"a figure operand": {"of: [fld_party, fld_label]", "of: [fld_party, fld_n]", "must be a text or status field"},
+		"itself":           {"of: [fld_party, fld_label]", "of: [fld_party, fld_title]", "names itself"},
+		"a number literal": {"of: [fld_party, fld_label]", "of: [fld_party, 3]", "not a number or an operation"},
+		"nothing":          {"of: [fld_party, fld_label]", "of: []", "at least one operand"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := strings.Replace(src, tc.from, tc.to, 1)
+			if s == src {
+				t.Fatalf("fixture edit %q did not apply", tc.from)
+			}
+			if err := load(s); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("got %v, want an error naming %q", err, tc.want)
+			}
+		})
+	}
+}

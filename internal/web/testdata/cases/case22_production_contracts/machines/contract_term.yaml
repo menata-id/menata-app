@@ -9,6 +9,8 @@ fields:
   - { id: fld_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }
   - { id: fld_contract_ref, name: Contract no., type: text, compute: { parent: fld_contract.fld_contract_no } }
   - { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+  # The instalment as people name it: "Reza Anggara -- First shooting day" (words from words, nobody types it).
+  - { id: fld_term_title, name: Instalment, type: text, compute: { join: { with: " — ", of: [fld_party, fld_term_label] } } }
   # A paid instalment's figures are a record of a payment: they stay as they were paid.
   - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   # VAT and WHT are typed as the figures on the invoice; net is gross less both (plan A1, K-9).

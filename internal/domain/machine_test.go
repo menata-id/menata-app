@@ -135,3 +135,24 @@ func TestFieldComputeAddDays(t *testing.T) {
 		t.Error("a single operand derived a value")
 	}
 }
+
+// TestJoinWritesTheNonEmptyWordsWithItsSeparator: "Dimas — Week 2" from a party and a label; an empty operand leaves no
+// dangling separator, and nothing at all is no value.
+func TestJoinWritesTheNonEmptyWordsWithItsSeparator(t *testing.T) {
+	join := ComputeExpr{Op: ComputeJoin, Sep: " — ", Args: []ComputeExpr{{Field: "fld_party"}, {Field: "fld_label"}}}
+	for name, tc := range map[string]struct {
+		values map[string]any
+		want   string
+		ok     bool
+	}{
+		"both":     {map[string]any{"fld_party": "Dimas", "fld_label": "Week 2"}, "Dimas — Week 2", true},
+		"no party": {map[string]any{"fld_label": "Week 2"}, "Week 2", true},
+		"blank":    {map[string]any{"fld_party": "  ", "fld_label": "Week 2"}, "Week 2", true},
+		"nothing":  {map[string]any{}, "", false},
+	} {
+		got, ok := join.Eval(tc.values, nil)
+		if ok != tc.ok || (ok && got != tc.want) {
+			t.Errorf("%s: join = %q, %v; want %q, %v", name, got, ok, tc.want, tc.ok)
+		}
+	}
+}
