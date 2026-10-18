@@ -1469,3 +1469,59 @@ func TestAConditionalComparisonNeverTurnsOffAScope(t *testing.T) {
 		t.Errorf("a named view was refused: %q", got)
 	}
 }
+
+// TestAFileIsReadThroughItsFileRoles: a file Field's value is a storage key, which a page never reads as `field:`; it
+// reads the file's name with its size (`file:`) and the address that serves it (`filehref:`) -- and only of a file Field.
+func TestAFileIsReadThroughItsFileRoles(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{
+		{ID: "fld_title", Type: domain.FieldTypeText}, {ID: "fld_doc", Type: domain.FieldTypeFile},
+	}, CardFields: []domain.CardField{{Field: "fld_title", Role: domain.CardFieldRoleTitle}}}
+	ds := domain.Dataset{ID: "ds_a", Source: "mch_x", Select: domain.SelectRecords}
+	run := func(from map[string]string) string {
+		node := domain.PageNode{Kind: "component", Type: "Collection", Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+			Children: []domain.PageNode{{Kind: "static", Type: "link", From: from}}}
+		return strings.Join(bindingIssues(node, map[string]domain.Dataset{"ds_a": ds}, map[string]*domain.Machine{"mch_x": m}, nil, "w"), "\n")
+	}
+	if got := run(map[string]string{"text": "file:fld_doc", "href": "filehref:fld_doc"}); got != "" {
+		t.Errorf("a file's name and address were refused: %s", got)
+	}
+	for name, tc := range map[string]struct {
+		from map[string]string
+		want string
+	}{
+		"a text Field":    {map[string]string{"text": "file:fld_title"}, "only a file Field has a file to name"},
+		"no such Field":   {map[string]string{"text": "filehref:fld_nope"}, "has no such Field"},
+		"a file as field": {map[string]string{"text": "field:fld_doc"}, "storage key"},
+	} {
+		if got := run(tc.from); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}
+
+// TestAFormStartsWithARequestValueOrIsFixedToItNeverBoth: `starts:` begins a Field with a `$parameters.` value and leaves it a
+// control (what a Copy link carries over); like `values:` it names a Field the form asks for and takes a request value; a Field
+// is fixed or started, not both.
+func TestAFormStartsWithARequestValueOrIsFixedToItNeverBoth(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "fld_name", Type: domain.FieldTypeText}, {ID: "fld_value", Type: domain.FieldTypeMoney}}}
+	ds := domain.Dataset{ID: "ds_x", Source: "mch_x", Select: domain.SelectRecords}
+	run := func(b domain.PageBinding) string {
+		b.Dataset, b.Write = "ds_x", domain.PageWriteCreate
+		return strings.Join(writeBindingIssues(b, ds, m, "w"), "\n")
+	}
+	if got := run(domain.PageBinding{Starts: map[string]string{"fld_name": "$parameters.fld_name"}}); got != "" {
+		t.Errorf("a start was refused: %s", got)
+	}
+	for name, tc := range map[string]struct {
+		b    domain.PageBinding
+		want string
+	}{
+		"not a Field the form asks for": {domain.PageBinding{Starts: map[string]string{"fld_nope": "$parameters.x"}}, "starts: fld_nope is not a Field this form asks for"},
+		"a typed value":                 {domain.PageBinding{Starts: map[string]string{"fld_name": "Nobody"}}, "takes its value from the request"},
+		"fixed and started":             {domain.PageBinding{Values: map[string]string{"fld_name": "$parameters.a"}, Starts: map[string]string{"fld_name": "$parameters.b"}}, "also in values:"},
+	} {
+		if got := run(tc.b); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}

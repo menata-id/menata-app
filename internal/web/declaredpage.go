@@ -12,13 +12,14 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 // showDeclaredPage renders any navigation item that declares `page:` (007 §12.4). One handler for all of
 // them: the item is found by id in the Application the route resolved to, so which Workspace and which
 // Application a request is in stays the per-request fact it is everywhere else, and an id that names no
 // declared page -- another Application's, or a bespoke screen's -- is a 404 rather than an empty shell.
-func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
+func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		navID := chi.URLParam(req, "navID")
@@ -57,7 +58,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 				}
 				params["id"] = recordID
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), params, time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)).WithFiles(files), currentActor(req, store, cfg), params, time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

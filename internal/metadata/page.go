@@ -47,6 +47,7 @@ type pageNodeDoc struct {
 	pass     map[string]string
 	counts   map[string]string
 	values   map[string]string
+	starts   map[string]string
 	children []pageNodeDoc
 }
 
@@ -159,14 +160,17 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: counts: maps each chip's value to the Measure it counts -- %w", key.Line, err)
 			}
 			p.counts = m
-		case "pass", "values":
+		case "pass", "values", "starts":
 			m, err := decodePageFrom(val)
 			if err != nil {
 				return fmt.Errorf("line %d: %s: is a mapping of a name to one value -- %w", key.Line, key.Value, err)
 			}
-			if key.Value == "pass" {
+			switch key.Value {
+			case "pass":
 				p.pass = m
-			} else {
+			case "starts":
+				p.starts = m
+			default:
 				p.values = m
 			}
 		case "when":
@@ -405,7 +409,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Counts: p.counts}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Counts: p.counts}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -420,6 +424,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		}
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 		out.Binding.Values = p.values
+		out.Binding.Starts = p.starts
 		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
 		// names it to the Data Plane the same way a Table's column does.
 		for _, id := range append(templateFieldRoles(p.children), whenFieldRoles(p.children)...) {
@@ -512,6 +517,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 				rec[domain.PageFieldRole(id)] = "x"
 				rec[domain.PageFieldToneRole(id)] = string(domain.ToneNeutral)
 				rec[domain.PageFieldStepsRole(id)] = "x\tcurrent"
+				rec[domain.PageFileRole(id)], rec[domain.PageFileHrefRole(id)] = "x", "/x"
+				rec[domain.PageFieldValueRole(id)] = "x"
 			}
 			rec[domain.PageRecordIDRole] = "x"
 			rec[string(domain.CardFieldRoleLink)] = "/x" // a destination the runtime would hand a page, so a link taking its href from it validates
@@ -825,13 +832,20 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 	for _, in := range inputs {
 		asked[in.FieldID] = true
 	}
-	for _, field := range slices.Sorted(maps.Keys(b.Values)) {
-		v := b.Values[field]
-		switch {
-		case !asked[field]:
-			issues = append(issues, fmt.Sprintf("%s: page: values: %s is not a Field this form asks for", where, field))
-		case !expression.IsParameter(v):
-			issues = append(issues, fmt.Sprintf("%s: page: values: %s takes its value from the request ($parameters.<name>), not %q -- a fixed value is the Field's default:", where, field, v))
+	for _, key := range []struct {
+		name string
+		from map[string]string
+	}{{"values", b.Values}, {"starts", b.Starts}} {
+		for _, field := range slices.Sorted(maps.Keys(key.from)) {
+			v := key.from[field]
+			switch {
+			case !asked[field]:
+				issues = append(issues, fmt.Sprintf("%s: page: %s: %s is not a Field this form asks for", where, key.name, field))
+			case !expression.IsParameter(v):
+				issues = append(issues, fmt.Sprintf("%s: page: %s: %s takes its value from the request ($parameters.<name>), not %q -- a fixed value is the Field's default:", where, key.name, field, v))
+			case key.name == "starts" && b.Values[field] != "":
+				issues = append(issues, fmt.Sprintf("%s: page: starts: %s is also in values:, which draws it fixed -- a Field starts with a value or is fixed to one", where, field))
+			}
 		}
 	}
 	return issues
@@ -904,6 +918,15 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	}
 	for _, role := range fieldRolesOf(n.Children) {
 		if id, ok := domain.PageFieldOfRole(role); ok {
+			if strings.HasPrefix(role, "file:") || strings.HasPrefix(role, "filehref:") {
+				// The one way a page reads a file: its name and size, and the address that serves it.
+				if f, found := source.FieldByID(id); !found {
+					issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q has no such Field", where, role, source.ID))
+				} else if f.Type != domain.FieldTypeFile {
+					issues = append(issues, fmt.Sprintf("%s: page: from: %s -- %q is a %s Field, and only a file Field has a file to name", where, role, id, f.Type))
+				}
+				continue
+			}
 			fieldRefs = append(fieldRefs, id)
 			if strings.HasPrefix(role, "steps:") || strings.HasPrefix(role, "tone:") {
 				if f, ok := source.FieldByID(id); ok && f.Type != domain.FieldTypeStatus {
@@ -970,9 +993,12 @@ func fieldRolesOf(nodes []domain.PageNode) []string {
 	var walk func([]domain.PageNode)
 	walk = func(ns []domain.PageNode) {
 		for _, n := range ns {
-			for _, role := range n.From {
-				if _, ok := domain.PageFieldOfRole(role); ok {
-					set[role] = true
+			// What a node reads by id: its from: roles, and the roles a link's pass: carries to another form (Copy).
+			for _, roles := range []map[string]string{n.From, n.Pass} {
+				for _, role := range roles {
+					if _, ok := domain.PageFieldOfRole(role); ok {
+						set[role] = true
+					}
 				}
 			}
 			if n.Binding == nil {
@@ -989,7 +1015,7 @@ func fieldRolesOf(nodes []domain.PageNode) []string {
 func templateFieldRoles(children []pageNodeDoc) []string {
 	var out []string
 	for _, c := range children {
-		for _, role := range sortedKeys(rolesOf(c.from)) {
+		for _, role := range append(sortedKeys(rolesOf(c.from)), sortedKeys(rolesOf(c.pass))...) {
 			if id, ok := domain.PageFieldOfRole(role); ok && !slices.Contains(out, id) {
 				out = append(out, id)
 			}

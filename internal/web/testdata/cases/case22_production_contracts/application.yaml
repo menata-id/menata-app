@@ -81,6 +81,8 @@ navigation:
       children:
         - component: Form
           submit: Save contract
+          # What the Copy link on a contract's page carries over: a start, still a control the person may change.
+          starts: { fld_party_name: $parameters.fld_party_name, fld_value: $parameters.fld_value, fld_category: $parameters.fld_category }
           binding: { dataset: ds_contracts, write: create }
   - id: nav_contracts_first
     label: First contract
@@ -136,6 +138,11 @@ navigation:
                       text: + Add instalment
                       variant: secondary
                       pass: { contract: "record:id" }
+                    - static: link
+                      to: nav_new_contract
+                      text: Copy
+                      variant: secondary
+                      pass: { fld_party_name: "value:fld_party_name", fld_value: "value:fld_value", fld_category: "value:fld_category" }
         - component: Table
           label: Instalments
           columns:
@@ -172,6 +179,9 @@ navigation:
               children:
                 - static: heading
                   from: { text: "field:fld_plan_no" }
+                # The proof of payment: its name and size, and the address that serves it (K01d's Document).
+                - static: link
+                  from: { text: "file:fld_proof", href: "filehref:fld_proof" }
                 - component: Form
                   submit: Mark as paid
                   binding: { write: transition, transition: trn_plan_settle }

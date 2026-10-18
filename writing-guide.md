@@ -1943,7 +1943,24 @@ already holds (a proof uploaded with the plan). The record id in `where: {field:
 
 A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value
 and is drawn as its words in a hidden input, not offered again. **`then: record`** (a create Form only) opens the record it made
-(its record page when it has one). `carries` and `multipart` are lowered and never written. A record page answers 404 for an id that is not a record of its Machine in this Workspace, and the
+(its record page when it has one). **`starts: {fld_party_name: $parameters.fld_party_name}`** (2026-10-18) begins a Field with
+the request's value but leaves it a control the person may change; with a link's **`pass:`** reading the record's stored value
+(**`value:fld_x`**: a relation's record id, a money Field's bare number -- where `field:` is the words a person reads) it is
+**Copy**:
+
+```yaml
+- static: link                    # on the contract's page
+  to: nav_new_contract
+  text: Copy
+  pass: { fld_party_name: "value:fld_party_name", fld_category: "value:fld_category", fld_value: "value:fld_value" }
+# nav_new_contract's Form
+starts: { fld_party_name: $parameters.fld_party_name, fld_category: $parameters.fld_category, fld_value: $parameters.fld_value }
+```
+
+A Field is fixed (`values:`) or started (`starts:`), not both. A file Field is read through **`file:fld_doc`** (its name with its
+size, "ctr-c-026.pdf · 1.4 MB") and **`filehref:fld_doc`** (the address that serves it), the only roles of a file Field:
+`{static: link, from: {text: "file:fld_doc", href: "filehref:fld_doc"}}` draws the Document of mockup K01d, and nothing when
+the record holds no file. `carries` and `multipart` are lowered and never written. A record page answers 404 for an id that is not a record of its Machine in this Workspace, and the
 Application's roles gate it as they gate the list. A status Field may declare **`categories:`** (the same five as
 `status_categories:`) when it is not the Machine's lifecycle Field, so a second status (a contract's payment) has tones too.
 

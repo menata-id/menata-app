@@ -780,8 +780,8 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: a link has one destination, and this one names both to: %s and from: href", path, n.To)
 		}
-		if role != domain.PageRecordRole && role != string(domain.CardFieldRoleLink) {
-			return nil, fmt.Errorf("%s: a link's href may be taken from %q (the record's own page) or %q (the route the record leads to) only, not from the role %q", path, domain.PageRecordRole, domain.CardFieldRoleLink, role)
+		if id, isFile := strings.CutPrefix(role, "filehref:"); role != domain.PageRecordRole && role != string(domain.CardFieldRoleLink) && !(isFile && id != "") {
+			return nil, fmt.Errorf("%s: a link's href may be taken from %q (the record's own page), %q (the route the record leads to) or filehref:<file field> (a file it holds) only, not from the role %q", path, domain.PageRecordRole, domain.CardFieldRoleLink, role)
 		}
 		if _, hasText := props["text"]; !hasText {
 			return nil, fmt.Errorf("%s: a link to a record has no menu label to default its text to, so it takes text from a role (from: {text: title})", path)

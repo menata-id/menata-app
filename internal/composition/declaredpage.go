@@ -21,6 +21,7 @@ import (
 	"menata.app/internal/ir"
 	"menata.app/internal/registry"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 // DeclaredPage builds the UI IR tree of a navigation item's `page:` (007 §15.1: declaration -> UI IR),
@@ -129,12 +130,17 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 	// does not send stays an ordinary control.
 	ctxValues := expression.Context{CurrentUser: viewer.ID, Parameters: params}
 	for i, in := range inputs {
-		declared, ok := b.Values[in.FieldID]
-		if !ok {
+		if declared, ok := b.Values[in.FieldID]; ok {
+			if v, ok := ctxValues.Resolve(declared); ok && v != "" {
+				inputs[i].Default, inputs[i].Fixed = v, true
+			}
 			continue
 		}
-		if v, ok := ctxValues.Resolve(declared); ok && v != "" {
-			inputs[i].Default, inputs[i].Fixed = v, true
+		// `starts:` begins a Field with the request's value and leaves it a control: what a Copy link carries over.
+		if declared, ok := b.Starts[in.FieldID]; ok {
+			if v, ok := ctxValues.Resolve(declared); ok && v != "" {
+				inputs[i].Default = v
+			}
 		}
 	}
 	return ir.FormSpec{
@@ -237,7 +243,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		item[domain.PageRecordRole] = recordRouteOf(src, r.ID)
 		fillDerivedDate(item, src, r, now)
 		fillDerivedStatus(item, src, r)
-		fillFieldColumns(item, src, r, people, b.Fields)
+		fillFieldColumns(item, src, r, people, b.Fields, l.files)
 		fillCreatedAndLink(item, src, r)
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
@@ -908,13 +914,29 @@ func fillDerivedStatus(item map[string]string, src *domain.Machine, r *data.Reco
 
 // fillFieldColumns is the Fields a Table's columns name by id (PageColumn.Field): each as the record's own page shows
 // it, and a status Field's tone beside it. The loader has checked that every id is a Field of src.
-func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions, fields []string) {
+func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions, fields []string, files *storage.Store) {
 	for _, id := range fields {
 		f, ok := src.FieldByID(id)
 		if !ok {
 			continue
 		}
+		if f.Type == domain.FieldTypeFile {
+			// A file's value is a storage key: a page reads its name, its size and the address that serves it.
+			if key := DisplayString(r.Values[id]); key != "" {
+				name := storage.DisplayName(key)
+				if files != nil {
+					if size := humanSize(files.Size(key)); size != "" {
+						name += " · " + size
+					}
+				}
+				item[domain.PageFileRole(id)], item[domain.PageFileHrefRole(id)] = name, "/uploads/"+key
+			} else {
+				item[domain.PageFileRole(id)], item[domain.PageFileHrefRole(id)] = "", ""
+			}
+			continue
+		}
 		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations)
+		item[domain.PageFieldValueRole(id)] = DisplayString(r.Values[id])
 		if n, ok := domain.FigureOf(r.Values[id]); ok && f.Type.IsNumeric() {
 			item[domain.PageRowNumberRole(id)] = strconv.FormatFloat(n, 'f', -1, 64)
 		}

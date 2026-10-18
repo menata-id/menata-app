@@ -135,6 +135,22 @@ steps:
     expect: ok
 
   # The list's primary action opens the form, which offers the categories by name (a relation in a page form).
+  # Copy: a link carries the record's stored values (a category's id, a figure's bare number) to a form that starts with
+  # them and leaves them controls.
+  - id: copy-carries-the-contracts-values
+    as: silvia
+    view:
+      path: /pages/nav_contract/$contract
+      shows: ['>Copy<', 'fld_party_name=Reza+Anggara', 'fld_value=180000', 'fld_category=$lead-cast']
+    expect: ok
+  - id: the-copy-form-starts-with-them-and-keeps-them-editable
+    as: silvia
+    view:
+      path: /pages/nav_new_contract?fld_party_name=Reza+Anggara&fld_value=180000&fld_category=$lead-cast
+      shows: ['name="fld_party_name"', 'value="Reza Anggara"', 'value="180000"', "selected>Lead Cast</option>"]
+      hides: ['type="hidden" name="fld_party_name"']
+    expect: ok
+
   - id: new-contract-action-and-form
     as: silvia
     view:
@@ -284,6 +300,14 @@ steps:
     expect: ok
     record: { fld_plan_status: Paid, fld_proof: "*", fld_paid_date: "*" }
 
+  # A file Field is read by name and size, and linked to the address that serves it; a record with no file draws none.
+  - id: the-proof-is-named-with-its-size
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      shows: ['>proof.pdf · 22 B<', 'href="/uploads/mch_payment_plan/fld_proof/']
+    expect: ok
+
   - id: contract-is-in-progress-again
     as: silvia
     update: { ref: contract, values: { fld_party_name: Reza Anggara } }
@@ -341,6 +365,12 @@ steps:
   - id: finance-rejects-it
     as: fina
     update: { ref: a-plan-for-wrap, values: { fld_plan_status: Rejected } }
+    expect: ok
+  - id: a-plan-without-a-proof-shows-no-file
+    as: fina
+    view:
+      path: /pages/nav_plan/$a-plan-for-wrap
+      hides: ['/uploads/', ' B<']
     expect: ok
   - id: a-rejected-plan-leaves-the-instalment-without-one
     as: silvia

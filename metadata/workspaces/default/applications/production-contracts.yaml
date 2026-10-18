@@ -207,6 +207,15 @@ navigation:
       children:
         - component: Form
           submit: Save contract
+          # What Copy on a contract's page carries over: a start, still a control the person may change (the number is new).
+          starts:
+            fld_party_name: $parameters.fld_party_name
+            fld_contract_kind: $parameters.fld_contract_kind
+            fld_category: $parameters.fld_category
+            fld_value: $parameters.fld_value
+            fld_position: $parameters.fld_position
+            fld_item_desc: $parameters.fld_item_desc
+            fld_description: $parameters.fld_description
           binding: { dataset: ds_contracts, write: create }
   # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
   # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.
@@ -283,6 +292,18 @@ navigation:
                         - component: Form
                           submit: Save
                           binding: { write: update }
+                    - static: link
+                      to: nav_new_contract
+                      text: Copy
+                      variant: secondary
+                      pass:
+                        fld_party_name: "value:fld_party_name"
+                        fld_contract_kind: "value:fld_contract_kind"
+                        fld_category: "value:fld_category"
+                        fld_value: "value:fld_value"
+                        fld_position: "value:fld_position"
+                        fld_item_desc: "value:fld_item_desc"
+                        fld_description: "value:fld_description"
                     - component: Button
                       label: Delete
                       variant: danger
@@ -370,6 +391,13 @@ navigation:
                       text: Notes
                     - static: paragraph
                       from: { text: "field:fld_description" }
+                - layout: stack
+                  gap: micro
+                  children:
+                    - static: caption
+                      text: Document
+                    - static: link
+                      from: { text: "file:fld_doc", href: "filehref:fld_doc" }
         - component: Collection
           gap: default
           binding: { dataset: ds_contract_one, rows: records }

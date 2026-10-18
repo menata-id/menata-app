@@ -92,7 +92,10 @@ type PageNode struct {
 	// Values (`values: {fld_contract: $parameters.contract}`) are what a create Form starts with from its request: each
 	// Field the form asks for, filled from a `$parameters.<name>` and drawn fixed (its words, not a control) when the
 	// request sends it. The route still validates the value as it validates any.
-	Values   map[string]string
+	Values map[string]string
+	// Starts (`starts: {fld_party_name: $parameters.fld_party_name}`) are what a create Form begins with, like Values, but
+	// left an ordinary control the person may change: the form a Copy link opens, filled from the record it copies.
+	Starts   map[string]string
 	Children []PageNode
 }
 
@@ -257,6 +260,8 @@ type PageBinding struct {
 	// Transition, with `write: transition` on a Button, names the declared edge it takes (`transition: trn_x`) instead of
 	// a target in `becomes:`: the edge's own Field and `to`, so any status Field of the Machine can be moved.
 	Transition string
+	// Starts is the Form's `starts:` (PageNode.Starts), copied here at load like Values.
+	Starts map[string]string
 	// Values is the Form's `values:` (PageNode.Values), copied here at load so the resolver that builds the form reads
 	// them beside the request. Never written on a binding.
 	Values map[string]string
@@ -371,9 +376,20 @@ func PageFieldToneRole(fieldID string) string { return "tone:" + fieldID }
 // state done, current or todo; an option the Machine categorises `stopped` is left out unless it is the current one.
 func PageFieldStepsRole(fieldID string) string { return "steps:" + fieldID }
 
-// PageFieldOfRole reads a Field-keyed role (`field:`, `tone:`, `steps:`) back into the Field it names, or false.
+// PageFileRole and PageFileHrefRole are the keys of a file Field's name with its size ("ctr-c-026.pdf · 1.4 MB") and of the
+// address that serves it ("/uploads/<key>"): a file Field's value is a storage key, which is not for reading, so a page reads
+// the file through these (mockup K01d's Document). Empty when the record holds no file.
+func PageFileRole(fieldID string) string { return "file:" + fieldID }
+
+// PageFieldValueRole is the key of a Field's stored value as the record holds it -- a relation's record id, a money
+// Field's bare number -- where `field:` is what a person reads. It is what a link `pass:`es to start another form from this
+// record (Copy: a contract's party, category and value into a new contract's form).
+func PageFieldValueRole(fieldID string) string { return "value:" + fieldID }
+func PageFileHrefRole(fieldID string) string   { return "filehref:" + fieldID }
+
+// PageFieldOfRole reads a Field-keyed role (`field:`, `tone:`, `steps:`, `file:`, `filehref:`) back into the Field it names, or false.
 func PageFieldOfRole(role string) (string, bool) {
-	for _, prefix := range []string{"field:", "tone:", "steps:"} {
+	for _, prefix := range []string{"field:", "tone:", "steps:", "file:", "filehref:", "value:"} {
 		if id, ok := strings.CutPrefix(role, prefix); ok && id != "" {
 			return id, true
 		}

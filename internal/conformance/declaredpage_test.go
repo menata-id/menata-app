@@ -253,9 +253,15 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 					// A Field read by id (`field:`, `tone:`, `steps:`, 2026-10-17): a Field of the Machine, never a group or
 					// a file; a reference among them is read bounded, by the ids the listed records name.
 					if id, byField := domain.PageFieldOfRole(role); byField {
-						if f, ok := m.FieldByID(id); !ok {
+						// A file Field is read only through file:/filehref: (its name with its size, its address), which in turn
+						// are only for a file Field; every other role refuses a file (its value is a storage key) and a group.
+						isFileRole := strings.HasPrefix(role, "file:") || strings.HasPrefix(role, "filehref:")
+						switch f, ok := m.FieldByID(id); {
+						case !ok:
 							out = append(out, "from: "+role+" -- "+m.ID+" has no such Field")
-						} else if f.Type == domain.FieldTypeGroup || f.Type == domain.FieldTypeFile {
+						case isFileRole && f.Type != domain.FieldTypeFile:
+							out = append(out, "from: "+role+" -- a "+string(f.Type)+" Field has no file to name")
+						case !isFileRole && (f.Type == domain.FieldTypeGroup || f.Type == domain.FieldTypeFile):
 							out = append(out, "from: "+role+" -- a "+string(f.Type)+" Field is not shown on a page")
 						}
 						continue
@@ -459,8 +465,8 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 						}
 					case fromHref && n.To != "":
 						t.Errorf("%s: link names both to: %s and from: href", where, n.To)
-					case fromHref && role != domain.PageRecordRole:
-						t.Errorf("%s: link takes href from %q; only the reserved %q is an address", where, role, domain.PageRecordRole)
+					case fromHref && role != domain.PageRecordRole && !strings.HasPrefix(role, "filehref:"):
+						t.Errorf("%s: link takes href from %q; only the reserved %q or a file Field's address (filehref:) is one", where, role, domain.PageRecordRole)
 					case fromHref:
 						recordLinks++
 					case !declared[n.To]:
