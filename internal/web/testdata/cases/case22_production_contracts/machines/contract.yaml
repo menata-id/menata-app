@@ -4,6 +4,8 @@ fields:
   # A contract's number is its identity on paper: set once (owner decision K1).
   - { id: fld_contract_no, name: Contract no., type: text, required: true, set_once: true }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
+  # The agreement itself: kept on the contract, and the document a reader proposes the form's values from (K01c).
+  - { id: fld_doc, name: Document, type: file }
   # The number the runtime assigns (plan A4): CTR/C/001, CTR/K/001 -- a counter per kind, written when the contract is created.
   - { id: fld_serial, name: Serial no., type: text, numbering: { pattern: "CTR/{fld_contract_kind}/{seq:3}", codes: { Cast: C, Crew: K, Item: I } } }
   - { id: fld_value, name: Contract value, type: money, required: true, currency: IDR }
@@ -20,6 +22,11 @@ fields:
   # The contract's lifecycle beside its payment: a second status, toned by its own categories.
   - { id: fld_status, name: Status, type: status, default: Draft, options: [Draft, Active, Closed, Cancelled],
       categories: { Draft: start, Active: active, Closed: done, Cancelled: stopped } }
+# Finance pays and does not draw up contracts: only production creates one, and so only production has a document read for it.
+permissions:
+  - id: prm_create_contract
+    action: create
+    roles: [production_manager]
 card_fields:
   - { field: fld_contract_no, role: title }
   - { field: fld_party_name, role: subtitle }

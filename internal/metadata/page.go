@@ -49,6 +49,7 @@ type pageNodeDoc struct {
 	counts   map[string]string
 	values   map[string]string
 	starts   map[string]string
+	extract  *domain.FormExtract
 	children []pageNodeDoc
 }
 
@@ -179,6 +180,12 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 			default:
 				p.values = m
 			}
+		case "extract":
+			x, err := decodeFormExtract(val)
+			if err != nil {
+				return err
+			}
+			p.extract = x
 		case "when":
 			w, err := decodePageWhen(val)
 			if err != nil {
@@ -252,6 +259,92 @@ func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// decodeFormExtract reads a Form's `extract:`: {file, read, instruction, fields, rows: [{label, machine, via, fields}]}. Whether
+// the Fields exist and have a type a reader can fill is `extractIssues`' question, which has the Machines.
+func decodeFormExtract(n *yaml.Node) (*domain.FormExtract, error) {
+	if n.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("line %d: extract: is a mapping of file, read, instruction, fields and rows", n.Line)
+	}
+	x := &domain.FormExtract{}
+	list := func(key, val *yaml.Node) ([]string, error) {
+		if val.Kind != yaml.SequenceNode {
+			return nil, fmt.Errorf("line %d: %s: is a list of Field ids", key.Line, key.Value)
+		}
+		var out []string
+		for _, item := range val.Content {
+			if item.Kind != yaml.ScalarNode || item.Value == "" {
+				return nil, fmt.Errorf("line %d: %s: holds Field ids, one per entry", item.Line, key.Value)
+			}
+			out = append(out, item.Value)
+		}
+		return out, nil
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		switch key.Value {
+		case "file", "read", "review", "instruction":
+			if val.Kind != yaml.ScalarNode {
+				return nil, fmt.Errorf("line %d: extract.%s: a single value", key.Line, key.Value)
+			}
+			switch key.Value {
+			case "file":
+				x.File = val.Value
+			case "read":
+				x.Read = val.Value
+			case "review":
+				x.Review = val.Value
+			default:
+				x.Instruction = val.Value
+			}
+		case "fields":
+			f, err := list(key, val)
+			if err != nil {
+				return nil, err
+			}
+			x.Fields = f
+		case "rows":
+			if val.Kind != yaml.SequenceNode {
+				return nil, fmt.Errorf("line %d: extract.rows: is a list of {label, machine, via, fields}", key.Line)
+			}
+			for _, item := range val.Content {
+				if item.Kind != yaml.MappingNode {
+					return nil, fmt.Errorf("line %d: an extract row kind is a mapping of label, machine, via and fields", item.Line)
+				}
+				var r domain.ExtractRows
+				for j := 0; j+1 < len(item.Content); j += 2 {
+					k, v := item.Content[j], item.Content[j+1]
+					switch k.Value {
+					case "label", "machine", "via":
+						if v.Kind != yaml.ScalarNode {
+							return nil, fmt.Errorf("line %d: extract.rows.%s: a single value", k.Line, k.Value)
+						}
+						switch k.Value {
+						case "label":
+							r.Label = v.Value
+						case "machine":
+							r.Machine = v.Value
+						default:
+							r.Via = v.Value
+						}
+					case "fields":
+						f, err := list(k, v)
+						if err != nil {
+							return nil, err
+						}
+						r.Fields = f
+					default:
+						return nil, fmt.Errorf("line %d: %q is not a key an extract row kind declares (label, machine, via, fields)", k.Line, k.Value)
+					}
+				}
+				x.Rows = append(x.Rows, r)
+			}
+		default:
+			return nil, fmt.Errorf("line %d: %q is not a key extract declares (file, read, review, instruction, fields, rows)", key.Line, key.Value)
+		}
+	}
+	return x, nil
 }
 
 // decodePageFrom reads `from: {text: title}`: a property of this node, and the Projection role it takes from
@@ -415,7 +508,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Counts: p.counts, In: p.in}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Extract: p.extract, Counts: p.counts, In: p.in}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -436,6 +529,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 		out.Binding.Values = p.values
 		out.Binding.Starts = p.starts
+		out.Binding.Extract = p.extract
 		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
 		// names it to the Data Plane the same way a Table's column does.
 		for _, id := range append(templateFieldRoles(p.children), whenFieldRoles(p.children)...) {
@@ -661,6 +755,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				continue
 			}
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
+			if n := countExtracts(*item.Page); n > 1 {
+				issues = append(issues, fmt.Sprintf("%s: page: %d Forms declare extract:, and the page's /extract routes read one document for one form", where, n))
+			}
 			issues = append(issues, shapeIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
 			issues = append(issues, paramLinkIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
 			issues = append(issues, stepIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
@@ -691,6 +788,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			continue
 		}
 		issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
+		if countExtracts(*item.Page) > 0 {
+			issues = append(issues, fmt.Sprintf("%s: page: extract: reads a document for a form of an Application's page (its routes are the page's own under an Application); a Workspace page has none", where))
+		}
 		issues = append(issues, shapeIssues(*item.Page, links, datasets, where)...)
 		issues = append(issues, paramLinkIssues(*item.Page, links, datasets, where)...)
 		issues = append(issues, stepIssues(*item.Page, links, datasets, where)...)
@@ -709,6 +809,9 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, item *domain.Machine, where string) []string {
 	var issues []string
 	childItem := item
+	if n.Extract != nil && (n.Binding == nil || n.Binding.Write != domain.PageWriteCreate || n.Type != string(domain.ComponentForm)) {
+		issues = append(issues, fmt.Sprintf("%s: page: extract: fills a create Form (a Form bound with write: %s) from a document, and this node is not one", where, domain.PageWriteCreate))
+	}
 	if b := n.Binding; b != nil && b.Write == domain.PageWriteUpdate {
 		issues = append(issues, updateBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteDelete {
@@ -732,6 +835,9 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			issues = append(issues, fmt.Sprintf("%s: page: binding names dataset %q, which no machine in this workspace declares", where, b.Dataset))
 		case b.Write != "":
 			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
+			if b.Extract != nil && b.Write == domain.PageWriteCreate {
+				issues = append(issues, extractIssues(*b.Extract, machines[ds.Source], machines, where)...)
+			}
 		case b.Rows == domain.PageRowsRecords:
 			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], machines, where)...)
 			issues = append(issues, tableTotalsIssues(n, datasets, where)...)
@@ -866,6 +972,116 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 				issues = append(issues, fmt.Sprintf("%s: page: starts: %s is also in values:, which draws it fixed -- a Field starts with a value or is fixed to one", where, field))
 			}
 		}
+	}
+	return issues
+}
+
+// countExtracts counts the Forms of a page that declare `extract:`.
+func countExtracts(n domain.PageNode) int {
+	c := 0
+	if n.Extract != nil {
+		c = 1
+	}
+	for _, ch := range n.Children {
+		c += countExtracts(ch)
+	}
+	return c
+}
+
+// extractableType says a reader can propose a value for a Field of this type: words, numbers, dates, a choice among the
+// Field's options and a choice among another Machine's records (by their labels). A person, a file, a group and a
+// boolean are not asked of a document.
+func extractableType(f domain.Field) bool {
+	if f.IsReference() {
+		return f.Type == domain.FieldTypeRelation
+	}
+	switch f.Type {
+	case domain.FieldTypeText, domain.FieldTypeLongText, domain.FieldTypeNumber, domain.FieldTypeMoney, domain.FieldTypeDate, domain.FieldTypeStatus:
+		return true
+	}
+	return false
+}
+
+// extractIssues is what a Form's `extract:` asks of the Machines it names: the file Field keeps the document, every
+// proposed Field is one the form asks for and a reader can fill, and every row kind is a Machine whose relation Field
+// points back at the one being created and whose required Fields the rows cover (a row that could never be saved would
+// only be found out when someone pressed the button).
+func extractIssues(x domain.FormExtract, source *domain.Machine, machines map[string]*domain.Machine, where string) []string {
+	if source == nil {
+		return nil
+	}
+	var issues []string
+	at := where + ": page: extract"
+	if f, ok := source.FieldByID(x.File); !ok || f.Type != domain.FieldTypeFile {
+		issues = append(issues, fmt.Sprintf("%s: file: %q must be a file Field of machine %q, the one the document is kept in", at, x.File, source.ID))
+	}
+	if x.Read == "" {
+		issues = append(issues, fmt.Sprintf("%s: read: is the words on the button that sends the document to be read", at))
+	}
+	if x.Review == "" {
+		issues = append(issues, fmt.Sprintf("%s: review: is the words beside a value the reader inferred or could not fit (\"needs review\")", at))
+	}
+	issues = append(issues, extractFieldIssues(at+": fields", x.Fields, source, "")...)
+	if len(x.Fields) == 0 && len(x.Rows) == 0 {
+		issues = append(issues, fmt.Sprintf("%s: names no Field and no rows, so there is nothing to propose", at))
+	}
+	seen := map[string]bool{}
+	for i, r := range x.Rows {
+		rat := fmt.Sprintf("%s: rows[%d]", at, i)
+		child := machines[r.Machine]
+		if r.Label == "" {
+			issues = append(issues, fmt.Sprintf("%s: label: names the rows for the person checking them", rat))
+		}
+		if child == nil {
+			issues = append(issues, fmt.Sprintf("%s: machine: %q is not a machine of this workspace", rat, r.Machine))
+			continue
+		}
+		via, ok := child.FieldByID(r.Via)
+		if !ok || via.Type != domain.FieldTypeRelation || via.RelatedMachine != source.ID {
+			issues = append(issues, fmt.Sprintf("%s: via: %q must be a relation Field of %q pointing at %q, which is how a row finds the record being created", rat, r.Via, child.ID, source.ID))
+		}
+		if key := r.Machine + "/" + r.Via; seen[key] {
+			issues = append(issues, fmt.Sprintf("%s: %s is already proposed by an earlier entry", rat, key))
+		} else {
+			seen[key] = true
+		}
+		if len(r.Fields) == 0 {
+			issues = append(issues, fmt.Sprintf("%s: fields: names no Field", rat))
+		}
+		issues = append(issues, extractFieldIssues(rat+": fields", r.Fields, child, r.Via)...)
+		inputs, _ := child.CreateFormInputs()
+		for _, in := range inputs {
+			f, _ := child.FieldByID(in.FieldID)
+			if in.FieldID != r.Via && f.Required && f.Default == nil && !slices.Contains(r.Fields, in.FieldID) {
+				issues = append(issues, fmt.Sprintf("%s: fields: %q is required by %q and has no default, so a row without it could not be saved", rat, in.FieldID, child.ID))
+			}
+		}
+	}
+	return issues
+}
+
+// extractFieldIssues checks one list of proposed Fields against the Machine whose create form asks for them.
+func extractFieldIssues(at string, ids []string, m *domain.Machine, via string) []string {
+	var issues []string
+	inputs, _ := m.CreateFormInputs()
+	asked := map[string]bool{}
+	for _, in := range inputs {
+		asked[in.FieldID] = true
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		f, ok := m.FieldByID(id)
+		switch {
+		case !ok || !asked[id]:
+			issues = append(issues, fmt.Sprintf("%s: %q is not a Field %q's create form asks for", at, id, m.ID))
+		case id == via:
+			issues = append(issues, fmt.Sprintf("%s: %q links the row to its parent, which the runtime sets", at, id))
+		case !extractableType(f):
+			issues = append(issues, fmt.Sprintf("%s: %q is a %s, which a document cannot propose (text, numbers, dates, options and relations can)", at, id, f.Type))
+		case seen[id]:
+			issues = append(issues, fmt.Sprintf("%s: %q is listed twice", at, id))
+		}
+		seen[id] = true
 	}
 	return issues
 }

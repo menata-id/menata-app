@@ -175,6 +175,7 @@ type dynamicHandler struct {
 	mailer             mail.Mailer
 	aiClient           aiassist.Client
 	printer            *pdf.Printer
+	extractor          aiassist.Extractor
 	defaultWorkspaceID string
 }
 
@@ -200,6 +201,7 @@ func newDynamicHandler(cfg config.Config, store *data.Store, files *storage.Stor
 		mailer:             mail.NewMailerFromConfig(cfg),
 		aiClient:           aiassist.NewClientFromConfig(cfg),
 		printer:            newPrinter(cfg),
+		extractor:          aiassist.NewExtractorFromConfig(cfg),
 		defaultWorkspaceID: defaultWorkspaceID,
 	}
 	if err := dh.Reload(); err != nil {
@@ -350,6 +352,7 @@ func (dh *dynamicHandler) install(st metadataState) {
 		DefaultWorkspaceID:    dh.defaultWorkspaceID,
 		AIClient:              dh.aiClient,
 		Printer:               dh.printer,
+		Extractor:             dh.extractor,
 		ReloadMetadata:        dh.ReloadWorkspace,
 	}
 	handler := web.Routes(deps)

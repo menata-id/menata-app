@@ -321,11 +321,31 @@ type SourceResolver func(datasetID string) (machineID string, ok bool)
 // pages hide a "New" button, rather than drawn and refused. The route still refuses on its own, so this is
 // courtesy and not enforcement.
 type FormSpec struct {
-	Route string
+	// Reader is the document reader a Form with `extract:` offers above itself: a small form that sends a document to be
+	// read. nil is a host or a viewer with none (and every Form without `extract:`).
+	Reader *FormReader
+	// Carries is a hidden "name=value" the form sends with itself (the proposal it was filled from).
+	Carries string
+	// Rows are the proposed child records a document held, each kind with its rows of controls; they ride the same submit.
+	Rows []FormRows
+	// Document is the words naming the document a proposal was read from ("ctr-c-026.pdf · 1.4 MB"), shown above the form.
+	Document string
+	Route    string
 	// Method is the verb the route takes (`domain.FormMethodPost`, `domain.FormMethodPatch`); empty means post.
 	Method    string
 	Permitted bool
 	Inputs    []domain.FormInput
+}
+
+// FormReader is the reader's small form: where it posts, what its button says and what the file control is called.
+type FormReader struct {
+	Route, Read, Label string
+}
+
+// FormRows is one kind of proposed child record: its heading and each row's controls, already decided and filled.
+type FormRows struct {
+	Label string
+	Rows  [][]domain.FormInput
 }
 
 // ActionResolver answers a `write: action` binding for the record it sits beside ("" outside a template): the viewer's
@@ -2001,41 +2021,99 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 	if mode == domain.PageWriteUpdate {
 		props[formMethodProp] = domain.FormMethodPatch
 	}
+	if spec.Carries != "" {
+		props["carries"] = spec.Carries
+	}
 	form := UINode{Kind: NodeComponent, Type: string(domain.ComponentForm), Props: props}
 	for _, in := range spec.Inputs {
 		if in.Kind == domain.InputFile {
 			form.Props["multipart"] = "true"
 		}
 	}
-	for i, in := range spec.Inputs {
-		id := formControlID(path, i)
-		ctl := map[string]string{"id": id, "name": in.FieldID, "kind": string(in.Kind)}
-		if in.Required {
-			ctl["required"] = "true"
-		}
-		if in.Default != "" {
-			ctl["value"] = in.Default
-		}
-		if in.Fixed {
-			ctl["fixed"] = "true"
-		}
-		if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
-			ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)
-		}
-		if in.Reference != "" {
-			lines := make([]string, 0, len(in.Choices))
-			for _, c := range in.Choices {
-				lines = append(lines, oneField(c.Value)+domain.InputChoiceSep+oneField(c.Label))
-			}
-			ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
-		}
-		form.Children = append(form.Children, UINode{
-			Kind: NodeComponent, Type: string(domain.ComponentField),
-			Props:    map[string]string{"label": in.Label, "for": id},
-			Children: []UINode{{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: ctl}},
-		})
+	if spec.Document != "" {
+		form.Children = append(form.Children, UINode{Kind: NodeStatic, Type: string(domain.StaticCaption), Props: map[string]string{"text": spec.Document}})
 	}
-	return []UINode{form}, nil
+	for i, in := range spec.Inputs {
+		form.Children = append(form.Children, formField(formControlID(path, i), in.FieldID, in))
+	}
+	// Proposed child records ride the same submit: each row's controls are named rows.<kind>.<n>.<field>, and an `include`
+	// box lets a person leave a row out.
+	for k, kind := range spec.Rows {
+		for r, row := range kind.Rows {
+			prefix := fmt.Sprintf("%s%d.%d.", domain.ExtractRowPrefix, k, r)
+			// A row is one grid of controls: its own tick first (named by the row: ticked, it is saved with the form; unticked, it is
+			// left out), then the row's Fields, wrapping four to a line.
+			grid := UINode{Kind: NodeLayout, Type: string(domain.LayoutGrid), Props: map[string]string{"gap": string(domain.GapDefault), "mobile": "1", "columns": "4"}}
+			grid.Children = append(grid.Children, formField(formControlID(path, len(spec.Inputs)+k*1000+r*50+49), prefix+domain.ExtractRowInclude,
+				domain.FormInput{Label: fmt.Sprintf("%s %d", kind.Label, r+1), Kind: domain.InputBoolean, Default: "true"}))
+			for i, in := range row {
+				grid.Children = append(grid.Children, formField(formControlID(path, len(spec.Inputs)+k*1000+r*50+i), prefix+in.FieldID, withRowLabel(in, kind.Label, r+1)))
+			}
+			form.Children = append(form.Children, grid)
+		}
+	}
+	out := []UINode{}
+	if spec.Reader != nil {
+		out = append(out, readerForm(path, *spec.Reader))
+	}
+	return append(out, form), nil
+}
+
+// withRowLabel names a row's control by its row, so the labels on a page of several rows are not one repeated word.
+func withRowLabel(in domain.FormInput, kind string, n int) domain.FormInput {
+	in.Label = fmt.Sprintf("%s %d · %s", kind, n, in.Label)
+	return in
+}
+
+// formField is one labelled control of a form: the Field that names it and the Input that is it, with the note and the
+// flag a proposed value carries.
+func formField(id, name string, in domain.FormInput) UINode {
+	ctl := map[string]string{"id": id, "name": name, "kind": string(in.Kind)}
+	if in.Required {
+		ctl["required"] = "true"
+	}
+	if in.Default != "" {
+		ctl["value"] = in.Default
+	}
+	if in.Fixed {
+		ctl["fixed"] = "true"
+	}
+	if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
+		ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)
+	}
+	if in.Reference != "" {
+		lines := make([]string, 0, len(in.Choices))
+		for _, c := range in.Choices {
+			lines = append(lines, oneField(c.Value)+domain.InputChoiceSep+oneField(c.Label))
+		}
+		ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
+	}
+	field := map[string]string{"label": in.Label, "for": id}
+	if in.Note != "" {
+		field["note"] = in.Note
+	}
+	if in.Flag != "" {
+		field["flag"] = in.Flag
+	}
+	return UINode{
+		Kind: NodeComponent, Type: string(domain.ComponentField), Props: field,
+		Children: []UINode{{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: ctl}},
+	}
+}
+
+// readerForm is the small form that sends a document to be read: one file control, named as the runtime's reader expects,
+// and the author's words on its button.
+func readerForm(path string, r FormReader) UINode {
+	id := formControlID(path, 9999)
+	return UINode{
+		Kind: NodeComponent, Type: string(domain.ComponentForm),
+		Props: map[string]string{"submit": r.Read, formActionProp: r.Route, "multipart": "true"},
+		Children: []UINode{{
+			Kind: NodeComponent, Type: string(domain.ComponentField), Props: map[string]string{"label": r.Label, "for": id},
+			Children: []UINode{{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: map[string]string{
+				"id": id, "name": domain.ExtractFileParam, "kind": string(domain.InputFile), "required": "true"}}},
+		}},
+	}
 }
 
 // formControlID is the DOM id a Field's label names, derived from the Form's place in the tree and the control's

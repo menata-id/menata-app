@@ -1582,3 +1582,58 @@ func TestARelatedColumnMayNameAFieldOfTheFirstRelatedRecord(t *testing.T) {
 		}
 	}
 }
+
+// TestAnExtractNamesWhatADocumentMayFillAndWhereItsRowsLand: `extract:` on a create Form keeps the document in a file Field,
+// proposes only Fields the form asks for and a reader can fill, and each row kind is a Machine whose relation Field points
+// back at the record being created and whose required Fields the rows cover.
+func TestAnExtractNamesWhatADocumentMayFillAndWhereItsRowsLand(t *testing.T) {
+	parent := &domain.Machine{ID: "mch_c", Fields: []domain.Field{
+		{ID: "fld_name", Type: domain.FieldTypeText}, {ID: "fld_value", Type: domain.FieldTypeMoney},
+		{ID: "fld_doc", Type: domain.FieldTypeFile}, {ID: "fld_owner", Type: domain.FieldTypePerson},
+		{ID: "fld_done", Type: domain.FieldTypeBoolean}}}
+	child := &domain.Machine{ID: "mch_t", Fields: []domain.Field{
+		{ID: "fld_contract", Type: domain.FieldTypeRelation, RelatedMachine: "mch_c"},
+		{ID: "fld_label", Type: domain.FieldTypeText, Required: true}, {ID: "fld_gross", Type: domain.FieldTypeMoney}}}
+	machines := map[string]*domain.Machine{"mch_c": parent, "mch_t": child}
+	good := func() domain.FormExtract {
+		return domain.FormExtract{File: "fld_doc", Read: "Read document", Review: "needs review", Fields: []string{"fld_name", "fld_value"},
+			Rows: []domain.ExtractRows{{Label: "Instalments", Machine: "mch_t", Via: "fld_contract", Fields: []string{"fld_label", "fld_gross"}}}}
+	}
+	if got := extractIssues(good(), parent, machines, "w"); len(got) != 0 {
+		t.Fatalf("a good extract was refused: %v", got)
+	}
+	for name, tc := range map[string]struct {
+		edit func(*domain.FormExtract)
+		want string
+	}{
+		"a file Field that is not one":    {func(x *domain.FormExtract) { x.File = "fld_name" }, "must be a file Field"},
+		"no button words":                 {func(x *domain.FormExtract) { x.Read = "" }, "read:"},
+		"no review words":                 {func(x *domain.FormExtract) { x.Review = "" }, "review:"},
+		"a Field the form does not ask":   {func(x *domain.FormExtract) { x.Fields = []string{"fld_nope"} }, "is not a Field"},
+		"a person":                        {func(x *domain.FormExtract) { x.Fields = []string{"fld_owner"} }, "cannot propose"},
+		"a boolean":                       {func(x *domain.FormExtract) { x.Fields = []string{"fld_done"} }, "cannot propose"},
+		"a Field twice":                   {func(x *domain.FormExtract) { x.Fields = []string{"fld_name", "fld_name"} }, "listed twice"},
+		"nothing to propose":              {func(x *domain.FormExtract) { x.Fields, x.Rows = nil, nil }, "nothing to propose"},
+		"a Machine that is not installed": {func(x *domain.FormExtract) { x.Rows[0].Machine = "mch_zz" }, "not a machine of this workspace"},
+		"a via that points elsewhere":     {func(x *domain.FormExtract) { x.Rows[0].Via = "fld_label" }, "pointing at"},
+		"the via proposed as a value":     {func(x *domain.FormExtract) { x.Rows[0].Fields = []string{"fld_label", "fld_contract"} }, "the runtime sets"},
+		"a required Field the rows lack":  {func(x *domain.FormExtract) { x.Rows[0].Fields = []string{"fld_gross"} }, "could not be saved"},
+		"rows with no label":              {func(x *domain.FormExtract) { x.Rows[0].Label = "" }, "label:"},
+		"the same rows proposed twice":    {func(x *domain.FormExtract) { x.Rows = append(x.Rows, x.Rows[0]) }, "already proposed"},
+	} {
+		x := good()
+		tc.edit(&x)
+		if got := strings.Join(extractIssues(x, parent, machines, "w"), "\n"); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+	// A node that is not a create Form cannot declare one, and a page holds one.
+	node := domain.PageNode{Kind: "component", Type: "Table", Extract: &domain.FormExtract{}}
+	if got := strings.Join(bindingIssues(node, nil, machines, nil, "w"), "\n"); !strings.Contains(got, "fills a create Form") {
+		t.Errorf("an extract on a Table: %q", got)
+	}
+	two := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Extract: &domain.FormExtract{}}, {Extract: &domain.FormExtract{}}}}
+	if countExtracts(two) != 2 {
+		t.Errorf("countExtracts = %d, want 2", countExtracts(two))
+	}
+}

@@ -36,6 +36,25 @@ type FormInput struct {
 	// Choices are a reference select's records, each a stored id and the words it is shown by (the related record's
 	// label, a member's name).
 	Choices []FormChoice
+	// Note and Flag belong to a proposed value (a document reader's answer): Note is where it was read, Flag the words of a
+	// warning when it was inferred rather than quoted or could not be matched. Both empty is an ordinary control.
+	Note, Flag string
+}
+
+// ProposedValue is one answer of a document reader, after the runtime checked it against its Field: Value is the string
+// the control starts as ("" when the document did not say or the answer did not fit the Field), Source where it was read, and
+// Review whether a person should look twice (it was inferred, or it did not fit and was left empty).
+type ProposedValue struct {
+	Value  string `json:"value"`
+	Source string `json:"source,omitempty"`
+	Review bool   `json:"review,omitempty"`
+}
+
+// ExtractionProposal is what a reading proposed, in the shape a page's form fills itself from: an answer per Field, and per
+// kind of rows (the index into FormExtract.Rows) the rows with an answer per Field.
+type ExtractionProposal struct {
+	Values map[string]ProposedValue     `json:"values"`
+	Rows   [][]map[string]ProposedValue `json:"rows"`
 }
 
 // FormChoice is one record a reference select offers.

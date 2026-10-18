@@ -83,6 +83,44 @@ navigation:
           submit: Save contract
           # What the Copy link on a contract's page carries over: a start, still a control the person may change.
           starts: { fld_party_name: $parameters.fld_party_name, fld_value: $parameters.fld_value, fld_category: $parameters.fld_category }
+          # K01c: the form can be filled from the contract's PDF -- read, proposed, checked by a person, then saved with its
+          # instalments as one.
+          extract:
+            file: fld_doc
+            read: Read document
+            review: needs review
+            instruction: A production contract between a production house and a cast, crew or vendor.
+            fields: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value]
+            rows:
+              - label: Instalments
+                machine: mch_contract_term
+                via: fld_contract
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_vat, fld_wht]
+          binding: { dataset: ds_contracts, write: create }
+  - id: nav_other_contract
+    label: Other contract
+    route: /pages/nav_other_contract
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Form
+          submit: Save contract
+          # What the Copy link on a contract's page carries over: a start, still a control the person may change.
+          starts: { fld_party_name: $parameters.fld_party_name, fld_value: $parameters.fld_value, fld_category: $parameters.fld_category }
+          # K01c: the form can be filled from the contract's PDF -- read, proposed, checked by a person, then saved with its
+          # instalments as one.
+          extract:
+            file: fld_doc
+            read: Read document
+            review: needs review
+            instruction: A production contract between a production house and a cast, crew or vendor.
+            fields: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value]
+            rows:
+              - label: Instalments
+                machine: mch_contract_term
+                via: fld_contract
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_vat, fld_wht]
           binding: { dataset: ds_contracts, write: create }
   - id: nav_contracts_first
     label: First contract

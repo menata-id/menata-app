@@ -216,6 +216,21 @@ navigation:
             fld_position: $parameters.fld_position
             fld_item_desc: $parameters.fld_item_desc
             fld_description: $parameters.fld_description
+          # K01c: the contract's PDF is read, the values and instalments it holds are proposed here for a person to check (the
+          # page it was read from is printed under each), and only Save writes the contract with the instalments kept.
+          extract:
+            file: fld_doc
+            read: Read document
+            review: needs review
+            instruction: >-
+              A production contract between a film production house and a cast member, a crew member or a vendor. Fees are in
+              rupiah. The instalments are the payment schedule in the contract, one row per payment.
+            fields: [fld_party_name, fld_contract_kind, fld_category, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
+            rows:
+              - label: Instalments
+                machine: mch_contract_term
+                via: fld_contract
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_vat, fld_wht]
           binding: { dataset: ds_contracts, write: create }
   # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
   # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.

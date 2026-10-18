@@ -92,7 +92,7 @@ templ authFooterNote() {
 // The five parameters beyond `id`/`label` describe the **control**, not the labelling, and that is the
 // division the slot makes: a Field labels a control, it does not know what sort of control exists.
 templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
-	@field(id, label) {
+	@field(id, label, "", "") {
 		<input
 			id={ id }
 			type={ kind }

@@ -633,6 +633,12 @@ func validateForm(inputs map[string]string) []string {
 	if strings.HasPrefix(a, "/runtime-actions/") && method == "" {
 		valid = strings.Trim(strings.SplitN(strings.TrimPrefix(a, "/runtime-actions/"), "?", 2)[0], "/") != ""
 	}
+	// A page's own Form that reads a document (`extract:`) posts to the page: /pages/<nav>/extract sends the document,
+	// /pages/<nav>/extract/save submits the form it filled.
+	if rest, ok := strings.CutPrefix(a, "/pages/"); ok && method == "" {
+		nav, tail, found := strings.Cut(rest, "/")
+		valid = found && nav != "" && (tail == strings.TrimPrefix(domain.ExtractRouteSuffix, "/") || tail == strings.TrimPrefix(domain.ExtractSaveSuffix, "/"))
+	}
 	if !valid {
 		issues = append(issues, fmt.Sprintf("Form action %q is not a Machine's create route (/machines/<id>/records) or, with method %s, one of its records (/machines/<id>/records/<id>)", a, domain.FormMethodPatch))
 	}
@@ -835,6 +841,10 @@ var fieldContract = domain.ComponentContract{
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "for", Kind: "string", Required: true},
+		// note and flag belong to a proposed value (a document reader's answer): where it was read, and the words of a
+		// warning when it was inferred rather than quoted. Lowering derives them; nobody types them.
+		{Name: "note", Kind: "string"},
+		{Name: "flag", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"control"},

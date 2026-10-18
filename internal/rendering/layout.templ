@@ -1496,7 +1496,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentStatusBadge:
 					@statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]), domain.BadgeSize(n.Props["size"]))
 				case domain.ComponentField:
-					@field(n.Props["for"], n.Props["label"]) {
+					@field(n.Props["for"], n.Props["label"], n.Props["note"], n.Props["flag"]) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:

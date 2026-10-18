@@ -97,6 +97,9 @@ type Config struct {
 	// default). A body over it is refused with 413 before it is read to disk (internal/web.parseRecordForm). Read it
 	// through MaxUploadBytes, which also applies the default to an unset or non-positive value.
 	MaxUploadMB int
+	// MaxReadingsPerHour is how many documents one Workspace may send to the document reader in an hour (MAX_READINGS_PER_HOUR;
+	// 60 by default): a ceiling against a loop, until a usage quota says otherwise. Zero or negative means the default.
+	MaxReadingsPerHour int
 
 	// BackupDir is where installer.SnapshotWorkspace writes a Workspace's installation before an install or an
 	// assistant publish rewrites it (K10). Empty disables snapshots.
@@ -132,12 +135,24 @@ func Load() Config {
 		StatementTimeoutSeconds: getenvInt("STATEMENT_TIMEOUT_SECONDS", 20),
 		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
 		MaxUploadMB:             getenvInt("MAX_UPLOAD_MB", DefaultMaxUploadMB),
+		MaxReadingsPerHour:      getenvInt("MAX_READINGS_PER_HOUR", DefaultMaxReadingsPerHour),
 	}
 }
 
 // DefaultMaxUploadMB is the record-write body cap when MAX_UPLOAD_MB is unset: generous enough for a scanned contract
 // or a handful of photos, small enough that one request cannot fill the disk.
 const DefaultMaxUploadMB = 20
+
+// DefaultMaxReadingsPerHour is MaxReadingsPerHour when unset.
+const DefaultMaxReadingsPerHour = 60
+
+// ReadingsPerHour is MaxReadingsPerHour with the default standing in for an unset, zero or negative value.
+func (c Config) ReadingsPerHour() int {
+	if c.MaxReadingsPerHour < 1 {
+		return DefaultMaxReadingsPerHour
+	}
+	return c.MaxReadingsPerHour
+}
 
 // MaxUploadBytes is MaxUploadMB in bytes, with DefaultMaxUploadMB standing in for an unset, zero or negative value --
 // a cap of nothing would refuse every upload, and a Config built in a test without one must still have a cap.

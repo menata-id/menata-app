@@ -101,9 +101,55 @@ type PageNode struct {
 	Values map[string]string
 	// Starts (`starts: {fld_party_name: $parameters.fld_party_name}`) are what a create Form begins with, like Values, but
 	// left an ordinary control the person may change: the form a Copy link opens, filled from the record it copies.
-	Starts   map[string]string
+	Starts map[string]string
+	// Extract (`extract:` on a create Form) lets the form be filled from a document: see FormExtract.
+	Extract  *FormExtract
 	Children []PageNode
 }
+
+// FormExtract is what a create Form declares to be filled from a document (an AI reads it, a person checks it, and only
+// then is anything written). It names which Field keeps the document, which Fields of the form the reader proposes
+// values for, and which child records (rows of another Machine linked to the one being created) it proposes too.
+// Everything the runtime asks of the reader comes from here and from the Machines' own Fields: the Field's name, its type
+// and its options are the question, so one declaration serves a contract, an invoice or a receipt.
+type FormExtract struct {
+	// File is the Field of the form's Machine (type file) the document is kept in once the record is saved.
+	File string
+	// Read is the words on the button that sends the document to be read.
+	Read string
+	// Review is the words of the warning beside a value that was inferred or did not fit ("needs review").
+	Review string
+	// Instruction says what the document is and anything the reader should know ("a production contract between...").
+	Instruction string
+	// Fields are the form's Fields the reader proposes a value for.
+	Fields []string
+	// Rows are the child records the reader proposes beside them.
+	Rows []ExtractRows
+}
+
+// ExtractRows is one kind of child record a document holds several of (the instalments of a contract): rows of Machine,
+// each linked to the record being created through its relation Field Via, with Fields proposed per row.
+type ExtractRows struct {
+	Label   string
+	Machine string
+	Via     string
+	Fields  []string
+}
+
+// Extraction routes: the page's own address with `/extract` (a document is sent to be read) and `/extract/save` (the
+// checked form is submitted). Derived from the navigation item that holds the Form, never written.
+const (
+	ExtractRouteSuffix = "/extract"
+	ExtractSaveSuffix  = "/extract/save"
+	// ExtractParam is the query parameter that opens a page with a proposal in its form.
+	ExtractParam = "proposal"
+	// ExtractFileParam is the name of the file control of the reader form.
+	ExtractFileParam = "document"
+	// ExtractRowPrefix names the controls of a proposed row: rows.<kind>.<n>.<field>; <kind> is the index of the ExtractRows.
+	ExtractRowPrefix = "rows."
+	// ExtractRowInclude is the tick that keeps a proposed row: rows.<kind>.<n>.include.
+	ExtractRowInclude = "include"
+)
 
 // PageColumn is one column of a declared Table. Header is the words in the column's header cell, Align the edge its
 // text sits on (empty is the start), and Href, when it is PageRecordRole, makes the cell a link to the record's own
@@ -282,6 +328,8 @@ type PageBinding struct {
 	Transition string
 	// Starts is the Form's `starts:` (PageNode.Starts), copied here at load like Values.
 	Starts map[string]string
+	// Extract is the Form's `extract:` (PageNode.Extract), copied here at load like Starts.
+	Extract *FormExtract
 	// Values is the Form's `values:` (PageNode.Values), copied here at load so the resolver that builds the form reads
 	// them beside the request. Never written on a binding.
 	Values map[string]string

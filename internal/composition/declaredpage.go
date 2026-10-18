@@ -2,6 +2,7 @@ package composition
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -72,7 +73,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 			return bindingRecords(ctx, l, viewer, params, now, b)
 		},
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
-			return bindingForm(ctx, l, viewer, params, b)
+			return bindingForm(ctx, l, viewer, params, pageID, b)
 		},
 		Action: func(b domain.PageBinding, recordID string) (ir.FormSpec, error) {
 			return bindingAction(ctx, l, viewer, b, recordID)
@@ -115,7 +116,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 // `Permitted` is the viewer's `create` Permission evaluated against no record (there is none yet), so a
 // Permission that depends on a record's own Field answers false and the form is hidden: fail closed. The create
 // route evaluates the real values and refuses on its own, which is why this is courtesy and not the enforcement.
-func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, b domain.PageBinding) (ir.FormSpec, error) {
+func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, pageID string, b domain.PageBinding) (ir.FormSpec, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return ir.FormSpec{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -145,11 +146,70 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 			}
 		}
 	}
-	return ir.FormSpec{
+	spec := ir.FormSpec{
 		Route:     domain.FormRoute(src.ID),
 		Permitted: authorization.AllowsAction(src, domain.ActionCreate, nil, viewer),
 		Inputs:    inputs,
-	}, nil
+	}
+	if b.Extract != nil {
+		if err := extractSpec(ctx, l, viewer, params, pageID, *b.Extract, src, &spec); err != nil {
+			return ir.FormSpec{}, err
+		}
+	}
+	return spec, nil
+}
+
+// extractSpec adds to a create Form what its `extract:` brings: the reader that sends a document, and -- when the page was
+// opened with a proposal this viewer asked for on this page and has not saved -- the form filled from it, its proposed rows,
+// the document's name, and a submit that goes to the page's own save route instead of the Machine's. A proposal that is
+// not found, not this viewer's, not this page's or already saved is simply not used: the form stays the ordinary one.
+func extractSpec(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, pageID string, x domain.FormExtract, src *domain.Machine, spec *ir.FormSpec) error {
+	if pageID == "" {
+		return nil
+	}
+	if l.reader && spec.Permitted {
+		label := x.File
+		if f, ok := src.FieldByID(x.File); ok {
+			label = f.Name
+		}
+		spec.Reader = &ir.FormReader{Route: "/pages/" + pageID + domain.ExtractRouteSuffix, Read: x.Read, Label: label}
+	}
+	id := params[domain.ExtractParam]
+	workspaceID, scoped := data.WorkspaceScope(ctx)
+	if id == "" || !scoped {
+		return nil
+	}
+	rec, err := l.store.GetExtraction(ctx, workspaceID, id)
+	if err != nil {
+		if errors.Is(err, data.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	if rec.UserID != viewer.ID || rec.NavID != pageID || rec.Status != data.ExtractionProposed {
+		return nil
+	}
+	var p domain.ExtractionProposal
+	if err := json.Unmarshal(rec.Proposal, &p); err != nil {
+		return nil
+	}
+	rows, err := applyProposal(ctx, l, x, spec.Inputs, p)
+	if err != nil {
+		return err
+	}
+	spec.Rows, spec.Carries = rows, domain.ExtractParam+"="+rec.ID
+	spec.Route = "/pages/" + pageID + domain.ExtractSaveSuffix
+	label := x.File
+	if f, ok := src.FieldByID(x.File); ok {
+		label = f.Name
+	}
+	spec.Document = label + ": " + rec.FileName
+	if l.files != nil {
+		if size := l.files.Size(rec.FileKey); size > 0 {
+			spec.Document += " · " + humanSize(size)
+		}
+	}
+	return nil
 }
 
 // fillChoices gives each reference select of a form its records: the related Machine's records by their labels, and the

@@ -1987,6 +1987,50 @@ with no browser draws no button and answers 404 on the route**: set `PDF_BROWSER
 Two prints run at a time, each limited to 30 seconds. This is any page's output, not the purchase order's: the second render target
 007 §12 and the audit's B5 call for, fed by the page the viewer already has.
 
+**A form filled from a document (`extract:`, 2026-10-18, K01c).** A create Form can be filled from a PDF or an image that an AI
+reads, a person checks, and only then is anything written. It is the same declaration whatever the document is -- a contract, an
+invoice, a receipt -- because the questions come from the Fields of the Machine:
+
+```yaml
+- component: Form
+  submit: Save contract
+  binding: { dataset: ds_contracts, write: create }
+  extract:
+    file: fld_doc                 # the file Field the document is kept in once saved
+    read: Read document           # the words on the button that sends the document
+    review: needs review          # the words beside a value the reader inferred or could not fit
+    instruction: A production contract between a film house and a cast member...   # what the document is (optional)
+    fields: [fld_party_name, fld_contract_kind, fld_category, fld_value, fld_start_date]
+    rows:                         # child records the document holds several of
+      - label: Instalments
+        machine: mch_contract_term
+        via: fld_contract         # the relation Field of the rows that points at the record being created
+        fields: [fld_term_label, fld_due_date, fld_gross, fld_wht]
+```
+
+What happens: the page draws a small reader (a file control and the `read:` button) above the form. Sending a document posts it to
+`/pages/<nav>/extract`, the reader (Gemini, `GEMINI_API_KEY`) answers a value per listed Field with **where it read it** ("p. 3 ·
+art. 5(1)") and whether it **inferred** rather than quoted, and the page opens again with `?proposal=<id>`: the ordinary form, each
+control started with the proposed value, the page it was read from under it, the `review:` words beside an inferred or unfit value,
+and the proposed rows as a row of controls each (ticked = kept). **Nothing is written until Save**, which posts to
+`/pages/<nav>/extract/save` and writes the record and every kept row in **one transaction**, each through the Machine's own create
+rules (Permissions, validation, numbering, constraints), then runs their on_create Events. A row the Machine refuses refuses the whole
+save. The document saved is the one the proposal was read from, never one the request names. A proposal belongs to the person who
+asked, on the page that asked, and is saved once.
+
+How a value is held to its control (`domain.Fit`): a number is a number (a reader that wrote "180,000,000" is read as 180000000),
+a date is a date (read as `2026-11-02`), a choice is one of the Field's options -- or, for a relation, the label of one of the
+related records -- and what does not fit is left empty and flagged, never put in a control that would refuse it. Proposable
+Fields are text, long text, number, money, date, status and relation; not person, file, group or boolean. The loader refuses a
+`file:` that is not a file Field, a Field the form does not ask for, a `via` that does not point back at the Machine being created, and
+a required Field of the rows that the declaration leaves out (a row that could never be saved). One Form per page declares it, on an
+Application's page. No `GEMINI_API_KEY` means no reader is drawn and the form stays the ordinary one. Every reading writes an
+`AI-EXTRACT` line and a `document_extractions` row, the ledger a usage quota would count; no cap exists yet (menata-app-document C2).
+A document reads for a few seconds (3-4 s for seven pages measured against the real model).
+**What leaves the host:** the document, the Fields' names and types, the instruction, and -- for a relation Field -- the labels of
+the related records (up to 150 of them; a longer list is not sent, and the answer is matched to a record by its label afterwards).
+A Workspace may send 60 documents an hour (`MAX_READINGS_PER_HOUR`; a failed attempt counts); the next is refused with 429.
+
 **A link into another Application (`in:, 2026-10-18, K01d's "Create payment plan").** `{static: link, to: nav_new_plan,
 in: app_instalments_payments, text: Create payment plan}` points at a screen of *another* Application of the same Workspace.
 Applications install and remove on their own, so the link is drawn only while that Application is installed here and this viewer

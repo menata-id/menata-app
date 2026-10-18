@@ -52,6 +52,10 @@ type Deps struct {
 	// Printer prints a page to PDF (`write: pdf`); a Printer with no browser (pdf.Printer.Available false) means the
 	// button is not drawn and the route answers 404.
 	Printer *pdf.Printer
+
+	// Extractor reads a document for a page's `extract:` (aiassist.UnconfiguredExtractor when GEMINI_API_KEY is unset, and
+	// a page then draws no reader).
+	Extractor aiassist.Extractor
 	// StaticDir is where static/ is, for a print to read the stylesheet from; empty is "static", the server's own
 	// working directory.
 	StaticDir string
@@ -281,12 +285,15 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/notifications", showRuntimePage(d.Store, d.Cfg, "nav_notifications").ServeHTTP)
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
-		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer))
+		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer, d.Extractor))
 		// One record's page (`record_of:`): the same handler, with the record the route names.
-		pr.Get("/pages/{navID}/{recordID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer))
+		pr.Get("/pages/{navID}/{recordID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer, d.Extractor))
 		// The same two pages as a PDF file (`write: pdf`): drawn by the handler above, then printed.
-		pr.Get("/pages/{navID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer), d.Printer, d.staticRoot()))
-		pr.Get("/pages/{navID}/{recordID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer), d.Printer, d.staticRoot()))
+		// A page's Form that reads a document (`extract:`): the document is sent to be read, then the checked form is saved.
+		pr.Post("/pages/{navID}"+domain.ExtractRouteSuffix, extractDocument(d.Store, d.Cfg, d.Files, d.Extractor))
+		pr.Post("/pages/{navID}"+domain.ExtractSaveSuffix, saveExtracted(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Get("/pages/{navID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer, d.Extractor), d.Printer, d.staticRoot()))
+		pr.Get("/pages/{navID}/{recordID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer, d.Extractor), d.Printer, d.staticRoot()))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))

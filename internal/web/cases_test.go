@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +21,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -45,6 +47,65 @@ type caseScenario struct {
 	Title  string      `yaml:"title"`
 	Actors []caseActor `yaml:"actors"`
 	Steps  []caseStep  `yaml:"steps"`
+	// Reading is what the document reader answers (a stand-in for the model, which no test may call): the same answer to
+	// every document, keyed by Field id, and per row kind (its index) the rows.
+	Reading *caseReading `yaml:"reading"`
+}
+
+type caseReading struct {
+	Values map[string]caseProposed              `yaml:"values"`
+	Rows   map[string][]map[string]caseProposed `yaml:"rows"`
+}
+
+type caseProposed struct {
+	Value    string `yaml:"value"`
+	Source   string `yaml:"source"`
+	Inferred bool   `yaml:"inferred"`
+}
+
+// caseReader is the Extractor of a case: it answers from the scenario and remembers what it was asked.
+type caseReader struct {
+	reading *caseReading
+	asked   *[]aiassist.ExtractRequest
+}
+
+func (r caseReader) Extract(_ context.Context, req aiassist.ExtractRequest) (aiassist.ExtractResult, error) {
+	*r.asked = append(*r.asked, req)
+	out := aiassist.ExtractResult{Values: map[string]aiassist.Proposed{}, Rows: map[string][]map[string]aiassist.Proposed{}}
+	if r.reading == nil {
+		return out, nil
+	}
+	for k, v := range r.reading.Values {
+		out.Values[k] = aiassist.Proposed(v)
+	}
+	for kind, rows := range r.reading.Rows {
+		for _, row := range rows {
+			kept := map[string]aiassist.Proposed{}
+			for k, v := range row {
+				kept[k] = aiassist.Proposed(v)
+			}
+			out.Rows[kind] = append(out.Rows[kind], kept)
+		}
+	}
+	return out, nil
+}
+
+// caseRead sends a document to a page's reader (POST /pages/<nav>/extract) and keeps the proposal it was answered with, which
+// a later step names as `$<step id>`. Asks lists the Field ids the reader must have been asked about, exactly.
+type caseRead struct {
+	Nav  string   `yaml:"nav"`
+	File string   `yaml:"file"`
+	Asks []string `yaml:"asks"`
+}
+
+// caseSave submits the form a proposal filled (POST /pages/<nav>/extract/save) with the values a person left in it: Values
+// are the form's own control names, rows.<kind>.<n>.<field> and rows.<kind>.<n>.include among them. Machine is the Machine
+// the form creates, so the step's record check reads what it made.
+type caseSave struct {
+	Nav      string            `yaml:"nav"`
+	Proposal string            `yaml:"proposal"`
+	Machine  string            `yaml:"machine"`
+	Values   map[string]string `yaml:"values"`
 }
 
 type caseActor struct {
@@ -60,6 +121,8 @@ type caseStep struct {
 	Tick   *caseTick   `yaml:"tick"`
 	Delete *caseDelete `yaml:"delete"`
 	View   *caseView   `yaml:"view"`
+	Read   *caseRead   `yaml:"read"`
+	Save   *caseSave   `yaml:"save"`
 	Expect string      `yaml:"expect"`
 	// API sends the step through the JSON routes (/api/machines/...) instead of the form routes. Both end in the same
 	// guards, and a case that wants a refusal proved on both says so with a second, state-neutral step.
@@ -157,7 +220,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 88, Steps: 88},
+	"case22_production_contracts": {Rejected: 0, Passed: 104, Steps: 104},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -344,8 +407,8 @@ func scenarioProblem(sc caseScenario) string {
 			return fmt.Sprintf("step %s is taken by %q, who is not an actor", s.ID, s.As)
 		case s.Tick != nil && (s.As != "" || s.Expect != "ok"):
 			return fmt.Sprintf("step %s moves the clock; it takes no actor and expects ok", s.ID)
-		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil, s.Delete != nil, s.View != nil) != 1:
-			return fmt.Sprintf("step %s must have exactly one of create, update, delete, view and tick", s.ID)
+		case countSet(s.Create != nil, s.Update != nil, s.Tick != nil, s.Delete != nil, s.View != nil, s.Read != nil, s.Save != nil) != 1:
+			return fmt.Sprintf("step %s must have exactly one of create, update, delete, view, read, save and tick", s.ID)
 		case s.View != nil && (s.View.Path == "" || len(s.Record) > 0 || s.API):
 			return fmt.Sprintf("step %s views a screen: it names a path, and checks no record and takes no api", s.ID)
 		case s.Expect != "ok" && s.Expect != "refused":
@@ -542,7 +605,8 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 
 	ids := map[string]string{}
 	cookies := map[string]string{}
-	cfg := config.Config{SessionSecret: slug + "-secret", TemplatePath: realLibrary(t)}
+	// Four documents an hour: the fifth reading of a case is refused (K01c's ceiling against a loop).
+	cfg := config.Config{SessionSecret: slug + "-secret", TemplatePath: realLibrary(t), MaxReadingsPerHour: 4}
 	for _, a := range sc.Actors {
 		email := fmt.Sprintf("case%d_%s@example.com", sc.Case, a.Name)
 		u, err := store.CreateRecord(wsCtx, "mch_user", map[string]any{"fld_email": email})
@@ -562,7 +626,9 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 	if err != nil {
 		t.Fatal(err)
 	}
+	var asked []aiassist.ExtractRequest
 	h := Routes(Deps{UserMachine: userMachineOf(t, app), Store: store, Files: files, Cfg: cfg,
+		Extractor: caseReader{reading: sc.Reading, asked: &asked},
 		// A printer the harness only asks whether it exists: a page then draws its PDF button, and nothing is printed.
 		Printer:    pdf.NewPrinter("/bin/true", 1),
 		Workspaces: map[string]domain.Workspace{slug: installed}, DefaultWorkspaceID: ws.ID})
@@ -584,7 +650,11 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			if err != nil {
 				t.Fatal(err)
 			}
-			fw.Write([]byte("case corpus attachment"))
+			content := "case corpus attachment"
+			if strings.HasSuffix(name, ".pdf") {
+				content = "%PDF-1.4\n" + content // what a reader accepts is judged by the bytes
+			}
+			fw.Write([]byte(content))
 		}
 		mw.Close()
 		req := httptest.NewRequest(method, path, &body)
@@ -689,6 +759,41 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			}
 			continue
 		}
+		if s.Read != nil {
+			asked = nil
+			code := send(http.MethodPost, "/pages/"+s.Read.Nav+"/extract", s.As, nil, map[string]string{domain.ExtractFileParam: s.Read.File})
+			if why := outcomeProblem(code, s.Expect); why != "" {
+				fail("%s", why)
+				continue
+			}
+			ok := true
+			if s.Expect == "ok" {
+				proposal := ""
+				if u, err := url.Parse(lastRedirect); err == nil {
+					proposal = u.Query().Get(domain.ExtractParam)
+				}
+				if proposal == "" || !strings.HasPrefix(lastRedirect, "/pages/"+s.Read.Nav+"?") {
+					fail("the reading was answered with a redirect to %q, want the page with a proposal", lastRedirect)
+					ok = false
+				}
+				recordOf[s.ID] = proposal
+				var got []string
+				if len(asked) == 1 {
+					for _, f := range asked[0].Fields {
+						got = append(got, f.ID)
+					}
+				}
+				if len(asked) != 1 || !slices.Equal(got, s.Read.Asks) {
+					fail("the reader was asked %v, want exactly %v", got, s.Read.Asks)
+					ok = false
+				}
+			}
+			if ok {
+				passed++
+				lines = append(lines, "ok   "+s.ID)
+			}
+			continue
+		}
 		if s.Tick != nil {
 			machine, id = machineOf[s.Tick.Ref], recordOf[s.Tick.Ref]
 			if id == "" {
@@ -735,6 +840,16 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 					}
 				}
 				id, snapshot = restored.ID, nil
+			}
+		} else if s.Save != nil {
+			machine = s.Save.Machine
+			values := map[string]string{domain.ExtractParam: recordOf[s.Save.Proposal]}
+			for k, v := range s.Save.Values {
+				values[k] = v
+			}
+			code = send(http.MethodPost, "/pages/"+s.Save.Nav+"/extract/save", s.As, values, nil)
+			if s.Expect == "ok" {
+				id = lastRedirect[strings.LastIndex(lastRedirect, "/")+1:]
 			}
 		} else if s.Create != nil {
 			machine = s.Create.Machine

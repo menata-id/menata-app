@@ -3,6 +3,21 @@ title: Production Contracts (Dokter Kecil)
 actors:
   - { name: silvia, role: production_manager }
   - { name: fina, role: finance }
+  - { name: ana, role: production_manager }
+# What the document reader answers for every document in this case (K01c): the contract and its three instalments, one value
+# inferred (the type) and one that is not an option of the Field (the category is spelled as the category record is).
+reading:
+  values:
+    fld_contract_no: { value: CTR/C/030, source: "p. 1 · title" }
+    fld_party_name: { value: Reza Anggara, source: "p. 1 · second party" }
+    fld_contract_kind: { value: cast, source: "p. 1 · art. 1", inferred: true }
+    fld_category: { value: lead cast, source: "inferred", inferred: true }
+    fld_value: { value: "180,000,000", source: "p. 3 · art. 5(1)" }
+  rows:
+    "0":
+      - { fld_term_label: { value: Signing - 30%, source: "p. 3 · art. 5(2)a" }, fld_due_date: { value: 05 Oct 2026, source: "p. 3 · art. 5(2)a" }, fld_gross: { value: "54000000", source: "p. 3" }, fld_wht: { value: "2700000", source: "p. 3" } }
+      - { fld_term_label: { value: First shooting day - 40%, source: "p. 3 · art. 5(2)b" }, fld_due_date: { value: "2026-11-02", source: "p. 3" }, fld_gross: { value: "72000000", source: "p. 3" }, fld_wht: { value: "3600000", source: "p. 3" } }
+      - { fld_term_label: { value: Wrap - 30%, source: "p. 3 · art. 5(2)c" }, fld_due_date: { value: "2026-12-18", source: "p. 3" }, fld_gross: { value: "54000000", source: "p. 3" }, fld_wht: { value: "2700000", source: "p. 3" } }
 steps:
   # Money is a figure, not text: a value that is not a number is refused, and one that is reads back as a number.
   - id: money-must-be-a-number
@@ -354,7 +369,7 @@ steps:
     as: fina
     view:
       path: /pages/nav_plan/$plan-without-proof
-      shows: ['>proof.pdf · 22 B<', 'href="/uploads/mch_payment_plan/fld_proof/']
+      shows: ['>proof.pdf · 31 B<', 'href="/uploads/mch_payment_plan/fld_proof/']
     expect: ok
 
   - id: contract-is-in-progress-again
@@ -544,3 +559,149 @@ steps:
     as: silvia
     delete: { ref: crew-contract }
     expect: ok
+
+  # K01c: a document is read for the contract form, a person checks what was proposed, and only then is anything written.
+  - id: the-document-is-read
+    as: silvia
+    read: { nav: nav_new_contract, file: ctr-c-030.pdf, asks: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value] }
+    expect: ok
+
+  - id: the-form-opens-filled-from-it
+    as: silvia
+    view:
+      path: /pages/nav_new_contract?proposal=$the-document-is-read
+      shows: ["Reza Anggara", "p. 1 · second party", "180000000", "CTR/C/030", "needs review", "Instalments 1", "2026-10-05", "54000000", "Document: ctr-c-030.pdf", "/pages/nav_new_contract/extract/save", "selected>Lead Cast</option>", "selected>Cast</option>", ">Read document<", 'name="proposal" value="ext_']
+      hides: ["180,000,000"]
+    expect: ok
+
+  # A proposal is the proposer's: another production manager neither sees it nor can save it.
+  - id: and-it-is-only-theirs
+    as: ana
+    view:
+      path: /pages/nav_new_contract?proposal=$the-document-is-read
+      hides: ["Reza Anggara", "extract/save", "CTR/C/030"]
+    expect: ok
+
+  - id: someone-who-may-not-create-cannot-have-a-document-read
+    as: fina
+    read: { nav: nav_new_contract, file: ctr.pdf, asks: [] }
+    expect: refused
+
+  - id: only-a-document-is-read
+    as: silvia
+    read: { nav: nav_new_contract, file: notes.txt, asks: [] }
+    expect: refused
+
+  - id: a-proposal-is-not-the-proposers-to-save-for-another
+    as: ana
+    save: { nav: nav_new_contract, proposal: the-document-is-read, machine: mch_contract, values: { fld_contract_no: CTR/C/030, fld_party_name: Reza Anggara, fld_value: "180000" } }
+    expect: refused
+
+  # The second row is left out; the other two are saved with the contract, each as the Machine's own rules judge it.
+  - id: the-checked-form-is-saved-with-its-instalments
+    as: silvia
+    save:
+      nav: nav_new_contract
+      proposal: the-document-is-read
+      machine: mch_contract
+      values:
+        fld_contract_no: CTR/C/030
+        fld_party_name: Reza Anggara
+        fld_contract_kind: Cast
+        fld_category: $lead-cast
+        fld_value: "180000000"
+        fld_status: Active
+        rows.0.0.include: "on"
+        rows.0.0.fld_term_label: Signing - 30%
+        rows.0.0.fld_due_date: "2026-10-05"
+        rows.0.0.fld_gross: "54000000"
+        rows.0.0.fld_wht: "2700000"
+        rows.0.1.fld_term_label: First shooting day - 40%
+        rows.0.1.fld_due_date: "2026-11-02"
+        rows.0.1.fld_gross: "72000000"
+        rows.0.2.include: "on"
+        rows.0.2.fld_term_label: Wrap - 30%
+        rows.0.2.fld_due_date: "2026-12-18"
+        rows.0.2.fld_gross: "54000000"
+        rows.0.2.fld_wht: "2700000"
+    expect: ok
+    record: { fld_party_name: Reza Anggara, fld_value: "1.8e+08", fld_terms: "2", fld_doc: "*", fld_status: Draft }
+    count: { machine: mch_contract_term, where: { fld_contract: $the-checked-form-is-saved-with-its-instalments }, equals: 2 }
+
+  - id: a-proposal-is-saved-once
+    as: silvia
+    save: { nav: nav_new_contract, proposal: the-document-is-read, machine: mch_contract, values: { fld_contract_no: CTR/C/031, fld_party_name: Twice, fld_value: "1" } }
+    expect: refused
+    count: { machine: mch_contract, where: { fld_party_name: Twice }, equals: 0 }
+
+  # One row the Machine refuses (no gross) and the contract is not written either: all of it or none.
+  - id: another-document-is-read
+    as: silvia
+    read: { nav: nav_new_contract, file: ctr-c-031.pdf, asks: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value] }
+    expect: ok
+
+  - id: a-row-that-cannot-be-saved-keeps-the-contract-out-too
+    as: silvia
+    save:
+      nav: nav_new_contract
+      proposal: another-document-is-read
+      machine: mch_contract
+      values:
+        fld_contract_no: CTR/C/031
+        fld_party_name: Half Written
+        fld_value: "100"
+        rows.0.0.include: "on"
+        rows.0.0.fld_term_label: No money
+        rows.0.0.fld_due_date: "2026-10-05"
+    expect: refused
+    count: { machine: mch_contract, where: { fld_party_name: Half Written }, equals: 0 }
+
+  - id: and-the-proposal-is-still-there-to-fix
+    as: silvia
+    view:
+      path: /pages/nav_new_contract?proposal=$another-document-is-read
+      shows: ["extract/save"]
+    expect: ok
+
+  # A proposal opens only on the page whose form asked for it.
+  - id: and-only-on-the-page-that-asked
+    as: silvia
+    view:
+      path: /pages/nav_other_contract?proposal=$another-document-is-read
+      hides: ["Half Written", "extract/save", "CTR/C/030"]
+    expect: ok
+
+  # What a person sends beyond the form's declaration is not read: a row's status is not one of the Fields proposed.
+  - id: a-third-document-is-read
+    as: silvia
+    read: { nav: nav_new_contract, file: ctr-c-032.pdf, asks: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value] }
+    expect: ok
+
+  - id: a-row-field-nobody-declared-is-not-read
+    as: silvia
+    save:
+      nav: nav_new_contract
+      proposal: a-third-document-is-read
+      machine: mch_contract
+      values:
+        fld_contract_no: CTR/C/032
+        fld_party_name: Declared Only
+        fld_value: "1000000"
+        rows.0.0.include: "on"
+        rows.0.0.fld_term_label: One
+        rows.0.0.fld_due_date: "2026-10-05"
+        rows.0.0.fld_gross: "100000"
+        rows.0.0.fld_term_status: Paid
+    expect: ok
+    count: { machine: mch_contract_term, where: { fld_contract: $a-row-field-nobody-declared-is-not-read, fld_term_status: Scheduled }, equals: 1 }
+
+  # A Workspace may have only so many documents read in an hour (four here); a failed attempt counts, a refused upload does not.
+  - id: a-fourth-document-is-read
+    as: silvia
+    read: { nav: nav_new_contract, file: ctr-c-033.pdf, asks: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value] }
+    expect: ok
+
+  - id: and-the-fifth-waits-for-the-hour
+    as: silvia
+    read: { nav: nav_new_contract, file: ctr-c-034.pdf, asks: [] }
+    expect: refused

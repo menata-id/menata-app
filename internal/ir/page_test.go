@@ -1737,3 +1737,87 @@ func TestLower_aPDFButtonAsksForThePageAndIsNotOfferedWhereNothingCanPrint(t *te
 		}
 	}
 }
+
+// TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows: with a reader the Form is preceded by a small form that
+// posts a file to the page; a proposal's notes and flags reach the Fields, the document is named, the proposal rides as a hidden
+// pair, and each proposed row is one grid of controls named rows.<kind>.<n>.<field> behind its own tick.
+func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField), string(domain.ComponentFormInput)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField)})
+	spec := FormSpec{
+		Route: "/pages/nav_new/extract/save", Permitted: true, Carries: "proposal=ext_1", Document: "Document: ctr.pdf · 1.4 MB",
+		Reader: &FormReader{Route: "/pages/nav_new/extract", Read: "Read document", Label: "Document"},
+		Inputs: []domain.FormInput{
+			{FieldID: "fld_party", Label: "Party", Kind: domain.InputText, Default: "Reza", Note: "p. 1 · title"},
+			{FieldID: "fld_kind", Label: "Type", Kind: domain.InputSelect, Options: []string{"Cast"}, Default: "Cast", Flag: "needs review"},
+		},
+		Rows: []FormRows{{Label: "Instalments", Rows: [][]domain.FormInput{
+			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Default: "54"}},
+			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Default: "72"}},
+		}}},
+	}
+	node := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "component", Type: "Form",
+		Props: map[string]string{"submit": "Save"}, Binding: &domain.PageBinding{Dataset: "ds_x", Write: domain.PageWriteCreate}}}}
+	tree, err := Lower(node, Resolver{Form: func(domain.PageBinding) (FormSpec, error) { return spec, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Fatalf("the tree is not valid: %v", issues)
+	}
+	if len(tree.Children) != 2 {
+		t.Fatalf("%d nodes, want the reader and the form", len(tree.Children))
+	}
+	reader, form := tree.Children[0], tree.Children[1]
+	if reader.Props["action"] != "/pages/nav_new/extract" || reader.Props["submit"] != "Read document" || reader.Props["multipart"] != "true" {
+		t.Errorf("reader = %v", reader.Props)
+	}
+	if in := reader.Children[0].Children[0].Props; in["name"] != domain.ExtractFileParam || in["kind"] != string(domain.InputFile) {
+		t.Errorf("the reader's control = %v", in)
+	}
+	if form.Props["carries"] != "proposal=ext_1" || form.Props["action"] != "/pages/nav_new/extract/save" {
+		t.Errorf("form = %v", form.Props)
+	}
+	if form.Children[0].Kind != NodeStatic || form.Children[0].Props["text"] != "Document: ctr.pdf · 1.4 MB" {
+		t.Errorf("the document is not named first: %+v", form.Children[0])
+	}
+	if f := form.Children[1].Props; f["note"] != "p. 1 · title" || f["flag"] != "" {
+		t.Errorf("party field = %v", f)
+	}
+	if f := form.Children[2].Props; f["flag"] != "needs review" {
+		t.Errorf("type field = %v", f)
+	}
+	grid := form.Children[3]
+	if grid.Type != string(domain.LayoutGrid) || len(grid.Children) != 2 {
+		t.Fatalf("first row = %+v", grid)
+	}
+	if n := grid.Children[0].Children[0].Props; n["name"] != "rows.0.0.include" || n["kind"] != string(domain.InputBoolean) {
+		t.Errorf("the row's tick = %v", n)
+	}
+	if n := grid.Children[1].Children[0].Props; n["name"] != "rows.0.0.fld_gross" || n["value"] != "54" {
+		t.Errorf("the row's control = %v", n)
+	}
+	if n := form.Children[4].Children[1].Children[0].Props["name"]; n != "rows.0.1.fld_gross" {
+		t.Errorf("second row's control = %q", n)
+	}
+	seen := map[string]bool{}
+	var ids func(UINode)
+	ids = func(n UINode) {
+		if id := n.Props["id"]; id != "" {
+			if seen[id] {
+				t.Errorf("the control id %q is used twice", id)
+			}
+			seen[id] = true
+		}
+		for _, c := range n.Children {
+			ids(c)
+		}
+	}
+	ids(tree)
+	// A reader of nothing is not drawn.
+	spec.Reader = nil
+	tree, _ = Lower(node, Resolver{Form: func(domain.PageBinding) (FormSpec, error) { return spec, nil }})
+	if len(tree.Children) != 1 {
+		t.Errorf("without a reader the form stands alone, got %d nodes", len(tree.Children))
+	}
+}

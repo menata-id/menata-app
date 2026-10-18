@@ -36,6 +36,8 @@ type Loader struct {
 	// files answers an attachment's size; nil leaves sizes blank, which is what a caller that never draws
 	// attachments (every one but the record detail) wants.
 	files *storage.Store
+	// reader says the host can read a document for a page's `extract:`; false unless a caller that draws one says so.
+	reader bool
 	// pdf says the host can print a page to PDF; false unless a caller that draws a `write: pdf` Button says so.
 	pdf bool
 

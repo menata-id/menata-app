@@ -72,6 +72,19 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 // stamped Fields, the create Permission, validation, the write, then the Machine's on_create Events. It answers
 // the request itself when any step refuses, so a caller only continues on ok.
 func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config, machine *domain.Machine, values map[string]any) (*data.Record, domain.Actor, bool) {
+	record, actor, ok := writeFromValues(w, req, store, cfg, machine, values)
+	if !ok {
+		return nil, actor, false
+	}
+	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(req.Context()), machine, record, actor.ID)
+	return record, actor, true
+}
+
+// writeFromValues is createFromValues without the Machine's on_create Events: the write itself, which joins a transaction
+// the request's context already carries. A caller that writes several records as one (a document's proposal: a contract and
+// its instalments) writes each through here inside one transaction and runs the Events of all of them once it has committed,
+// so a record that was rolled back has announced nothing.
+func writeFromValues(w http.ResponseWriter, req *http.Request, store *data.Store, cfg config.Config, machine *domain.Machine, values map[string]any) (*data.Record, domain.Actor, bool) {
 	data.ApplyDefaults(machine, values)
 	execution.ApplyComputed(req.Context(), store, machine, "", values)
 
@@ -109,7 +122,6 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 	if !ok {
 		return nil, actor, false
 	}
-	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID)
 	return record, actor, true
 }
 
