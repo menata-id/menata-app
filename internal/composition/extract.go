@@ -130,6 +130,10 @@ func proposed(in domain.FormInput, p domain.ProposedValue, flag string) domain.F
 	if p.Review {
 		in.Flag = flag
 	}
+	// A required control the reader left empty cannot be saved as it is: say so beside it, not only when Save is pressed.
+	if in.Required && p.Value == "" {
+		in.Flag = "required: fill in"
+	}
 	return in
 }
 

@@ -2088,7 +2088,11 @@ func formField(id, name string, in domain.FormInput) UINode {
 		}
 		ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
 	}
-	field := map[string]string{"label": in.Label, "for": id}
+	label := in.Label
+	if in.Required {
+		label += " *"
+	}
+	field := map[string]string{"label": label, "for": id}
 	if in.Note != "" {
 		field["note"] = in.Note
 	}

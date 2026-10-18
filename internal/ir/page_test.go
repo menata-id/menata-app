@@ -644,7 +644,7 @@ func TestLower_formBecomesAFieldPerInputWithEverythingTheMachineDecided(t *testi
 		t.Errorf("select input = %+v", in)
 	}
 	first := f.Children[0].Children[0]
-	if first.Props["required"] != "true" || f.Children[0].Props["label"] != "Name" {
+	if first.Props["required"] != "true" || f.Children[0].Props["label"] != "Name *" {
 		t.Errorf("first = %+v / %+v", f.Children[0], first)
 	}
 	if f.Children[0].Props["for"] == "" || f.Children[0].Props["for"] == f.Children[1].Props["for"] {

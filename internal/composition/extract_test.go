@@ -32,3 +32,18 @@ func TestAQuestionCarriesOnlyABoundedListOfChoices(t *testing.T) {
 		t.Errorf("a number: %+v", q)
 	}
 }
+
+// A required control the reader left empty says so beside the control, before Save is pressed; one it filled, or one that is
+// optional, carries no such words.
+func TestProposedFlagsARequiredControlLeftEmpty(t *testing.T) {
+	req := domain.FormInput{FieldID: "a", Required: true}
+	if got := proposed(req, domain.ProposedValue{}, "needs review"); got.Flag == "" {
+		t.Error("an empty required control carries no flag")
+	}
+	if got := proposed(req, domain.ProposedValue{Value: "x"}, "needs review"); got.Flag != "" {
+		t.Errorf("a filled control is flagged %q", got.Flag)
+	}
+	if got := proposed(domain.FormInput{FieldID: "b"}, domain.ProposedValue{}, "needs review"); got.Flag != "" {
+		t.Errorf("an optional empty control is flagged %q", got.Flag)
+	}
+}
