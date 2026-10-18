@@ -2036,21 +2036,15 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 	for i, in := range spec.Inputs {
 		form.Children = append(form.Children, formField(formControlID(path, i), in.FieldID, in))
 	}
-	// Proposed child records ride the same submit: each row's controls are named rows.<kind>.<n>.<field>, and an `include`
-	// box lets a person leave a row out.
+	// Proposed child records ride the same submit: each kind is one Table -- one header row, a row per proposed record, a total
+	// -- whose cells are the row's controls, named rows.<kind>.<n>.<field>, and a last tick that keeps or leaves out the row.
 	for k, kind := range spec.Rows {
-		for r, row := range kind.Rows {
-			prefix := fmt.Sprintf("%s%d.%d.", domain.ExtractRowPrefix, k, r)
-			// A row is one grid of controls: its own tick first (named by the row: ticked, it is saved with the form; unticked, it is
-			// left out), then the row's Fields, wrapping four to a line.
-			grid := UINode{Kind: NodeLayout, Type: string(domain.LayoutGrid), Props: map[string]string{"gap": string(domain.GapDefault), "mobile": "1", "columns": "4"}}
-			grid.Children = append(grid.Children, formField(formControlID(path, len(spec.Inputs)+k*1000+r*50+49), prefix+domain.ExtractRowInclude,
-				domain.FormInput{Label: fmt.Sprintf("%s %d", kind.Label, r+1), Kind: domain.InputBoolean, Default: "true"}))
-			for i, in := range row {
-				grid.Children = append(grid.Children, formField(formControlID(path, len(spec.Inputs)+k*1000+r*50+i), prefix+in.FieldID, withRowLabel(in, kind.Label, r+1)))
-			}
-			form.Children = append(form.Children, grid)
+		if len(kind.Rows) == 0 {
+			continue
 		}
+		form.Children = append(form.Children,
+			UINode{Kind: NodeStatic, Type: string(domain.StaticSubheading), Props: map[string]string{"text": kind.Label}},
+			rowsTable(path, len(spec.Inputs)+k*1000, k, kind))
 	}
 	out := []UINode{}
 	if spec.Reader != nil {
@@ -2059,16 +2053,85 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 	return append(out, form), nil
 }
 
-// withRowLabel names a row's control by its row, so the labels on a page of several rows are not one repeated word.
-func withRowLabel(in domain.FormInput, kind string, n int) domain.FormInput {
-	in.Label = fmt.Sprintf("%s %d · %s", kind, n, in.Label)
-	return in
+// rowsTable is one kind of proposed child record as a Table of controls: the first column numbers the rows, then one column per
+// Field, then the keep tick. A column whose Field is a number is added up in the total row from the values proposed (a
+// total of what is proposed, not of what a person then types). Each control carries its column and row as a hidden label,
+// since the header is the only visible one; a proposed value's source and flag sit under its control.
+func rowsTable(path string, base, k int, kind FormRows) UINode {
+	first := kind.Rows[0]
+	headers := []string{"#"}
+	aligns := []string{string(domain.TableAlignStart)}
+	for _, in := range first {
+		headers = append(headers, in.Label)
+		if in.Kind == domain.InputNumber {
+			aligns = append(aligns, string(domain.TableAlignEnd))
+		} else {
+			aligns = append(aligns, string(domain.TableAlignStart))
+		}
+	}
+	headers, aligns = append(headers, "Keep"), append(aligns, string(domain.TableAlignStart))
+	sums := make([]float64, len(first))
+	table := UINode{Kind: NodeComponent, Type: string(domain.ComponentTable), Props: map[string]string{
+		"label": kind.Label, "framed": "true",
+		tableHeadersProp: strings.Join(headers, "\n"), tableAlignsProp: strings.Join(aligns, ","),
+	}}
+	for r, row := range kind.Rows {
+		prefix := fmt.Sprintf("%s%d.%d.", domain.ExtractRowPrefix, k, r)
+		table.Children = append(table.Children, UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": fmt.Sprint(r + 1)}})
+		for i, in := range row {
+			if n, err := strconv.ParseFloat(in.Default, 64); err == nil && in.Kind == domain.InputNumber && i < len(sums) {
+				sums[i] += n
+			}
+			table.Children = append(table.Children, rowCell(formControlID(path, base+r*50+i), prefix+in.FieldID, in, fmt.Sprintf("%s %d · %s", kind.Label, r+1, in.Label)))
+		}
+		tick := domain.FormInput{Kind: domain.InputBoolean, Default: "true"}
+		table.Children = append(table.Children, controlNode(formControlID(path, base+r*50+49), prefix+domain.ExtractRowInclude, tick, fmt.Sprintf("Keep %s %d", strings.ToLower(kind.Label), r+1)))
+	}
+	// The count goes in the first column that is not a figure (a narrow "#" column would wrap it), else in the first.
+	footer := make([]string, 1+len(first)+1)
+	count, at := fmt.Sprintf("%d %s", len(kind.Rows), strings.ToLower(kind.Label)), 0
+	for i, in := range first {
+		if in.Kind != domain.InputNumber {
+			at = 1 + i
+			break
+		}
+	}
+	footer[at] = count
+	for i, in := range first {
+		if in.Kind == domain.InputNumber {
+			footer[1+i] = groupThousands(sums[i])
+		}
+	}
+	table.Props[tableFooterProp] = strings.Join(footer, "\t")
+	return table
 }
 
 // formField is one labelled control of a form: the Field that names it and the Input that is it, with the note and the
 // flag a proposed value carries.
 func formField(id, name string, in domain.FormInput) UINode {
+	label := in.Label
+	if in.Required {
+		label += " *"
+	}
+	field := map[string]string{"label": label, "for": id}
+	if in.Note != "" {
+		field["note"] = in.Note
+	}
+	if in.Flag != "" {
+		field["flag"] = in.Flag
+	}
+	return UINode{
+		Kind: NodeComponent, Type: string(domain.ComponentField), Props: field,
+		Children: []UINode{controlNode(id, name, in, "")},
+	}
+}
+
+// controlNode is the Input a Form's control lowers to; label, when given, is its hidden name (a control under a column header).
+func controlNode(id, name string, in domain.FormInput, label string) UINode {
 	ctl := map[string]string{"id": id, "name": name, "kind": string(in.Kind)}
+	if label != "" {
+		ctl["label"] = label
+	}
 	if in.Required {
 		ctl["required"] = "true"
 	}
@@ -2088,21 +2151,24 @@ func formField(id, name string, in domain.FormInput) UINode {
 		}
 		ctl["options"] = strings.Join(lines, domain.InputOptionsSep)
 	}
-	label := in.Label
-	if in.Required {
-		label += " *"
+	return UINode{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: ctl}
+}
+
+// rowCell is one cell of a proposed row: its control, and under it where the value was read and the words that say a person
+// should look twice.
+func rowCell(id, name string, in domain.FormInput, label string) UINode {
+	ctl := controlNode(id, name, in, label)
+	if in.Note == "" && in.Flag == "" {
+		return ctl
 	}
-	field := map[string]string{"label": label, "for": id}
-	if in.Note != "" {
-		field["note"] = in.Note
-	}
+	cell := UINode{Kind: NodeLayout, Type: string(domain.LayoutStack), Props: map[string]string{"gap": string(domain.GapTight)}, Children: []UINode{ctl}}
 	if in.Flag != "" {
-		field["flag"] = in.Flag
+		cell.Children = append(cell.Children, UINode{Kind: NodeComponent, Type: string(domain.ComponentTag), Props: map[string]string{"label": in.Flag, "color": string(domain.TagAmber)}})
 	}
-	return UINode{
-		Kind: NodeComponent, Type: string(domain.ComponentField), Props: field,
-		Children: []UINode{{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: ctl}},
+	if in.Note != "" {
+		cell.Children = append(cell.Children, UINode{Kind: NodeStatic, Type: string(domain.StaticCaption), Props: map[string]string{"text": in.Note}})
 	}
+	return cell
 }
 
 // readerForm is the small form that sends a document to be read: one file control, named as the runtime's reader expects,

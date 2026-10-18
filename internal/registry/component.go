@@ -663,11 +663,14 @@ var formInputContract = domain.ComponentContract{
 		{Name: "required", Kind: "bool"},
 		// fixed is a value the request supplied (a Form's `values:`): drawn as words in a hidden input, never chosen.
 		{Name: "fixed", Kind: "bool"},
+		// label names a control that sits under a column header instead of a Field's label (a table of proposed rows): drawn
+		// as a visually hidden <label>, so a screen reader still hears what the cell is.
+		{Name: "label", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
 	Actions:          nil,
-	Accessibility:    "a native control, named by the Field that labels it; `required` is the native attribute, so a screen reader announces it and the browser refuses an empty submit before the server is asked",
+	Accessibility:    "a native control, named by the Field that labels it (or, in a table, by its own hidden `label`); `required` is the native attribute, so a screen reader announces it and the browser refuses an empty submit before the server is asked",
 	Renderer:         "formInput",
 }
 

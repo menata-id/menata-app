@@ -1363,7 +1363,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Collection` | stable | Declared by six installed pages (Board Settings, Calendar, Dashboard, My Tasks, both document lists) |
 | `Field` | stable | Never written: every `Form` lowers to one around each control, so changing it changes every installed Form |
 | `Form` | stable | Declared by an installed page (Board Settings) |
-| `Input` | stable | Never written: emitted by a `Form`'s lowering, one per control, so it is `Form`'s contract |
+| `Input` | stable | Never written: emitted by a `Form`'s lowering, one per control, so it is `Form`'s contract; `label` names a control that sits under a column header (a hidden label) |
 | `Metric` | stable | Declared by installed pages (Dashboard, Documents by status) |
 | `Progress` | stable | Declared by an installed page (Dashboard) |
 | `StatusBadge` | stable | Declared by five installed pages (Calendar, Dashboard, both document lists, My Tasks) |
@@ -2012,7 +2012,7 @@ What happens: the page draws a small reader (a file control and the `read:` butt
 `/pages/<nav>/extract`, the reader (Gemini, `GEMINI_API_KEY`) answers a value per listed Field with **where it read it** ("p. 3 ·
 art. 5(1)") and whether it **inferred** rather than quoted, and the page opens again with `?proposal=<id>`: the ordinary form, each
 control started with the proposed value, the page it was read from under it, the `review:` words beside an inferred or unfit value,
-and the proposed rows as a row of controls each (ticked = kept). **Nothing is written until Save**, which posts to
+and the proposed rows as one Table of controls per kind -- a heading, one header row (`#`, each Field, `Keep`), a row each with its source under the control, and a total row that adds up the number columns from what was proposed (a tick in `Keep` = kept). A required control the reader left empty carries a `required: fill in` flag beside its label, and every required control is marked `*`. **Nothing is written until Save**, which posts to
 `/pages/<nav>/extract/save` and writes the record and every kept row in **one transaction**, each through the Machine's own create
 rules (Permissions, validation, numbering, constraints), then runs their on_create Events. A row the Machine refuses refuses the whole
 save. The document saved is the one the proposal was read from, never one the request names. A proposal belongs to the person who
@@ -2026,7 +2026,7 @@ Fields are text, long text, number, money, date, status and relation; not person
 a required Field of the rows that the declaration leaves out (a row that could never be saved). One Form per page declares it, on an
 Application's page. No `GEMINI_API_KEY` means no reader is drawn and the form stays the ordinary one. Every reading writes an
 `AI-EXTRACT` line and a `document_extractions` row, the ledger a usage quota would count; no cap exists yet (menata-app-document C2).
-A document that yields no value at all (not the kind the form is for) is refused with a message and makes no proposal (log `AI-EXTRACT-EMPTY`). A document reads for a few seconds (3-4 s for seven pages measured against the real model).
+A due date that a document gives only as a period can be asked for as the period's last day, in the `instruction:` (it comes back marked for review); "14 days after signing" is not worked out. A document that yields no value at all (not the kind the form is for) is refused with a message and makes no proposal (log `AI-EXTRACT-EMPTY`). A document reads for a few seconds (3-4 s for seven pages measured against the real model).
 **What leaves the host:** the document, the Fields' names and types, the instruction, and -- for a relation Field -- the labels of
 the related records (up to 150 of them; a longer list is not sent, and the answer is matched to a record by its label afterwards).
 A Workspace may send 60 documents an hour (`MAX_READINGS_PER_HOUR`; a failed attempt counts); the next is refused with 429.

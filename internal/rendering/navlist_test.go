@@ -62,7 +62,7 @@ func TestNavList_pageVariantShowsDescriptionsAndIsAlwaysDrawn(t *testing.T) {
 
 func TestMultiSelectInput_drawsOneCheckboxPerOptionUnderOneNameTickedFromTheValue(t *testing.T) {
 	var buf bytes.Buffer
-	if err := formInput("ctl", "member", "multiselect", "u1=ann@example.com\nu2=bob@example.com\nplain", "u2\nplain", false, false).Render(context.Background(), &buf); err != nil {
+	if err := formInput("ctl", "member", "multiselect", "u1=ann@example.com\nu2=bob@example.com\nplain", "u2\nplain", "", false, false).Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()

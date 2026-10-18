@@ -1742,8 +1742,8 @@ func TestLower_aPDFButtonAsksForThePageAndIsNotOfferedWhereNothingCanPrint(t *te
 // posts a file to the page; a proposal's notes and flags reach the Fields, the document is named, the proposal rides as a hidden
 // pair, and each proposed row is one grid of controls named rows.<kind>.<n>.<field> behind its own tick.
 func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testing.T) {
-	RegisterComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField), string(domain.ComponentFormInput)})
-	RegisterSlottedComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField)})
+	RegisterComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField), string(domain.ComponentFormInput), string(domain.ComponentTable)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentForm), string(domain.ComponentField), string(domain.ComponentTable)})
 	spec := FormSpec{
 		Route: "/pages/nav_new/extract/save", Permitted: true, Carries: "proposal=ext_1", Document: "Document: ctr.pdf · 1.4 MB",
 		Reader: &FormReader{Route: "/pages/nav_new/extract", Read: "Read document", Label: "Document"},
@@ -1787,17 +1787,27 @@ func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testin
 	if f := form.Children[2].Props; f["flag"] != "needs review" {
 		t.Errorf("type field = %v", f)
 	}
-	grid := form.Children[3]
-	if grid.Type != string(domain.LayoutGrid) || len(grid.Children) != 2 {
-		t.Fatalf("first row = %+v", grid)
+	// The proposed rows are one Table: a header row (the number, each Field, the tick), a cell per control and a total.
+	table := form.Children[4]
+	if form.Children[3].Type != string(domain.StaticSubheading) || form.Children[3].Props["text"] != "Instalments" {
+		t.Errorf("the rows have no heading: %+v", form.Children[3])
 	}
-	if n := grid.Children[0].Children[0].Props; n["name"] != "rows.0.0.include" || n["kind"] != string(domain.InputBoolean) {
-		t.Errorf("the row's tick = %v", n)
+	if table.Type != string(domain.ComponentTable) || len(form.Children) != 5 {
+		t.Fatalf("the rows are not one table: %d children, third %+v", len(form.Children), table)
 	}
-	if n := grid.Children[1].Children[0].Props; n["name"] != "rows.0.0.fld_gross" || n["value"] != "54" {
+	if table.Props["headers"] != "#\nGross\nKeep" || table.Props["aligns"] != "start,end,start" || table.Props["footer"] != "2 instalments\t126\t" {
+		t.Errorf("table = %v", table.Props)
+	}
+	if len(table.Children) != 6 {
+		t.Fatalf("%d cells, want 3 per row", len(table.Children))
+	}
+	if n := table.Children[1].Props; n["name"] != "rows.0.0.fld_gross" || n["value"] != "54" || n["label"] != "Instalments 1 · Gross" {
 		t.Errorf("the row's control = %v", n)
 	}
-	if n := form.Children[4].Children[1].Children[0].Props["name"]; n != "rows.0.1.fld_gross" {
+	if n := table.Children[2].Props; n["name"] != "rows.0.0.include" || n["kind"] != string(domain.InputBoolean) || n["label"] != "Keep instalments 1" {
+		t.Errorf("the row's tick = %v", n)
+	}
+	if n := table.Children[4].Props["name"]; n != "rows.0.1.fld_gross" {
 		t.Errorf("second row's control = %q", n)
 	}
 	seen := map[string]bool{}

@@ -253,7 +253,10 @@ templ form(submit, action, method string, multipart bool, carries, then string) 
 // choices, default, requiredness -- arrived derived from that Field, so this renders no `name=` of its own
 // choosing. It reads the same `fieldClasses` the Machine pages' controls do, which is why a Theme change moves
 // both. A boolean is a checkbox and never `required` (an unticked box is a valid answer).
-templ formInput(id, name, kind, options, value string, required, fixed bool) {
+templ formInput(id, name, kind, options, value, label string, required, fixed bool) {
+	if label != "" {
+		<label for={ id } class="sr-only">{ label }</label>
+	}
 	if fixed {
 		@fixedInput(id, name, options, value)
 	} else {

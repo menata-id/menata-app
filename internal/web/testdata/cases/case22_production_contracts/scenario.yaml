@@ -577,8 +577,8 @@ steps:
     as: silvia
     view:
       path: /pages/nav_new_contract?proposal=$the-document-is-read
-      shows: ["Reza Anggara", "p. 1 · second party", "180000000", "CTR/C/030", "needs review", "Instalments 1", "2026-10-05", "54000000", "Document: ctr-c-030.pdf", "/pages/nav_new_contract/extract/save", "selected>Lead Cast</option>", "selected>Cast</option>", ">Read document<", 'name="proposal" value="ext_']
-      hides: ["180,000,000"]
+      shows: ["Reza Anggara", "p. 1 · second party", "180000000", "CTR/C/030", "needs review", "Instalments 1", "2026-10-05", "54000000", "Document: ctr-c-030.pdf", "/pages/nav_new_contract/extract/save", "selected>Lead Cast</option>", "selected>Cast</option>", ">Read document<", 'name="proposal" value="ext_', ">Keep</th>", "3 instalments", "180,000,000</td>"]
+      hides: ['value="180,000,000"']
     expect: ok
 
   # A proposal is the proposer's: another production manager neither sees it nor can save it.
