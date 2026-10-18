@@ -1651,3 +1651,12 @@ func TestLower_aLinkIntoAnotherApplicationIsDrawnOnlyWhereItResolves(t *testing.
 		t.Error("a link to a missing screen of the page's own Application was accepted")
 	}
 }
+
+// TestLower_aSlashInToIsRefused: another Application's screens are named "<app>/<item>" inside the runtime; a page may not
+// reach them by writing that in to:, which would skip the load check in: gets.
+func TestLower_aSlashInToIsRefused(t *testing.T) {
+	_, err := Lower(linkTo("app_x/nav_y", nil), navFixture("/somewhere"))
+	if err == nil || !strings.Contains(err.Error(), "in: <application id>") {
+		t.Errorf("a slashed to: = %v", err)
+	}
+}

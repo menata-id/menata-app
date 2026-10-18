@@ -120,6 +120,10 @@ func recomputeParents(ctx context.Context, store *data.Store, machines map[strin
 			if err := recomputeParents(ctx, store, machines, parent, []map[string]any{before, after}, depth+1); err != nil {
 				return err
 			}
+			// A parent the runtime just rewrote (a figure it adds up) is read by its own children in turn.
+			if err := recomputeChildren(ctx, store, machines, parent, id, before, after, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -150,20 +154,25 @@ func recomputeRecord(ctx context.Context, store *data.Store, m *domain.Machine, 
 
 // RecomputeChildren recomputes the records whose computed Fields read a Field of this one through `parent:`, after it is
 // written, so a value taken from a contract follows the contract. What they add up to on their own parents follows them.
-func RecomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string) error {
-	return recomputeChildren(ctx, store, machines, parent, id, 0)
+//
+// before and after are the record's values around the write (nil when the caller has only one of them): when both are given
+// and none of the Fields the children read differ, nothing is listed or locked -- editing a contract's notes does not touch
+// its instalments.
+func RecomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string, before, after map[string]any) error {
+	return recomputeChildren(ctx, store, machines, parent, id, before, after, 0)
 }
 
 // recomputeChildren follows a changed value down as well: an instalment's category follows its contract's, and a payment
 // plan's follows the instalment's, so a record that changed recomputes the records reading it in turn, at most as deep
 // as there are Machines.
-func recomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string, depth int) error {
+func recomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string, before, after map[string]any, depth int) error {
 	if depth > len(machines) {
 		return nil
 	}
 	for _, cid := range slices.Sorted(maps.Keys(machines)) {
 		child := machines[cid]
 		vias := map[string]bool{}
+		unchanged := before != nil && after != nil
 		for _, f := range child.Fields {
 			if f.Compute == nil {
 				continue
@@ -172,9 +181,15 @@ func recomputeChildren(ctx context.Context, store *data.Store, machines map[stri
 				if l.Parent != nil {
 					if via, ok := child.FieldByID(l.Parent.Via); ok && via.RelatedMachine == parent.ID {
 						vias[l.Parent.Via] = true
+						if unchanged && fmt.Sprint(before[l.Parent.Field]) != fmt.Sprint(after[l.Parent.Field]) {
+							unchanged = false
+						}
 					}
 				}
 			})
+		}
+		if unchanged {
+			continue // what this Machine reads of the parent did not change
 		}
 		for _, via := range slices.Sorted(maps.Keys(vias)) {
 			children, err := store.ListRecordsBy(ctx, child.ID, via, id)
@@ -190,7 +205,7 @@ func recomputeChildren(ctx context.Context, store *data.Store, machines map[stri
 					if err := RecomputeParents(ctx, store, machines, child, before, after); err != nil {
 						return err
 					}
-					if err := recomputeChildren(ctx, store, machines, child, c.ID, depth+1); err != nil {
+					if err := recomputeChildren(ctx, store, machines, child, c.ID, before, after, depth+1); err != nil {
 						return err
 					}
 				}

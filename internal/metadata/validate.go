@@ -2174,6 +2174,10 @@ func validateComputeTargets(machines []*domain.Machine) error {
 					}
 					inherited := f.Compute.Tree().Inherited()
 					switch {
+					case inherited && via.RelatedMachine == m.ID:
+						// A Machine reading its own records through a self-relation is a tree the cascade follows only a few
+						// levels, and a ring when the records point at each other.
+						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s goes through %q, a relation to this same machine -- an inherited field takes another machine's value", where, p.Via, p.Field, p.Via))
 					case !ok:
 						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s -- %q has no field %q", where, p.Via, p.Field, via.RelatedMachine, p.Field))
 					case inherited:
@@ -2223,10 +2227,70 @@ func validateComputeTargets(machines []*domain.Machine) error {
 			})
 		}
 	}
+	issues = append(issues, inheritedRingIssues(machines, byID)...)
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// inheritedRingIssues refuses computed Fields that read each other across Machines in a ring (A.x from B.y while B.y reads
+// A.x): each is recomputed after what it reads, which a ring has no order for, and the cascade would only stop at its depth
+// limit. Only a `parent:` read of another computed Field is an edge -- reading a stored one ends the chain.
+func inheritedRingIssues(machines []*domain.Machine, byID map[string]*domain.Machine) []string {
+	type node struct{ machine, field string }
+	edges := map[node][]node{}
+	for _, m := range machines {
+		for _, f := range m.Fields {
+			if f.Compute == nil {
+				continue
+			}
+			from := node{m.ID, f.ID}
+			f.Compute.Tree().Leaves(func(l domain.ComputeExpr) {
+				if l.Parent == nil {
+					return
+				}
+				via, _ := m.FieldByID(l.Parent.Via)
+				parent := byID[via.RelatedMachine]
+				if parent == nil {
+					return
+				}
+				if target, ok := parent.FieldByID(l.Parent.Field); ok && target.Compute != nil {
+					edges[from] = append(edges[from], node{parent.ID, target.ID})
+				}
+			})
+		}
+	}
+	var issues []string
+	state := map[node]int{}
+	var visit func(n node, path []node)
+	visit = func(n node, path []node) {
+		state[n] = 1
+		for _, next := range edges[n] {
+			switch state[next] {
+			case 1:
+				var ring []string
+				for _, p := range append(slices.Clone(path), n, next) {
+					ring = append(ring, p.machine+"."+p.field)
+				}
+				issues = append(issues, fmt.Sprintf("computed fields read each other in a ring across machines: %s", strings.Join(ring, " -> ")))
+			case 0:
+				visit(next, append(slices.Clone(path), n))
+			}
+		}
+		state[n] = 2
+	}
+	keys := make([]node, 0, len(edges))
+	for n := range edges {
+		keys = append(keys, n)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].machine+"."+keys[i].field < keys[j].machine+"."+keys[j].field })
+	for _, n := range keys {
+		if state[n] == 0 {
+			visit(n, nil)
+		}
+	}
+	return issues
 }
 
 func sortedComputeOps() []string {

@@ -364,3 +364,52 @@ fields:
 		})
 	}
 }
+
+// TestInheritedFieldsAreRefusedInARingOrThroughTheirOwnMachine (the review of step 5): A.x inheriting B.y while B.y inherits A.x
+// has no order to be computed in, and a Machine inheriting through a relation to itself is a tree the cascade follows only a few
+// levels -- both are load errors, not silent staleness.
+func TestInheritedFieldsAreRefusedInARingOrThroughTheirOwnMachine(t *testing.T) {
+	parse := func(src string) *domain.Machine {
+		m, err := Parse([]byte(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	a := parse(`id: mch_a
+name: A
+fields:
+  - { id: fld_b, name: B, type: relation, machine: mch_b }
+  - { id: fld_x, name: X, type: text, compute: { parent: fld_b.fld_y } }
+`)
+	b := parse(`id: mch_b
+name: B
+fields:
+  - { id: fld_a, name: A, type: relation, machine: mch_a }
+  - { id: fld_y, name: Y, type: text, compute: { parent: fld_a.fld_x } }
+`)
+	err := validateComputeTargets([]*domain.Machine{a, b})
+	if err == nil || !strings.Contains(err.Error(), "ring across machines") {
+		t.Errorf("a ring across two machines: %v", err)
+	}
+	self := parse(`id: mch_s
+name: S
+fields:
+  - { id: fld_up, name: Up, type: relation, machine: mch_s }
+  - { id: fld_name, name: Name, type: text }
+  - { id: fld_top, name: Top, type: text, compute: { parent: fld_up.fld_name } }
+`)
+	err = validateComputeTargets([]*domain.Machine{self})
+	if err == nil || !strings.Contains(err.Error(), "a relation to this same machine") {
+		t.Errorf("an inherited field through its own machine: %v", err)
+	}
+	b2 := parse(`id: mch_b
+name: B
+fields:
+  - { id: fld_a, name: A, type: relation, machine: mch_a }
+  - { id: fld_y, name: Y, type: text }
+`)
+	if err := validateComputeTargets([]*domain.Machine{a, b2}); err != nil {
+		t.Errorf("a chain that ends in a stored field was refused: %v", err)
+	}
+}

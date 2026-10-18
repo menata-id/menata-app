@@ -33,13 +33,16 @@ func TestNumberingPatternsAreParsedAndWritten(t *testing.T) {
 		t.Errorf("a counter past its width = %q, want it written whole", got)
 	}
 	for pattern, want := range map[string]string{
-		"CTR/{seq:3}/x":    "comes last",
-		"CTR/":             "needs one {seq:N}",
-		"CTR/{seq:0}":      "N from 1 to 9",
-		"CTR/{seq:10}":     "N from 1 to 9",
-		"CTR/{fld_x":       "never closed",
-		"CTR/{a b}{seq:2}": "not a token",
-		"CTR/{}{seq:2}":    "not a token",
+		"CTR/{seq:3}/x":     "comes last",
+		"CTR/":              "needs one {seq:N}",
+		"CTR/{seq:0}":       "N from 1 to 9",
+		"CTR/{seq:10}":      "N from 1 to 9",
+		"CTR/{fld_x":        "never closed",
+		"CTR/{a b}{seq:2}":  "not a token",
+		"CTR/{}{seq:2}":     "not a token",
+		"CTR{seq:3}":        "ends with a separator",
+		"{fld_kind}{seq:3}": "ends with a separator",
+		"{seq:3}":           "ends with a separator",
 	} {
 		if _, _, err := ParseNumbering(pattern); err == nil || !contains(err.Error(), want) {
 			t.Errorf("%q: %v, want an error saying %q", pattern, err, want)

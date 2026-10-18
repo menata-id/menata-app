@@ -320,7 +320,7 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 			serverError(w, err)
 			return false
 		}
-		if err := execution.RecomputeChildren(req.Context(), store, machines, machine, id); err != nil {
+		if err := execution.RecomputeChildren(req.Context(), store, machines, machine, id, oldValues, record.Values); err != nil {
 			serverError(w, err)
 			return false
 		}

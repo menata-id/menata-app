@@ -931,12 +931,11 @@ func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Recor
 		}
 		if f.Type == domain.FieldTypeFile {
 			// A file's value is a storage key: a page reads its name, its size and the address that serves it.
-			if key := DisplayString(r.Values[id]); key != "" {
+			// Only a key the storage itself would serve (inside its root): a client-written string is no address.
+			if key := DisplayString(r.Values[id]); key != "" && files != nil && storageKey(files, key) {
 				name := storage.DisplayName(key)
-				if files != nil {
-					if size := humanSize(files.Size(key)); size != "" {
-						name += " · " + size
-					}
+				if size := humanSize(files.Size(key)); size != "" {
+					name += " · " + size
 				}
 				item[domain.PageFileRole(id)], item[domain.PageFileHrefRole(id)] = name, "/uploads/"+key
 			} else {
@@ -1239,4 +1238,10 @@ func recordAppRoles(ctx context.Context, l *Loader, source, recordID string) (ma
 		}
 	}
 	return nil, nil
+}
+
+// storageKey says key is one the file store resolves to a path inside its root.
+func storageKey(files *storage.Store, key string) bool {
+	_, err := files.Path(key)
+	return err == nil
 }

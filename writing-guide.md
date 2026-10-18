@@ -373,7 +373,12 @@ search and filter by what belongs to its contract -- the contract's party, numbe
 ```
 
 Nobody types it (a typed value is overwritten), it cannot be `required:` or carry a `default:`, and when the contract changes
-its instalments follow and, through them, their payment plans (`execution.RecomputeChildren` goes down as well as up).
+its instalments follow and, through them, their payment plans (`execution.RecomputeChildren` goes down as well as up -- after a
+person's edit, a rollup, a scheduled `set_field`, and a figure the runtime rewrote on a parent; only when a Field the children
+read changed). The loader refuses a ring (A.x from B.y while B.y reads A.x) and an inherited Field through a relation to its own
+Machine. **Stated limits:** an edit of an instalment and of its contract at the same moment can deadlock on each other's rows
+(Postgres aborts one: that request answers 500 and can be repeated); a parent that is deleted leaves its children's inherited
+values as they were; a parent edit with thousands of children does one read and one locked write per child that changes.
 
 What it does not do, stated: a value that is not a number (an overflow, a rounding past 10 places) is no value; a figure
 stored as text is read as a figure; a month added to the 31st lands on the month's last day, and a count of days or months
@@ -1958,7 +1963,8 @@ nothing. No new key: the pattern is the row action, `pass:` and the request-para
 in: app_instalments_payments, text: Create payment plan}` points at a screen of *another* Application of the same Workspace.
 Applications install and remove on their own, so the link is drawn only while that Application is installed here and this viewer
 may open it -- otherwise it is simply not there, never a 403. The loader refuses `in:` naming the page's own Application, and,
-when the other Application is installed, a screen it does not have or a record page (which needs a record's id). Everything else
+when the other Application is installed, a screen it does not have or a record page (which needs a record's id). An Application installed under a **renamed id** (the installer renames a colliding Application id) is not found by an `in:`
+written for the original id: the link is not drawn, silently -- write the id the Workspace holds. Everything else
 about a link (`text:`, `variant:`) is as for an own link; `pass:`/`step:`/`list_of:` do not go with it.
 
 A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value

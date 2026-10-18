@@ -59,6 +59,11 @@ func ParseNumbering(pattern string) (prefix []NumberPart, width int, err error) 
 			if rest != "" {
 				return nil, 0, fmt.Errorf("numbering %q: {seq:%d} is the counter and comes last, so numbers of one prefix sort together", pattern, n)
 			}
+			// The text before the counter ends in a separator: "CTR/C/" and "CTR/C1/" are two counters, but "CTRC" + digits
+			// could be read as either, and one would borrow the other's numbers.
+			if last := len(prefix) - 1; last < 0 || prefix[last].Literal == "" || isAlphanumeric(prefix[last].Literal[len(prefix[last].Literal)-1]) {
+				return nil, 0, fmt.Errorf("numbering %q: the text before {seq:%d} ends with a separator such as / or -, so one prefix's numbers are never mistaken for another's", pattern, n)
+			}
 			return prefix, n, nil
 		case token == "" || strings.ContainsAny(token, " :{"):
 			return nil, 0, fmt.Errorf("numbering %q: {%s} is not a token (a Field id, year, or seq:N)", pattern, token)
@@ -67,6 +72,10 @@ func ParseNumbering(pattern string) (prefix []NumberPart, width int, err error) 
 		}
 	}
 	return nil, 0, fmt.Errorf("numbering %q: needs one {seq:N} counter, last", pattern)
+}
+
+func isAlphanumeric(b byte) bool {
+	return b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
 
 // NumberPrefix is the text a record's number begins with: the pattern's text and tokens up to its counter, resolved against

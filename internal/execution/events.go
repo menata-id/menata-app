@@ -447,6 +447,10 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 		if err := RecomputeParents(ctx, store, machines, parentMachine, oldParentValues, parent.Values); err != nil {
 			log.Printf("rollup %s: recomputing above %s: %v", r.TargetField, parentID, err)
 		}
+		// ...and what reads this parent through `parent:` follows it, as it does a person's edit.
+		if err := RecomputeChildren(ctx, store, machines, parentMachine, parentID, oldParentValues, parent.Values); err != nil {
+			log.Printf("rollup %s: recomputing below %s: %v", r.TargetField, parentID, err)
+		}
 	}
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
 		RunEvents(ctx, svc, machines, parentMachine, parent, actorID, oldParentValues, true)
@@ -536,6 +540,9 @@ func setField(ctx context.Context, svc Services, machines map[string]*domain.Mac
 	}
 	if err := RecomputeParents(ctx, svc.Store, machines, machine, record.Values, next); err != nil {
 		log.Printf("set_field %s %s: recomputing above: %v", machine.ID, record.ID, err)
+	}
+	if err := RecomputeChildren(ctx, svc.Store, machines, machine, record.ID, record.Values, next); err != nil {
+		log.Printf("set_field %s %s: recomputing below: %v", machine.ID, record.ID, err)
 	}
 	RunEvents(ctx, svc, machines, machine, updated, actorID, record.Values, true)
 }

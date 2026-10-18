@@ -811,6 +811,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	if r.Route == nil {
 		return nil, fmt.Errorf("%s: no resolver for routes", path)
 	}
+	if n.In == "" && strings.Contains(n.To, "/") {
+		return nil, fmt.Errorf("%s: to: %s names an item by a slash, which is how another Application's screens are named internally -- link into another Application with in: <application id> beside to: <item id>", path, n.To)
+	}
 	routeID := n.To
 	if n.In != "" {
 		routeID = domain.ForeignLinkID(n.In, n.To)

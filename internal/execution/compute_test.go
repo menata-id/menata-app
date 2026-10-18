@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"menata.app/internal/data"
@@ -98,7 +99,7 @@ func TestRecomputeChildrenFollowsTheirParent(t *testing.T) {
 	if _, err := store.UpdateRecord(wsCtx, rate.ID, r.ID, map[string]any{"fld_pct": 0.2}); err != nil {
 		t.Fatal(err)
 	}
-	if err := RecomputeChildren(wsCtx, store, machines, rate, r.ID); err != nil {
+	if err := RecomputeChildren(wsCtx, store, machines, rate, r.ID, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, err := store.GetRecord(wsCtx, line.ID, l.ID)
@@ -107,5 +108,24 @@ func TestRecomputeChildrenFollowsTheirParent(t *testing.T) {
 	}
 	if got.Values["fld_tax"] != 40.0 {
 		t.Errorf("tax %v, want 40 after the rate became 20%%", got.Values["fld_tax"])
+	}
+
+	// The review of step 5: an edit of a Field the child does not read leaves the child alone -- nothing is listed or locked.
+	if _, err := store.UpdateRecord(wsCtx, line.ID, l.ID, map[string]any{"fld_rate": r.ID, "fld_gross": 200.0, "fld_tax": 999.0}); err != nil {
+		t.Fatal(err)
+	}
+	same := map[string]any{"fld_pct": 0.2}
+	if err := RecomputeChildren(wsCtx, store, machines, rate, r.ID, same, maps.Clone(same)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := store.GetRecord(wsCtx, line.ID, l.ID); got.Values["fld_tax"] != 999.0 {
+		t.Errorf("a parent whose read Field did not change recomputed its child (tax %v, want it left at 999)", got.Values["fld_tax"])
+	}
+	changed := map[string]any{"fld_pct": 0.25}
+	if err := RecomputeChildren(wsCtx, store, machines, rate, r.ID, same, changed); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := store.GetRecord(wsCtx, line.ID, l.ID); got.Values["fld_tax"] != 40.0 {
+		t.Errorf("a parent whose read Field changed left its child at %v, want it recomputed to 40", got.Values["fld_tax"])
 	}
 }

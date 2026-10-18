@@ -889,7 +889,7 @@ func (s *Store) HighestNumber(ctx context.Context, machineID, fieldID, prefix st
 		FROM records
 		WHERE machine_id = $1 AND workspace_id = $2
 		  AND left(data->>'%s', char_length($3)) = $3
-		  AND substring(data->>'%s' FROM char_length($3) + 1) ~ '^[0-9]{1,9}$'`, fieldID, fieldID, fieldID), machineID, workspaceID, prefix).Scan(&highest)
+		  AND substring(data->>'%s' FROM char_length($3) + 1) ~ '^[0-9]{1,18}$'`, fieldID, fieldID, fieldID), machineID, workspaceID, prefix).Scan(&highest)
 	if err != nil {
 		return 0, fmt.Errorf("highest number: %w", err)
 	}
