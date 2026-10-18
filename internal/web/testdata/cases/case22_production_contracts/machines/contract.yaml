@@ -24,6 +24,16 @@ transitions:
   - { id: trn_contract_close, name: Close, field: fld_status, from: Active, to: Closed, action: edit, roles: [production_manager] }
   - { id: trn_contract_cancel, name: Cancel, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager] }
 
+# A contract closes only once every instalment is paid: the page does not offer Close before.
+constraints:
+  - id: cst_close_needs_paid
+    on: fld_status
+    when_equals: Closed
+    block_if:
+      related_machine: mch_contract_term
+      related_field: fld_contract
+      condition: { field: fld_term_status, op: not_equals, value: Paid }
+
 datasets:
   # One contract's page (record_of): the record the route names, by its id.
   - id: ds_contract_one

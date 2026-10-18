@@ -248,3 +248,22 @@ func TestLowerViewerConditionRefusesEachMisuseForItsOwnReason(t *testing.T) {
 		}
 	}
 }
+
+// TestAFormNeverTypesWhatLoweringDerives: `carries` and `multipart` come from the edge a form takes and the Fields it asks;
+// a page that types them would plant a hidden field the form never asks (the review of step 2), and `then:` belongs to
+// a create form only.
+func TestAFormNeverTypesWhatLoweringDerives(t *testing.T) {
+	for name, props := range map[string]map[string]string{
+		"carries":   {"submit": "Save", "carries": "fld_status=Paid"},
+		"multipart": {"submit": "Save", "multipart": "true"},
+	} {
+		n := domain.PageNode{Kind: "component", Type: "Form", Props: props, Binding: &domain.PageBinding{Dataset: "ds_x", Write: domain.PageWriteCreate}}
+		if err := checkFormNode(n, "p"); err == nil {
+			t.Errorf("%s typed on a Form was accepted", name)
+		}
+	}
+	update := domain.PageNode{Kind: "component", Type: "Form", Props: map[string]string{"submit": "Save", "then": "record"}, Binding: &domain.PageBinding{Write: domain.PageWriteUpdate}}
+	if err := checkFormNode(update, "p"); err == nil {
+		t.Error("then: on an update Form was accepted")
+	}
+}

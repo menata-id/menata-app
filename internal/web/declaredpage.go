@@ -24,6 +24,11 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 		navID := chi.URLParam(req, "navID")
 		app, ok := rendering.CurrentApplication(ctx)
 		if !ok {
+			// A Workspace page has no record page: an address with a record is not one of its pages.
+			if chi.URLParam(req, "recordID") != "" {
+				http.NotFound(w, req)
+				return
+			}
 			showWorkspacePage(store, cfg, navID).ServeHTTP(w, req)
 			return
 		}
@@ -32,6 +37,8 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 				continue
 			}
 			params := pageParams(req, app.ID)
+			// `id` is the runtime's: a record page's route sets it, and a query string never does.
+			delete(params, "id")
 			// A record page is opened for one record, which the route names and which must be a record of its Machine in
 			// this Workspace; a list page has no record. Either way round is a 404, not an empty page.
 			recordID := chi.URLParam(req, "recordID")

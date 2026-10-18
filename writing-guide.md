@@ -1827,9 +1827,14 @@ A Collection over the first draws the record; inside its item template:
 - a `static: link` with **`pass: {contract: "record:id"}`** carries the record to another page's request
   (`?contract=<id>`): "+ Add instalment".
 
+An edge is offered only where the route would take it: the record stands at its `from`, the viewer's roles allow it,
+and no declared Constraint refuses it ("Close" is not drawn while an instalment is unpaid). An edge whose target makes a
+Field required is a **Form**'s, never a Button's (refused at load), and the Form does not ask again for what the record
+already holds (a proof uploaded with the plan). The record id in `where: {field: id}` comes from a request parameter only.
+
 A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value
-and is drawn as its words in a hidden input, not offered again. **`then: record`** opens the record it made (its record page
-when it has one). A record page answers 404 for an id that is not a record of its Machine in this Workspace, and the
+and is drawn as its words in a hidden input, not offered again. **`then: record`** (a create Form only) opens the record it made
+(its record page when it has one). `carries` and `multipart` are lowered and never written. A record page answers 404 for an id that is not a record of its Machine in this Workspace, and the
 Application's roles gate it as they gate the list. A status Field may declare **`categories:`** (the same five as
 `status_categories:`) when it is not the Machine's lifecycle Field, so a second status (a contract's payment) has tones too.
 

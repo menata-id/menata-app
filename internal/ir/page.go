@@ -1365,7 +1365,12 @@ func checkFormNode(n domain.PageNode, path string) error {
 	if len(n.From) > 0 || n.To != "" || n.ListOf != "" || n.Param != "" || n.Count != nil {
 		return fmt.Errorf("%s: a bound write takes only its words and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
 	}
-	for _, derived := range []string{formActionProp, formMethodProp} {
+	if _, typed := n.Props["then"]; typed && b.Write != domain.PageWriteCreate {
+		return fmt.Errorf("%s: then: opens the record a create Form made, so it belongs on write: %s only", path, domain.PageWriteCreate)
+	}
+	// multipart and carries are lowered from the Fields a form asks for and the edge it takes; a typed one would plant a
+	// field the form never asks (the review of step 2 wrote `carries: fld_term_status=Paid` on a create form).
+	for _, derived := range []string{formActionProp, formMethodProp, "multipart", "carries"} {
 		if _, typed := n.Props[derived]; typed {
 			return fmt.Errorf("%s: %s is derived from the bound Machine, never typed -- a route is declared once (001 #3, #8)", path, derived)
 		}

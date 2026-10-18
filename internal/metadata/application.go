@@ -582,6 +582,12 @@ func LoadApplication(path string) (*App, error) {
 	if navIssues := validateNavigation(workspaceNav); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
 	}
+	// A record page belongs to the Application that claims its Machine: a Workspace's own navigation cannot declare one.
+	for _, item := range workspaceNav {
+		if item.RecordOf != "" {
+			return nil, &ValidationError{Issues: []string{fmt.Sprintf("workspace navigation item %q: record_of belongs on an Application's navigation, which claims the Machine", item.ID)}}
+		}
+	}
 
 	dir := filepath.Dir(path)
 	suggestions := make([]domain.ApplicationSuggestion, 0, len(doc.SuggestedApplications))
@@ -697,8 +703,9 @@ func LoadApplication(path string) (*App, error) {
 }
 
 // stampRecordPages gives each Machine an Application declares a record page for (`record_of:`) that page's route
-// (domain.Machine.RecordPage), so every link to one of its records -- a list's, a notification's, the generic route's --
-// opens the page the Application declared. A page names a Machine its own Application claims, one page per Machine, and
+// (domain.Machine.RecordPage), so a declared page's link to one of its records (`href: record`) and a create Form's
+// `then: record` open the page the Application declared. The generic record route and a notification's link still open
+// the generic page. A page names a Machine its own Application claims, one page per Machine, and
 // is a `page:` at `/pages/<its id>`.
 func stampRecordPages(apps []domain.Application, machines []*domain.Machine) error {
 	byID := make(map[string]*domain.Machine, len(machines))

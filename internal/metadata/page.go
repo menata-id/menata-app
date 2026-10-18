@@ -1008,6 +1008,11 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 				if e.Action != domain.ActionEdit {
 					return []string{fmt.Sprintf("%s: page: transition: %s is taken by the %q action, and a page's Button takes edit edges only", where, e.ID, e.Action)}
 				}
+				// An edge that asks for something (a proof when Paid) is a Form's, which asks it; a Button would send the
+				// move without it and be refused every time.
+				if n.Type == string(domain.ComponentButton) && len(item.TransitionInputs(e)) > 0 {
+					return []string{fmt.Sprintf("%s: page: transition: %s asks for Fields its target makes required, so it is a Form (binding: {write: transition, transition: %s}), not a Button", where, e.ID, e.ID)}
+				}
 				return nil
 			}
 		}

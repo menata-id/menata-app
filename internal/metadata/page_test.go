@@ -1419,10 +1419,30 @@ func TestOptionalAndContainsAreHeldToTheirMeaning(t *testing.T) {
 		"optional mixed in any:": {domain.Dataset{Select: domain.SelectRecords, Limit: 10, Where: &expression.Predicate{Any: []expression.Comparison{
 			{Field: "fld_name", Op: expression.OpEquals, Value: "$current_user"},
 			{Field: "fld_name", Op: expression.OpContains, Value: "$parameters.q", Optional: true}}}}, "mixes optional and required"},
+		"an id from a literal":  {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "rec_1"}), "compares with a request parameter"},
+		"an id mistyped":        {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "$paramters.id"}), "compares with a request parameter"},
 		"optional in a measure": {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "an aggregate has no request parameters"},
 	} {
 		if got := run(tc.ds); !strings.Contains(got, tc.want) {
 			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
 		}
+	}
+}
+
+// TestAnEdgeThatAsksIsAFormNotAButton: a Button sends a move and nothing else, so an edge whose target makes a Field
+// required (a proof when Paid) is refused on a Button and taken by a Form.
+func TestAnEdgeThatAsksIsAFormNotAButton(t *testing.T) {
+	m := &domain.Machine{ID: "mch_plan", Fields: []domain.Field{
+		{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"Open", "Paid"}},
+		{ID: "fld_proof", Type: domain.FieldTypeFile, RequiredWhen: &domain.FieldCondition{Field: "fld_status", Equals: "Paid"}},
+	}, Transitions: []domain.Transition{{ID: "trn_pay", Name: "Pay", Field: "fld_status", From: "Open", To: "Paid", Action: domain.ActionEdit}}}
+	button := domain.PageNode{Kind: "component", Type: "Button", Binding: &domain.PageBinding{Write: domain.PageWriteTransition, Transition: "trn_pay"}}
+	if got := strings.Join(transitionBindingIssues(button, m, "w"), "\n"); !strings.Contains(got, "is a Form") {
+		t.Errorf("a Button on an edge that asks for a proof: %q", got)
+	}
+	form := button
+	form.Type = "Form"
+	if got := transitionBindingIssues(form, m, "w"); len(got) != 0 {
+		t.Errorf("a Form on the same edge was refused: %v", got)
 	}
 }

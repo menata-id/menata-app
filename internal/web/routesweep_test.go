@@ -233,6 +233,12 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	// this sweep also owns the refusals, which are the half a "render something for every id" bug would break:
 	// an id naming nothing, and an id naming a real navigation item that has no body (a bespoke screen's).
 	add("/pages/{navID}", "/pages/nav_does_not_exist", http.StatusNotFound, "an id that names no navigation item is not found")
+	for _, item := range f.ws.Navigation {
+		if item.Page != nil {
+			add("/pages/{navID}/{recordID}", "/pages/"+item.ID+"/anything", http.StatusNotFound, "a Workspace page has no record page, so an address with a record is not one")
+			break
+		}
+	}
 	pageCase := false
 	for _, app := range f.ws.Applications {
 		for _, item := range app.AllNavigation {

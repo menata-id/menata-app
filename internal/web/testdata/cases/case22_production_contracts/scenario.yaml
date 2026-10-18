@@ -174,6 +174,15 @@ steps:
     update: { ref: plan-with-proof, values: { fld_plan_status: Awaiting proof } }
     expect: ok
 
+  # A plan that already carries its proof is not asked for it again when it is marked paid.
+  - id: a-proof-already-held-is-not-asked-again
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-with-proof
+      shows: [">Mark as paid<", 'name="fld_plan_status" value="Paid"']
+      hides: ['type="file"']
+    expect: ok
+
   # Only now is the instalment paid; nothing is overdue, and the contract is back in progress.
   - id: finance-marks-paid
     as: fina
@@ -211,13 +220,17 @@ steps:
     update: { ref: contract, values: { fld_status: Active } }
     expect: ok
     record: { fld_status: Active }
-  - id: the-page-now-offers-close
+  - id: the-page-does-not-offer-a-close-its-constraint-refuses
     as: silvia
     view:
       path: /pages/nav_contract/$contract
-      shows: [">Close<", 'aria-current="step"']
-      hides: [">Activate<"]
+      shows: ['aria-current="step"', ">Active<"]
+      hides: [">Activate<", ">Close<"]
     expect: ok
+  - id: and-the-route-refuses-it
+    as: silvia
+    update: { ref: contract, values: { fld_status: Closed } }
+    expect: refused
   - id: add-instalment-opens-a-form-bound-to-the-contract
     as: silvia
     view:

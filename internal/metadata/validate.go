@@ -847,6 +847,11 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				if c.Op != expression.OpEquals || c.Optional {
 					issues = append(issues, fmt.Sprintf("dataset %q: where field %q is the record's own id, which a Dataset compares with equals only and never leaves out", ds.ID, c.Field))
 				}
+				// The id comes from the request (a record page's $parameters.id): a literal would name one record of one
+				// Workspace, and a mistyped sentinel would answer 500 on every visit.
+				if !expression.IsParameter(c.Value) {
+					issues = append(issues, fmt.Sprintf("dataset %q: where field %q compares with a request parameter ($parameters.<name>), not %q", ds.ID, c.Field, c.Value))
+				}
 				continue
 			}
 			if _, ok := fieldsByID[c.Field]; !ok {

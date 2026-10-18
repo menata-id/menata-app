@@ -219,6 +219,13 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	if err != nil {
 		return ir.RecordSet{}, err
 	}
+	// An edge a declared Constraint would refuse is not offered either: the records a Constraint reads, once per page.
+	var constraintRecords map[string][]*data.Record
+	if len(src.Constraints) > 0 && len(src.Transitions) > 0 && len(records) > 0 {
+		if constraintRecords, err = l.ConstraintRelatedRecords(ctx, src); err != nil {
+			return ir.RecordSet{}, err
+		}
+	}
 	out := make([]map[string]string, 0, len(records))
 	tagLists := make([][]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
@@ -249,6 +256,9 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		}
 		if held[r.ID].pointedAt {
 			del.Permitted = false
+		}
+		if err := offerEdges(ctx, l, src, r, &transition, constraintRecords); err != nil {
+			return ir.RecordSet{}, err
 		}
 		edits = append(edits, edit)
 		deletes = append(deletes, del)
@@ -719,6 +729,35 @@ func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record
 	if !d.Present {
 		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
 	}
+}
+
+// offerEdges finishes what a record's edges offer once its Machine's own state model has spoken (recordTransition): an
+// edge a declared Constraint refuses for this record is not offered, and an edge's inputs leave out what the record
+// already holds (a proof uploaded with the plan is not asked again) and offer a relation's records.
+func offerEdges(ctx context.Context, l *Loader, src *domain.Machine, r *data.Record, t *ir.RecordTransition, constraintRecords map[string][]*data.Record) error {
+	for id, e := range t.Edges {
+		if e.Allowed && constraintRecords != nil {
+			next := maps.Clone(r.Values)
+			next[e.Field] = e.To
+			if behavior.CheckConstraints(src, r.ID, next, constraintRecords) != nil {
+				e.Allowed = false
+			}
+		}
+		var inputs []domain.FormInput
+		for _, in := range e.Inputs {
+			if DisplayString(r.Values[in.FieldID]) == "" {
+				inputs = append(inputs, in)
+			}
+		}
+		if e.Allowed {
+			if err := fillChoices(ctx, l, src, inputs); err != nil {
+				return err
+			}
+		}
+		e.Inputs = inputs
+		t.Edges[id] = e
+	}
+	return nil
 }
 
 // held is what keeps a listed record from being written beyond its own values: frozen by its parent (`frozen_when:`),
