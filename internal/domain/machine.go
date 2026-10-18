@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"menata.app/internal/expression"
@@ -400,7 +402,36 @@ func (c FieldCompute) Evaluate(values map[string]any) (any, bool) { return c.Eva
 // EvaluateWith derives the value from a record's values and what env reads. ok is false when nothing the value is
 // made of holds a value, so a record nobody has filled in yet shows an empty total rather than a made-up zero.
 func (c FieldCompute) EvaluateWith(values map[string]any, env ComputeEnv) (any, bool) {
-	return c.Tree().Eval(values, env)
+	v, ok := c.Tree().Eval(values, env)
+	// A figure that is not a number (a product past float64, a rounding to 400 places) is no value: it could not be
+	// stored, and an empty cell is the truth about it.
+	if n, isNum := v.(float64); isNum && (math.IsNaN(n) || math.IsInf(n, 0)) {
+		return nil, false
+	}
+	return v, ok
+}
+
+// FigureOf reads a stored value as a figure: a number, or text that is one (a record written before its Field held
+// numbers). Anything else is no figure.
+func FigureOf(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, !math.IsNaN(n) && !math.IsInf(n, 0)
+	case int:
+		return float64(n), true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(n), 64)
+		return f, err == nil && !math.IsNaN(f) && !math.IsInf(f, 0)
+	}
+	return 0, false
+}
+
+// addMonths is a date n months on, the day kept when the month has it and the month's last day when it does not:
+// 31 January plus one month is 28 (or 29) February, never 3 March.
+func addMonths(day time.Time, n int) time.Time {
+	first := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, n, 0)
+	last := first.AddDate(0, 1, -1).Day()
+	return first.AddDate(0, 0, min(day.Day(), last)-1)
 }
 
 // Eval is one node's value. A sum counts an empty operand as zero and holds when any operand does; a subtraction needs
@@ -421,7 +452,7 @@ func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
 	}
 	figure := func(a ComputeExpr) (float64, bool) {
 		v, ok := a.Eval(values, env)
-		n, isNum := v.(float64)
+		n, isNum := FigureOf(v)
 		return n, ok && isNum
 	}
 	switch e.Op {
@@ -504,11 +535,12 @@ func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
 		d, ok := e.Args[0].Eval(values, env)
 		day, err := time.Parse(DateLayout, fmt.Sprint(d))
 		n, isNum := figure(e.Args[1])
-		if !ok || err != nil || !isNum {
+		// A count of days or months is a whole number a calendar can hold: 1.9 months is no count, and neither is 1e19.
+		if !ok || err != nil || !isNum || n != math.Trunc(n) || math.Abs(n) > 100000 {
 			return nil, false
 		}
 		if e.Op == ComputeAddMonths {
-			return day.AddDate(0, int(n), 0).Format(DateLayout), true
+			return addMonths(day, int(n)).Format(DateLayout), true
 		}
 		return day.AddDate(0, 0, int(n)).Format(DateLayout), true
 	case ComputeSumChildren, ComputeCountChildren:
@@ -526,7 +558,7 @@ func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
 			}
 			if e.Op == ComputeCountChildren {
 				total++
-			} else if n, ok := c[e.Children.Field].(float64); ok {
+			} else if n, ok := FigureOf(c[e.Children.Field]); ok {
 				total += n
 			}
 		}

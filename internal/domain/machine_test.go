@@ -123,7 +123,8 @@ func TestFieldComputeAddDays(t *testing.T) {
 		"no date yet":                {map[string]any{"fld_every": 30.0}, nil, false},
 		"an unreadable date":         {map[string]any{"fld_done": "soon", "fld_every": 30.0}, nil, false},
 		"no number of days":          {map[string]any{"fld_done": "2026-10-16"}, nil, false},
-		"days that are not a number": {map[string]any{"fld_done": "2026-10-16", "fld_every": "30"}, nil, false},
+		"days written as text":       {map[string]any{"fld_done": "2026-10-16", "fld_every": "30"}, "2026-11-15", true}, // a figure stored as text is still one (FigureOf)
+		"days that are not a number": {map[string]any{"fld_done": "2026-10-16", "fld_every": "thirty"}, nil, false},
 	} {
 		got, ok := c.Evaluate(tc.in)
 		if ok != tc.ok || got != tc.want {

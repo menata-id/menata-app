@@ -7,6 +7,7 @@ package behavior
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"menata.app/internal/data"
@@ -90,6 +91,8 @@ func CheckBounds(m *domain.Machine, recordID string, values map[string]any, sibl
 			total += n
 		}
 		reason := b.Reason
+		// Compared to the millionth, so instalments of 0.1 and 0.2 fit a value of 0.3 (float64 adds them to 0.30000000000000004).
+		total = math.Round(total*1e6) / 1e6
 		switch {
 		case b.AtLeast != nil && total < *b.AtLeast:
 			if reason == "" {

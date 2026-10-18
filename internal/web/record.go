@@ -307,8 +307,13 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 			recordError(w, err)
 			return false
 		}
-		// Before and after: a record moved to another parent changes both parents' aggregates.
+		// Before and after: a record moved to another parent changes both parents' aggregates; and the records that read
+		// this one through `parent:` follow it.
 		if err := execution.RecomputeParents(req.Context(), store, machines, machine, oldValues, record.Values); err != nil {
+			serverError(w, err)
+			return false
+		}
+		if err := execution.RecomputeChildren(req.Context(), store, machines, machine, id); err != nil {
 			serverError(w, err)
 			return false
 		}
@@ -679,9 +684,14 @@ func insertGenerated(ctx context.Context, store *data.Store, machines map[string
 	target := machines[batch.Machine]
 	out := make([]generatedRecord, 0, len(batch.Rows))
 	for i, row := range batch.Rows {
+		// A generated row is a record like any: its computed Fields derived, and what it adds up to on its parent kept.
+		execution.ApplyComputed(ctx, store, target, "", row)
 		rec, err := store.CreateRecord(ctx, target.ID, row)
 		if err != nil {
 			return nil, fmt.Errorf("generates: row %d of %s: %w", i+1, target.ID, err)
+		}
+		if err := execution.RecomputeParents(ctx, store, machines, target, rec.Values); err != nil {
+			return nil, err
 		}
 		out = append(out, generatedRecord{machine: target, record: rec})
 	}
@@ -789,7 +799,7 @@ func withinBounds(w http.ResponseWriter, req *http.Request, store *data.Store, m
 			serverError(w, err)
 			return false
 		}
-		if n, ok := parent.Values[p.Field].(float64); ok {
+		if n, ok := domain.FigureOf(parent.Values[p.Field]); ok {
 			judged.Bounds[i].AtMost = &n
 		}
 	}

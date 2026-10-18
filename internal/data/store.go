@@ -511,6 +511,17 @@ func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]
 
 // GetRecord returns one Record by ID, scoped to the given Machine and this Store's Workspace.
 func (s *Store) GetRecord(ctx context.Context, machineID, id string) (*Record, error) {
+	return s.getRecord(ctx, machineID, id, "")
+}
+
+// GetRecordForUpdate is GetRecord holding the row until the transaction the context carries ends (FOR UPDATE): a
+// recompute that reads a record and writes it back whole waits for a person's edit of it, and an edit waits for the
+// recompute, so neither writes over the other.
+func (s *Store) GetRecordForUpdate(ctx context.Context, machineID, id string) (*Record, error) {
+	return s.getRecord(ctx, machineID, id, " FOR UPDATE")
+}
+
+func (s *Store) getRecord(ctx context.Context, machineID, id, lock string) (*Record, error) {
 	workspaceID, ok := workspaceScopeFrom(ctx)
 	if !ok {
 		return nil, errNotScoped
@@ -519,8 +530,7 @@ func (s *Store) GetRecord(ctx context.Context, machineID, id string) (*Record, e
 	row := s.q(ctx).QueryRow(ctx, `
 		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
 		FROM records
-		WHERE machine_id = $1 AND id = $2 AND workspace_id = $3
-	`, machineID, id, workspaceID)
+		WHERE machine_id = $1 AND id = $2 AND workspace_id = $3`+lock, machineID, id, workspaceID)
 
 	r := &Record{}
 	var data []byte

@@ -129,3 +129,17 @@ func TestCheckBounds(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckBoundsFitsAnExactSumOfFractions (the review of step 3): instalments of 0.1 and 0.2 fit a value of 0.3, though
+// float64 adds them to 0.30000000000000004.
+func TestCheckBoundsFitsAnExactSumOfFractions(t *testing.T) {
+	limit := 0.3
+	m := &domain.Machine{Bounds: []domain.AggregateBound{{ID: "ens_x", SumOf: "fld_amount", Per: "fld_group", AtMost: &limit}}}
+	siblings := []*data.Record{{ID: "rec_a", Values: map[string]any{"fld_group": "g", "fld_amount": 0.1}}}
+	if err := CheckBounds(m, "rec_b", map[string]any{"fld_group": "g", "fld_amount": 0.2}, siblings); err != nil {
+		t.Errorf("an exact fit was refused: %v", err)
+	}
+	if err := CheckBounds(m, "rec_b", map[string]any{"fld_group": "g", "fld_amount": 0.21}, siblings); err == nil {
+		t.Error("a sum past the bound was accepted")
+	}
+}

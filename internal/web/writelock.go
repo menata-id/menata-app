@@ -9,6 +9,7 @@ import (
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 )
 
 // writeLockKeys names the advisory locks a write must hold while its guards read and its row is written, so that two
@@ -89,7 +90,10 @@ func withWriteLock(w http.ResponseWriter, req *http.Request, store *data.Store, 
 		}
 	}
 	keys := writeLockKeys(workspaceID, machines, machine, id, existing, next)
-	if len(keys) == 0 {
+	// A record another Machine adds up (`sum_children`, `count_children`) is written in a transaction even with no lock
+	// to take: its parent is recomputed inside it, under the parent's row lock, so the child and the parent's figures
+	// commit together or not at all.
+	if len(keys) == 0 && !execution.Aggregated(machines, machine) {
 		return fn(req)
 	}
 	err := store.InTx(ctx, func(ctx context.Context) error {

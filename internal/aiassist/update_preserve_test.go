@@ -281,3 +281,33 @@ func TestDesainRequestTwinLacksOnlyWhatIsListed(t *testing.T) {
 		}
 	}
 }
+
+// TestUpdate_keepsATreeComputeAndAParentBound (the review of step 3): Production Contracts declares computed values as
+// trees (`{subtract: [...]}`, `sum_children`) and an ensure bounded by the parent, which the assistant's flat shapes cannot
+// carry. An update that changes something else is accepted, and the file keeps both exactly as written.
+func TestUpdate_keepsATreeComputeAndAParentBound(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, filepath.Join("..", "..", "metadata"), root)
+	manifest := filepath.Join(root, "workspaces", "dokter-kecil.yaml")
+	wsDir := filepath.Join(root, "workspaces", "dokter-kecil")
+	files := []string{filepath.Join(wsDir, "contract.yaml"), filepath.Join(wsDir, "contract_term.yaml")}
+	before := make([]any, len(files))
+	for i, f := range files {
+		before[i] = readGeneric(t, f)
+	}
+	state, _ := stateOf(t, manifest)
+	desired := DescribeApplication("app_production_contracts", state.Applications["app_production_contracts"])
+	desired.Description = "Contracts, their instalments, and what is paid."
+	change := GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_production_contracts", Application: &desired}
+	publish(t, manifest, change)
+	for i, f := range files {
+		after := readGeneric(t, f)
+		if lost := missingKeys(filepath.Base(f), before[i], after); len(lost) > 0 {
+			t.Errorf("the update dropped keys from %s:\n  %v", f, lost)
+		}
+	}
+	term, _ := os.ReadFile(files[1])
+	if !strings.Contains(string(term), "subtract: [fld_gross, fld_vat, fld_wht]") || !strings.Contains(string(term), "parent: fld_contract.fld_value") {
+		t.Errorf("the instalment's tree compute or parent bound changed:\n%s", term)
+	}
+}

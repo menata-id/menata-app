@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -372,6 +373,9 @@ func parseComputeExpr(n *yaml.Node) (domain.ComputeExpr, error) {
 	switch n.Kind {
 	case yaml.ScalarNode:
 		if v, err := strconv.ParseFloat(n.Value, 64); err == nil {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return domain.ComputeExpr{}, fmt.Errorf("line %d: compute: %q is not a number a value can be computed with", n.Line, n.Value)
+			}
 			return domain.ComputeExpr{Number: &v}, nil
 		}
 		if n.Value == "" {

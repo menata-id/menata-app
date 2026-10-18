@@ -66,3 +66,46 @@ func TestRecomputeAllBringsStoredRecordsToTheirFormulas(t *testing.T) {
 		t.Errorf("a second pass wrote %d records (%v), want none", again, err)
 	}
 }
+
+// TestRecomputeChildrenFollowsTheirParent (the review of step 3): a value a child reads through `parent:` follows the
+// parent when the parent is written, rather than waiting for the next load.
+func TestRecomputeChildrenFollowsTheirParent(t *testing.T) {
+	pool := testPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	ws, err := store.CreateWorkspace(ctx, "Recompute Children Test", "recompute-children-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupTest(t, pool, ws.ID, "recompute_children_test@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	rate := &domain.Machine{ID: "mch_rc_rate", Fields: []domain.Field{{ID: "fld_pct", Type: domain.FieldTypeNumber}}}
+	line := &domain.Machine{ID: "mch_rc_line", Fields: []domain.Field{
+		{ID: "fld_rate", Type: domain.FieldTypeRelation, RelatedMachine: "mch_rc_rate"},
+		{ID: "fld_gross", Type: domain.FieldTypeMoney},
+		{ID: "fld_tax", Type: domain.FieldTypeMoney, Compute: &domain.FieldCompute{Op: domain.ComputeMultiply, Expr: &domain.ComputeExpr{Op: domain.ComputeMultiply,
+			Args: []domain.ComputeExpr{{Field: "fld_gross"}, {Parent: &domain.ParentRef{Via: "fld_rate", Field: "fld_pct"}}}}}},
+	}}
+	machines := map[string]*domain.Machine{rate.ID: rate, line.ID: line}
+	r, err := store.CreateRecord(wsCtx, rate.ID, map[string]any{"fld_pct": 0.1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := store.CreateRecord(wsCtx, line.ID, map[string]any{"fld_rate": r.ID, "fld_gross": 200.0, "fld_tax": 20.0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateRecord(wsCtx, rate.ID, r.ID, map[string]any{"fld_pct": 0.2}); err != nil {
+		t.Fatal(err)
+	}
+	if err := RecomputeChildren(wsCtx, store, machines, rate, r.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetRecord(wsCtx, line.ID, l.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Values["fld_tax"] != 40.0 {
+		t.Errorf("tax %v, want 40 after the rate became 20%%", got.Values["fld_tax"])
+	}
+}

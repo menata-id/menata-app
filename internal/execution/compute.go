@@ -85,8 +85,8 @@ func RecomputeParents(ctx context.Context, store *data.Store, machines map[strin
 }
 
 func recomputeParents(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, child *domain.Machine, valueSets []map[string]any, depth int) error {
-	if depth > 4 {
-		return nil
+	if depth > len(machines) {
+		return nil // the loader refuses a Machine aggregating itself, so a chain of parents ends within the Machines there are
 	}
 	for _, pid := range slices.Sorted(maps.Keys(machines)) {
 		parent := machines[pid]
@@ -110,24 +110,95 @@ func recomputeParents(ctx context.Context, store *data.Store, machines map[strin
 			}
 		}
 		for _, id := range slices.Sorted(maps.Keys(ids)) {
-			rec, err := store.GetRecord(ctx, parent.ID, id)
+			before, after, err := recomputeRecord(ctx, store, parent, id)
 			if err != nil {
-				continue // a parent that is gone has nothing to recompute
+				return err
 			}
-			next := maps.Clone(rec.Values)
-			data.ApplyComputedWith(parent, next, recordEnv{ctx: ctx, store: store, machine: parent, id: id, values: next})
-			if sameValues(rec.Values, next) {
+			if after == nil {
 				continue
 			}
-			if _, err := store.UpdateRecord(ctx, parent.ID, id, next); err != nil {
-				return fmt.Errorf("recompute %s %s: %w", parent.ID, id, err)
-			}
-			if err := recomputeParents(ctx, store, machines, parent, []map[string]any{rec.Values, next}, depth+1); err != nil {
+			if err := recomputeParents(ctx, store, machines, parent, []map[string]any{before, after}, depth+1); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// recomputeRecord recomputes one record's computed Fields in a transaction (the caller's, when it has one) holding the
+// record's row (FOR UPDATE), so a person's edit of it and this write queue instead of one writing over the other. It
+// answers the values before and after when they changed, and nil after when they did not or the record is gone.
+func recomputeRecord(ctx context.Context, store *data.Store, m *domain.Machine, id string) (before, after map[string]any, err error) {
+	err = store.InTx(ctx, func(ctx context.Context) error {
+		rec, err := store.GetRecordForUpdate(ctx, m.ID, id)
+		if err != nil {
+			return nil // a record that is gone has nothing to recompute
+		}
+		next := maps.Clone(rec.Values)
+		data.ApplyComputedWith(m, next, recordEnv{ctx: ctx, store: store, machine: m, id: id, values: next})
+		if sameValues(rec.Values, next) {
+			return nil
+		}
+		if _, err := store.UpdateRecord(ctx, m.ID, id, next); err != nil {
+			return fmt.Errorf("recompute %s %s: %w", m.ID, id, err)
+		}
+		before, after = rec.Values, next
+		return nil
+	})
+	return before, after, err
+}
+
+// RecomputeChildren recomputes the records whose computed Fields read a Field of this one through `parent:`, after it is
+// written, so a value taken from a contract follows the contract. What they add up to on their own parents follows them.
+func RecomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string) error {
+	for _, cid := range slices.Sorted(maps.Keys(machines)) {
+		child := machines[cid]
+		vias := map[string]bool{}
+		for _, f := range child.Fields {
+			if f.Compute == nil {
+				continue
+			}
+			f.Compute.Tree().Leaves(func(l domain.ComputeExpr) {
+				if l.Parent != nil {
+					if via, ok := child.FieldByID(l.Parent.Via); ok && via.RelatedMachine == parent.ID {
+						vias[l.Parent.Via] = true
+					}
+				}
+			})
+		}
+		for _, via := range slices.Sorted(maps.Keys(vias)) {
+			children, err := store.ListRecordsBy(ctx, child.ID, via, id)
+			if err != nil {
+				return err
+			}
+			for _, c := range children {
+				before, after, err := recomputeRecord(ctx, store, child, c.ID)
+				if err != nil {
+					return err
+				}
+				if after != nil {
+					if err := RecomputeParents(ctx, store, machines, child, before, after); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Aggregated reports whether some Machine of machines adds up records of m (`sum_children`, `count_children`), so a
+// write of m recomputes a parent and belongs in a transaction.
+func Aggregated(machines map[string]*domain.Machine, m *domain.Machine) bool {
+	found := false
+	for _, p := range machines {
+		for _, f := range p.Fields {
+			if f.Compute != nil {
+				f.Compute.Tree().Leaves(func(l domain.ComputeExpr) { found = found || (l.Children != nil && l.Children.Machine == m.ID) })
+			}
+		}
+	}
+	return found
 }
 
 // RecomputeAll recomputes every record of every Machine in machines that declares a computed Field, writing only the
@@ -136,9 +207,22 @@ func recomputeParents(ctx context.Context, store *data.Store, machines map[strin
 // metadata is in every record before anyone reads it.
 func RecomputeAll(ctx context.Context, store *data.Store, machines []*domain.Machine) (int, error) {
 	written := 0
-	// A Machine that aggregates others is recomputed after them, so it adds up what they now hold.
+	// A Machine that aggregates others is recomputed after them, so it adds up what they now hold; and the pass repeats
+	// while it still writes (a grandparent adding up parents that themselves add up), at most once per Machine.
 	ordered := slices.Clone(machines)
 	slices.SortStableFunc(ordered, func(a, b *domain.Machine) int { return boolInt(aggregates(a)) - boolInt(aggregates(b)) })
+	for pass := 0; pass <= len(ordered); pass++ {
+		n, err := recomputePass(ctx, store, ordered)
+		written += n
+		if err != nil || n == 0 {
+			return written, err
+		}
+	}
+	return written, nil
+}
+
+func recomputePass(ctx context.Context, store *data.Store, ordered []*domain.Machine) (int, error) {
+	written := 0
 	for _, m := range ordered {
 		if len(m.ComputeOrder()) == 0 || !m.GenericallyWritten() {
 			continue
@@ -150,10 +234,15 @@ func RecomputeAll(ctx context.Context, store *data.Store, machines []*domain.Mac
 				if sameValues(r.Values, next) {
 					continue
 				}
-				if _, err := store.UpdateRecord(ctx, m.ID, r.ID, next); err != nil {
-					return err
+				// Written under the record's row lock, re-read: a person's edit since the page was read is not undone.
+				_, after, err := recomputeRecord(ctx, store, m, r.ID)
+				if err != nil {
+					log.Printf("recompute %s %s: %v", m.ID, r.ID, err) // one record that cannot be written does not stop the rest
+					continue
 				}
-				written++
+				if after != nil {
+					written++
+				}
 			}
 			return nil
 		})

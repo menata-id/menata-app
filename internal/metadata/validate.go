@@ -3,6 +3,7 @@ package metadata
 import (
 	"fmt"
 	"maps"
+	"math"
 	"regexp"
 	"slices"
 	"sort"
@@ -1938,8 +1939,10 @@ func computeKind(f domain.Field, e domain.ComputeExpr, fieldsByID map[string]dom
 	case domain.ComputeDivide:
 		arity(2, 2)
 	case domain.ComputeRound:
-		if arity(1, 2) && len(e.Args) == 2 && e.Args[1].Number == nil {
-			issues = append(issues, fmt.Sprintf("field %q: compute round: its second operand is the number of decimals, a literal", f.ID))
+		if arity(1, 2) && len(e.Args) == 2 {
+			if d := e.Args[1].Number; d == nil || *d != math.Trunc(*d) || *d < 0 || *d > 10 {
+				issues = append(issues, fmt.Sprintf("field %q: compute round: its second operand is the number of decimals, a whole number from 0 to 10", f.ID))
+			}
 		}
 	}
 	for i := range e.Args {
@@ -2034,6 +2037,10 @@ func validateComputeTargets(machines []*domain.Machine) error {
 				}
 				if a := l.Children; a != nil {
 					child := byID[a.Machine]
+					if a.Machine == m.ID {
+						issues = append(issues, fmt.Sprintf("%s: %s: a machine adding up its own records would grow on every recompute; aggregate another machine", where, l.Op))
+						return
+					}
 					if child == nil {
 						issues = append(issues, fmt.Sprintf("%s: %s: machine %q is not installed in this workspace", where, l.Op, a.Machine))
 						return

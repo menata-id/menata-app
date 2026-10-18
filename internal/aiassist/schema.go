@@ -168,6 +168,12 @@ func fieldStampEnum() []string {
 func computeOpEnum() []string {
 	ops := make([]string, 0, len(domain.KnownComputeOps))
 	for op := range domain.KnownComputeOps {
+		// The assistant writes the flat shape -- an operation over Fields -- so an operation that needs a literal (round)
+		// or another Machine (sum_children, count_children) is not offered: it would only ever be refused.
+		switch op {
+		case domain.ComputeRound, domain.ComputeSumChildren, domain.ComputeCountChildren:
+			continue
+		}
 		ops = append(ops, string(op))
 	}
 	sort.Strings(ops)

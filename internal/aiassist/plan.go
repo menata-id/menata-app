@@ -598,6 +598,33 @@ func sameCompute(a, b *GeneratedCompute) bool {
 	return a.Op == b.Op && slices.Equal(a.Fields, b.Fields)
 }
 
+// keepDeclared gives a desired Machine back what the assistant's shapes cannot carry and it handed back unchanged: a
+// computed value declared as a tree (`{subtract: [...]}`, `sum_children`), which it is shown as its operation with no
+// fields, and an `ensure:` bound taken from a parent. The file edit leaves both as written (they compare equal to what
+// was described); without this the update would be judged against a Machine that lost them, and refused (the review of
+// step 3 found every update of Production Contracts refused).
+func keepDeclared(desired, current *domain.Machine) {
+	if desired == nil || current == nil {
+		return
+	}
+	for i, f := range desired.Fields {
+		was, ok := current.FieldByID(f.ID)
+		if !ok || was.Compute == nil || was.Compute.Expr == nil || f.Compute == nil {
+			continue
+		}
+		if f.Compute.Op == was.Compute.Op && len(f.Compute.Fields) == 0 {
+			desired.Fields[i].Compute = was.Compute
+		}
+	}
+	for i, b := range desired.Bounds {
+		for _, was := range current.Bounds {
+			if was.ID == b.ID && was.AtMostParent != nil && b.AtMost == nil {
+				desired.Bounds[i].AtMostParent = was.AtMostParent
+			}
+		}
+	}
+}
+
 // validateUpdateApplication checks an update the way a new Application is checked -- every desired
 // Machine through the real metadata.Validate, every Permission's roles against the desired roles,
 // the menu against the desired Machines -- and then holds it to PlanUpdate's policy.
@@ -659,6 +686,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 			}
 		}
 		dm, fieldIssues := buildDomainMachine(m, targets)
+		keepDeclared(dm, current.Machines[m.ID])
 		fieldIssues = append(fieldIssues, notificationIssues(m, existing)...)
 		issues = append(issues, fieldIssues...)
 		if len(fieldIssues) == 0 {

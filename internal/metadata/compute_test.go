@@ -140,6 +140,9 @@ fields:
 		"a date in a sum":      `{ sum: [fld_gross, fld_when] }`,
 		"round by a field":     `{ round: [fld_gross, fld_vat] }`,
 		"a parent off a money": `{ sum: [{ parent: fld_gross.fld_x }] }`,
+		"a NaN literal":        `{ multiply: [fld_gross, nan] }`,
+		"round to 400 places":  `{ round: [fld_gross, 400] }`,
+		"round by a fraction":  `{ round: [fld_gross, 1.5] }`,
 	} {
 		src := strings.Replace(`id: mch_term
 name: Term
@@ -210,5 +213,17 @@ datasets:
 		Compute: &domain.FieldCompute{Op: domain.ComputeAddDays, Fields: []string{"fld_due", "fld_days"}}})
 	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "must be a number field") {
 		t.Errorf("add_days took money as its count of days: %v", err)
+	}
+}
+
+// TestAMachineCannotAddUpItsOwnRecords (the review of step 3): a self-aggregate grows on every recompute.
+func TestAMachineCannotAddUpItsOwnRecords(t *testing.T) {
+	m := &domain.Machine{ID: "mch_node", Fields: []domain.Field{
+		{ID: "fld_parent", Type: domain.FieldTypeRelation, RelatedMachine: "mch_node"},
+		{ID: "fld_total", Type: domain.FieldTypeMoney, Compute: &domain.FieldCompute{Op: domain.ComputeSumChildren, Expr: &domain.ComputeExpr{Op: domain.ComputeSumChildren,
+			Children: &domain.ChildAggregate{Machine: "mch_node", Via: "fld_parent", Field: "fld_total"}}}},
+	}}
+	if err := validateComputeTargets([]*domain.Machine{m}); err == nil || !strings.Contains(err.Error(), "its own records") {
+		t.Errorf("validateComputeTargets = %v, want a self-aggregate refused", err)
 	}
 }
