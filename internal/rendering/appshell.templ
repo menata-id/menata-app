@@ -131,6 +131,59 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 						? "Something went wrong on our side. Please try again."
 						: (xhr.responseText || "").trim().slice(0, 300) || "That request was refused.");
 				});
+				// Money is typed with the Workspace's marks: thousands are grouped as the digits are typed, the decimals stop at two, a
+				// control left with digits is padded to two decimals, and the request carries the plain decimal ("1234567.50") whatever
+				// the marks are. The value the server draws is already that plain decimal, which this reads once and writes in the marks.
+				function moneyParts(el, fromServer) {
+					var v = el.value, d = el.dataset.decimal, mark = fromServer ? "." : d;
+					var neg = v.trim().charAt(0) === "-", i = v.indexOf(mark);
+					return {
+						neg: neg,
+						whole: (i < 0 ? v : v.slice(0, i)).replace(/\D/g, "").replace(/^0+(?=\d)/, ""),
+						frac: i < 0 ? null : v.slice(i + mark.length).replace(/\D/g, "").slice(0, 2)
+					};
+				}
+				function moneyText(el, p, pad) {
+					var frac = p.frac;
+					if (pad && (p.whole || frac)) { frac = ((frac || "") + "00").slice(0, 2); }
+					var whole = (p.whole || (frac !== null ? "0" : "")).replace(/\B(?=(\d{3})+(?!\d))/g, el.dataset.thousands);
+					return (p.neg && (whole || frac) ? "-" : "") + whole + (frac !== null ? el.dataset.decimal + frac : "");
+				}
+				function moneyPlain(el) {
+					var p = moneyParts(el, false);
+					if (!p.whole && !p.frac) { return ""; }
+					return (p.neg ? "-" : "") + (p.whole || "0") + (p.frac ? "." + p.frac : "");
+				}
+				function moneyReady(root) {
+					(root || document).querySelectorAll("input[data-money]:not([data-ready])").forEach(function (el) {
+						el.dataset.ready = "1";
+						if (el.value !== "") { el.value = moneyText(el, moneyParts(el, true), true); }
+					});
+				}
+				document.addEventListener("DOMContentLoaded", function () { moneyReady(); });
+				document.addEventListener("htmx:load", function (e) { moneyReady(e.target); });
+				document.addEventListener("input", function (e) {
+					var el = e.target;
+					if (!el.matches || !el.matches("input[data-money]")) { return; }
+					var before = el.value.slice(0, el.selectionStart || 0);
+					var left = (before.match(/\d/g) || []).length, atEnd = el.selectionStart === el.value.length;
+					el.value = moneyText(el, moneyParts(el, false), false);
+					var at = el.value.length, seen = 0;
+					if (!atEnd) {
+						at = 0;
+						while (at < el.value.length && seen < left) { if (/\d/.test(el.value.charAt(at))) { seen++; } at++; }
+					}
+					el.setSelectionRange(at, at);
+				});
+				document.addEventListener("focusout", function (e) {
+					var el = e.target;
+					if (el.matches && el.matches("input[data-money]") && el.value !== "") { el.value = moneyText(el, moneyParts(el, false), true); }
+				});
+				document.addEventListener("htmx:configRequest", function (e) {
+					var form = e.detail.elt && e.detail.elt.querySelectorAll ? e.detail.elt : null;
+					if (!form) { return; }
+					form.querySelectorAll("input[data-money][name]").forEach(function (el) { e.detail.parameters[el.name] = moneyPlain(el); });
+				});
 				// A form the browser holds back for a required control left empty sends nothing, so no response says why: the
 				// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.
 				document.addEventListener("htmx:validation:halted", function (e) {

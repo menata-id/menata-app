@@ -1,6 +1,7 @@
 package composition
 
 import (
+	"context"
 	"time"
 
 	"menata.app/internal/data"
@@ -17,7 +18,7 @@ import (
 // This is the consumer Projection was missing. Its only previous one (PendingApprovalCard)
 // projects a list whose role-compatible Fields hold the same value on every row, so the primitive
 // could run without any of its output varying; here the projection is the card.
-func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relations rendering.RelationOptions, tags map[string][]rendering.CardTag, now time.Time) []rendering.RecordCard {
+func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relations rendering.RelationOptions, tags map[string][]rendering.CardTag, now time.Time, nf domain.NumberFormat) []rendering.RecordCard {
 	if t := v.EffectiveType(); t != domain.ViewCards && t != domain.ViewBoard {
 		return nil
 	}
@@ -25,7 +26,7 @@ func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relat
 	for _, r := range records {
 		cards = append(cards, rendering.RecordCard{
 			Record:   r,
-			Fields:   ProjectCardFields(m, r, relations),
+			Fields:   ProjectCardFields(m, r, relations, nf),
 			Tags:     tags[r.ID],
 			Complete: cardComplete(m, r),
 			Date:     experience.ResolveCardDate(r.Values[FieldForRole(m, domain.CardFieldRoleDate)], IsComplete(m, r), now),
@@ -45,7 +46,7 @@ func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relat
 // renamed/removed) is skipped silently rather than erroring -- internal/metadata.Validate already
 // rejects this at load time, so a live record only hits this path if metadata changed underneath
 // an already-running process; skipping degrades the card gracefully instead of 500ing it.
-func ProjectCardFields(m *domain.Machine, r *data.Record, relations rendering.RelationOptions) []rendering.ProjectedField {
+func ProjectCardFields(m *domain.Machine, r *data.Record, relations rendering.RelationOptions, nf domain.NumberFormat) []rendering.ProjectedField {
 	var out []rendering.ProjectedField
 	for _, cf := range m.CardFields {
 		f, ok := m.FieldByID(cf.Field)
@@ -55,7 +56,7 @@ func ProjectCardFields(m *domain.Machine, r *data.Record, relations rendering.Re
 		out = append(out, rendering.ProjectedField{
 			Label:   f.Name,
 			Role:    string(cf.Role),
-			Display: projectedFieldDisplay(f, r.Values[cf.Field], relations),
+			Display: projectedFieldDisplay(f, r.Values[cf.Field], relations, nf),
 		})
 	}
 	return out
@@ -66,14 +67,14 @@ func ProjectCardFields(m *domain.Machine, r *data.Record, relations rendering.Re
 // a reference field resolves through relations, a date field formats the same way buildInbox
 // already formats SubmittedAt ("2 Jan 2006"), a figure as domain.FormatFigure writes it, everything else is
 // DisplayString as-is.
-func projectedFieldDisplay(f domain.Field, value any, relations rendering.RelationOptions) string {
+func projectedFieldDisplay(f domain.Field, value any, relations rendering.RelationOptions, nf domain.NumberFormat) string {
 	if f.IsReference() {
 		return rendering.RelationLabel(relations, f.RelatedMachine, DisplayString(value))
 	}
 	if f.Type == domain.FieldTypeDate {
 		return domain.FormatDay(DisplayString(value))
 	}
-	if figure, ok := f.Figure(value); ok {
+	if figure, ok := f.FigureIn(nf, value); ok {
 		return figure
 	}
 	return DisplayString(value)
@@ -92,9 +93,9 @@ func projectedFieldDisplay(f domain.Field, value any, relations rendering.Relati
 // A role a Machine declares more than once keeps its first entry, matching the order card_fields is
 // written in; a role it declares not at all is absent, and callers render nothing rather than a blank
 // they cannot explain.
-func ProjectedByRole(m *domain.Machine, r *data.Record, relations rendering.RelationOptions) map[string]string {
+func ProjectedByRole(m *domain.Machine, r *data.Record, relations rendering.RelationOptions, nf domain.NumberFormat) map[string]string {
 	out := map[string]string{}
-	for _, pf := range ProjectCardFields(m, r, relations) {
+	for _, pf := range ProjectCardFields(m, r, relations, nf) {
 		if _, taken := out[pf.Role]; !taken {
 			out[pf.Role] = pf.Display
 		}
@@ -136,3 +137,11 @@ func cardComplete(m *domain.Machine, r *data.Record) *rendering.CardComplete {
 	}
 	return &rendering.CardComplete{Field: m.Completion.Field, Next: next, Done: done}
 }
+
+// NumberFormatOf is how the Workspace of this request writes a figure: its declared `number_format:`, or the international
+// one where the request has no Workspace.
+func NumberFormatOf(ctx context.Context) domain.NumberFormat {
+	return rendering.CurrentWorkspace(ctx).Number.Or()
+}
+
+func numberFormatOf(ctx context.Context) domain.NumberFormat { return NumberFormatOf(ctx) }

@@ -943,6 +943,7 @@ func (l *Loader) AggregateDataset(ctx context.Context, datasetID string, where e
 	if err != nil {
 		return agg, err
 	}
+	agg.Number = numberFormatOf(ctx)
 	if m := l.Machine(ds.Source); m != nil {
 		agg.Types, agg.Currencies = map[string]domain.FieldType{}, map[string]string{}
 		for _, ms := range ds.Measures {

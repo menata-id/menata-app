@@ -196,14 +196,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got = buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -217,7 +217,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -279,7 +279,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+			got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -302,7 +302,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -318,7 +318,7 @@ func TestBuildInbox_SubmitterFromTheDeclaredField(t *testing.T) {
 	docs := []*data.Record{submitted(doc("doc_1", "Contract", "parallel", ""), "usr_budi", at(8))}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -334,7 +334,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
@@ -351,7 +351,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 		submitted(doc("doc_theirs", "Theirs", "parallel", ""), "usr_budi", at(8)),
 	}
 
-	got := buildInbox(inboxFixture(docs, nil), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, nil), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -380,7 +380,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(nil, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(nil, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -406,7 +406,7 @@ func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -423,7 +423,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -609,7 +609,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 		{ID: "lkh_2", Values: map[string]any{"fld_surat": "srt_1", "fld_petugas": "usr_budi", "fld_putusan": "menunggu", "fld_urutan": float64(2)}},
 	}
 
-	got := buildInbox(inboxFixtureOver(docs, steps, stepMachine, docMachine), map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
+	got := buildInbox(inboxFixtureOver(docs, steps, stepMachine, docMachine), map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil, domain.NumberFormatInternational)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1 -- Ana's own undecided step, found through declarations alone", len(got.Pending))
 	}
@@ -624,7 +624,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 	// And a decided step drops out, which is the open value being read from the edges' own `from:`
 	// rather than compared against the literal "pending".
 	steps[0].Values["fld_putusan"] = "setuju"
-	if got := buildInbox(inboxFixture(docs, steps), nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
+	if got := buildInbox(inboxFixture(docs, steps), nil, "usr_ana", at(10), stepMachine, docMachine, nil, domain.NumberFormatInternational); len(got.Pending) != 0 {
 		t.Errorf("a decided step still appears as pending: %d card(s)", len(got.Pending))
 	}
 }

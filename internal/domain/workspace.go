@@ -14,6 +14,9 @@ type Workspace struct {
 	// manifest and a pre-auth screen with no Workspace on ctx both render exactly what they rendered before
 	// Theme existed.
 	Theme Theme
+	// Number is how every screen of this Workspace writes a figure (`number_format:` in its manifest): the mark between
+	// thousands and the mark before the decimals. The zero value is the international format (NumberFormat.Or).
+	Number NumberFormat
 	// Slug names which Workspace this manifest installs into, matched against the `workspaces`
 	// table's own slug column at load time (metadata/workspaces/<slug>.yaml, 2026-09-22).
 	//

@@ -14,13 +14,18 @@ import (
 // related records by its label -- and what does not fit is left empty and flagged rather than put in a control that would
 // refuse it or, worse, accept it wrongly.
 func Fit(in FormInput, raw string) (value string, unfit bool) {
+	return FitIn(NumberFormatInternational, in, raw)
+}
+
+// FitIn is Fit for a Workspace whose figures are written in nf: "4.783.163,50" is a number in the Indonesian format.
+func FitIn(nf NumberFormat, in FormInput, raw string) (value string, unfit bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", false
 	}
 	switch in.Kind {
 	case InputNumber:
-		if n, ok := parseNumber(raw); ok {
+		if n, ok := parseNumberIn(nf, raw); ok {
 			return strconv.FormatFloat(n, 'f', -1, 64), false
 		}
 		return "", true
@@ -57,20 +62,19 @@ func Fit(in FormInput, raw string) (value string, unfit bool) {
 
 var dateLayouts = []string{"2006-01-02", "02 Jan 2006", "2 Jan 2006", "2 January 2006", "02 January 2006", "02/01/2006", "2/1/2006"}
 
-// groupedNumber is a number written with thousands separators ("180,000,000", "1,250.5"): a reader told not to may still do it.
+// plainNumber is a plain decimal; a reader told to write one may still group its thousands, which NumberFormat.Canonical undoes.
 var plainNumber = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
 
-var groupedNumber = regexp.MustCompile(`^-?\d{1,3}(,\d{3})+(\.\d+)?$`)
-
-func parseNumber(s string) (float64, bool) {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "Rp"))
-	if groupedNumber.MatchString(s) {
-		s = strings.ReplaceAll(s, ",", "")
-	}
-	// Plain decimal digits only: ParseFloat would also read NaN, Inf, hex floats and digit separators.
-	if !plainNumber.MatchString(s) {
+func parseNumberIn(nf NumberFormat, s string) (float64, bool) {
+	s = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "Rp"))
+	nf = nf.Or()
+	// A plain decimal ("1250.5") is always a figure in the format whose decimal mark is "."; in the other, the document's own
+	// grouping is read as the Workspace writes it, and a plain "1.234" is a thousand, not a decimal.
+	canonical, ok := nf.Canonical(s)
+	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseFloat(s, 64)
+	// Plain decimal digits only: ParseFloat would also read NaN, Inf, hex floats and digit separators.
+	n, err := strconv.ParseFloat(canonical, 64)
 	return n, err == nil && !math.IsInf(n, 0)
 }

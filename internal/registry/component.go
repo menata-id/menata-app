@@ -666,6 +666,8 @@ var formInputContract = domain.ComponentContract{
 		// label names a control that sits under a column header instead of a Field's label (a table of proposed rows): drawn
 		// as a visually hidden <label>, so a screen reader still hears what the cell is.
 		{Name: "label", Kind: "string"},
+		// money is a money Field's control: typed with the Workspace's thousands and decimal marks, sent as a plain decimal.
+		{Name: "money", Kind: "bool"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,

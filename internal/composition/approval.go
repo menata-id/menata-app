@@ -99,7 +99,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	return buildInbox(sel, names, userID, now, stepMachine, docMachine, relations), nil
+	return buildInbox(sel, names, userID, now, stepMachine, docMachine, relations, numberFormatOf(ctx)), nil
 }
 
 // pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
@@ -250,7 +250,7 @@ func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.Pe
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(sel Selection, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+func buildInbox(sel Selection, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions, nf domain.NumberFormat) Inbox {
 	documents := sel.Records
 	// Every Field id this function reads comes from the two Machines' own declarations, once
 	// (action.DeclaredFields) -- 001 Principle #8, and what lets the inbox compose a Machine whose
@@ -307,7 +307,7 @@ func buildInbox(sel Selection, names map[string]string, userID string, now time.
 		}
 		var cardFields []rendering.ProjectedField
 		if stepMachine != nil && len(stepMachine.CardFields) > 0 {
-			cardFields = ProjectCardFields(stepMachine, s, relations)
+			cardFields = ProjectCardFields(stepMachine, s, relations, nf)
 		}
 		inbox.Pending = append(inbox.Pending, rendering.PendingApprovalCard{
 			ID:           docID,

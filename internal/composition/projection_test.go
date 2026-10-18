@@ -1,6 +1,7 @@
 package composition
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func TestProjectCardFields(t *testing.T) {
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}},
 	}
 
-	got := ProjectCardFields(m, r, relations)
+	got := ProjectCardFields(m, r, relations, domain.NumberFormatInternational)
 	want := []rendering.ProjectedField{
 		{Label: "Title", Role: "title", Display: "Widget One"},
 		{Label: "Owner", Role: "person", Display: "Ana Putri"},
@@ -53,7 +54,7 @@ func TestProjectCardFields_skipsMissingField(t *testing.T) {
 	}
 	r := rec("wdg_1", map[string]any{"fld_title": "Widget One"})
 
-	got := ProjectCardFields(m, r, nil)
+	got := ProjectCardFields(m, r, nil, domain.NumberFormatInternational)
 	if len(got) != 0 {
 		t.Errorf("ProjectCardFields() = %+v, want empty (stale field id skipped)", got)
 	}
@@ -69,7 +70,7 @@ func TestProjectCardFields_dateRole(t *testing.T) {
 	}
 	r := rec("wdg_1", map[string]any{"fld_due": "2026-09-19"})
 
-	got := ProjectCardFields(m, r, nil)
+	got := ProjectCardFields(m, r, nil, domain.NumberFormatInternational)
 	want := []rendering.ProjectedField{{Label: "Due", Role: "date", Display: "19 Sep 2026"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ProjectCardFields() = %+v, want %+v", got, want)
@@ -99,7 +100,7 @@ func TestRecordCards_datePillFollowsDeclaredCompletion(t *testing.T) {
 		return &data.Record{ID: "r", Values: map[string]any{"fld_name": "x", "fld_state": state, "fld_due": due}}
 	}
 
-	cards := RecordCards(m, board, []*data.Record{rec("open", "2026-10-01"), rec("shipped", "2026-10-01"), rec("open", "")}, nil, nil, now)
+	cards := RecordCards(m, board, []*data.Record{rec("open", "2026-10-01"), rec("shipped", "2026-10-01"), rec("open", "")}, nil, nil, now, domain.NumberFormatInternational)
 	if got := cards[0].Date; got.Tone != domain.ToneBad || got.Done {
 		t.Errorf("open and past due = %+v, want overdue", got)
 	}
@@ -111,7 +112,7 @@ func TestRecordCards_datePillFollowsDeclaredCompletion(t *testing.T) {
 	}
 
 	m.Completion = nil
-	if cards := RecordCards(m, board, []*data.Record{rec("shipped", "2026-10-01")}, nil, nil, now); cards[0].Date.Tone != domain.ToneBad {
+	if cards := RecordCards(m, board, []*data.Record{rec("shipped", "2026-10-01")}, nil, nil, now, domain.NumberFormatInternational); cards[0].Date.Tone != domain.ToneBad {
 		t.Errorf("a Machine declaring no completion has no finished records, got %+v", cards[0].Date)
 	}
 }
@@ -132,7 +133,7 @@ func TestRecordCards_completeToggleWritesTheOpposite(t *testing.T) {
 	rec := func(state string) *data.Record {
 		return &data.Record{ID: "r", Values: map[string]any{"fld_name": "x", "fld_state": state}}
 	}
-	cards := RecordCards(m, board, []*data.Record{rec("open"), rec("shipped")}, nil, nil, time.Now())
+	cards := RecordCards(m, board, []*data.Record{rec("open"), rec("shipped")}, nil, nil, time.Now(), domain.NumberFormatInternational)
 	if got := cards[0].Complete; got == nil || got.Done || got.Next != "shipped" || got.Field != "fld_state" {
 		t.Errorf("open card toggle = %+v, want to write shipped", got)
 	}
@@ -140,11 +141,34 @@ func TestRecordCards_completeToggleWritesTheOpposite(t *testing.T) {
 		t.Errorf("finished card toggle = %+v, want to reopen to the Field's default", got)
 	}
 	m.Fields[1].Default = nil
-	if got := RecordCards(m, board, []*data.Record{rec("shipped")}, nil, nil, time.Now())[0].Complete; got.Next != "open" {
+	if got := RecordCards(m, board, []*data.Record{rec("shipped")}, nil, nil, time.Now(), domain.NumberFormatInternational)[0].Complete; got.Next != "open" {
 		t.Errorf("with no default the first option reopens, got %q", got.Next)
 	}
 	m.Completion = nil
-	if got := RecordCards(m, board, []*data.Record{rec("open")}, nil, nil, time.Now())[0].Complete; got != nil {
+	if got := RecordCards(m, board, []*data.Record{rec("open")}, nil, nil, time.Now(), domain.NumberFormatInternational)[0].Complete; got != nil {
 		t.Errorf("no completion declared, yet the card offers %+v", got)
+	}
+}
+
+// Money reads in the Workspace's marks wherever it is drawn: a record's Field, an Aggregation's figure, and the format of the
+// request's Workspace (international where it declares none).
+func TestMoneyDisplaysInTheWorkspacesFormat(t *testing.T) {
+	f := domain.Field{ID: "fld_value", Type: domain.FieldTypeMoney, Currency: "IDR"}
+	if got := projectedFieldDisplay(f, float64(180000000), nil, domain.NumberFormatIndonesian); got != "Rp 180.000.000,00" {
+		t.Errorf("indonesian field = %q", got)
+	}
+	if got := projectedFieldDisplay(f, float64(180000000), nil, domain.NumberFormatInternational); got != "Rp 180,000,000.00" {
+		t.Errorf("international field = %q", got)
+	}
+	agg := Aggregation{Types: map[string]domain.FieldType{"m": domain.FieldTypeMoney}, Currencies: map[string]string{"m": "IDR"}, Number: domain.NumberFormatIndonesian}
+	if got := agg.Format("m", 1234.5); got != "Rp 1.234,50" {
+		t.Errorf("indonesian aggregation = %q", got)
+	}
+	ctx := rendering.WithCurrentWorkspace(context.Background(), domain.Workspace{Number: domain.NumberFormatIndonesian}, "W", false)
+	if got := NumberFormatOf(ctx); got != domain.NumberFormatIndonesian {
+		t.Errorf("NumberFormatOf = %+v", got)
+	}
+	if got := NumberFormatOf(context.Background()); got != domain.NumberFormatInternational {
+		t.Errorf("a request with no Workspace = %+v", got)
 	}
 }

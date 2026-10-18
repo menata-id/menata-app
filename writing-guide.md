@@ -196,7 +196,7 @@ Each Field declares a `type:`. The full closed set the runtime understands
 | `date` | A calendar date | |
 | `status` | A closed set of named states | Requires a non-empty `options:` list |
 | `person` | "Assigned to a user" | See §4 — implicitly a relation to the built-in user Machine |
-| `money` | A figure (an amount of money) | Stored as a number, like `number`, and summed, bounded, computed and ordered the same way; shown in the international convention, `,` between thousands and `.` before decimals (`180,000,000.5`). No currency symbol is declared or shown |
+| `money` | A figure (an amount of money) | Stored as a plain decimal number, like `number`, and summed, bounded, computed and ordered the same way. **Written everywhere with two decimals and the Workspace's marks** (`number_format:` in its manifest, §12.1): `180,000,000.00` (international, the default) or `180.000.000,00` (`indonesian`). `currency: IDR` puts its symbol before the figure (`Rp 180,000,000.00`). In a form it is typed with those marks (the shell's script groups the thousands as you type -- see "Script is the exception" below) and is sent and stored as the plain decimal |
 | `relation` | A reference to another Machine's record | Requires `machine:` naming the target |
 | `file` | An uploaded file | The stored value is a storage key, not the raw file |
 
@@ -1142,6 +1142,7 @@ Creating a Workspace through the UI writes this file for you, with the three sha
 | `navigation[]` | list of items | Destinations belonging to no single Application (Home, All Machines, Members, Groups) |
 | `applications[]` | file paths | One file per Application; declaration order is launcher/Workspace Home order |
 | `suggested_applications[]` | list of `{label, prompt}` | Workspace Home's "Add an application" chips (2026-09-27); both required. Display text and a conversation-starter prompt for `/new-application?idea=`, not an identifier anything else references — a Workspace with none declared simply shows no chips |
+| `number_format` | `international` \| `indonesian` | How **every** screen of this Workspace writes a figure (2026-10-18): the mark between thousands and the mark before the decimals. `international` is `1,234.50` and is what a manifest that says nothing uses; `indonesian` is `1.234,50`. One choice for the whole Workspace, not per Application or per Field: a figure reads the same wherever it is met. Applies to money in tables, totals, metrics, a record's page, a printed PDF, the money control of a form, and the figures a document reader proposes. An unknown name is refused when the manifest loads. A plain `number` Field is not affected (it is written as stored). Not writable by the AI assistant yet |
 
 **One Application file** (`applications/<name>.yaml`)
 
@@ -2962,6 +2963,24 @@ If a concept from 006/007 isn't in this table — Query, Binding, Slot, Componen
 API, Workflow/Process — it has **no metadata expression today**. That's
 the accurate answer to "can I declare this?", and the next section explains which of those gaps are
 deliberate.
+
+### Script is the exception, and this is the list (2026-10-18)
+
+The runtime draws pages on the server. A page, a Component or an author's YAML **never carries script**: no Component takes an
+event handler or an `hx-*` property (§12.3), and `page:` has no way to write one. The shell loads two libraries (htmx, which
+sends a form without leaving the page, and hyperscript) and each screen that needs behaviour a server cannot give carries a short
+script of its own. Each exception is named here, with why script is the only way and what keeps it small. **A new exception
+is added to this list in the same change, or it is not allowed.**
+
+| Where | What it does | Why script is the only way | What bounds it |
+|---|---|---|---|
+| The shell (`appshell.templ`): the refused-write notice | Shows the server's refusal (a 422, a 403) in one place for every htmx request | htmx swaps nothing in for a 4xx/5xx | Reads only the response text; changes no value |
+| The shell: the held-back form notice | Says "N required fields are still empty" and scrolls to the first one when the browser holds a form back | A held-back form sends no request, so no response can say why | Reads `:invalid`; changes no value |
+| **The shell: the money control** (2026-10-18) | **Groups the thousands of a money control as it is typed, stops at two decimals, pads to two decimals when the control is left, and sends the plain decimal** | A `number` control cannot show marks at all, and a `text` control cannot group digits as they are typed without script. The server only ever sees the plain decimal, so it cannot do this for the person typing | **Forms only, and only a `data-money` control** (a money Field of a Form). It reads the Workspace's marks from the control's `data-thousands`/`data-decimal` (the server wrote them from `number_format:`); it names no mark itself. It changes nothing but that control's text, and replaces the value in the request with the plain decimal. Without script the control is a text control holding the plain decimal, and the server accepts it as it always did. Display is never done by script: every table, total, metric and page is written by the server |
+| `leaveguard`, `signatureplacement`, `reviewdocument`, `machine.templ` (board drag, quick edit) | Their own screens' interaction (a "leave this page?" guard, placing a signature on a PDF, dragging a card) | Pointer and focus behaviour | Each in its own template, none reads a Workspace's data |
+
+What this means for an author: you write `type: money` and `number_format:`, never a script. If a screen needs behaviour that none of the
+rows above gives, say so as a gap; do not work around it with a property that smuggles a handler in.
 
 ## What comes free vs. what's hardcoded today — the honest map
 

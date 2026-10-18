@@ -869,11 +869,11 @@ func TestWindowWordsAreTheDatasetsOwnWindow(t *testing.T) {
 func TestAStatusWithNoValueStillHasANeutralTone(t *testing.T) {
 	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "fld_s", Type: domain.FieldTypeStatus, Options: []string{"A", "B"}}}}
 	item := map[string]string{}
-	fillFieldColumns(item, m, &data.Record{Values: map[string]any{}}, nil, []string{"fld_s"}, nil)
+	fillFieldColumns(item, m, &data.Record{Values: map[string]any{}}, nil, []string{"fld_s"}, nil, domain.NumberFormatInternational)
 	if got := item[domain.PageFieldToneRole("fld_s")]; got != string(domain.ToneNeutral) {
 		t.Errorf("tone of an empty status = %q, want neutral", got)
 	}
-	fillFieldColumns(item, m, &data.Record{Values: map[string]any{"fld_s": "B"}}, nil, []string{"fld_s"}, nil)
+	fillFieldColumns(item, m, &data.Record{Values: map[string]any{"fld_s": "B"}}, nil, []string{"fld_s"}, nil, domain.NumberFormatInternational)
 	if _, ok := item[domain.PageFieldToneRole("fld_s")]; !ok {
 		t.Error("a status with a value lost its tone key")
 	}

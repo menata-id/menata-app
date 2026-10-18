@@ -352,6 +352,9 @@ type workspaceDoc struct {
 	Applications []string `yaml:"applications"`
 	// SuggestedApplications -- see domain.ApplicationSuggestion's own doc comment.
 	SuggestedApplications []suggestedApplicationDoc `yaml:"suggested_applications"`
+	// NumberFormat is how this Workspace writes a figure: "international" (1,234.50) or "indonesian" (1.234,50). One for
+	// every Application in it; empty is international.
+	NumberFormat string `yaml:"number_format"`
 }
 
 // suggestedApplicationDoc is the YAML serialization of a domain.ApplicationSuggestion.
@@ -576,6 +579,13 @@ func LoadApplication(path string) (*App, error) {
 			issues = append(issues, fmt.Sprintf("workspace %q: suggested_applications[%d]: prompt is required", doc.Workspace, i))
 		}
 	}
+	number := domain.NumberFormatInternational
+	if doc.NumberFormat != "" {
+		var ok bool
+		if number, ok = domain.NumberFormatNamed(doc.NumberFormat); !ok {
+			issues = append(issues, fmt.Sprintf("workspace %q: number_format %q is not one this runtime writes (%s)", doc.Workspace, doc.NumberFormat, strings.Join(slices.Sorted(maps.Keys(domain.KnownNumberFormats)), ", ")))
+		}
+	}
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -616,6 +626,7 @@ func LoadApplication(path string) (*App, error) {
 			RuntimeMachines:       runtimeMachines,
 			SuggestedApplications: suggestions,
 			Theme:                 theme,
+			Number:                number,
 		},
 	}
 

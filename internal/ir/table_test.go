@@ -279,16 +279,16 @@ func TestTableFooterAddsUpTheRowsShown(t *testing.T) {
 	row := func(paid, terms, value, shown string) map[string]string {
 		return map[string]string{"num:fld_paid": paid, "num:fld_terms": terms, "num:fld_value": value, "field:fld_value": shown}
 	}
-	set := RecordSet{Records: []map[string]string{row("1", "3", "180000000", "Rp 180,000,000"), row("0", "2", "84000000", "Rp 84,000,000")}}
-	got, err := tableFooter(cols, set, false, "p", true)
+	set := RecordSet{Records: []map[string]string{row("1", "3", "180000000", "Rp 180,000,000.00"), row("0", "2", "84000000", "Rp 84,000,000.00")}}
+	got, err := tableFooter(cols, set, false, "p", true, domain.NumberFormatInternational)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "2 contracts\t1/5\tRp 264,000,000\t"; got != want {
+	if want := "2 contracts\t1/5\tRp 264,000,000.00\t"; got != want {
 		t.Errorf("footer %q, want %q", got, want)
 	}
 	set.Truncated = true
-	if got, _ := tableFooter(cols, set, false, "p", false); got != "" {
+	if got, _ := tableFooter(cols, set, false, "p", false, domain.NumberFormatInternational); got != "" {
 		t.Errorf("a cut list has a total row %q; it would add up only what is shown", got)
 	}
 }
@@ -356,5 +356,17 @@ func TestATableCellMaySayASecondLineAndARowItsPlace(t *testing.T) {
 	}
 	if _, err := Lower(root(domain.PageColumn{Header: "X", From: "title", Under: "fld_ref"}), tableRecords(rec("a", "b"))); err == nil || !strings.Contains(err.Error(), "under:") {
 		t.Errorf("under: beside from: was not refused: %v", err)
+	}
+}
+
+// A total is written the way the Workspace writes money: its marks, two decimals, the cells' own currency symbol.
+func TestFormatTotalFollowsTheWorkspacesMarks(t *testing.T) {
+	rows := []map[string]string{{"field:fld_v": "Rp 1.800,00"}, {"field:fld_v": "Rp 600,50"}}
+	if got := formatTotal(2400.5, rows, domain.PageColumn{}, "fld_v", false, domain.NumberFormatIndonesian); got != "Rp 2.400,50" {
+		t.Errorf("indonesian total = %q", got)
+	}
+	plain := []map[string]string{{"field:fld_n": "2.5"}, {"field:fld_n": "3"}}
+	if got := formatTotal(5.5, plain, domain.PageColumn{}, "fld_n", false, domain.NumberFormatInternational); got != "5.5" {
+		t.Errorf("a plain number was written as money: %q", got)
 	}
 }

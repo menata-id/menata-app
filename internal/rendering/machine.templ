@@ -1117,7 +1117,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		for _, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
 				if f.ID == m.LabelField() {
-					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ valueText(f, r.Values[f.ID]) }</a>
+					<a class={ weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ valueText(ctx, f, r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
 					@slaBadge(experience.ResolveRecordSLABadge(r.Values[f.ID], m.Finished(r.Values), now))
 				} else if f.Type == domain.FieldTypeFile {
@@ -1129,7 +1129,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 				} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
 					@statusBadge(toString(r.Values[f.ID]), m.StatusTone(f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 				} else {
-					{ valueText(f, r.Values[f.ID]) }
+					{ valueText(ctx, f, r.Values[f.ID]) }
 				}
 			</td>
 		}
@@ -1192,8 +1192,8 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 
 // valueText is a stored value as a table cell or a detail line shows it: a figure as domain.FormatFigure writes it
 // (never "1.8e+08"), an unset value as nothing (never "<nil>"), anything else as it is stored.
-func valueText(f domain.Field, v any) string {
-	if s, ok := f.Figure(v); ok {
+func valueText(ctx context.Context, f domain.Field, v any) string {
+	if s, ok := f.FigureIn(CurrentWorkspace(ctx).Number, v); ok {
 		return s
 	}
 	if f.Type == domain.FieldTypeDate {

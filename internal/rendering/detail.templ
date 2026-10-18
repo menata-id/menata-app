@@ -196,7 +196,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 						} else if f.Type == domain.FieldTypeStatus && toString(r.Values[f.ID]) != "" {
 							@statusBadge(toString(r.Values[f.ID]), m.StatusTone(f.ID, toString(r.Values[f.ID])), domain.BadgeCompact)
 						} else {
-							{ valueText(f, r.Values[f.ID]) }
+							{ valueText(ctx, f, r.Values[f.ID]) }
 						}
 					</dd>
 				}

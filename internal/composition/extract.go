@@ -99,8 +99,9 @@ func ExtractProposal(ctx context.Context, l *Loader, reader aiassist.Extractor, 
 	if err != nil {
 		return domain.ExtractionProposal{}, err
 	}
+	nf := numberFormatOf(ctx)
 	hold := func(in domain.FormInput, p aiassist.Proposed) domain.ProposedValue {
-		value, unfit := domain.Fit(in, p.Value)
+		value, unfit := domain.FitIn(nf, in, p.Value)
 		return domain.ProposedValue{Value: value, Source: strings.TrimSpace(p.Source), Review: unfit || (p.Inferred && value != "")}
 	}
 	out := domain.ExtractionProposal{Values: map[string]domain.ProposedValue{}, Rows: make([][]map[string]domain.ProposedValue, len(x.Rows))}

@@ -201,6 +201,8 @@ type WorkspaceManifestCheckDoc struct {
 	// name, which is the useful part: a mirror that has broken twice is a mirror to check *before* the gate
 	// does, not after.
 	Theme any `yaml:"theme"`
+	// NumberFormat is how the Workspace writes a figure (`number_format:`): the fourth key this mirror had to learn.
+	NumberFormat string `yaml:"number_format"`
 }
 
 // FullMachineCheckDoc/FullApplicationCheckDoc mirror internal/metadata's own real machineDoc/

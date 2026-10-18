@@ -253,19 +253,19 @@ templ form(submit, action, method string, multipart bool, carries, then string) 
 // choices, default, requiredness -- arrived derived from that Field, so this renders no `name=` of its own
 // choosing. It reads the same `fieldClasses` the Machine pages' controls do, which is why a Theme change moves
 // both. A boolean is a checkbox and never `required` (an unticked box is a valid answer).
-templ formInput(id, name, kind, options, value, label string, required, fixed bool) {
+templ formInput(id, name, kind, options, value, label string, required, fixed, money bool) {
 	if label != "" {
 		<label for={ id } class="sr-only">{ label }</label>
 	}
 	if fixed {
 		@fixedInput(id, name, options, value)
 	} else {
-		@formControl(id, name, kind, options, value, required)
+		@formControl(id, name, kind, options, value, required, money)
 	}
 }
 
 // formControl is formInput's control for a value the person chooses.
-templ formControl(id, name, kind, options, value string, required bool) {
+templ formControl(id, name, kind, options, value string, required, money bool) {
 	switch domain.InputKind(kind) {
 		case domain.InputSelect:
 			<select id={ id } name={ name } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
@@ -290,7 +290,14 @@ templ formControl(id, name, kind, options, value string, required bool) {
 		case domain.InputFile:
 			<input id={ id } type="file" name={ name } required?={ required } class={ fieldClasses(ctx) + " w-full py-1" }/>
 		case domain.InputNumber:
-			<input id={ id } type="number" step="any" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+			if money {
+				// Money is typed with the Workspace's marks ("1,234,567.50"): the shell's script groups the thousands as it is typed,
+				// pads to two decimals when the control is left, and sends the plain decimal. Without the script it is a text
+				// control holding the plain decimal, which the server reads as it always did.
+				<input id={ id } type="text" inputmode="decimal" autocomplete="off" name={ name } value={ value } data-money data-thousands={ CurrentWorkspace(ctx).Number.Or().Thousands } data-decimal={ CurrentWorkspace(ctx).Number.Or().Decimal } required?={ required } class={ fieldClasses(ctx) + " w-full text-right" }/>
+			} else {
+				<input id={ id } type="number" step="any" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+			}
 		case domain.InputCode:
 			<textarea id={ id } name={ name } rows="18" spellcheck="false" required?={ required } class={ fieldClasses(ctx) + " h-auto w-full py-2 font-mono " + textClass(ctx, domain.RoleMeta) }>{ value }</textarea>
 		case domain.InputLongText:
@@ -405,7 +412,7 @@ func computedDisplay(current any) string {
 templ editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions) {
 	if locked, why := m.LockedField(f, r.Values); locked {
 		<input type="hidden" name={ f.ID } value={ figureInputValue(r.Values[f.ID]) }/>
-		<span title={ why }>{ valueText(f, r.Values[f.ID]) }</span>
+		<span title={ why }>{ valueText(ctx, f, r.Values[f.ID]) }</span>
 	} else {
 		@fieldInput(f, r.Values[f.ID], relations, groups)
 	}

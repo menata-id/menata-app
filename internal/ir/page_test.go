@@ -1752,8 +1752,8 @@ func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testin
 			{FieldID: "fld_kind", Label: "Type", Kind: domain.InputSelect, Options: []string{"Cast"}, Default: "Cast", Flag: "needs review"},
 		},
 		Rows: []FormRows{{Label: "Instalments", Rows: [][]domain.FormInput{
-			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Default: "54"}},
-			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Default: "72"}},
+			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Money: true, Default: "54"}},
+			{{FieldID: "fld_gross", Label: "Gross", Kind: domain.InputNumber, Money: true, Default: "72"}},
 		}}},
 	}
 	node := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "component", Type: "Form",
@@ -1795,7 +1795,7 @@ func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testin
 	if table.Type != string(domain.ComponentTable) || len(form.Children) != 5 {
 		t.Fatalf("the rows are not one table: %d children, third %+v", len(form.Children), table)
 	}
-	if table.Props["headers"] != "#\nGross\nKeep" || table.Props["aligns"] != "start,end,start" || table.Props["footer"] != "2 instalments\t126\t" {
+	if table.Props["headers"] != "#\nGross\nKeep" || table.Props["aligns"] != "start,end,start" || table.Props["footer"] != "2 instalments\t126.00\t" {
 		t.Errorf("table = %v", table.Props)
 	}
 	if len(table.Children) != 6 {

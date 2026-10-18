@@ -1,0 +1,13 @@
+id: mch_payment
+name: Payment
+fields:
+  - { id: fld_payee, name: Payee, type: text, required: true }
+  - { id: fld_amount, name: Amount, type: money, currency: IDR, required: true }
+  - { id: fld_note, name: Note, type: text }
+card_fields:
+  - { field: fld_payee, role: title }
+  - { field: fld_amount, role: money }
+permissions:
+  - { id: prm_create_payment, action: create, roles: [bendahara] }
+datasets:
+  - { id: ds_payments, select: records, sort: [{ field: fld_payee }], limit: 100 }

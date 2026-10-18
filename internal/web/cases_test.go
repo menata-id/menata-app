@@ -50,6 +50,8 @@ type caseScenario struct {
 	// Reading is what the document reader answers (a stand-in for the model, which no test may call): the same answer to
 	// every document, keyed by Field id, and per row kind (its index) the rows.
 	Reading *caseReading `yaml:"reading"`
+	// NumberFormat is how the case's Workspace writes a figure (`number_format:` in its manifest).
+	NumberFormat string `yaml:"number_format"`
 }
 
 type caseReading struct {
@@ -225,6 +227,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
 	"case22_production_contracts": {Rejected: 0, Passed: 112, Steps: 112},
+	"case23_number_format":        {Rejected: 0, Passed: 4, Steps: 4},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -476,6 +479,15 @@ func stageCase(t *testing.T, dir string) (root, manifest string, rejected []stri
 	copyFile(t, filepath.Join(dir, "application.yaml"), filepath.Join(root, "application.yaml"))
 	files = append(files, filepath.Join(root, "application.yaml"))
 	manifestText.WriteString("applications:\n  - ../application.yaml\n")
+	// A scenario may say how its Workspace writes a figure (`number_format:`), which a manifest declares.
+	if raw, err := os.ReadFile(filepath.Join(dir, "scenario.yaml")); err == nil {
+		var header struct {
+			NumberFormat string `yaml:"number_format"`
+		}
+		if yaml.Unmarshal(raw, &header) == nil && header.NumberFormat != "" {
+			manifestText.WriteString("number_format: " + header.NumberFormat + "\n")
+		}
+	}
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatal(err)
 	}

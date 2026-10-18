@@ -33,6 +33,9 @@ type FormInput struct {
 	// Fixed is a control whose value came from the request (a Form's `values:`): drawn as its words, carried in a hidden
 	// input, so "New instalment" opened from a contract shows the contract and does not offer another.
 	Fixed bool
+	// Money is a money Field's control: the person types it with the Workspace's thousands and decimal marks and the form sends
+	// the plain decimal (the shell's script converts it). Its Kind stays InputNumber -- it is a number to everything else.
+	Money bool
 	// Choices are a reference select's records, each a stored id and the words it is shown by (the related record's
 	// label, a member's name).
 	Choices []FormChoice
@@ -272,7 +275,7 @@ func formInputOf(f Field) FormInput {
 	case FieldTypeLongText:
 		in.Kind = InputLongText
 	case FieldTypeNumber, FieldTypeMoney:
-		in.Kind = InputNumber
+		in.Kind, in.Money = InputNumber, f.Type == FieldTypeMoney
 	case FieldTypeDate:
 		in.Kind = InputDate
 	case FieldTypeBoolean:

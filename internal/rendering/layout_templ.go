@@ -3275,7 +3275,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentFormInput:
-				templ_7745c5c3_Err = formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["label"], n.Props["required"] == "true", n.Props["fixed"] == "true").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["label"], n.Props["required"] == "true", n.Props["fixed"] == "true", n.Props["money"] == "true").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

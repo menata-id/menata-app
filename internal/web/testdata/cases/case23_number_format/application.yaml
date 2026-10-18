@@ -1,0 +1,33 @@
+id: app_payments
+name: Pembayaran
+machines:
+  - mch_payment
+roles:
+  - bendahara
+description: A Workspace that writes money the Indonesian way.
+icon: board
+color: blue
+summary_machine: mch_payment
+navigation:
+  - id: nav_payments
+    label: Payments
+    title: Payments
+    route: /pages/nav_payments
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Add payment
+          binding: { dataset: ds_payments, write: create }
+        - component: Table
+          label: Payments
+          empty: No payment yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Payee, field: fld_payee, total: count, total_label: payments }
+            - { header: Amount, field: fld_amount, align: end, total: sum }
+          binding: { dataset: ds_payments, rows: records }

@@ -194,7 +194,7 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 		relations:    relations,
 		groups:       groups,
 		boardColumns: boardColumns,
-		cards:        composition.RecordCards(machine, v, records, relations, tags, time.Now()),
+		cards:        composition.RecordCards(machine, v, records, relations, tags, time.Now(), composition.NumberFormatOf(req.Context())),
 	}, nil
 }
 

@@ -3933,9 +3933,9 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var210 string
-				templ_7745c5c3_Var210, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(f, r.Values[f.ID]))
+				templ_7745c5c3_Var210, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(ctx, f, r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1120, Col: 215}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1120, Col: 220}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var210))
 				if templ_7745c5c3_Err != nil {
@@ -3982,9 +3982,9 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				}
 			} else {
 				var templ_7745c5c3_Var213 string
-				templ_7745c5c3_Var213, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(f, r.Values[f.ID]))
+				templ_7745c5c3_Var213, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(ctx, f, r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1132, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1132, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var213))
 				if templ_7745c5c3_Err != nil {
@@ -4326,8 +4326,8 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 
 // valueText is a stored value as a table cell or a detail line shows it: a figure as domain.FormatFigure writes it
 // (never "1.8e+08"), an unset value as nothing (never "<nil>"), anything else as it is stored.
-func valueText(f domain.Field, v any) string {
-	if s, ok := f.Figure(v); ok {
+func valueText(ctx context.Context, f domain.Field, v any) string {
+	if s, ok := f.FigureIn(CurrentWorkspace(ctx).Number, v); ok {
 		return s
 	}
 	if f.Type == domain.FieldTypeDate {

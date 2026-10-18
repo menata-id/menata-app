@@ -330,7 +330,9 @@ type FormSpec struct {
 	Rows []FormRows
 	// Document is the words naming the document a proposal was read from ("ctr-c-026.pdf · 1.4 MB"), shown above the form.
 	Document string
-	Route    string
+	// Number is how the Workspace writes a figure, for the total of a proposed rows table.
+	Number domain.NumberFormat
+	Route  string
 	// Method is the verb the route takes (`domain.FormMethodPost`, `domain.FormMethodPatch`); empty means post.
 	Method    string
 	Permitted bool
@@ -364,6 +366,9 @@ type Resolver struct {
 	Source  SourceResolver
 	Form    FormResolver
 	Total   TotalResolver
+	// Number is how the Workspace writes a figure (a Table's total row is written the way its cells are); the zero value is the
+	// international format.
+	Number domain.NumberFormat
 	// Action answers a `write: action` binding: the operation's route, whether this viewer may perform it, and what a
 	// Form for it asks. Only the runtime's own pages bind one.
 	Action ActionResolver
@@ -2044,7 +2049,7 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		}
 		form.Children = append(form.Children,
 			UINode{Kind: NodeStatic, Type: string(domain.StaticSubheading), Props: map[string]string{"text": kind.Label}},
-			rowsTable(path, len(spec.Inputs)+k*1000, k, kind))
+			rowsTable(path, len(spec.Inputs)+k*1000, k, kind, spec.Number))
 	}
 	out := []UINode{}
 	if spec.Reader != nil {
@@ -2057,7 +2062,7 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 // Field, then the keep tick. A column whose Field is a number is added up in the total row from the values proposed (a
 // total of what is proposed, not of what a person then types). Each control carries its column and row as a hidden label,
 // since the header is the only visible one; a proposed value's source and flag sit under its control.
-func rowsTable(path string, base, k int, kind FormRows) UINode {
+func rowsTable(path string, base, k int, kind FormRows, nf domain.NumberFormat) UINode {
 	first := kind.Rows[0]
 	headers := []string{"#"}
 	aligns := []string{string(domain.TableAlignStart)}
@@ -2098,8 +2103,11 @@ func rowsTable(path string, base, k int, kind FormRows) UINode {
 	}
 	footer[at] = count
 	for i, in := range first {
-		if in.Kind == domain.InputNumber {
-			footer[1+i] = groupThousands(sums[i])
+		switch {
+		case in.Money:
+			footer[1+i] = domain.FormatMoney(sums[i], nf)
+		case in.Kind == domain.InputNumber:
+			footer[1+i] = strconv.FormatFloat(sums[i], 'f', -1, 64)
 		}
 	}
 	table.Props[tableFooterProp] = strings.Join(footer, "\t")
@@ -2140,6 +2148,9 @@ func controlNode(id, name string, in domain.FormInput, label string) UINode {
 	}
 	if in.Fixed {
 		ctl["fixed"] = "true"
+	}
+	if in.Money {
+		ctl["money"] = "true"
 	}
 	if in.Kind == domain.InputSelect || in.Kind == domain.InputMultiSelect {
 		ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)

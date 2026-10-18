@@ -1,0 +1,31 @@
+case: 23
+title: A Workspace that writes money the Indonesian way
+# The Workspace declares `number_format: indonesian`: money reads "1.234.567,50" everywhere in it, and the form's money control
+# carries those marks for the script that groups the thousands as it is typed. What is stored and posted stays a plain decimal.
+number_format: indonesian
+actors:
+  - { name: sari, role: bendahara }
+steps:
+  - id: a-payment
+    as: sari
+    create: { machine: mch_payment, values: { fld_payee: Reza, fld_amount: "1234567.5" } }
+    expect: ok
+    record: { fld_amount: "1.2345675e+06" }
+  - id: another-payment
+    as: sari
+    create: { machine: mch_payment, values: { fld_payee: Budi, fld_amount: "180000000" } }
+    expect: ok
+  - id: the-table-and-its-total-use-the-workspaces-marks
+    as: sari
+    view:
+      path: /pages/nav_payments
+      shows: [">Rp 1.234.567,50<", ">Rp 180.000.000,00<", ">Rp 181.234.567,50<", ">2 payments<"]
+      hides: ["1,234,567", "180,000,000"]
+    expect: ok
+  - id: the-form-says-which-marks-to-type-with
+    as: sari
+    view:
+      path: /pages/nav_payments
+      shows: ["data-money", 'data-thousands="."', 'data-decimal=","', 'name="fld_amount"']
+      hides: ['data-thousands=","']
+    expect: ok

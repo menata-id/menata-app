@@ -2046,3 +2046,32 @@ func TestAForeignLinkIsHeldToWhatTheLoaderCanSee(t *testing.T) {
 		}
 	}
 }
+
+// A Workspace declares how it writes a figure (`number_format:`), once for every Application in it: a known name resolves to its
+// marks, nothing is the international format, and an unknown name is refused when the manifest loads.
+func TestLoadApplication_numberFormat(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+`)
+	load := func(extra string) (*App, error) {
+		writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - task.yaml\n"+extra)
+		return LoadApplication(filepath.Join(dir, "app.yaml"))
+	}
+	if app, err := load(""); err != nil || app.Workspace.Number.Or() != domain.NumberFormatInternational {
+		t.Errorf("no number_format: %+v, %v", app, err)
+	}
+	app, err := load("number_format: indonesian\n")
+	if err != nil || app.Workspace.Number.Thousands != "." || app.Workspace.Number.Decimal != "," {
+		t.Errorf("indonesian: %+v, %v", app, err)
+	}
+	if _, err := load("number_format: swiss\n"); err == nil || !strings.Contains(err.Error(), `number_format "swiss"`) {
+		t.Errorf("an unknown format was accepted: %v", err)
+	}
+}

@@ -58,6 +58,7 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, pageID string, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		PageID: pageID,
+		Number: numberFormatOf(ctx),
 		Route:  ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {
 			ds, ok := l.Dataset(datasetID)
@@ -151,6 +152,7 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 		Route:     domain.FormRoute(src.ID),
 		Permitted: authorization.AllowsAction(src, domain.ActionCreate, nil, viewer),
 		Inputs:    inputs,
+		Number:    numberFormatOf(ctx),
 	}
 	if b.Extract != nil {
 		if err := extractSpec(ctx, l, viewer, params, pageID, *b.Extract, src, &spec); err != nil {
@@ -295,6 +297,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 			return ir.RecordSet{}, err
 		}
 	}
+	number := numberFormatOf(ctx)
 	out := make([]map[string]string, 0, len(records))
 	tagLists := make([][]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
@@ -302,11 +305,11 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	moves := make([]ir.RecordMove, 0, len(records))
 	transitions := make([]ir.RecordTransition, 0, len(records))
 	for i, r := range records {
-		item := ProjectedByRole(src, r, people)
+		item := ProjectedByRole(src, r, people, number)
 		item[domain.PageRecordRole] = recordRouteOf(src, r.ID)
 		fillDerivedDate(item, src, r, now)
 		fillDerivedStatus(item, src, r)
-		fillFieldColumns(item, src, r, people, b.Fields, l.files)
+		fillFieldColumns(item, src, r, people, b.Fields, l.files, number)
 		fillCreatedAndLink(item, src, r)
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
@@ -347,7 +350,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 					item[domain.PageRelatedFieldRole(relation, field)] = ""
 					if child := l.Machine(rel.Machine); child != nil && len(children) > 0 {
 						if f, ok := child.FieldByID(field); ok {
-							item[domain.PageRelatedFieldRole(relation, field)] = projectedFieldDisplay(f, children[0].Values[field], nil)
+							item[domain.PageRelatedFieldRole(relation, field)] = projectedFieldDisplay(f, children[0].Values[field], nil, number)
 						}
 					}
 				}
@@ -785,7 +788,7 @@ func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggrega
 			row.Attrs = map[string]string{}
 			for _, f := range target.Fields {
 				if !f.IsReference() {
-					row.Attrs[f.ID] = projectedFieldDisplay(f, r.Values[f.ID], nil)
+					row.Attrs[f.ID] = projectedFieldDisplay(f, r.Values[f.ID], nil, numberFormatOf(ctx))
 				}
 			}
 		}
@@ -996,7 +999,7 @@ func fillDerivedStatus(item map[string]string, src *domain.Machine, r *data.Reco
 
 // fillFieldColumns is the Fields a Table's columns name by id (PageColumn.Field): each as the record's own page shows
 // it, and a status Field's tone beside it. The loader has checked that every id is a Field of src.
-func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions, fields []string, files *storage.Store) {
+func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions, fields []string, files *storage.Store, nf domain.NumberFormat) {
 	for _, id := range fields {
 		f, ok := src.FieldByID(id)
 		if !ok {
@@ -1016,7 +1019,7 @@ func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Recor
 			}
 			continue
 		}
-		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations)
+		item[domain.PageFieldRole(id)] = projectedFieldDisplay(f, r.Values[id], relations, nf)
 		item[domain.PageFieldValueRole(id)] = DisplayString(r.Values[id])
 		if n, ok := domain.FigureOf(r.Values[id]); ok && f.Type.IsNumeric() {
 			item[domain.PageRowNumberRole(id)] = strconv.FormatFloat(n, 'f', -1, 64)

@@ -2,7 +2,6 @@ package ir
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -179,7 +178,7 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			out.Children = append(out.Children, cell)
 		}
 	}
-	footer, err := tableFooter(cols, set, dimension, path, actions != nil)
+	footer, err := tableFooter(cols, set, dimension, path, actions != nil, r.Number)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +204,7 @@ const (
 // always adds up what is above it. `sum` adds the column's bare numbers, `count` counts the rows, `total_label:` words
 // it ("9 contracts"; alone, "Total"). A list its Dataset's bound cut has no total row: it would add up only the rows
 // shown, and the notice already says the list is cut.
-func tableFooter(cols []domain.PageColumn, set RecordSet, dimension bool, path string, actions bool) (string, error) {
+func tableFooter(cols []domain.PageColumn, set RecordSet, dimension bool, path string, actions bool, nf domain.NumberFormat) (string, error) {
 	asked := false
 	for _, c := range cols {
 		asked = asked || c.Total != "" || c.TotalLabel != ""
@@ -244,7 +243,7 @@ func tableFooter(cols []domain.PageColumn, set RecordSet, dimension bool, path s
 				return "", fmt.Errorf("%s.columns[%d]: total: sum adds a figure, so the column shows field: (or from: measure:<id> on a Dimension's rows)", path, i)
 			}
 			a := sum(number(c, value))
-			text = formatTotal(a, set.Records, c, value, dimension)
+			text = formatTotal(a, set.Records, c, value, dimension, nf)
 			if c.Of != "" {
 				b := sum(number(c, c.Of))
 				text = strconv.FormatFloat(a, 'f', -1, 64) + "/" + strconv.FormatFloat(b, 'f', -1, 64)
@@ -264,14 +263,16 @@ func tableFooter(cols []domain.PageColumn, set RecordSet, dimension bool, path s
 }
 
 // formatTotal writes a column's sum the way its cells are written, read from the rows' own display: a currency symbol
-// before the figure ("Rp ") is kept, and a figure the rows group (money, "180,000") is grouped. ir sees only strings, so
-// the cells are the one statement of how this column is written.
-func formatTotal(total float64, rows []map[string]string, c domain.PageColumn, value string, dimension bool) string {
+// before the figure ("Rp ") is kept, and a figure the rows write as money (a thousands mark, or two decimals after the
+// Workspace's decimal mark) is written as money. ir sees only strings, so the cells are the one statement of how this
+// column is written.
+func formatTotal(total float64, rows []map[string]string, c domain.PageColumn, value string, dimension bool, nf domain.NumberFormat) string {
+	nf = nf.Or()
 	key := domain.PageFieldRole(value)
 	if dimension {
 		key = domain.PageMeasureRole(value)
 	}
-	prefix, grouped := "", false
+	prefix, money := "", false
 	for _, rec := range rows {
 		shown := strings.TrimPrefix(rec[key], "-")
 		if shown == "" {
@@ -280,37 +281,23 @@ func formatTotal(total float64, rows []map[string]string, c domain.PageColumn, v
 		if i := strings.IndexAny(shown, "0123456789"); i > 0 {
 			prefix = shown[:i]
 		}
-		grouped = grouped || strings.Contains(shown, ",") || prefix != ""
+		money = money || prefix != "" || strings.Contains(shown, nf.Thousands) || moneyCents(shown, nf)
 	}
-	if !grouped {
+	if !money {
 		return strconv.FormatFloat(total, 'f', -1, 64)
 	}
-	out := groupThousands(total)
+	out := domain.FormatMoney(total, nf)
 	if rest, negative := strings.CutPrefix(out, "-"); negative {
 		return "-" + prefix + rest
 	}
 	return prefix + out
 }
 
-// groupThousands is the international grouping the rows used ("966,000,000"), to two decimals at most.
-func groupThousands(v float64) string {
-	s := strconv.FormatFloat(math.Abs(v), 'f', 2, 64)
-	whole, frac, _ := strings.Cut(s, ".")
-	frac = strings.TrimRight(frac, "0")
-	var b strings.Builder
-	if v < 0 {
-		b.WriteByte('-')
-	}
-	for i, d := range whole {
-		if i > 0 && (len(whole)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(d)
-	}
-	if frac != "" {
-		b.WriteString("." + frac)
-	}
-	return b.String()
+// moneyCents says shown ends in the Workspace's decimal mark and exactly two digits: how money is written, where a plain
+// number is written with as many decimals as it has.
+func moneyCents(shown string, nf domain.NumberFormat) bool {
+	i := strings.LastIndex(shown, nf.Decimal)
+	return i >= 0 && len(shown)-i-len(nf.Decimal) == 2 && strings.Trim(shown[i+len(nf.Decimal):], "0123456789") == ""
 }
 
 func countNonEmpty(values ...string) int {

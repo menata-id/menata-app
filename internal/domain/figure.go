@@ -1,44 +1,25 @@
 package domain
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// FormatFigure writes a stored figure the way a person reads a Field of type t. A number is written in full, never in
-// the exponent form Go's %v switches to at a million ("1.8e+08"). Money follows the international convention: thousands
-// grouped with ",", at most two decimals after ".", trailing zeros dropped -- 180000000 reads "180,000,000" and
-// 1234567.5 reads "1,234,567.5". The decimal point is the one a number input accepts, so the two never disagree on
-// what "." means. No Workspace can declare another convention yet (owner decision K4: the international one); a money
-// Field's `currency:` puts its symbol before the figure (Field.Figure, WithCurrency).
+// FormatFigure writes a stored figure the way a person reads a Field of type t, in the international format: see FormatFigureIn.
 func FormatFigure(t FieldType, v float64) string {
-	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return strconv.FormatFloat(v, 'f', -1, 64)
-	}
+	return FormatFigureIn(NumberFormatInternational, t, v)
+}
+
+// FormatFigureIn writes a stored figure the way a person reads a Field of type t in a Workspace's number format. A number is
+// written in full, never in the exponent form Go's %v switches to at a million ("1.8e+08"). Money is grouped in thousands
+// and always has two decimals (FormatMoney): 180000000 reads "180,000,000.00". A money Field's `currency:` puts its symbol
+// before the figure (Field.FigureIn, WithCurrency).
+func FormatFigureIn(nf NumberFormat, t FieldType, v float64) string {
 	if t != FieldTypeMoney {
 		return strconv.FormatFloat(v, 'f', -1, 64)
 	}
-	// Rounded to cents as text, so a figure past float64's integer precision keeps the digits it has instead of
-	// overflowing an int64 of cents.
-	s := strconv.FormatFloat(math.Abs(v), 'f', 2, 64)
-	whole, frac, _ := strings.Cut(s, ".")
-	frac = strings.TrimRight(frac, "0")
-	var b strings.Builder
-	if v < 0 && strings.Trim(whole+frac, "0") != "" {
-		b.WriteByte('-') // -0.001 rounds to zero, and zero has no sign
-	}
-	for i, d := range whole {
-		if i > 0 && (len(whole)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(d)
-	}
-	if frac != "" {
-		b.WriteString("." + frac)
-	}
-	return b.String()
+	return FormatMoney(v, nf)
 }
 
 // KnownCurrencies are the currencies a money Field may declare (`currency: IDR`), each with the symbol written before
@@ -74,6 +55,11 @@ func FormatDay(stored string) string {
 // Figure is a stored value of f written as FormatFigure writes it, and false when f is not numeric or the value is not
 // a stored figure (an unset value, or text written before the type held a number) -- the caller then shows it as it is.
 func (f Field) Figure(v any) (string, bool) {
+	return f.FigureIn(NumberFormatInternational, v)
+}
+
+// FigureIn is Figure in a Workspace's number format.
+func (f Field) FigureIn(nf NumberFormat, v any) (string, bool) {
 	if !f.Type.IsNumeric() {
 		return "", false
 	}
@@ -90,5 +76,5 @@ func (f Field) Figure(v any) (string, bool) {
 	default:
 		return "", false
 	}
-	return WithCurrency(f.Currency, FormatFigure(f.Type, n)), true
+	return WithCurrency(f.Currency, FormatFigureIn(nf, f.Type, n)), true
 }
