@@ -27,7 +27,7 @@ func Numbered(m *domain.Machine) bool {
 
 // AssignNumbers writes every numbered Field of m (domain.FieldNumbering) into the values of a record about to be created,
 // overwriting whatever was submitted for it: a number is the runtime's, not a client's. It must run inside the create's
-// transaction -- it takes the Field's lock and reads the highest number under the same prefix, so two creates never write one
+// transaction -- it takes the Field's lock and takes the next number under the same prefix (the Store's counter, which never goes back, so a deleted record's number is not handed out again), so two creates never write one
 // number. now is the clock the pattern's `{year}` reads.
 func AssignNumbers(ctx context.Context, store *data.Store, m *domain.Machine, values map[string]any, now time.Time) error {
 	workspaceID, _ := data.WorkspaceScope(ctx)
@@ -42,11 +42,11 @@ func AssignNumbers(ctx context.Context, store *data.Store, m *domain.Machine, va
 		if err := store.Lock(ctx, NumberingLockKey(workspaceID, m.ID, f.ID)); err != nil {
 			return err
 		}
-		highest, err := store.HighestNumber(ctx, m.ID, f.ID, prefix)
+		next, err := store.NextNumber(ctx, m.ID, f.ID, prefix)
 		if err != nil {
 			return err
 		}
-		values[f.ID] = domain.Number(prefix, width, highest+1)
+		values[f.ID] = domain.Number(prefix, width, next)
 	}
 	return nil
 }

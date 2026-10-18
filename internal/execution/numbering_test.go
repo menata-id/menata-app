@@ -19,7 +19,13 @@ func TestAssignNumbersGivesConcurrentCreatesDistinctNumbers(t *testing.T) {
 	const machineID = "mch_numbering_test"
 	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM records WHERE machine_id = $1`, machineID) })
 	store := data.NewStore(pool)
-	ctx := data.WithWorkspaceScope(context.Background(), "ws_numbering_test")
+	// A counter belongs to a real Workspace (it goes with it).
+	ws, err := store.CreateWorkspace(context.Background(), "Numbering Test", "numbering-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM workspaces WHERE id = $1`, ws.ID) })
+	ctx := data.WithWorkspaceScope(context.Background(), ws.ID)
 	m := &domain.Machine{ID: machineID, Fields: []domain.Field{
 		{ID: "fld_kind", Type: domain.FieldTypeText},
 		{ID: "fld_no", Type: domain.FieldTypeText, Numbering: &domain.FieldNumbering{Pattern: "N/{fld_kind}/{seq:3}"}},

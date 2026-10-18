@@ -874,6 +874,32 @@ func (s *Store) BumpSessionGeneration(ctx context.Context, subject string) error
 	return nil
 }
 
+// NextNumber is the counter a numbered Field's next record takes under prefix, and records it as taken: the larger of the
+// last one handed out and the highest still on a record, plus one. The counter is what keeps a number from being handed out
+// again once its record is deleted. The caller holds the Field's lock (Store.Lock) and runs inside the create's transaction,
+// so the number is rolled back with a create that fails.
+func (s *Store) NextNumber(ctx context.Context, machineID, fieldID, prefix string) (int, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return 0, errNotScoped
+	}
+	highest, err := s.HighestNumber(ctx, machineID, fieldID, prefix)
+	if err != nil {
+		return 0, err
+	}
+	readLogFrom(ctx).record(machineID + " number counter")
+	var next int
+	err = s.q(ctx).QueryRow(ctx, `INSERT INTO number_counters (workspace_id, machine_id, field_id, prefix, last)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (workspace_id, machine_id, field_id, prefix)
+		DO UPDATE SET last = GREATEST(number_counters.last + 1, EXCLUDED.last)
+		RETURNING last`, workspaceID, machineID, fieldID, prefix, highest+1).Scan(&next)
+	if err != nil {
+		return 0, fmt.Errorf("next number: %w", err)
+	}
+	return next, nil
+}
+
 // HighestNumber is the largest counter already used under prefix for a numbered Field of a Machine (domain.FieldNumbering):
 // the records whose value is prefix followed by digits only, in this Workspace, and 0 when there is none. One statement,
 // however many records there are; the caller holds the lock that makes the next number its own (Store.Lock).

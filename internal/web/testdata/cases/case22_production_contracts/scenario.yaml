@@ -463,11 +463,12 @@ steps:
     as: silvia
     delete: { ref: a-contract-nobody-uses, from: "/pages/nav_contract/$a-contract-nobody-uses", redirect: /pages/nav_by_category }
     expect: ok
+  # The number of the contract just deleted (CTR/C/002) is not handed out again: the counter only goes up.
   - id: another-contract-nobody-uses
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/D/002, fld_party_name: Nobody Either, fld_value: "1000" } }
     expect: ok
-    record: { fld_serial: CTR/C/002 }
+    record: { fld_serial: CTR/C/003 }
   # A number is never changed afterwards: not by the edit route, whatever it sends.
   - id: a-number-cannot-be-changed
     as: silvia
@@ -477,7 +478,7 @@ steps:
     as: silvia
     update: { ref: another-contract-nobody-uses, values: { fld_party_name: Nobody Either Still } }
     expect: ok
-    record: { fld_serial: CTR/C/002, fld_party_name: Nobody Either Still }
+    record: { fld_serial: CTR/C/003, fld_party_name: Nobody Either Still }
   - id: deleted-from-a-list-it-stays-on-the-list
     as: silvia
     delete: { ref: another-contract-nobody-uses, from: /pages/nav_by_category }

@@ -14,7 +14,7 @@ import (
 // The pattern is literal text and tokens: `{fld_x}` the record's own text or status Field (its value, or Codes[value] when
 // Codes names it), `{year}` the year the record is created, and exactly one `{seq:N}`, last: the next whole number after
 // the highest one already used under the same text before it, written N digits wide. So "CTR/C/" counts contracts of one
-// kind, and "PP-" counts every plan. A number is not reused while the highest record stands; deleting that one frees it.
+// kind, and "PP-" counts every plan. A number is never reused: the Store keeps a counter that only goes up, so deleting a record does not free its number.
 type FieldNumbering struct {
 	Pattern string
 	// Codes maps a Field's value to the letters the number writes for it (Crew -> K); a value it does not name is written as

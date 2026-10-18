@@ -748,3 +748,48 @@ func TestStore_HighestNumberCountsOnlyDigitsUnderThePrefixInThisWorkspace(t *tes
 		t.Error("a read with no Workspace scope was answered")
 	}
 }
+
+// TestStore_NextNumberIsNeverHandedOutAgain: the number after the highest one still held -- and, once a record is deleted,
+// still not the number it held. A contract number that was printed or paid against must not come back for another contract.
+func TestStore_NextNumberIsNeverHandedOutAgain(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	// A counter belongs to a real Workspace (it goes with it), so this test makes one.
+	ws := newAISessionTestWorkspace(t, store)
+	ctx := WithWorkspaceScope(context.Background(), ws)
+
+	next := func(prefix string) int {
+		t.Helper()
+		n, err := store.NextNumber(ctx, storeTestMachine, "fld_no", prefix)
+		if err != nil {
+			t.Fatalf("NextNumber(%q): %v", prefix, err)
+		}
+		return n
+	}
+	// Records already hold 7: the first number is 8, whatever the counter has not seen.
+	if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_no": "CTR/C/007"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := next("CTR/C/"); got != 8 {
+		t.Fatalf("first number = %d, want 8", got)
+	}
+	// 8 is written and then deleted: the records hold 7 again, and the next number is 9, not 8.
+	rec, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_no": "CTR/C/008"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteRecord(ctx, storeTestMachine, rec.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := next("CTR/C/"); got != 9 {
+		t.Errorf("number after a deleted 8 = %d, want 9", got)
+	}
+	// A prefix counts apart, and another Workspace has its own.
+	if got := next("CTR/K/"); got != 1 {
+		t.Errorf("another prefix = %d, want 1", got)
+	}
+	if _, err := store.NextNumber(context.Background(), storeTestMachine, "fld_no", "CTR/C/"); err == nil {
+		t.Error("a number with no Workspace scope was handed out")
+	}
+}
