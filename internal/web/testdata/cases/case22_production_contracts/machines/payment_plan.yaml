@@ -27,6 +27,15 @@ events:
       any: { value: Paid, set: Paid }
 
 datasets:
+  # Master and detail on one page (K02d): the plans awaiting proof, and the one the request picks with ?selected=.
+  - id: ds_plans_awaiting_proof
+    select: records
+    where: { field: fld_plan_status, op: equals, value: Awaiting proof }
+    limit: 100
+  - id: ds_plan_selected
+    select: records
+    where: { field: id, op: equals, value: $parameters.selected }
+    limit: 1
   - id: ds_plan_one
     select: records
     where: { field: id, op: equals, value: $parameters.id }

@@ -104,6 +104,11 @@ datasets:
     select: records
     where: { field: id, op: equals, value: $parameters.id }
     limit: 1
+  # The plan the confirm page has open (K02d): the one its request names with ?selected=, none when it names none.
+  - id: ds_plan_selected
+    select: records
+    where: { field: id, op: equals, value: $parameters.selected }
+    limit: 1
   # The plan list's total row (K02b).
   - id: ds_plan_totals
     measures:

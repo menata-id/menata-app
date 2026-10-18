@@ -288,6 +288,26 @@ steps:
       path: /pages/nav_plan/$plan-without-proof
       shows: ['hx-encoding="multipart/form-data"', 'name="fld_plan_status" value="Paid"', 'type="file" name="fld_proof"', ">Mark as paid<"]
     expect: ok
+  # Master and detail: the list alone offers each plan to pick; the pick opens its form below.
+  - id: confirm-page-lists-without-a-detail
+    as: fina
+    view:
+      path: /pages/nav_confirm
+      shows: [">Confirm<", "selected="]
+      hides: [">Mark as paid<"]
+    expect: ok
+  - id: picking-a-plan-opens-its-detail
+    as: fina
+    view:
+      path: /pages/nav_confirm?selected=$plan-without-proof
+      shows: [">Mark as paid<", 'type="file" name="fld_proof"']
+    expect: ok
+  - id: a-pick-that-is-no-plan-opens-nothing
+    as: fina
+    view:
+      path: /pages/nav_confirm?selected=rec_nothing
+      hides: [">Mark as paid<"]
+    expect: ok
   - id: production-does-not
     as: silvia
     view:

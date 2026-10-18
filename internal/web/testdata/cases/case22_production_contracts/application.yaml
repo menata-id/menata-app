@@ -185,6 +185,36 @@ navigation:
                 - component: Form
                   submit: Mark as paid
                   binding: { write: transition, transition: trn_plan_settle }
+  # Confirm payment (K02d): the plans awaiting proof above, the one picked below -- master and detail on one page.
+  - id: nav_confirm
+    label: Confirm payment
+    route: /pages/nav_confirm
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Table
+          label: Awaiting proof of payment
+          columns:
+            - { header: Plan no., field: fld_plan_no }
+          binding: { dataset: ds_plans_awaiting_proof, rows: records }
+          children:
+            - static: link
+              to: nav_confirm
+              text: Confirm
+              variant: secondary
+              pass: { selected: "record:id" }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_selected, rows: records }
+          children:
+            - layout: stack
+              children:
+                - static: subheading
+                  from: { text: "field:fld_plan_no" }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
   # Step 4 (K01a, K01b, K02a): a Table of a Dimension's rows with a total row, a fraction with its bar, the plan each
   # instalment has, and chips over named views.
   - id: nav_by_category

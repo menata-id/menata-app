@@ -182,6 +182,10 @@ navigation:
           label: Payment plan actions
           children:
             - static: link
+              to: nav_confirm_payment
+              text: Confirm payment
+              variant: secondary
+            - static: link
               to: nav_new_plan
               text: + New plan
               variant: primary
@@ -341,6 +345,73 @@ navigation:
                       variant: secondary
                       from: { describes: title }
                       binding: { write: transition, transition: trn_plan_reject }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
+  # Confirm payment (K02d): the plans awaiting proof above, the one picked below with its proof upload and "Mark as paid" in
+  # one submit -- master and detail on one page, the detail chosen with ?selected=. Reached from an approved plan.
+  - id: nav_confirm_payment
+    label: Confirm payment
+    title: Confirm payment
+    description: Opened from an approved plan. Upload the proof, and the instalment becomes paid.
+    route: /pages/nav_confirm_payment
+    in_menu: false
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Table
+          label: Awaiting proof of payment
+          empty: No plan is waiting for its proof.
+          framed: true
+          columns:
+            - { header: Plan no., field: fld_plan_no }
+            - { header: Instalment, field: fld_term }
+            - { header: Net, field: fld_plan_amount, align: end }
+            - { header: Planned, field: fld_plan_date }
+            - { header: Approved on, field: fld_approved_on }
+          binding: { dataset: ds_plans_awaiting_proof, rows: records }
+          children:
+            - static: link
+              to: nav_confirm_payment
+              text: Confirm
+              variant: secondary
+              pass: { selected: "record:id" }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_selected, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - static: subheading
+                  from: { text: title }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Instalment
+                        - static: paragraph
+                          from: { text: "field:fld_term" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Net
+                        - static: paragraph
+                          from: { text: "field:fld_plan_amount" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Status
+                        - component: StatusBadge
+                          from: { label: "field:fld_plan_status", tone: "tone:fld_plan_status" }
                 - component: Form
                   submit: Mark as paid
                   binding: { write: transition, transition: trn_plan_settle }

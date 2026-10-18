@@ -1941,6 +1941,12 @@ and no declared Constraint refuses it ("Close" is not drawn while an instalment 
 Field required is a **Form**'s, never a Button's (refused at load), and the Form does not ask again for what the record
 already holds (a proof uploaded with the plan). The record id in `where: {field: id}` comes from a request parameter only.
 
+**Master and detail on one page (K02d).** A list whose row action is a link back to *its own page* with
+`pass: {selected: "record:id"}`, and a Collection under it over a Dataset `where: {field: id, op: equals, value:
+$parameters.selected}` (`limit: 1`): the list alone shows no detail, and picking a row opens that record's panel below -- its
+fields and its edge Form ("Mark as paid", the proof uploaded in the same submit) -- while a pick that is no record opens
+nothing. No new key: the pattern is the row action, `pass:` and the request-parameter Dataset.
+
 A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value
 and is drawn as its words in a hidden input, not offered again. **`then: record`** (a create Form only) opens the record it made
 (its record page when it has one). **`starts: {fld_party_name: $parameters.fld_party_name}`** (2026-10-18) begins a Field with
