@@ -272,7 +272,7 @@ test's own doc comment is the authoritative explanation; read it before changing
   A record page's own values are `$parameters.record.<field>` (runtime-owned names); `related: rel_x.fld_y` shows a Field of the
   first related record; a Button `write: print` prints the page (`@media print` leaves the chrome and the buttons off the paper); a create Form's `fields:` picks (and orders) the controls it asks for, its `extract:` fills it from a document an AI reads (`composition.ExtractProposal`, `/pages/<nav>/extract` then `/extract/save`, one transaction, nothing written until a person saves); `write: pdf` downloads it as a PDF (`/pages/<nav>[/<id>]/pdf`, `web.showDeclaredPagePDF` draws the page again and `pdf.Printer` prints it; no browser, no button).
   A numbered Field (`numbering: {pattern, codes}`, `execution.AssignNumbers`) is a number the runtime writes on create, under a
-  lock, per prefix; never typed, never edited. An inherited Field is `compute: {parent: fld_via.fld_x}` alone (the parent's value, any type; followed down by
+  lock, per prefix, from a counter that only goes up (a deleted record's number is not reused); never typed, never edited. An inherited Field is `compute: {parent: fld_via.fld_x}` alone (the parent's value, any type; followed down by
   `execution.recomputeChildren`): a child's list shows, searches and filters by what its parent holds.
   Table (2026-10-18): `rows: dimension` (`row:`/`measure:`), `total: sum|count` (added up from the rows shown), `of:`, `related:`; money `currency:`;
   `date:relative`; FilterChips `rows: total` + `counts:` over `if_param:` views.

@@ -15,7 +15,7 @@ kept in a private companion repository.
   events (on change, on create, on a schedule) that log activity, notify a person, a role or a group, roll a status up to a parent record, or escalate an overdue record.
 - **Declared screens**: a navigation item can declare its whole screen as a tree of layouts, text and components,
   bound to declared data. Lists, metrics, forms that create and edit records, buttons that move, delete or change
-  the status of a record, and conditions on what a record shows. The board settings, dashboard, My Tasks and
+  the status of a record, and conditions on what a record shows; a form can choose its fields or be filled from a document an AI reads, and a page can be downloaded as a PDF. The board settings, dashboard, My Tasks and
   calendar screens are drawn this way, and so are the Helpdesk, Accounting, Maintenance and Lending queues.
 - **Data definitions**: named datasets with filters, sorting, grouping, counts and relations between models.
 - **Status categories**: a model can say which of its statuses are a start, in progress, needing attention, done or
@@ -32,15 +32,15 @@ kept in a private companion repository.
 **Applications built on the runtime**
 - **Document Approval**: submission wizard, drafts and revisions, sequential or parallel approval, saved approval
   flows per document type, SLA tracking, an approval inbox, signature placement and signing onto the PDF.
-- **Project Management**: boards with lists and labels, My Tasks, calendar, dashboard, checklists.
+- **Project Management**: boards with lists and labels, My Tasks, calendar, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders.
 
 **AI Metadata Assistant**
 - Describe an application in plain words; review, edit and install the generated metadata into a Workspace.
 
 **Design system**
 - A theme a Workspace can adjust (radius, weight, text size, spacing, colours, padding and more), light and dark
-  mode following the device, fifteen shared components, and design tokens exported in the W3C format.
-- Contrast and touch-target checks on the shipped colours and controls.
+  mode following the device, fifteen shared components, design tokens exported in the W3C format, and contrast and
+  touch-target checks on the shipped colours and controls.
 
 **Quality**
 - Architecture, accessibility and design-system checks run on every change; security hardening of
