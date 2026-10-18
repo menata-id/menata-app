@@ -1224,6 +1224,7 @@ Navigation item keys:
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
 | `page` | node tree | Optional (2026-10-07): declares the screen's **body**, so no Go renders it. The `route` must then be `/pages/<this id>`. See **`page:` — declaring a screen's body** below |
+| `back_to` | navigation item id | Optional (2026-10-18), on a `record_of` page only: the screen of the same Application a person lands on when they delete the record from its own page (a `write: delete` Button). Without it they land on the Machine's own list. A delete from any other screen stays on it |
 | `record_of` | Machine id | Optional (2026-10-17). Makes the page **one record's page**: it opens at `/pages/<id>/<record id>`, reads the record as `$parameters.id`, draws its own heading, is no menu entry, and every link to a record of that Machine (a Table's `href: record`) opens it. See **One record's page** below |
 | `in_menu` | bool | Optional (2026-10-17), default `true`. `false` keeps the item out of the Application's menu while its route stays valid and `to:` still resolves it: a screen another screen opens, such as the "New contract" form behind a list's action |
 

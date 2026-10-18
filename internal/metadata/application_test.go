@@ -1989,3 +1989,31 @@ fields:
 		t.Errorf("lines that do not point back at the entry = %v, want a refusal", err)
 	}
 }
+
+// TestBackToNamesAScreenARecordPageLeavesTo: `back_to:` belongs on a record page and names one of the Application's own
+// screens that is not itself a record page -- the place a person lands when the record is gone.
+func TestBackToNamesAScreenARecordPageLeavesTo(t *testing.T) {
+	app := func(back string, recordOf string) domain.Application {
+		return domain.Application{ID: "app_x", Machines: []string{"mch_x"}, AllNavigation: []domain.NavigationItem{
+			{ID: "nav_list", Route: "/pages/nav_list", Page: &domain.PageNode{}},
+			{ID: "nav_one", Route: "/pages/nav_one", Page: &domain.PageNode{}, RecordOf: recordOf, BackTo: back},
+		}}
+	}
+	for name, tc := range map[string]struct {
+		back, recordOf, want string
+	}{
+		"fine":                {"nav_list", "mch_x", ""},
+		"nothing named":       {"", "mch_x", ""},
+		"not a record page":   {"nav_list", "", "belongs on a record page"},
+		"no such screen":      {"nav_gone", "mch_x", "not a screen of this Application"},
+		"another record page": {"nav_one", "mch_x", "not a screen of this Application"},
+	} {
+		err := stampRecordPages([]domain.Application{app(tc.back, tc.recordOf)}, []*domain.Machine{{ID: "mch_x"}}) // stamping marks the Machine, so each case has its own
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: refused: %v", name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: got %v, want an error naming %q", name, err, tc.want)
+		}
+	}
+}

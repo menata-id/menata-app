@@ -118,6 +118,10 @@ type NavigationItem struct {
 	// `/pages/<id>/<record id>`, reads the record as `$parameters.id`, draws its own heading, and is no menu entry. Every
 	// link to a record of that Machine opens it (Machine.RecordPage).
 	RecordOf string
+	// BackTo (`back_to: nav_contracts`, 2026-10-18, on a `record_of:` page) is the screen of the same Application a person
+	// goes back to once the record this page is about is gone: deleting it from its own page lands there, not on a
+	// page that no longer has a record.
+	BackTo string
 	// Icon must be one of KnownIcons, the same convention as Application.Icon. It was a single
 	// literal character until 2026-09-24 -- see KnownIcons for why that convention ended and what
 	// a name buys over a glyph.

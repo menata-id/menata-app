@@ -399,6 +399,33 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 // fromDeclaredPage says the request was sent from a `page:` screen (`/pages/<nav id>`), which draws its own
 // records and has no Machine row to swap an answer into. Narrower than fromAnotherPage on purpose: the three
 // hand-written delete sites keep answering an empty body.
+// recordPageBack is where a delete sent from a record's own page (`/pages/<nav>/<id>`, `record_of:`) goes once that record
+// is gone: the screen the page's Application names with `back_to:`, else the Machine's own list. Not a record page of
+// this record -- another record's, a list page, another screen -- is not its business (ok false).
+func recordPageBack(req *http.Request, machine *domain.Machine, id string) (string, bool) {
+	current, err := url.Parse(req.Header.Get("HX-Current-URL"))
+	if err != nil {
+		return "", false
+	}
+	rest, ok := strings.CutPrefix(current.Path, "/pages/")
+	navID, recordID, found := strings.Cut(rest, "/")
+	if !ok || !found || recordID != id {
+		return "", false
+	}
+	app, ok := applicationForPath(rendering.CurrentWorkspace(req.Context()), current.Path)
+	if !ok {
+		return "", false
+	}
+	item, ok := app.NavigationItemByID(navID)
+	if !ok || item.RecordOf != machine.ID {
+		return "", false
+	}
+	if back, ok := app.NavigationItemByID(item.BackTo); ok && back.Route != "" {
+		return back.Route, true
+	}
+	return "/machines/" + machine.ID, true
+}
+
 func fromDeclaredPage(req *http.Request) bool {
 	current, err := url.Parse(req.Header.Get("HX-Current-URL"))
 	return err == nil && strings.HasPrefix(current.Path, "/pages/")
@@ -911,6 +938,12 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 			// The record is gone; nothing left on this page to show. Send the visitor back to
 			// the Machine's own list/board.
 			w.Header().Set("HX-Redirect", "/machines/"+machine.ID)
+			return
+		}
+		if back, ok := recordPageBack(req, machine, id); ok {
+			// The record this page is about is gone: leave it for the screen its Application names (`back_to:`), or the
+			// Machine's own list when it names none.
+			w.Header().Set("HX-Redirect", back)
 			return
 		}
 		if fromDeclaredPage(req) {

@@ -350,6 +350,33 @@ steps:
       hides: [">PP-0151<", ">Rejected<"]
     expect: ok
 
+  # Deleting the record a page is about leaves that page: for the screen its Application names (back_to:), else the
+  # Machine's own list; deleting from any other screen stays on it.
+  - id: a-contract-nobody-uses
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/D/001, fld_party_name: Nobody Yet, fld_value: "1000" } }
+    expect: ok
+  - id: deleted-from-its-own-page-it-goes-back-to-the-list
+    as: silvia
+    delete: { ref: a-contract-nobody-uses, from: "/pages/nav_contract/$a-contract-nobody-uses", redirect: /pages/nav_by_category }
+    expect: ok
+  - id: another-contract-nobody-uses
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/D/002, fld_party_name: Nobody Either, fld_value: "1000" } }
+    expect: ok
+  - id: deleted-from-a-list-it-stays-on-the-list
+    as: silvia
+    delete: { ref: another-contract-nobody-uses, from: /pages/nav_by_category }
+    expect: ok
+  - id: a-plan-to-delete
+    as: silvia
+    create: { machine: mch_payment_plan, values: { fld_term: $signing, fld_plan_no: PP-0199, fld_plan_amount: "100" } }
+    expect: ok
+  - id: a-record-page-that-names-no-way-back-goes-to-its-machine
+    as: silvia
+    delete: { ref: a-plan-to-delete, from: "/pages/nav_plan/$a-plan-to-delete", redirect: /machines/mch_payment_plan }
+    expect: ok
+
   - id: contract-detail-status-badge
     as: silvia
     view:

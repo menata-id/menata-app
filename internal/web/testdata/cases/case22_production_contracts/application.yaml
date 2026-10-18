@@ -101,6 +101,7 @@ navigation:
     label: Contract
     route: /pages/nav_contract
     record_of: mch_contract
+    back_to: nav_by_category
     page:
       layout: stack
       children:
@@ -125,6 +126,11 @@ navigation:
                     - component: Button
                       variant: secondary
                       binding: { write: transition, transition: trn_contract_close }
+                    - component: Button
+                      label: Delete
+                      variant: danger
+                      confirm: Delete this contract?
+                      binding: { write: delete }
                     - static: link
                       to: nav_new_term
                       text: + Add instalment

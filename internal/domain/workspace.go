@@ -129,6 +129,16 @@ func (w Workspace) LinkTargets() []NavigationItem {
 	return out
 }
 
+// NavigationItemByID is this Application's own navigation item of that id, from the list before any menu filtering.
+func (a Application) NavigationItemByID(id string) (NavigationItem, bool) {
+	for _, item := range a.AllNavigation {
+		if item.ID == id {
+			return item, true
+		}
+	}
+	return NavigationItem{}, false
+}
+
 // LinkTargets is what a link on one of this Application's own pages may name: its own menu and the Workspace's own pages
 // (an Application page may point at the Workspace's overview; it may not point into another Application, which would couple
 // two Applications that each install and remove on their own).

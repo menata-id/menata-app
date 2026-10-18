@@ -112,6 +112,10 @@ type caseView struct {
 // caseDelete deletes the record an earlier step created.
 type caseDelete struct {
 	Ref string `yaml:"ref"`
+	// From is the page the delete is sent from (its HX-Current-URL), as a Button on a screen sends it; Redirect is where the
+	// runtime must then send the browser (its HX-Redirect), "" meaning it must not redirect.
+	From     string `yaml:"from"`
+	Redirect string `yaml:"redirect"`
 }
 
 type caseNotified struct {
@@ -152,7 +156,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 68, Steps: 68},
+	"case22_production_contracts": {Rejected: 0, Passed: 74, Steps: 74},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -563,6 +567,8 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 	machineOf := map[string]string{} // step id -> machine
 	recordOf := map[string]string{}  // step id -> record id
 	subst := func(v string) string { return substituteRefs(v, ids, recordOf) }
+	// currentURL is the page a request says it was sent from (HX-Current-URL); lastRedirect is the HX-Redirect it was answered with.
+	var currentURL, lastRedirect string
 	send := func(method, path, actor string, values, fileFields map[string]string) int {
 		tok := csrfTokenFor(t, h, path)
 		var body bytes.Buffer
@@ -582,10 +588,14 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		req.Header.Set("X-CSRF-Token", tok.value)
 		req.Header.Set("HX-Request", "true")
+		if currentURL != "" {
+			req.Header.Set("HX-Current-URL", "http://localhost"+currentURL)
+		}
 		req.AddCookie(tok.cookie)
 		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookies[actor]})
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
+		lastRedirect = rec.Header().Get("HX-Redirect")
 		return rec.Code
 	}
 
@@ -636,7 +646,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			lines = append(lines, "FAIL "+s.ID+": "+fmt.Sprintf(format, a...))
 		}
 		var code int
-		var machine, id string
+		var machine, id, redirectProblem string
 		var snapshot map[string]any
 		if s.View != nil {
 			path := subst(s.View.Path)
@@ -702,7 +712,12 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			if s.API {
 				code = sendJSON(http.MethodDelete, "/api/machines/"+machine+"/records/"+id, s.As, nil, nil, machine)
 			} else {
+				currentURL = subst(s.Delete.From)
 				code = send(http.MethodDelete, "/machines/"+machine+"/records/"+id, s.As, nil, nil)
+				currentURL = ""
+				if s.Expect == "ok" && lastRedirect != s.Delete.Redirect {
+					redirectProblem = fmt.Sprintf("the delete was answered with a redirect to %q, want %q", lastRedirect, s.Delete.Redirect)
+				}
 			}
 			if s.Expect == "refused" && !(code >= 400 && code < 500) && snapshot != nil {
 				// The runtime deleted what the case says it must keep: put it back so later steps stay meaningful. It
@@ -763,6 +778,10 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			continue
 		}
 		ok := true
+		if redirectProblem != "" {
+			fail("%s", redirectProblem)
+			ok = false
+		}
 		if s.Expect == "ok" && len(s.Record) > 0 {
 			rec, err := store.GetRecord(wsCtx, machine, id)
 			if err != nil {

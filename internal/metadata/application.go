@@ -420,6 +420,8 @@ type navItemDoc struct {
 	InMenu *bool `yaml:"in_menu"`
 	// RecordOf -- see domain.NavigationItem.RecordOf. Optional.
 	RecordOf string `yaml:"record_of"`
+	// BackTo -- see domain.NavigationItem.BackTo. Optional; only on a record page.
+	BackTo string `yaml:"back_to"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -716,6 +718,15 @@ func stampRecordPages(apps []domain.Application, machines []*domain.Machine) err
 	var issues []string
 	for _, app := range apps {
 		for _, item := range app.AllNavigation {
+			if item.BackTo != "" {
+				back, found := app.NavigationItemByID(item.BackTo)
+				switch {
+				case item.RecordOf == "":
+					issues = append(issues, fmt.Sprintf("application %q: navigation item %q: back_to belongs on a record page (record_of), the page that is left when its record is gone", app.ID, item.ID))
+				case !found || back.RecordOf != "":
+					issues = append(issues, fmt.Sprintf("application %q: navigation item %q: back_to %q is not a screen of this Application a person can land on (not a record page)", app.ID, item.ID, item.BackTo))
+				}
+			}
 			if item.RecordOf == "" {
 				continue
 			}
@@ -1005,6 +1016,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			OpenTo:            n.OpenTo,
 			NotInMenu:         (n.InMenu != nil && !*n.InMenu) || n.RecordOf != "",
 			RecordOf:          n.RecordOf,
+			BackTo:            n.BackTo,
 			OwnsHeading:       n.RecordOf != "",
 		})
 	}
