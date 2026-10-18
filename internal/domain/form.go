@@ -65,6 +65,11 @@ const ButtonMethodPost = "post"
 // for the page (mockup K02e's Print). Derived, never written; it has no route, and its pair is no route.
 const ButtonMethodPrint = "print"
 
+// ButtonMethodPDF is what a `Button` bound with `write: pdf` is: a plain request for the page's own address with `/pdf`
+// added (`/pages/<nav>[/<id>]/pdf`), answered with the page as a PDF file. Derived, never written; its address is the
+// browser's own location, so a filtered list prints filtered.
+const ButtonMethodPDF = "pdf"
+
 // ButtonMethodPatch is the verb a `Button` bound with `write: transition` sends: a PATCH of one Field of the record,
 // carried as the Button's own name/value pair. Derived, never written.
 const ButtonMethodPatch = "patch"

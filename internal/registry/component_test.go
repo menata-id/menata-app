@@ -716,3 +716,16 @@ func TestAPrintButtonIsValidWithNoRouteAndNothingElse(t *testing.T) {
 		}
 	}
 }
+
+// TestAPDFButtonIsValidWithNoRouteAndNothingElse: method pdf is the page's own address, so like print it carries no
+// route, confirm, describes, name or value of its own.
+func TestAPDFButtonIsValidWithNoRouteAndNothingElse(t *testing.T) {
+	if issues := buttonRequestIssues(map[string]string{"method": "pdf"}); len(issues) != 0 {
+		t.Errorf("a pdf Button was refused: %v", issues)
+	}
+	for _, in := range []string{"action", "confirm", "describes", "name", "value"} {
+		if issues := buttonRequestIssues(map[string]string{"method": "pdf", in: "x"}); len(issues) == 0 {
+			t.Errorf("a pdf Button carrying %s was accepted", in)
+		}
+	}
+}

@@ -715,9 +715,9 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteMove {
 		issues = append(issues, moveBindingIssues(*b, item, where)...)
-	} else if b != nil && b.Write == domain.PageWritePrint {
+	} else if b != nil && (b.Write == domain.PageWritePrint || b.Write == domain.PageWritePDF) {
 		if b.Dataset != "" {
-			issues = append(issues, fmt.Sprintf("%s: page: write: %s takes no dataset -- it prints the page", where, domain.PageWritePrint))
+			issues = append(issues, fmt.Sprintf("%s: page: write: %s takes no dataset -- it outputs the page", where, b.Write))
 		}
 	} else if b != nil && b.Write == domain.PageWriteAction {
 		issues = append(issues, actionBindingIssues(n, item, where)...)

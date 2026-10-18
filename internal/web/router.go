@@ -12,6 +12,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/mail"
+	"menata.app/internal/pdf"
 	"menata.app/internal/storage"
 )
 
@@ -47,6 +48,13 @@ type Deps struct {
 	// Tahap 8) -- aiassist.UnconfiguredClient when GEMINI_API_KEY is unset, matching Mailer's own
 	// injected-interface shape.
 	AIClient aiassist.Client
+
+	// Printer prints a page to PDF (`write: pdf`); a Printer with no browser (pdf.Printer.Available false) means the
+	// button is not drawn and the route answers 404.
+	Printer *pdf.Printer
+	// StaticDir is where static/ is, for a print to read the stylesheet from; empty is "static", the server's own
+	// working directory.
+	StaticDir string
 
 	// Workspace is the whole loaded Workspace -- its own navigation and every Application
 	// declared inside it (004 §Navigation Metadata, 006 §Navigation). Routes hands it to
@@ -273,9 +281,12 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/notifications", showRuntimePage(d.Store, d.Cfg, "nav_notifications").ServeHTTP)
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
-		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg, d.Files))
+		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer))
 		// One record's page (`record_of:`): the same handler, with the record the route names.
-		pr.Get("/pages/{navID}/{recordID}", showDeclaredPage(d.Store, d.Cfg, d.Files))
+		pr.Get("/pages/{navID}/{recordID}", showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer))
+		// The same two pages as a PDF file (`write: pdf`): drawn by the handler above, then printed.
+		pr.Get("/pages/{navID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer), d.Printer, d.staticRoot()))
+		pr.Get("/pages/{navID}/{recordID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer), d.Printer, d.staticRoot()))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))
@@ -370,4 +381,12 @@ func Routes(d Deps) http.Handler {
 	})
 
 	return r
+}
+
+// staticRoot is where a print reads the page's stylesheet and fonts from.
+func (d Deps) staticRoot() string {
+	if d.StaticDir != "" {
+		return d.StaticDir
+	}
+	return staticDir
 }

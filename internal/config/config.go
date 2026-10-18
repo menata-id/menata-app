@@ -60,6 +60,11 @@ type Config struct {
 	// ShowMembersAndGroups already uses).
 	GeminiAPIKey string
 
+	// PDFBrowser is the headless browser a page is printed to PDF with (`write: pdf`): a path to chrome-headless-shell or
+	// Chromium. Empty means look for a known name on PATH; none found means PDF output is not offered (a page hides its
+	// PDF button), the way an empty GeminiAPIKey hides the assistant.
+	PDFBrowser string
+
 	// AndroidPackageName and AndroidCertFingerprints publish this origin's Digital Asset Links
 	// (/.well-known/assetlinks.json), the proof Chrome asks for before a Trusted Web Activity -- the
 	// Google Play wrapper around this PWA -- may open it without a browser address bar. The package
@@ -119,6 +124,7 @@ func Load() Config {
 		SMTPFrom:                getenv("SMTP_FROM", ""),
 		AppBaseURL:              getenv("APP_BASE_URL", "http://localhost:"+port),
 		GeminiAPIKey:            getenv("GEMINI_API_KEY", ""),
+		PDFBrowser:              getenv("PDF_BROWSER", ""),
 		AndroidPackageName:      getenv("ANDROID_PACKAGE_NAME", ""),
 		AndroidCertFingerprints: splitList(getenv("ANDROID_CERT_FINGERPRINTS", "")),
 		TrustedProxies:          splitList(getenv("TRUSTED_PROXIES", "127.0.0.1,::1")),

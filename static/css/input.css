@@ -378,10 +378,15 @@
    paper-white, and so is every button (Print, Close, Edit: a control is not part of the document). One rule for every page,
    since what is printed is whatever page the person is on.
    --------------------------------------------------------------------------------------------- */
+@page {
+	size: A4;
+	margin: 14mm;
+}
 @media print {
 	header,
 	nav[aria-label="Application"],
-	button {
+	button,
+	a[data-control] {
 		display: none !important;
 	}
 	body {

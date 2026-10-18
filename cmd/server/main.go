@@ -30,6 +30,7 @@ import (
 	"menata.app/internal/ir"
 	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
+	"menata.app/internal/pdf"
 	"menata.app/internal/registry"
 	"menata.app/internal/storage"
 	"menata.app/internal/web"
@@ -173,6 +174,7 @@ type dynamicHandler struct {
 	files              *storage.Store
 	mailer             mail.Mailer
 	aiClient           aiassist.Client
+	printer            *pdf.Printer
 	defaultWorkspaceID string
 }
 
@@ -197,6 +199,7 @@ func newDynamicHandler(cfg config.Config, store *data.Store, files *storage.Stor
 		cfg: cfg, store: store, files: files,
 		mailer:             mail.NewMailerFromConfig(cfg),
 		aiClient:           aiassist.NewClientFromConfig(cfg),
+		printer:            newPrinter(cfg),
 		defaultWorkspaceID: defaultWorkspaceID,
 	}
 	if err := dh.Reload(); err != nil {
@@ -346,6 +349,7 @@ func (dh *dynamicHandler) install(st metadataState) {
 		UnavailableWorkspaces: st.unavailable,
 		DefaultWorkspaceID:    dh.defaultWorkspaceID,
 		AIClient:              dh.aiClient,
+		Printer:               dh.printer,
 		ReloadMetadata:        dh.ReloadWorkspace,
 	}
 	handler := web.Routes(deps)
@@ -406,4 +410,18 @@ func defaultWorkspaceID(ctx context.Context, store *data.Store) string {
 		log.Fatalf("failed to resolve the default workspace (slug %q): %v", "default", err)
 	}
 	return ws.ID
+}
+
+// newPrinter is the process's one PDF printer (`write: pdf`): the configured browser, else one found on PATH, else none --
+// and then no page offers a PDF button. Two prints at a time at most.
+func newPrinter(cfg config.Config) *pdf.Printer {
+	browser, err := pdf.FindBrowser(cfg.PDFBrowser)
+	if err != nil {
+		log.Printf("PDF output is off: %v", err)
+	}
+	if browser == "" {
+		return pdf.NewPrinter("", 1)
+	}
+	log.Printf("PDF output prints with %s", browser)
+	return pdf.NewPrinter(browser, 2)
 }

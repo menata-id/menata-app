@@ -338,6 +338,10 @@ const (
 	PageWriteAction = "action"
 	// PageWritePrint is a `Button` that prints the page: it writes nothing and names no Dataset, and valid anywhere on a page.
 	PageWritePrint = "print"
+	// PageWritePDF is a `Button` that downloads the page as a PDF file: the runtime draws the same page for the same
+	// viewer, prints it with a headless browser and answers the bytes. It writes nothing and names no Dataset, and is
+	// drawn only on a host that can print (`Resolver.PDF`).
+	PageWritePDF = "pdf"
 )
 
 // The two words a transition Button's `becomes:` may use instead of a status option, both read from the Machine's own
@@ -352,7 +356,7 @@ const (
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
 	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction, PageWriteTransition},
-	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction, PageWritePrint},
+	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction, PageWritePrint, PageWritePDF},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

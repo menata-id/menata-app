@@ -78,6 +78,7 @@ func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params
 			return bindingAction(ctx, l, viewer, b, recordID)
 		},
 		Navigation: navigationSection,
+		PDF:        func() bool { return l.pdf },
 		Query:      func(name string) string { return params[name] },
 		Params:     func() map[string]string { return params },
 		TransitionAll: func(b domain.PageBinding, becomes string) (ir.AllTransition, error) {

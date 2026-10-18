@@ -324,6 +324,12 @@ steps:
       shows: ['onclick="window.print()"', ">Print<"]
       hides: ["hx-post"]
     expect: ok
+  - id: a-page-can-be-downloaded-as-a-pdf
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      shows: [">Download PDF<", "/pdf'+location.search"]
+    expect: ok
   - id: and-a-query-string-cannot-aim-it-elsewhere
     as: fina
     view:

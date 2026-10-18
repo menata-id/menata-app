@@ -770,8 +770,8 @@ func validateButton(inputs map[string]string) []string {
 func buttonRequestIssues(inputs map[string]string) []string {
 	action, method, confirm := inputs["action"], inputs["method"], inputs["confirm"]
 	var issues []string
-	if method == domain.ButtonMethodPrint {
-		// Printing sends nothing: no route, no question, no record to name, no pair to post.
+	if method == domain.ButtonMethodPrint || method == domain.ButtonMethodPDF {
+		// Printing sends nothing and a PDF asks for the page's own address: no route, no question, no record to name, no pair to post.
 		for _, in := range []string{"action", "confirm", "describes", "name", "value"} {
 			if inputs[in] != "" {
 				issues = append(issues, fmt.Sprintf("a Button that prints sends no request, so it takes no `%s`", in))

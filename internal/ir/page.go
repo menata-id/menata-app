@@ -377,6 +377,8 @@ type Resolver struct {
 	Step StepResolver
 	// Window answers a `window:`: the words that say a Dataset's date window.
 	Window WindowResolver
+	// PDF says whether this host can print a page to PDF. Nil is the load-time placeholder, for which every host can.
+	PDF func() bool
 }
 
 // ParameterResolver, StepResolver and WindowResolver are the three things a page asks of the request itself rather
@@ -496,6 +498,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWritePrint {
 		return lowerPrintButton(n, path)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWritePDF {
+		return lowerPDFButton(n, r, path)
 	}
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentNavList) {
 		return lowerNavList(n, r, path)
@@ -1541,6 +1546,36 @@ func lowerPrintButton(n domain.PageNode, path string) ([]UINode, error) {
 		props[k] = v
 	}
 	props[formMethodProp] = domain.ButtonMethodPrint
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// lowerPDFButton turns a `Button` bound with `write: pdf` into a Button that downloads the page as a PDF file. Like a
+// print Button it names no Dataset, takes no record and asks nothing. A host that cannot print (Resolver.PDF answers
+// false) gets no node: a button that cannot work is not offered. Nil Resolver.PDF is the load-time placeholder, which draws
+// the button so its shape is still validated.
+func lowerPDFButton(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it outputs the page", path, domain.PageWritePDF)
+	}
+	for _, p := range []string{"name", "value", "confirm", "action", "method", buttonDescribesProp} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a pdf Button asks for the page's own address, so it takes no %s", path, p)
+		}
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: a pdf Button reads nothing from a record", path)
+	}
+	if r.PDF != nil && !r.PDF() {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props[formMethodProp] = domain.ButtonMethodPDF
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 

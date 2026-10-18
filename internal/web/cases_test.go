@@ -27,6 +27,7 @@ import (
 	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
+	"menata.app/internal/pdf"
 	"menata.app/internal/registry"
 	"menata.app/internal/storage"
 )
@@ -156,7 +157,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 87, Steps: 87},
+	"case22_production_contracts": {Rejected: 0, Passed: 88, Steps: 88},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -562,6 +563,8 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		t.Fatal(err)
 	}
 	h := Routes(Deps{UserMachine: userMachineOf(t, app), Store: store, Files: files, Cfg: cfg,
+		// A printer the harness only asks whether it exists: a page then draws its PDF button, and nothing is printed.
+		Printer:    pdf.NewPrinter("/bin/true", 1),
 		Workspaces: map[string]domain.Workspace{slug: installed}, DefaultWorkspaceID: ws.ID})
 
 	machineOf := map[string]string{} // step id -> machine

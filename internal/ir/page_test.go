@@ -1694,3 +1694,46 @@ func TestLower_aPrintButtonSendsNothing(t *testing.T) {
 		}
 	}
 }
+
+// TestLower_aPDFButtonAsksForThePageAndIsNotOfferedWhereNothingCanPrint: like Print it names no Dataset and sends no
+// typed request, and a host that cannot print gets no button at all.
+func TestLower_aPDFButtonAsksForThePageAndIsNotOfferedWhereNothingCanPrint(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentButton)})
+	button := func(props map[string]string, binding domain.PageBinding) domain.PageNode {
+		return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+			{Kind: "component", Type: "Button", Props: props, Binding: &binding}}}
+	}
+	pdf := domain.PageBinding{Write: domain.PageWritePDF}
+	tree, err := Lower(button(map[string]string{"label": "Download PDF"}, pdf), Resolver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Children[0].Props; got["method"] != domain.ButtonMethodPDF || got["action"] != "" {
+		t.Errorf("a pdf Button = %v, want method pdf with no action", got)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a lowered pdf Button is not valid: %v", issues)
+	}
+	for _, can := range []bool{true, false} {
+		tree, err := Lower(button(map[string]string{"label": "Download PDF"}, pdf), Resolver{PDF: func() bool { return can }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if drawn := len(tree.Children) == 1; drawn != can {
+			t.Errorf("a host that can print = %v, but the button drawn = %v", can, drawn)
+		}
+	}
+	for name, tc := range map[string]struct {
+		props   map[string]string
+		binding domain.PageBinding
+		want    string
+	}{
+		"a dataset": {map[string]string{"label": "PDF"}, domain.PageBinding{Write: domain.PageWritePDF, Dataset: "ds_x"}, "takes no dataset"},
+		"a confirm": {map[string]string{"label": "PDF", "confirm": "Sure?"}, pdf, "takes no confirm"},
+		"an action": {map[string]string{"label": "PDF", "action": "/machines/x"}, pdf, "never typed"},
+	} {
+		if _, err := Lower(button(tc.props, tc.binding), Resolver{}); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error saying %q", name, err, tc.want)
+		}
+	}
+}

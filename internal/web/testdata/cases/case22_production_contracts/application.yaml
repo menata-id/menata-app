@@ -188,6 +188,11 @@ navigation:
                   label: Print
                   variant: secondary
                   binding: { write: print }
+                # The same page as a file (K02e): drawn only where the host can print.
+                - component: Button
+                  label: Download PDF
+                  variant: secondary
+                  binding: { write: pdf }
                 # The proof of payment: its name and size, and the address that serves it (K01d's Document).
                 - static: link
                   from: { text: "file:fld_proof", href: "filehref:fld_proof" }

@@ -36,6 +36,8 @@ type Loader struct {
 	// files answers an attachment's size; nil leaves sizes blank, which is what a caller that never draws
 	// attachments (every one but the record detail) wants.
 	files *storage.Store
+	// pdf says the host can print a page to PDF; false unless a caller that draws a `write: pdf` Button says so.
+	pdf bool
 
 	listed   map[string][]*data.Record
 	listedBy map[string][]*data.Record
@@ -92,6 +94,12 @@ type Loader struct {
 // WithFiles lets the Loader read the size of a stored upload, for the record detail's attachments list.
 func (l *Loader) WithFiles(files *storage.Store) *Loader {
 	l.files = files
+	return l
+}
+
+// WithPDF says whether this host can print a page to PDF; a page's `write: pdf` Button is drawn only where it can.
+func (l *Loader) WithPDF(available bool) *Loader {
+	l.pdf = available
 	return l
 }
 

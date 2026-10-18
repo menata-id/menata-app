@@ -26,6 +26,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/pdf"
 	"menata.app/internal/storage"
 )
 
@@ -520,6 +521,8 @@ func routerSetupFor(t *testing.T, name, manifest string) (http.Handler, string, 
 		Cfg:                cfg,
 		Workspaces:         all,
 		DefaultWorkspaceID: ws.ID,
+		Printer:            testPrinter(),
+		StaticDir:          "../../static",
 	})
 	return h, sessionCookieValueForTest(t, cfg, actor.ID, 0), wsCtx, store, files, installed, actor.ID
 }
@@ -675,4 +678,18 @@ func TestAnomalyPrefixMarksFailedRequests(t *testing.T) {
 			t.Errorf("anomalyPrefix(%s, %s, %d, %d) = %q, want %q", c.method, c.status, c.repeated, c.gap, got, c.want)
 		}
 	}
+}
+
+// testPrinter is the host's real headless browser when it has one (PDF_BROWSER or one on PATH), else a printer with none.
+func testPrinter() *pdf.Printer {
+	browser, _ := pdf.FindBrowser(os.Getenv("PDF_BROWSER"))
+	return pdf.NewPrinter(browser, 1)
+}
+
+// pdfStatus is what a page's /pdf answers for a page that opens: the PDF where the host can print, else not found.
+func pdfStatus() int {
+	if testPrinter().Available() {
+		return http.StatusOK
+	}
+	return http.StatusNotFound
 }

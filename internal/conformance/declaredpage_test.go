@@ -775,6 +775,12 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						if n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "" || n.Props["confirm"] != "" {
 							t.Errorf("%s: write: %s prints the page and names no dataset, rows, measure or confirm", where, write)
 						}
+					case write == domain.PageWritePDF:
+						// Downloads the page as a PDF: the same shape as Print.
+						prints++
+						if n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "" || n.Props["confirm"] != "" {
+							t.Errorf("%s: write: %s outputs the page and names no dataset, rows, measure or confirm", where, write)
+						}
 					case write != domain.PageWriteDelete && write != domain.PageWriteMove && write != domain.PageWriteTransition:
 						t.Errorf("%s: a Button on a page is bound with write: %s, %s, %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove, domain.PageWriteTransition, domain.PageWritePrint)
 					case item == nil:

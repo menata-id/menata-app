@@ -1973,7 +1973,19 @@ Machine's and is not a file, group or reference.
 **Print (`write: print`).** `{component: Button, label: Print, variant: secondary, binding: {write: print}}` opens the browser's print
 dialog for the page. It names no Dataset and sends nothing. What is printed is the page: the header, the application menu and every
 button are left off the paper (`@media print` in `static/css/input.css`), so a page "shaped for printing" -- a purchase order -- is its
-content. A status Field with no value yet has a neutral `tone:`, so a template reading it is drawn.
+content. A status Field with no value yet has a neutral `tone:`, so a template reading it is drawn. A link drawn as a button (a row's Edit,
+"Copy") is a control too and stays off the paper.
+
+**A page as a PDF file (`write: pdf`, 2026-10-18).** `{component: Button, label: Download PDF, variant: secondary, binding: {write: pdf}}`
+downloads the page it is on as a PDF: the runtime draws the same page again for the same viewer -- the same address with `/pdf`
+added (`/pages/<nav>/pdf`, `/pages/<nav>/<id>/pdf`), the same query string, so a filtered list prints filtered -- and prints it with a
+headless browser (`internal/pdf.Printer`), with the same `@media print` rules as the Print button and an A4 `@page`. Who may open the
+page is who may download it; a refusal of the page (403, 404) is the refusal of its PDF. The file is named after the page's first
+`<h1>` ("PO/2026/0087" becomes `PO-2026-0087.pdf`), else `page.pdf`. It names no Dataset and takes no `confirm`/`action`. **A host
+with no browser draws no button and answers 404 on the route**: set `PDF_BROWSER` to chrome-headless-shell or Chromium, or have one on
+`PATH` (`chrome-headless-shell`, `chromium`, `chromium-browser`, `google-chrome`); a path that does not exist is logged at start-up.
+Two prints run at a time, each limited to 30 seconds. This is any page's output, not the purchase order's: the second render target
+007 §12 and the audit's B5 call for, fed by the page the viewer already has.
 
 **A link into another Application (`in:, 2026-10-18, K01d's "Create payment plan").** `{static: link, to: nav_new_plan,
 in: app_instalments_payments, text: Create payment plan}` points at a screen of *another* Application of the same Workspace.

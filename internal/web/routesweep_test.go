@@ -239,7 +239,7 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 			break
 		}
 	}
-	pageCase := false
+	pageCase, pdfList, pdfRecord := false, false, false
 	for _, app := range f.ws.Applications {
 		for _, item := range app.AllNavigation {
 			switch {
@@ -249,8 +249,17 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 				add("/pages/{navID}/{recordID}", "/pages/"+item.ID+"/"+f.records[item.RecordOf], http.StatusOK, "a record page opens for a record of its Machine")
 				add("/pages/{navID}/{recordID}", "/pages/"+item.ID+"/rec_not_a_record", http.StatusNotFound, "and is not found for an id that names none")
 				add("/pages/{navID}", "/pages/"+item.ID, http.StatusNotFound, "a record page without a record is not a page")
+				if !pdfRecord {
+					add("/pages/{navID}/{recordID}/pdf", "/pages/"+item.ID+"/"+f.records[item.RecordOf]+"/pdf", pdfStatus(), "a record page is also printed as a PDF where the host can print")
+					add("/pages/{navID}/{recordID}/pdf", "/pages/"+item.ID+"/rec_not_a_record/pdf", http.StatusNotFound, "and its PDF is not found for an id that names none")
+					pdfRecord = true
+				}
 			case item.Page != nil:
 				add("/pages/{navID}", "/pages/"+item.ID, http.StatusOK, "a navigation item declaring `page:` renders its body")
+				if !pdfList {
+					add("/pages/{navID}/pdf", "/pages/"+item.ID+"/pdf", pdfStatus(), "a page is also printed as a PDF where the host can print")
+					pdfList = true
+				}
 			case !pageCase:
 				add("/pages/{navID}", "/pages/"+item.ID, http.StatusNotFound, "a navigation item with no `page:` is a bespoke screen, not a page")
 				pageCase = true

@@ -456,6 +456,10 @@ navigation:
                           variant: secondary
                           binding: { write: print }
                         - component: Button
+                          label: Download PDF
+                          variant: secondary
+                          binding: { write: pdf }
+                        - component: Button
                           variant: primary
                           from: { describes: title }
                           binding: { write: transition, transition: trn_po_issue }
