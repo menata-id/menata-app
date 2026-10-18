@@ -233,6 +233,7 @@ func Routes(d Deps) http.Handler {
 		pr.Use(requireActiveMembership(d.Store, d.Cfg))
 		// Workspace first, then Application: currentApplication reads the Workspace this
 		// resolves, and requireApplicationAccess reads the Application that resolves.
+		pr.Use(discardRefusedUploads(d.Files))
 		pr.Use(blockUnavailableWorkspace(d.Store, d.UnavailableWorkspaces))
 		pr.Use(currentWorkspace(d.Store, d.Workspaces))
 		pr.Use(currentApplication())

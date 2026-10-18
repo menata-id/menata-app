@@ -1223,6 +1223,7 @@ func handleFileUploads(req *http.Request, machine *domain.Machine, files *storag
 			return nil, saveErr
 		}
 		uploaded[f.ID] = key
+		noteUpload(req.Context(), key)
 	}
 	return uploaded, nil
 }

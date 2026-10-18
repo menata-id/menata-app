@@ -494,6 +494,7 @@ func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx contex
 		serverError(w, err)
 		return false
 	}
+	noteUpload(req.Context(), key)
 	step.Values[imageField] = key
 
 	// "Save this signature for next time" is only offerable where the Application casts a Machine
