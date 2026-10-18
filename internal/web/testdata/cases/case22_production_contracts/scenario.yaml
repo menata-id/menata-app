@@ -740,3 +740,19 @@ steps:
     as: silvia
     delete: { ref: wardrobe, from: /pages/nav_categories }
     expect: ok
+
+  # Create plan (K02c): the instalment's net amount travels with the link, so the form opens with it already filled and the
+  # instalment fixed; what is left to the person is the date.
+  - id: create-plan-carries-the-instalments-net
+    as: silvia
+    view:
+      path: /pages/nav_unpaid
+      shows: ["fld_plan_amount=", "term="]
+    expect: ok
+  - id: the-plan-form-opens-with-the-amount
+    as: silvia
+    view:
+      path: /pages/nav_new_plan?term=$first-shooting-day&fld_plan_amount=68400
+      shows: ['name="fld_plan_amount"', 'value="68400"', "Submit plan"]
+    expect: ok
+

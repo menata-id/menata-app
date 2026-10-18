@@ -321,10 +321,26 @@ navigation:
           binding: { dataset: ds_terms_unpaid, rows: records }
           children:
             - static: link
-              to: nav_unpaid
+              to: nav_new_plan
               text: Create plan
               variant: secondary
+              pass: { term: "record:id", fld_plan_amount: "field:fld_net" }
               when: { role: "field:fld_plans", is: "0" }
+  # K02c: opened from an instalment's "Create plan": the instalment is fixed and its net amount is already in the form.
+  - id: nav_new_plan
+    label: New payment plan
+    title: New payment plan
+    route: /pages/nav_new_plan
+    in_menu: false
+    page:
+      layout: stack
+      children:
+        - component: Form
+          submit: Submit plan
+          values: { fld_term: $parameters.term }
+          # The instalment's net amount comes with the link: a start, still a control the person may change.
+          starts: { fld_plan_amount: $parameters.fld_plan_amount }
+          binding: { dataset: ds_payment_plans, write: create }
   - id: nav_categories
     label: Categories
     route: /pages/nav_categories

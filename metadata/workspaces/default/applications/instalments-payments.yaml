@@ -161,7 +161,7 @@ navigation:
               to: nav_new_plan
               text: Create plan
               variant: secondary
-              pass: { term: "record:id" }
+              pass: { term: "record:id", fld_plan_amount: "field:fld_net" }
               when: { role: "field:fld_plans", is: "0" }
         - static: link
           list_of: ds_instalments_unpaid
@@ -255,6 +255,8 @@ navigation:
           submit: Submit plan
           then: record
           values: { fld_term: $parameters.term }
+          # The instalment's net amount comes with the link: a start, still a control the person may change.
+          starts: { fld_plan_amount: $parameters.fld_plan_amount }
           binding: { dataset: ds_payment_plans, write: create }
   # One payment plan's page (K02d): the plan, Approve or Reject for finance, and -- once approved -- the proof uploaded
   # and the plan marked paid in one submit. Its payment date is written by the runtime, never typed.

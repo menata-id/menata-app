@@ -27,6 +27,9 @@ events:
       any: { value: Paid, set: Paid }
 
 datasets:
+  - id: ds_payment_plans
+    select: records
+    limit: 100
   # Master and detail on one page (K02d): the plans awaiting proof, and the one the request picks with ?selected=.
   - id: ds_plans_awaiting_proof
     select: records
