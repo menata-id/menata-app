@@ -224,7 +224,9 @@ navigation:
             review: needs review
             instruction: >-
               A production contract between a film production house and a cast member, a crew member or a vendor. Fees are in
-              rupiah. The instalments are the payment schedule in the contract, one row per payment.
+              rupiah. The instalments are the payment schedule in the contract, one row per payment. A due date the contract gives
+              as a period (for example the last week of May 2026) is the last day of that period, and is marked inferred; a due date
+              given as days after an event (for example 14 working days after signing) is left empty.
             fields: [fld_party_name, fld_contract_kind, fld_category, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
             rows:
               - label: Instalments
