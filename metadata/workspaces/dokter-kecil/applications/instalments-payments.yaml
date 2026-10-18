@@ -161,7 +161,7 @@ navigation:
               to: nav_new_plan
               text: Create plan
               variant: secondary
-              pass: { term: "record:id", fld_plan_amount: "field:fld_net" }
+              pass: { term: "record:id", fld_plan_amount: "value:fld_net" }
               when: { role: "field:fld_plans", is: "0" }
         - static: link
           list_of: ds_instalments_unpaid

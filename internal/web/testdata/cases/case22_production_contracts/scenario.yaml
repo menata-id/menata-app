@@ -747,7 +747,8 @@ steps:
     as: silvia
     view:
       path: /pages/nav_unpaid
-      shows: ["fld_plan_amount=", "term="]
+      shows: ["fld_plan_amount=51300000", "fld_plan_amount=100000", "term="]
+      hides: ["fld_plan_amount=51%2C", "fld_plan_amount=100%2C"]
     expect: ok
   - id: the-plan-form-opens-with-the-amount
     as: silvia
