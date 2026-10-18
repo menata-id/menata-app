@@ -888,7 +888,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			}
 			if c.IfParam != "" {
 				name, value, ok := strings.Cut(c.IfParam, "=")
-				if !ok || name == "" || value == "" || domain.SearchParamsReserved[name] || strings.ContainsAny(name+value, " &?#") {
+				if !ok || name == "" || value == "" || domain.ParamReserved(name) || strings.ContainsAny(name+value, " &?#") {
 					issues = append(issues, fmt.Sprintf("dataset %q: where if_param %q is <parameter>=<value>, a plain word the runtime does not own", ds.ID, c.IfParam))
 				}
 				// A named view narrows a list: its comparisons are literals about the record (a status, a date window,
@@ -903,7 +903,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			}
 			// A parameter the runtime sets itself (the Application a page is drawn in, a record page's id, the week) is a
 			// scope, not a filter a person chooses: left out, it would list every Application's rows.
-			if name, ok := strings.CutPrefix(c.Value, expression.SentinelParameterPrefix); c.Optional && ok && domain.SearchParamsReserved[name] {
+			if name, ok := strings.CutPrefix(c.Value, expression.SentinelParameterPrefix); c.Optional && ok && domain.ParamReserved(name) {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is optional on %s, which the runtime sets as a scope -- a scope is never left out", ds.ID, c.Field, c.Value))
 			}
 			if f, ok := fieldsByID[c.Field]; ok {

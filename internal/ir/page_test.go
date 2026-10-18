@@ -1660,3 +1660,37 @@ func TestLower_aSlashInToIsRefused(t *testing.T) {
 		t.Errorf("a slashed to: = %v", err)
 	}
 }
+
+// TestLower_aPrintButtonSendsNothing: `write: print` is a Button that opens the browser's print dialog -- valid anywhere on a
+// page, with no Dataset, no record, no question and no route.
+func TestLower_aPrintButtonSendsNothing(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentButton)})
+	button := func(props map[string]string, binding domain.PageBinding) domain.PageNode {
+		return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+			{Kind: "component", Type: "Button", Props: props, Binding: &binding}}}
+	}
+	tree, err := Lower(button(map[string]string{"label": "Print", "variant": "secondary"}, domain.PageBinding{Write: domain.PageWritePrint}), Resolver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tree.Children[0].Props
+	if got["method"] != domain.ButtonMethodPrint || got["action"] != "" || got["label"] != "Print" {
+		t.Errorf("a print Button = %v, want method print with no action", got)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a lowered print Button is not valid: %v", issues)
+	}
+	for name, tc := range map[string]struct {
+		props   map[string]string
+		binding domain.PageBinding
+		want    string
+	}{
+		"a dataset": {map[string]string{"label": "Print"}, domain.PageBinding{Write: domain.PageWritePrint, Dataset: "ds_x"}, "takes no dataset"},
+		"a confirm": {map[string]string{"label": "Print", "confirm": "Sure?"}, domain.PageBinding{Write: domain.PageWritePrint}, "sends no request"},
+		"an action": {map[string]string{"label": "Print", "action": "/machines/x"}, domain.PageBinding{Write: domain.PageWritePrint}, "never typed"},
+	} {
+		if _, err := Lower(button(tc.props, tc.binding), Resolver{}); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error saying %q", name, err, tc.want)
+		}
+	}
+}

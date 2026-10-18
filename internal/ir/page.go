@@ -494,6 +494,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteMove {
 		return lowerMoveButton(n, path, record, writes)
 	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWritePrint {
+		return lowerPrintButton(n, path)
+	}
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentNavList) {
 		return lowerNavList(n, r, path)
 	}
@@ -853,7 +856,7 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		}
 		q := url.Values{}
 		for name, role := range n.Pass {
-			if domain.SearchParamsReserved[name] {
+			if domain.ParamReserved(name) {
 				return nil, fmt.Errorf("%s: pass: %s is a parameter the runtime owns", path, name)
 			}
 			v, ok := record[role]
@@ -1516,6 +1519,31 @@ func lowerDeleteButton(n domain.PageNode, path string, record map[string]string,
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 
+// lowerPrintButton turns a `Button` bound with `write: print` into a Button that opens the browser's print dialog. It
+// writes nothing, so it names no Dataset, takes no record and asks nothing; it is valid anywhere on a page.
+func lowerPrintButton(n domain.PageNode, path string) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it prints the page", path, domain.PageWritePrint)
+	}
+	for _, p := range []string{"name", "value", "confirm", "action", "method", buttonDescribesProp} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a print Button sends no request, so it takes no %s", path, p)
+		}
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: a print Button reads nothing from a record", path)
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props[formMethodProp] = domain.ButtonMethodPrint
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
 // buttonDirectionProp is the one thing an author writes on a move Button beyond its label: which way it sends the
 // record. Lowering consumes it into the derived route, so it never reaches the renderer.
 const buttonDirectionProp = "direction"
@@ -1757,7 +1785,7 @@ func lowerSearchBox(n domain.PageNode, r Resolver, path string) ([]UINode, error
 		return nil, fmt.Errorf("%s: a SearchBox goes to a destination with to: <navigation item id>, never a typed action -- a route is declared once (001 #3, #8)", path)
 	}
 	param := n.Props["query"]
-	if domain.SearchParamsReserved[param] {
+	if domain.ParamReserved(param) {
 		return nil, fmt.Errorf("%s: SearchBox query %q is one the runtime owns", path, param)
 	}
 	props := make(map[string]string, len(n.Props)+1)

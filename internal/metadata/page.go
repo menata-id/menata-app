@@ -428,6 +428,11 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 				}
 			}
 		}
+		for _, c := range p.columns {
+			if _, field := domain.SplitRelatedColumn(c.Related); field != "" && !slices.Contains(out.Binding.RelatedFields, c.Related) {
+				out.Binding.RelatedFields = append(out.Binding.RelatedFields, c.Related)
+			}
+		}
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 		out.Binding.Values = p.values
 		out.Binding.Starts = p.starts
@@ -535,6 +540,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 				rec[domain.PageRelatedRole(rel.ID)] = "x"
 				rec[domain.PageRelatedStatusRole(rel.ID)] = "x"
 				rec[domain.PageRelatedToneRole(rel.ID)] = string(domain.ToneNeutral)
+			}
+			for _, rf := range b.RelatedFields {
+				relation, field := domain.SplitRelatedColumn(rf)
+				rec[domain.PageRelatedFieldRole(relation, field)] = "x"
 			}
 			// One edit form, text-shaped, for the same reason the create form's is: whether the real Machine
 			// has anything to edit is `updateBindingIssues`' question, which has the Machine.
@@ -706,6 +715,10 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteMove {
 		issues = append(issues, moveBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWritePrint {
+		if b.Dataset != "" {
+			issues = append(issues, fmt.Sprintf("%s: page: write: %s takes no dataset -- it prints the page", where, domain.PageWritePrint))
+		}
 	} else if b != nil && b.Write == domain.PageWriteAction {
 		issues = append(issues, actionBindingIssues(n, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteTransition && b.All {
@@ -720,7 +733,7 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		case b.Write != "":
 			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
 		case b.Rows == domain.PageRowsRecords:
-			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], where)...)
+			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], machines, where)...)
 			issues = append(issues, tableTotalsIssues(n, datasets, where)...)
 			childItem = machines[ds.Source]
 		case ds.Select != "":
@@ -870,7 +883,7 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 //     `composition.Loader.PersonNames`, memoized per request and not growing with the records listed) and a
 //     `container` Field (`composition.Loader.RelatedLabels` reads only the records the page lists name, in one
 //     statement by id).
-func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.Machine, where string) []string {
+func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.Machine, machines map[string]*domain.Machine, where string) []string {
 	var issues []string
 	if ds.Select != domain.SelectRecords {
 		issues = append(issues, fmt.Sprintf("%s: page: rows: %s needs a dataset that selects records, and %q is an aggregate", where, domain.PageRowsRecords, ds.ID))
@@ -918,8 +931,31 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		if f, ok := source.FieldByID(c.Field); c.Total == ir.TotalSum && ok && !f.Type.IsNumeric() {
 			issues = append(issues, fmt.Sprintf("%s: page: columns: total: sum adds %s, a %s Field, not a figure", where, c.Field, f.Type))
 		}
-		if c.Related != "" && !slices.ContainsFunc(ds.Relations, func(r domain.Relation) bool { return r.ID == c.Related }) {
-			issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s is not a Relation dataset %q declares", where, c.Related, ds.ID))
+		if c.Related != "" {
+			relation, field := domain.SplitRelatedColumn(c.Related)
+			rel, found := domain.Relation{}, false
+			for _, r := range ds.Relations {
+				if r.ID == relation {
+					rel, found = r, true
+				}
+			}
+			switch {
+			case !found:
+				issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s is not a Relation dataset %q declares", where, c.Related, ds.ID))
+			case field != "":
+				// A Field of the child record, read as words: not a file, a group, or a reference (its id is no words).
+				child := machines[rel.Machine]
+				f, ok := domain.Field{}, false
+				if child != nil {
+					f, ok = child.FieldByID(field)
+				}
+				switch {
+				case !ok:
+					issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s -- machine %q has no Field %q", where, c.Related, rel.Machine, field))
+				case f.Type == domain.FieldTypeFile || f.Type == domain.FieldTypeGroup || f.IsReference():
+					issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s -- a %s Field is not shown as words", where, c.Related, f.Type))
+				}
+			}
 		}
 	}
 	for _, role := range blockedRolesOf(n.Children) {

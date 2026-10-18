@@ -279,6 +279,17 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(children))
 			// The first record the Relation found, for a Table's `related:` column: its title, and its status in its tone.
 			item[domain.PageRelatedRole(rel.ID)] = ""
+			// A Field of that first record, for a `related: rel_x.fld_y` column.
+			for _, rf := range b.RelatedFields {
+				if relation, field := domain.SplitRelatedColumn(rf); relation == rel.ID {
+					item[domain.PageRelatedFieldRole(relation, field)] = ""
+					if child := l.Machine(rel.Machine); child != nil && len(children) > 0 {
+						if f, ok := child.FieldByID(field); ok {
+							item[domain.PageRelatedFieldRole(relation, field)] = projectedFieldDisplay(f, children[0].Values[field], nil)
+						}
+					}
+				}
+			}
 			if child := l.Machine(rel.Machine); child != nil && len(children) > 0 {
 				// Named as a record is named everywhere (its title role, else its first Field); its status, when it declares one.
 				item[domain.PageRelatedRole(rel.ID)] = DisplayString(children[0].Values[child.LabelField()])
@@ -952,6 +963,9 @@ func fillFieldColumns(item map[string]string, src *domain.Machine, r *data.Recor
 			continue
 		}
 		v := DisplayString(r.Values[id])
+		// A status with no value yet (a PO whose contract has none) has no tone to speak of: neutral, so a template reading
+		// `tone:` is drawn rather than failing the page for want of the key.
+		item[domain.PageFieldToneRole(id)] = string(domain.ToneNeutral)
 		if v != "" {
 			item[domain.PageFieldToneRole(id)] = string(src.StatusTone(id, v))
 		}

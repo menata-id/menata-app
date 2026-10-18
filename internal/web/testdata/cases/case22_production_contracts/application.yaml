@@ -183,12 +183,24 @@ navigation:
               children:
                 - static: heading
                   from: { text: "field:fld_plan_no" }
+                # Opens the browser's print dialog; the page, not the chrome, is what is printed (K02e).
+                - component: Button
+                  label: Print
+                  variant: secondary
+                  binding: { write: print }
                 # The proof of payment: its name and size, and the address that serves it (K01d's Document).
                 - static: link
                   from: { text: "file:fld_proof", href: "filehref:fld_proof" }
                 - component: Form
                   submit: Mark as paid
                   binding: { write: transition, transition: trn_plan_settle }
+        - component: Table
+          label: Its instalment
+          columns:
+            - { header: Instalment, field: fld_term_label }
+            - { header: Planned net, related: "rel_plans.fld_plan_amount" }
+            - { header: Paid on, related: "rel_plans.fld_paid_date" }
+          binding: { dataset: ds_term_of_plan, rows: records }
   # Confirm payment (K02d): the plans awaiting proof above, the one picked below -- master and detail on one page.
   - id: nav_confirm
     label: Confirm payment

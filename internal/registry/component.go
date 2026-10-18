@@ -199,7 +199,7 @@ func filterQueryIssues(name, p string) []string {
 	if !searchParamPattern.MatchString(p) {
 		issues = append(issues, fmt.Sprintf("%s query %q is not a plain word (letters, digits and underscore, starting with a letter)", name, p))
 	}
-	if domain.SearchParamsReserved[p] {
+	if domain.ParamReserved(p) {
 		issues = append(issues, fmt.Sprintf("%s query %q is one the runtime owns", name, p))
 	}
 	return issues
@@ -770,6 +770,15 @@ func validateButton(inputs map[string]string) []string {
 func buttonRequestIssues(inputs map[string]string) []string {
 	action, method, confirm := inputs["action"], inputs["method"], inputs["confirm"]
 	var issues []string
+	if method == domain.ButtonMethodPrint {
+		// Printing sends nothing: no route, no question, no record to name, no pair to post.
+		for _, in := range []string{"action", "confirm", "describes", "name", "value"} {
+			if inputs[in] != "" {
+				issues = append(issues, fmt.Sprintf("a Button that prints sends no request, so it takes no `%s`", in))
+			}
+		}
+		return issues
+	}
 	if (action == "") != (method == "") {
 		issues = append(issues, "Button `action` and `method` are one pair: a route with no verb, or a verb with no route, sends nothing")
 	}
@@ -1200,7 +1209,7 @@ func validateSearchBox(inputs map[string]string) []string {
 		if !searchParamPattern.MatchString(p) {
 			issues = append(issues, fmt.Sprintf("SearchBox query %q is not a plain word (letters, digits and underscore, starting with a letter)", p))
 		}
-		if domain.SearchParamsReserved[p] {
+		if domain.ParamReserved(p) {
 			issues = append(issues, fmt.Sprintf("SearchBox query %q is one the runtime owns", p))
 		}
 	}

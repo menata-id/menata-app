@@ -309,6 +309,28 @@ steps:
       path: /pages/nav_confirm?selected=rec_nothing
       hides: [">Mark as paid<"]
     expect: ok
+  # A record page's Datasets may read the record itself (`$parameters.record.<field>`), and a column may show a Field of the
+  # first related record (`related: rel_plans.fld_plan_no`); a query string cannot aim the record's parameters elsewhere.
+  - id: a-plans-page-lists-its-instalment-and-the-plan-field
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      shows: [">Signing<", ">51,300<"]
+    expect: ok
+  - id: a-page-can-be-printed
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof
+      shows: ['onclick="window.print()"', ">Print<"]
+      hides: ["hx-post"]
+    expect: ok
+  - id: and-a-query-string-cannot-aim-it-elsewhere
+    as: fina
+    view:
+      path: /pages/nav_plan/$plan-without-proof?record.fld_term=$first-shooting-day
+      shows: [">Signing<"]
+      hides: [">First shooting day<"]
+    expect: ok
   - id: production-does-not
     as: silvia
     view:

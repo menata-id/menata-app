@@ -61,6 +61,10 @@ const ButtonMethodDelete = "delete"
 // ButtonMethodPost is the verb a `Button` bound with `write: move` sends. Derived, never written.
 const ButtonMethodPost = "post"
 
+// ButtonMethodPrint is what a `Button` bound with `write: print` is: no request at all -- it opens the browser's print dialog
+// for the page (mockup K02e's Print). Derived, never written; it has no route, and its pair is no route.
+const ButtonMethodPrint = "print"
+
 // ButtonMethodPatch is the verb a `Button` bound with `write: transition` sends: a PATCH of one Field of the record,
 // carried as the Button's own name/value pair. Derived, never written.
 const ButtonMethodPatch = "patch"

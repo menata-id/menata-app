@@ -703,3 +703,16 @@ func TestValidateTable(t *testing.T) {
 		}
 	}
 }
+
+// TestAPrintButtonIsValidWithNoRouteAndNothingElse: method print is a Button's verb with no route; it takes no confirm,
+// describes, name or value.
+func TestAPrintButtonIsValidWithNoRouteAndNothingElse(t *testing.T) {
+	if issues := buttonRequestIssues(map[string]string{"method": "print"}); len(issues) != 0 {
+		t.Errorf("a print Button was refused: %v", issues)
+	}
+	for _, in := range []string{"action", "confirm", "describes", "name", "value"} {
+		if issues := buttonRequestIssues(map[string]string{"method": "print", in: "x"}); len(issues) == 0 {
+			t.Errorf("a print Button carrying %s was accepted", in)
+		}
+	}
+}

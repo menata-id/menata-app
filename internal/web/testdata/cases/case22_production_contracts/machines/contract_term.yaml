@@ -64,6 +64,14 @@ datasets:
           all:
             - { field: fld_term_status, op: not_equals, value: Paid }
             - { field: fld_plans, op: equals, value: "0" }
+  # The instalment a plan's own page is about: the record the page names, read as $parameters.record.fld_term (the runtime sets
+  # it from the record, a query string cannot), with the plans pointing at it.
+  - id: ds_term_of_plan
+    select: records
+    where: { field: id, op: equals, value: $parameters.record.fld_term }
+    relations:
+      - { id: rel_plans, machine: mch_payment_plan, via: fld_term }
+    limit: 1
   - id: ds_terms_new
     select: records
     where: { field: fld_contract, op: equals, value: $parameters.contract }

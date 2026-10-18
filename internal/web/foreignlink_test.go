@@ -1,6 +1,8 @@
 package web
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"menata.app/internal/config"
@@ -41,5 +43,18 @@ func TestLinkTargetsForOffersOnlyScreensTheViewerMayOpen(t *testing.T) {
 	alone := domain.Actor{ID: "usr_bob", Roles: map[string][]string{"app_contracts": {"production_manager"}}}
 	if ids(alone)[domain.ForeignLinkID("app_payments", "nav_new_plan")] {
 		t.Error("a viewer with no role in the other Application was offered its screen")
+	}
+}
+
+// TestPageParamsNeverCarryARecordNameFromTheQueryString: the `record.` parameters of a record page are the runtime's, set from
+// the record; a query string naming one is dropped, so it cannot aim a Dataset at another record's value.
+func TestPageParamsNeverCarryARecordNameFromTheQueryString(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/pages/nav_x?q=1&record.fld_contract=rec_other&application=app_other", nil)
+	got := pageParams(req, "app_real")
+	if _, taken := got["record.fld_contract"]; taken {
+		t.Errorf("a record parameter came from the query string: %v", got)
+	}
+	if got["q"] != "1" || got["application"] != "app_real" {
+		t.Errorf("params = %v, want q kept and the application the runtime's", got)
 	}
 }

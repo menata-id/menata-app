@@ -144,7 +144,11 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			case c.Field != "":
 				key = domain.PageFieldRole(c.Field)
 			case c.Related != "":
-				key = domain.PageRelatedRole(c.Related)
+				if relation, field := domain.SplitRelatedColumn(c.Related); field != "" {
+					key = domain.PageRelatedFieldRole(relation, field)
+				} else {
+					key = domain.PageRelatedRole(c.Related)
+				}
 			}
 			text, ok := rec[key]
 			if c.From == domain.PageRowPositionColumn {
@@ -356,6 +360,9 @@ func tableCell(c domain.PageColumn, text string, rec map[string]string) (UINode,
 			max = "0"
 		}
 		return UINode{Kind: NodeComponent, Type: string(domain.ComponentProgress), Props: map[string]string{"label": c.Header, "value": value, "max": max, "size": "compact"}}, nil
+	case c.Related != "" && strings.Contains(c.Related, "."):
+		// One Field of the related record, as words.
+		return UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": text}}, nil
 	case c.Related != "":
 		if text == "" {
 			return UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": ""}}, nil

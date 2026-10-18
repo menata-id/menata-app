@@ -1552,3 +1552,33 @@ func TestABlockedRoleNamesATransitionAConstraintHoldsBack(t *testing.T) {
 		t.Errorf("a Constraint with no words: %q", got)
 	}
 }
+
+// TestARelatedColumnMayNameAFieldOfTheFirstRelatedRecord: `related: rel_x.fld_y` shows one Field of the first record a Relation
+// found, as words; the Relation must be the Dataset's, the Field the related Machine's, and not a file, group or reference.
+func TestARelatedColumnMayNameAFieldOfTheFirstRelatedRecord(t *testing.T) {
+	plan := &domain.Machine{ID: "mch_plan", Fields: []domain.Field{
+		{ID: "fld_no", Type: domain.FieldTypeText}, {ID: "fld_doc", Type: domain.FieldTypeFile},
+		{ID: "fld_term", Type: domain.FieldTypeRelation, RelatedMachine: "mch_term"}}}
+	term := &domain.Machine{ID: "mch_term", Fields: []domain.Field{{ID: "fld_label", Type: domain.FieldTypeText}},
+		CardFields: []domain.CardField{{Field: "fld_label", Role: domain.CardFieldRoleTitle}}}
+	ds := domain.Dataset{ID: "ds_a", Source: "mch_term", Select: domain.SelectRecords,
+		Relations: []domain.Relation{{ID: "rel_plans", Machine: "mch_plan", Via: "fld_term"}}}
+	run := func(related string) string {
+		node := domain.PageNode{Kind: "component", Type: "Table", Columns: []domain.PageColumn{{Header: "X", Related: related}},
+			Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords}}
+		return strings.Join(bindingIssues(node, map[string]domain.Dataset{"ds_a": ds}, map[string]*domain.Machine{"mch_term": term, "mch_plan": plan}, nil, "w"), "\n")
+	}
+	if got := run("rel_plans.fld_no"); got != "" {
+		t.Errorf("a Field of the related record was refused: %s", got)
+	}
+	for related, want := range map[string]string{
+		"rel_plans.fld_gone": "has no Field",
+		"rel_gone.fld_no":    "is not a Relation",
+		"rel_plans.fld_doc":  "not shown as words",
+		"rel_plans.fld_term": "not shown as words",
+	} {
+		if got := run(related); !strings.Contains(got, want) {
+			t.Errorf("%s: %q, want it to say %q", related, got, want)
+		}
+	}
+}

@@ -171,3 +171,12 @@ datasets:
     dimension: fld_category
     measures:
       - { id: msr_unpaid_by_category, aggregate: count, where: { field: fld_term_status, op: not_equals, value: Paid } }
+  # The instalments of the contract a record page's record names (a PO's, K02e), with the plan each has: the record's own contract is
+  # read as $parameters.record.fld_contract, which the runtime sets and a query string cannot.
+  - id: ds_terms_of_po_contract
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.record.fld_contract }
+    relations:
+      - { id: rel_po_term_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100

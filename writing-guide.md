@@ -1959,7 +1959,23 @@ $parameters.selected}` (`limit: 1`): the list alone shows no detail, and picking
 fields and its edge Form ("Mark as paid", the proof uploaded in the same submit) -- while a pick that is no record opens
 nothing. No new key: the pattern is the row action, `pass:` and the request-parameter Dataset.
 
-**A link into another Application (`in:`, 2026-10-18, K01d's "Create payment plan").** `{static: link, to: nav_new_plan,
+**A record page's own values (`$parameters.record.<field>`, 2026-10-18, K02e).** On a `record_of:` page the runtime sets the record's
+scalar Fields as request parameters named `record.<field id>` (a file or group Field is left out), and a `select: records` Dataset
+reads them like any parameter: `where: {field: fld_contract, op: equals, value: $parameters.record.fld_contract}` is "the records of
+this PO's contract" -- the instalments a purchase order lists. The runtime owns the `record.` names: a query string never supplies one
+(it is dropped), and no search box, chip or `pass:` may name one. A Field the record holds no value for sets none, so the list is empty.
+
+**A Field of the first related record (`related: rel_x.fld_y`).** Beside `related: rel_x` (the first record's name and status), a
+Table column may name one Field of it, shown as words: `{header: Planned, related: "rel_po_term_plans.fld_plan_date"}` -- the planned
+date of the payment plan an instalment has, empty where it has none. The Relation is the Dataset's; the Field is the related
+Machine's and is not a file, group or reference.
+
+**Print (`write: print`).** `{component: Button, label: Print, variant: secondary, binding: {write: print}}` opens the browser's print
+dialog for the page. It names no Dataset and sends nothing. What is printed is the page: the header, the application menu and every
+button are left off the paper (`@media print` in `static/css/input.css`), so a page "shaped for printing" -- a purchase order -- is its
+content. A status Field with no value yet has a neutral `tone:`, so a template reading it is drawn.
+
+**A link into another Application (`in:, 2026-10-18, K01d's "Create payment plan").** `{static: link, to: nav_new_plan,
 in: app_instalments_payments, text: Create payment plan}` points at a screen of *another* Application of the same Workspace.
 Applications install and remove on their own, so the link is drawn only while that Application is installed here and this viewer
 may open it -- otherwise it is simply not there, never a 403. The loader refuses `in:` naming the page's own Application, and,

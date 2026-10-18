@@ -746,7 +746,7 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 		machine *domain.Machine
 		dataset domain.Dataset
 	}
-	deletes, moves, transitions := 0, 0, 0
+	deletes, moves, transitions, prints := 0, 0, 0, 0
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
 		sourceOf := map[string]source{}
@@ -769,8 +769,14 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						write = n.Binding.Write
 					}
 					switch {
+					case write == domain.PageWritePrint:
+						// Prints the page: no record, no Dataset, no question (a page's own Print button, 2026-10-18).
+						prints++
+						if n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "" || n.Props["confirm"] != "" {
+							t.Errorf("%s: write: %s prints the page and names no dataset, rows, measure or confirm", where, write)
+						}
 					case write != domain.PageWriteDelete && write != domain.PageWriteMove && write != domain.PageWriteTransition:
-						t.Errorf("%s: a Button on a page is bound with write: %s, %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove, domain.PageWriteTransition)
+						t.Errorf("%s: a Button on a page is bound with write: %s, %s, %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove, domain.PageWriteTransition, domain.PageWritePrint)
 					case item == nil:
 						t.Errorf("%s: write: %s outside the item template of a records Collection", where, write)
 					case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
@@ -869,6 +875,9 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 	}
 	if transitions == 0 {
 		t.Fatal("no installed page declares a transition Button -- the transition half of this gate is measuring nothing")
+	}
+	if prints == 0 {
+		t.Fatal("no installed page declares a print Button -- the print half of this gate is measuring nothing")
 	}
 }
 

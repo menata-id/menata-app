@@ -371,3 +371,20 @@
 		outline-offset: 1px;
 	}
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Print (2026-10-18, mockup K02e's "a declared page, shaped for printing"): a page that is printed is its content, not the
+   application's chrome -- the header, the application menu and the bottom bar are left off the paper, and the background is
+   paper-white, and so is every button (Print, Close, Edit: a control is not part of the document). One rule for every page,
+   since what is printed is whatever page the person is on.
+   --------------------------------------------------------------------------------------------- */
+@media print {
+	header,
+	nav[aria-label="Application"],
+	button {
+		display: none !important;
+	}
+	body {
+		background: #fff !important;
+	}
+}

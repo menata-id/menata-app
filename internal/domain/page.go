@@ -146,7 +146,18 @@ func PageRowNumberRole(id string) string { return "num:" + id }
 
 // PageRelatedRole and PageRelatedToneRole are the keys of a Relation's first record in a row: its title, its status,
 // and the status's tone (PageColumn.Related).
-func PageRelatedRole(relation string) string       { return "related:" + relation }
+func PageRelatedRole(relation string) string { return "related:" + relation }
+
+// PageRelatedFieldRole is the key of one Field of a Relation's first record (`related: rel_x.fld_y`), as words.
+func PageRelatedFieldRole(relation, field string) string {
+	return "relatedfield:" + relation + ":" + field
+}
+
+// SplitRelatedColumn reads a column's `related:` as the Relation and, when it names one, the Field after the dot.
+func SplitRelatedColumn(related string) (relation, field string) {
+	relation, field, _ = strings.Cut(related, ".")
+	return relation, field
+}
 func PageRelatedStatusRole(relation string) string { return "related:" + relation + ":status" }
 func PageRelatedToneRole(relation string) string   { return "related:" + relation + ":tone" }
 
@@ -263,6 +274,9 @@ type PageBinding struct {
 	// so the Data Plane resolves those Fields -- and a relation among them, in one statement by the ids listed -- and
 	// no other. A binding with none resolves only the Projection, as before.
 	Fields []string
+	// RelatedFields are the `rel_x.fld_y` a Table's `related:` columns name: a Field of the first record a Relation found, shown as
+	// words (the planned date of an instalment's payment plan). Derived from the columns at load, never written.
+	RelatedFields []string
 	// Transition, with `write: transition` on a Button, names the declared edge it takes (`transition: trn_x`) instead of
 	// a target in `becomes:`: the edge's own Field and `to`, so any status Field of the Machine can be moved.
 	Transition string
@@ -322,6 +336,8 @@ const (
 	// PageWriteAction is a Form or a Button that performs one of the runtime's named operations (registry.RuntimeActions)
 	// instead of writing a record of a Machine. Only the runtime's own pages may use it.
 	PageWriteAction = "action"
+	// PageWritePrint is a `Button` that prints the page: it writes nothing and names no Dataset, and valid anywhere on a page.
+	PageWritePrint = "print"
 )
 
 // The two words a transition Button's `becomes:` may use instead of a status option, both read from the Machine's own
@@ -336,7 +352,7 @@ const (
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
 	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction, PageWriteTransition},
-	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction},
+	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction, PageWritePrint},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

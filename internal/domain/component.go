@@ -227,6 +227,18 @@ var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecond
 // drawn in, a record page's id, the calendar's week).
 var SearchParamsReserved = map[string]bool{"application": true, "id": true, "week": true}
 
+// RecordParamPrefix begins the request parameters a record page sets from the record it is about (`record.fld_contract`):
+// a Dataset on that page reads them as `$parameters.record.fld_contract`, so the siblings of a purchase order's contract are
+// "the instalments whose contract is the PO's". The runtime owns every name with this prefix -- a query string never supplies
+// one -- so no page, search box or link may name one.
+const RecordParamPrefix = "record."
+
+// ParamReserved says the runtime owns a request-parameter name: one SearchParamsReserved names, or one that begins
+// RecordParamPrefix.
+func ParamReserved(name string) bool {
+	return SearchParamsReserved[name] || strings.HasPrefix(name, RecordParamPrefix)
+}
+
 // KnownNavListVariants is how a NavList is drawn: a sidebar beside a screen (hidden below the `sm` breakpoint, where the
 // hub is the list) or a page-wide list with each row's description.
 var KnownNavListVariants = map[string]bool{"sidebar": true, "page": true}

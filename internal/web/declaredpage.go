@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -48,7 +49,8 @@ func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store
 				return
 			}
 			if recordID != "" {
-				if _, err := store.GetRecord(ctx, item.RecordOf, recordID); err != nil {
+				record, err := store.GetRecord(ctx, item.RecordOf, recordID)
+				if err != nil {
 					if errors.Is(err, data.ErrRecordNotFound) {
 						http.NotFound(w, req)
 						return
@@ -57,6 +59,11 @@ func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store
 					return
 				}
 				params["id"] = recordID
+				if m := machinesFor(ctx)[item.RecordOf]; m != nil {
+					for name, v := range recordParams(m, record.Values) {
+						params[name] = v
+					}
+				}
 			}
 			actor := currentActor(req, store, cfg)
 			targets := linkTargetsFor(rendering.CurrentWorkspace(ctx), app, actor, cfg)
@@ -187,7 +194,29 @@ func queryParams(req *http.Request) map[string]string {
 // Application's events through a Dataset that filters on it (ds_recent_activity).
 func pageParams(req *http.Request, applicationID string) map[string]string {
 	out := queryParams(req)
+	// The runtime owns every `record.` name (domain.RecordParamPrefix): a record page sets them from its own record, and a query
+	// string never supplies one -- `?record.fld_contract=` would otherwise aim a PO's instalments at another contract.
+	for name := range out {
+		if strings.HasPrefix(name, domain.RecordParamPrefix) {
+			delete(out, name)
+		}
+	}
 	out["application"] = applicationID
+	return out
+}
+
+// recordParams are the values of a record page's record as request parameters, `record.<field id>`: its scalar Fields as
+// stored, so a Dataset on the page may select "the records whose contract is this record's" (`$parameters.record.fld_contract`).
+func recordParams(m *domain.Machine, values map[string]any) map[string]string {
+	out := map[string]string{}
+	for _, f := range m.Fields {
+		if f.Type == domain.FieldTypeFile || f.Type == domain.FieldTypeGroup {
+			continue
+		}
+		if v := composition.DisplayString(values[f.ID]); v != "" {
+			out[domain.RecordParamPrefix+f.ID] = v
+		}
+	}
 	return out
 }
 
