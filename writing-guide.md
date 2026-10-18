@@ -2026,7 +2026,7 @@ Fields are text, long text, number, money, date, status and relation; not person
 a required Field of the rows that the declaration leaves out (a row that could never be saved). One Form per page declares it, on an
 Application's page. No `GEMINI_API_KEY` means no reader is drawn and the form stays the ordinary one. Every reading writes an
 `AI-EXTRACT` line and a `document_extractions` row, the ledger a usage quota would count; no cap exists yet (menata-app-document C2).
-A document reads for a few seconds (3-4 s for seven pages measured against the real model).
+A document that yields no value at all (not the kind the form is for) is refused with a message and makes no proposal (log `AI-EXTRACT-EMPTY`). A document reads for a few seconds (3-4 s for seven pages measured against the real model).
 **What leaves the host:** the document, the Fields' names and types, the instruction, and -- for a relation Field -- the labels of
 the related records (up to 150 of them; a longer list is not sent, and the answer is matched to a record by its label afterwards).
 A Workspace may send 60 documents an hour (`MAX_READINGS_PER_HOUR`; a failed attempt counts); the next is refused with 429.

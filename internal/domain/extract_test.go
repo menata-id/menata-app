@@ -37,3 +37,15 @@ func TestFitHoldsAnAnswerToItsControl(t *testing.T) {
 		}
 	}
 }
+
+func TestAReadingThatFoundNothingIsEmpty(t *testing.T) {
+	if !(ExtractionProposal{Values: map[string]ProposedValue{"a": {Value: ""}, "b": {Source: "p. 1"}}, Rows: [][]map[string]ProposedValue{nil}}).Empty() {
+		t.Error("blank values and no rows is not empty")
+	}
+	if (ExtractionProposal{Values: map[string]ProposedValue{"a": {Value: "x"}}}).Empty() {
+		t.Error("a value was found")
+	}
+	if (ExtractionProposal{Rows: [][]map[string]ProposedValue{{{"a": {}}}}}).Empty() {
+		t.Error("a row was found")
+	}
+}

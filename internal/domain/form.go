@@ -41,6 +41,22 @@ type FormInput struct {
 	Note, Flag string
 }
 
+// Empty says a reading found nothing: no Field holds a value and no row was proposed. A document that is not the kind the form
+// is for gives this, and a form "filled" with nothing is not a proposal a person should be sent to.
+func (p ExtractionProposal) Empty() bool {
+	for _, v := range p.Values {
+		if v.Value != "" {
+			return false
+		}
+	}
+	for _, kind := range p.Rows {
+		if len(kind) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // ProposedValue is one answer of a document reader, after the runtime checked it against its Field: Value is the string
 // the control starts as ("" when the document did not say or the answer did not fit the Field), Source where it was read, and
 // Review whether a person should look twice (it was inferred, or it did not fit and was left empty).

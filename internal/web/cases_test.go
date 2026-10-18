@@ -67,12 +67,14 @@ type caseProposed struct {
 type caseReader struct {
 	reading *caseReading
 	asked   *[]aiassist.ExtractRequest
+	// blank makes the reader find nothing: the answer for a document that is not the kind the form is for.
+	blank *bool
 }
 
 func (r caseReader) Extract(_ context.Context, req aiassist.ExtractRequest) (aiassist.ExtractResult, error) {
 	*r.asked = append(*r.asked, req)
 	out := aiassist.ExtractResult{Values: map[string]aiassist.Proposed{}, Rows: map[string][]map[string]aiassist.Proposed{}}
-	if r.reading == nil {
+	if r.reading == nil || *r.blank {
 		return out, nil
 	}
 	for k, v := range r.reading.Values {
@@ -96,6 +98,8 @@ type caseRead struct {
 	Nav  string   `yaml:"nav"`
 	File string   `yaml:"file"`
 	Asks []string `yaml:"asks"`
+	// Blank is a document the reader finds nothing in.
+	Blank bool `yaml:"blank"`
 }
 
 // caseSave submits the form a proposal filled (POST /pages/<nav>/extract/save) with the values a person left in it: Values
@@ -220,7 +224,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 104, Steps: 104},
+	"case22_production_contracts": {Rejected: 0, Passed: 105, Steps: 105},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -605,8 +609,8 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 
 	ids := map[string]string{}
 	cookies := map[string]string{}
-	// Four documents an hour: the fifth reading of a case is refused (K01c's ceiling against a loop).
-	cfg := config.Config{SessionSecret: slug + "-secret", TemplatePath: realLibrary(t), MaxReadingsPerHour: 4}
+	// Five documents an hour: the sixth reading of a case is refused (K01c's ceiling against a loop).
+	cfg := config.Config{SessionSecret: slug + "-secret", TemplatePath: realLibrary(t), MaxReadingsPerHour: 5}
 	for _, a := range sc.Actors {
 		email := fmt.Sprintf("case%d_%s@example.com", sc.Case, a.Name)
 		u, err := store.CreateRecord(wsCtx, "mch_user", map[string]any{"fld_email": email})
@@ -627,8 +631,9 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		t.Fatal(err)
 	}
 	var asked []aiassist.ExtractRequest
+	var blank bool
 	h := Routes(Deps{UserMachine: userMachineOf(t, app), Store: store, Files: files, Cfg: cfg,
-		Extractor: caseReader{reading: sc.Reading, asked: &asked},
+		Extractor: caseReader{reading: sc.Reading, asked: &asked, blank: &blank},
 		// A printer the harness only asks whether it exists: a page then draws its PDF button, and nothing is printed.
 		Printer:    pdf.NewPrinter("/bin/true", 1),
 		Workspaces: map[string]domain.Workspace{slug: installed}, DefaultWorkspaceID: ws.ID})
@@ -760,7 +765,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			continue
 		}
 		if s.Read != nil {
-			asked = nil
+			asked, blank = nil, s.Read.Blank
 			code := send(http.MethodPost, "/pages/"+s.Read.Nav+"/extract", s.As, nil, map[string]string{domain.ExtractFileParam: s.Read.File})
 			if why := outcomeProblem(code, s.Expect); why != "" {
 				fail("%s", why)

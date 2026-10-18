@@ -133,6 +133,13 @@ func extractDocument(store *data.Store, cfg config.Config, files *storage.Store,
 			http.Error(w, "the document could not be read -- try again, or fill the form by hand", http.StatusBadGateway)
 			return
 		}
+		if proposal.Empty() {
+			_ = files.Remove(key)
+			_ = store.FailExtraction(ctx, workspaceID, attempt.ID)
+			log.Printf("AI-EXTRACT-EMPTY nav=%s machine=%s extraction=%s bytes=%d took=%s", navID, source.ID, attempt.ID, len(content), time.Since(started).Round(time.Millisecond))
+			http.Error(w, "nothing for this form could be found in the document -- is it the right kind of document? You can fill the form by hand.", http.StatusUnprocessableEntity)
+			return
+		}
 		raw, err := json.Marshal(proposal)
 		if err == nil {
 			err = store.FinishExtraction(ctx, workspaceID, attempt.ID, raw)

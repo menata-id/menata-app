@@ -560,6 +560,12 @@ steps:
     delete: { ref: crew-contract }
     expect: ok
 
+  # A document that is not a contract finds nothing: the person is told, and no proposal is made.
+  - id: a-document-with-nothing-for-the-form-is-refused
+    as: silvia
+    read: { nav: nav_new_contract, file: pricing-guide.pdf, asks: [], blank: true }
+    expect: refused
+
   # K01c: a document is read for the contract form, a person checks what was proposed, and only then is anything written.
   - id: the-document-is-read
     as: silvia
@@ -695,7 +701,7 @@ steps:
     expect: ok
     count: { machine: mch_contract_term, where: { fld_contract: $a-row-field-nobody-declared-is-not-read, fld_term_status: Scheduled }, equals: 1 }
 
-  # A Workspace may have only so many documents read in an hour (four here); a failed attempt counts, a refused upload does not.
+  # A Workspace may have only so many documents read in an hour (five here, the blank one among them); a failed attempt counts, a refused upload does not.
   - id: a-fourth-document-is-read
     as: silvia
     read: { nav: nav_new_contract, file: ctr-c-033.pdf, asks: [fld_contract_no, fld_party_name, fld_contract_kind, fld_category, fld_value] }
