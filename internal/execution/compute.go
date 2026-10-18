@@ -151,6 +151,16 @@ func recomputeRecord(ctx context.Context, store *data.Store, m *domain.Machine, 
 // RecomputeChildren recomputes the records whose computed Fields read a Field of this one through `parent:`, after it is
 // written, so a value taken from a contract follows the contract. What they add up to on their own parents follows them.
 func RecomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string) error {
+	return recomputeChildren(ctx, store, machines, parent, id, 0)
+}
+
+// recomputeChildren follows a changed value down as well: an instalment's category follows its contract's, and a payment
+// plan's follows the instalment's, so a record that changed recomputes the records reading it in turn, at most as deep
+// as there are Machines.
+func recomputeChildren(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, parent *domain.Machine, id string, depth int) error {
+	if depth > len(machines) {
+		return nil
+	}
 	for _, cid := range slices.Sorted(maps.Keys(machines)) {
 		child := machines[cid]
 		vias := map[string]bool{}
@@ -178,6 +188,9 @@ func RecomputeChildren(ctx context.Context, store *data.Store, machines map[stri
 				}
 				if after != nil {
 					if err := RecomputeParents(ctx, store, machines, child, before, after); err != nil {
+						return err
+					}
+					if err := recomputeChildren(ctx, store, machines, child, c.ID, depth+1); err != nil {
 						return err
 					}
 				}

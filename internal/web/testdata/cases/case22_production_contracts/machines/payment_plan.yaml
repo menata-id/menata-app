@@ -3,6 +3,8 @@ name: Payment Plan
 fields:
   - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true }
   - { id: fld_plan_no, name: Plan no., type: text, required: true }
+  # Two hops down: the contract's category, through the instalment (an inherited field of an inherited field).
+  - { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }
   - { id: fld_plan_amount, name: Planned amount, type: money, required: true }
   - { id: fld_paid_date, name: Payment date, type: date }
   - { id: fld_plan_status, name: Status, type: status, default: Submitted, options: [Submitted, Awaiting proof, Paid, Rejected] }

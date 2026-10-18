@@ -152,7 +152,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 61, Steps: 61},
+	"case22_production_contracts": {Rejected: 0, Passed: 68, Steps: 68},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)
@@ -665,7 +665,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 				}
 			}
 			if s.Count != nil {
-				if n := countRecords(t, store, wsCtx, s.Count.Machine, s.Count.Where); n != s.Count.Equals {
+				if n := countRecords(t, store, wsCtx, s.Count.Machine, substAll(s.Count.Where, subst)); n != s.Count.Equals {
 					fail("%s holds %d matching records, want %d", s.Count.Machine, n, s.Count.Equals)
 					ok = false
 				}
@@ -784,7 +784,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			}
 		}
 		if s.Count != nil {
-			if n := countRecords(t, store, wsCtx, s.Count.Machine, s.Count.Where); n != s.Count.Equals {
+			if n := countRecords(t, store, wsCtx, s.Count.Machine, substAll(s.Count.Where, subst)); n != s.Count.Equals {
 				fail("%s holds %d matching records, want %d", s.Count.Machine, n, s.Count.Equals)
 				ok = false
 			}
@@ -839,6 +839,15 @@ func TestSubstituteRefs(t *testing.T) {
 			t.Errorf("substituteRefs(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+// substAll is a count's wanted values with the refs of earlier steps ($contract) put in.
+func substAll(where map[string]string, subst func(string) string) map[string]string {
+	out := make(map[string]string, len(where))
+	for k, v := range where {
+		out[k] = subst(v)
+	}
+	return out
 }
 
 func countRecords(t *testing.T, store *data.Store, ctx context.Context, machine string, where map[string]string) int {

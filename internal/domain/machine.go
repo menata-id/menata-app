@@ -368,6 +368,12 @@ type ComputeExpr struct {
 	Children *ChildAggregate
 }
 
+// Inherited says the whole value is one related record's Field taken as it is (`compute: {parent: fld_contract.fld_category}`):
+// a Field a person never writes whose value follows the record it points through, of whatever type that Field is.
+func (e ComputeExpr) Inherited() bool {
+	return e.Op == "" && e.Parent != nil && e.Number == nil && e.Field == ""
+}
+
 // ParentRef is `parent: fld_contract.fld_value`: the Field Field of the record this record's relation Field Via points at.
 type ParentRef struct {
 	Via, Field string

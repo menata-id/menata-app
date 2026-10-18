@@ -227,3 +227,59 @@ func TestAMachineCannotAddUpItsOwnRecords(t *testing.T) {
 		t.Errorf("validateComputeTargets = %v, want a self-aggregate refused", err)
 	}
 }
+
+// TestAnInheritedFieldIsDeclaredAsTheFieldItTakes: `compute: {parent: fld_contract.fld_x}` alone takes the related
+// record's value as it is, so the Field is that Field's own type (a relation to the same Machine, a status with the same
+// options) and is reached through a relation of this Machine -- every other shape is a load error, not a blank cell.
+func TestAnInheritedFieldIsDeclaredAsTheFieldItTakes(t *testing.T) {
+	const parentSrc = `id: mch_contract
+name: Contract
+fields:
+  - { id: fld_party, name: Party, type: text }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category }
+  - { id: fld_status, name: Status, type: status, options: [Draft, Active] }
+`
+	const childSrc = `id: mch_term
+name: Term
+fields:
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract }
+  - { id: fld_party, name: Party, type: text, compute: { parent: fld_contract.fld_party } }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+`
+	load := func(child string) error {
+		var ms []*domain.Machine
+		for _, src := range []string{parentSrc, child} {
+			m, err := Parse([]byte(src))
+			if err != nil {
+				return err
+			}
+			if err := Validate(m); err != nil {
+				return err
+			}
+			ms = append(ms, m)
+		}
+		return validateComputeTargets(ms)
+	}
+	if err := load(childSrc); err != nil {
+		t.Fatalf("a well-formed inherited field was refused: %v", err)
+	}
+	cases := map[string]struct{ from, to, want string }{
+		"another type":           {"id: fld_party, name: Party, type: text, compute", "id: fld_party, name: Party, type: long_text, compute", "an inherited field is declared as the field it takes"},
+		"another machine":        {"type: relation, machine: mch_category, compute", "type: relation, machine: mch_other, compute", "an inherited field is declared as the field it takes"},
+		"no such field":          {"parent: fld_contract.fld_party", "parent: fld_contract.fld_nope", "has no field"},
+		"not through a relation": {"parent: fld_contract.fld_party", "parent: fld_party.fld_party", "not a relation field of this machine"},
+		"required":               {"id: fld_party, name: Party, type: text, compute", "id: fld_party, name: Party, type: text, required: true, compute", "cannot be required"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			src := strings.Replace(childSrc, tc.from, tc.to, 1)
+			if src == childSrc {
+				t.Fatalf("fixture edit %q did not apply", tc.from)
+			}
+			err := load(src)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("got %v, want an error naming %q", err, tc.want)
+			}
+		})
+	}
+}

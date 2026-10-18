@@ -32,6 +32,27 @@ steps:
     as: silvia
     create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: First shooting day, fld_gross: "72000", fld_due_date: "2099-11-02" } }
     expect: ok
+    record: { fld_party: Reza Anggara, fld_contract_ref: CTR/C/026, fld_category: $lead-cast }
+
+  # An inherited field is the related record's own, so it is never typed, and it follows the contract when that changes.
+  - id: an-inherited-field-is-not-typed
+    as: silvia
+    update: { ref: first-shooting-day, values: { fld_party: Someone Else } }
+    expect: ok
+    record: { fld_party: Reza Anggara }
+  - id: the-contracts-party-is-renamed
+    as: silvia
+    update: { ref: contract, values: { fld_party_name: Reza A. Anggara } }
+    expect: ok
+  - id: its-instalment-follows
+    as: silvia
+    update: { ref: first-shooting-day, values: { fld_term_label: First shooting day } }
+    expect: ok
+    record: { fld_party: Reza A. Anggara }
+  - id: the-contract-is-renamed-back
+    as: silvia
+    update: { ref: contract, values: { fld_party_name: Reza Anggara } }
+    expect: ok
 
   # The instalments of one contract may not add up past its value: this one would make 186000.
   - id: instalments-cannot-exceed-the-value
@@ -301,6 +322,22 @@ steps:
     as: silvia
     create: { machine: mch_payment_plan, values: { fld_term: $wrap, fld_plan_no: PP-0151, fld_plan_amount: "12000" } }
     expect: ok
+    record: { fld_plan_category: $lead-cast }
+  # Two hops: a contract's new category reaches its instalments and, through them, their payment plans.
+  - id: supporting-cast
+    as: silvia
+    create: { machine: mch_category, values: { fld_category_name: Supporting Cast, fld_category_kind: Cast } }
+    expect: ok
+  - id: the-contract-changes-category
+    as: silvia
+    update: { ref: contract, values: { fld_category: $supporting-cast } }
+    expect: ok
+    count: { machine: mch_contract_term, where: { fld_category: $supporting-cast }, equals: 3 }
+  - id: and-so-do-its-payment-plans
+    as: silvia
+    update: { ref: contract, values: { fld_category: $supporting-cast } }
+    expect: ok
+    count: { machine: mch_payment_plan, where: { fld_plan_category: $supporting-cast }, equals: 4 }
   - id: finance-rejects-it
     as: fina
     update: { ref: a-plan-for-wrap, values: { fld_plan_status: Rejected } }

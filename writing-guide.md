@@ -357,6 +357,23 @@ stored record is recomputed when the Workspace's metadata loads** (start, reload
 record whose values change is written. `ensure:` may take its bound from the parent too: `at_most: {parent:
 fld_contract.fld_value}` (through the relation it groups by, `per:`).
 
+**An inherited Field (2026-10-18)** is `compute: {parent: fld_contract.fld_category}` and nothing else: the Field takes the
+related record's value *as it is*, of whatever type, so it is declared as the Field it takes (the same `type:`, the same
+`machine:` for a relation, the same `options:` for a status). It exists so a list of instalments or payment plans can show,
+search and filter by what belongs to its contract -- the contract's party, number and category -- with the ordinary
+`field:` column, `where:` and FilterSelect, no join:
+
+```yaml
+# mch_contract_term
+- { id: fld_party,    name: Contracted party, type: text,     compute: { parent: fld_contract.fld_party_name } }
+- { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+# mch_payment_plan: through the instalment, which itself inherits -- two hops
+- { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }
+```
+
+Nobody types it (a typed value is overwritten), it cannot be `required:` or carry a `default:`, and when the contract changes
+its instalments follow and, through them, their payment plans (`execution.RecomputeChildren` goes down as well as up).
+
 What it does not do, stated: a value that is not a number (an overflow, a rounding past 10 places) is no value; a figure
 stored as text is read as a figure; a month added to the 31st lands on the month's last day, and a count of days or months
 must be whole. A record whose computed value changes because a child or a parent changed is **written by the runtime**: its

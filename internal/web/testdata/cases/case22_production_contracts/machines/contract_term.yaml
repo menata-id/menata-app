@@ -4,6 +4,11 @@ fields:
   # A contract with instalments cannot be deleted from under them (K-13).
   - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
   - { id: fld_term_label, name: Label, type: text }
+  # What an instalment says of its contract, kept on it by the runtime so a list of instalments is searched and filtered by
+  # them: the contract's party, number and category (inherited fields).
+  - { id: fld_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }
+  - { id: fld_contract_ref, name: Contract no., type: text, compute: { parent: fld_contract.fld_contract_no } }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
   # A paid instalment's figures are a record of a payment: they stay as they were paid.
   - { id: fld_gross, name: Gross, type: money, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   # VAT and WHT are typed as the figures on the invoice; net is gross less both (plan A1, K-9).

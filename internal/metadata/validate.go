@@ -1865,6 +1865,9 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 	}
 	var issues []string
 	tree := f.Compute.Tree()
+	if tree.Inherited() {
+		return validateInherited(f, tree, fieldsByID)
+	}
 	if !domain.KnownComputeOps[tree.Op] {
 		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, tree.Op, sortedComputeOps()))
 		return issues
@@ -1895,6 +1898,38 @@ func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []strin
 			}
 			seen[id] = true
 		}
+	}
+	return issues
+}
+
+// validateInherited holds an inherited Field (`compute: {parent: fld_contract.fld_category}`: the value is the related
+// record's own, whatever its type) to what such a Field is: written by the runtime, reached through a relation of this
+// Machine. That the parent's Field exists and is of the same type is validateComputeTargets' question.
+// describeField is a Field's type as an issue says it: "relation to mch_category", "status [A B]".
+func describeField(f domain.Field) string {
+	switch {
+	case f.RelatedMachine != "":
+		return fmt.Sprintf("a %s to %s", f.Type, f.RelatedMachine)
+	case len(f.Options) > 0:
+		return fmt.Sprintf("a %s %v", f.Type, f.Options)
+	}
+	return "a " + string(f.Type)
+}
+
+func validateInherited(f domain.Field, tree domain.ComputeExpr, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	if f.Required {
+		issues = append(issues, fmt.Sprintf("field %q: an inherited field cannot be required -- nobody enters it", f.ID))
+	}
+	if f.Default != nil {
+		issues = append(issues, fmt.Sprintf("field %q: an inherited field cannot declare a default -- its value is always the related record's", f.ID))
+	}
+	via, ok := fieldsByID[tree.Parent.Via]
+	if !ok || via.Type != domain.FieldTypeRelation {
+		issues = append(issues, fmt.Sprintf("field %q: compute: parent: %s.%s goes through %q, which is not a relation field of this machine", f.ID, tree.Parent.Via, tree.Parent.Field, tree.Parent.Via))
+	}
+	if tree.Parent.Via == f.ID {
+		issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
 	}
 	return issues
 }
@@ -2053,9 +2088,16 @@ func validateComputeTargets(machines []*domain.Machine) error {
 					if parent != nil {
 						target, ok = parent.FieldByID(p.Field)
 					}
+					inherited := f.Compute.Tree().Inherited()
 					switch {
 					case !ok:
 						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s -- %q has no field %q", where, p.Via, p.Field, via.RelatedMachine, p.Field))
+					case inherited:
+						// The Field takes the related record's value as it is, so it is that Field's own type (a relation
+						// to the same Machine, a status with the same options): what is stored is then what is read.
+						if target.Type != f.Type || target.RelatedMachine != f.RelatedMachine || !slices.Equal(target.Options, f.Options) {
+							issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is %s, and this field is %s: an inherited field is declared as the field it takes", where, p.Via, p.Field, describeField(target), describeField(f)))
+						}
 					case !target.Type.IsNumeric():
 						issues = append(issues, fmt.Sprintf("%s: parent: %s.%s is a %s field, and a computed value reads a figure", where, p.Via, p.Field, target.Type))
 					case target.Compute != nil:
