@@ -657,6 +657,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := stampRecordPages(app.Workspace.Applications, app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateForeignLinks(app.Workspace.Applications); err != nil {
+		return nil, err
+	}
 	// After stamping, because it asks each cast Machine a question -- and before the Dataset validators
 	// below, so "the engine needs this Dataset" is reported ahead of "this Dataset is malformed".
 	//
@@ -703,6 +706,49 @@ func LoadApplication(path string) (*App, error) {
 	// has finished building and stamping them, so the two can never be out of step.
 	app.Workspace.Machines = app.Machines
 	return app, nil
+}
+
+// validateForeignLinks holds a link into another Application (`in:`) to what it can be held to when the Workspace's
+// Applications are all in front of the loader: it names an Application other than its own and, when that Application is
+// installed here, a screen of it that exists and is not a record page. An Application that is not installed is no fault --
+// the link is not drawn -- because Applications install and remove on their own.
+func validateForeignLinks(apps []domain.Application) error {
+	byID := make(map[string]domain.Application, len(apps))
+	for _, a := range apps {
+		byID[a.ID] = a
+	}
+	var issues []string
+	var walk func(app domain.Application, nav string, n domain.PageNode)
+	walk = func(app domain.Application, nav string, n domain.PageNode) {
+		if n.In != "" {
+			target, installed := byID[n.In]
+			var item domain.NavigationItem
+			var found bool
+			if installed {
+				item, found = target.NavigationItemByID(n.To)
+			}
+			switch {
+			case n.In == app.ID:
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: in: %s is this Application -- name the item with to: alone", app.ID, nav, n.In))
+			case installed && (!found || item.RecordOf != ""):
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q: in: %s has no screen %q to link to (a record page cannot be linked from outside: it needs a record)", app.ID, nav, n.In, n.To))
+			}
+		}
+		for _, c := range n.Children {
+			walk(app, nav, c)
+		}
+	}
+	for _, app := range apps {
+		for _, item := range app.AllNavigation {
+			if item.Page != nil {
+				walk(app, item.ID, *item.Page)
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }
 
 // stampRecordPages gives each Machine an Application declares a record page for (`record_of:`) that page's route

@@ -2017,3 +2017,32 @@ func TestBackToNamesAScreenARecordPageLeavesTo(t *testing.T) {
 		}
 	}
 }
+
+// TestAForeignLinkIsHeldToWhatTheLoaderCanSee: `in:` names another Application; when it is installed, the screen must exist
+// and not be a record page; when it is not installed that is no fault (the link is not drawn).
+func TestAForeignLinkIsHeldToWhatTheLoaderCanSee(t *testing.T) {
+	link := func(in, to string) *domain.PageNode {
+		return &domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "static", Type: "link", To: to, In: in}}}
+	}
+	payments := domain.Application{ID: "app_payments", AllNavigation: []domain.NavigationItem{
+		{ID: "nav_new_plan", Route: "/pages/nav_new_plan"}, {ID: "nav_plan", Route: "/pages/nav_plan", RecordOf: "mch_plan"}}}
+	for name, tc := range map[string]struct {
+		in, to, want string
+		installed    bool
+	}{
+		"fine":                {"app_payments", "nav_new_plan", "", true},
+		"not installed":       {"app_gone", "nav_new_plan", "", true},
+		"its own Application": {"app_contracts", "nav_new_plan", "is this Application", true},
+		"no such screen":      {"app_payments", "nav_gone", "has no screen", true},
+		"a record page":       {"app_payments", "nav_plan", "has no screen", true},
+	} {
+		contracts := domain.Application{ID: "app_contracts", AllNavigation: []domain.NavigationItem{{ID: "nav_one", Page: link(tc.in, tc.to)}}}
+		err := validateForeignLinks([]domain.Application{contracts, payments})
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: refused: %v", name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: got %v, want an error naming %q", name, err, tc.want)
+		}
+	}
+}

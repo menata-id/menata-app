@@ -1954,6 +1954,13 @@ $parameters.selected}` (`limit: 1`): the list alone shows no detail, and picking
 fields and its edge Form ("Mark as paid", the proof uploaded in the same submit) -- while a pick that is no record opens
 nothing. No new key: the pattern is the row action, `pass:` and the request-parameter Dataset.
 
+**A link into another Application (`in:`, 2026-10-18, K01d's "Create payment plan").** `{static: link, to: nav_new_plan,
+in: app_instalments_payments, text: Create payment plan}` points at a screen of *another* Application of the same Workspace.
+Applications install and remove on their own, so the link is drawn only while that Application is installed here and this viewer
+may open it -- otherwise it is simply not there, never a 403. The loader refuses `in:` naming the page's own Application, and,
+when the other Application is installed, a screen it does not have or a record page (which needs a record's id). Everything else
+about a link (`text:`, `variant:`) is as for an own link; `pass:`/`step:`/`list_of:` do not go with it.
+
 A create Form may take **`values: {fld_contract: $parameters.contract}`**: a Field the request names starts as that value
 and is drawn as its words in a hidden input, not offered again. **`then: record`** (a create Form only) opens the record it made
 (its record page when it has one). **`starts: {fld_party_name: $parameters.fld_party_name}`** (2026-10-18) begins a Field with

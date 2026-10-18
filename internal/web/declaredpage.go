@@ -58,7 +58,9 @@ func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store
 				}
 				params["id"] = recordID
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)).WithFiles(files), currentActor(req, store, cfg), params, time.Now(), app.LinkTargets(rendering.CurrentWorkspace(ctx).Navigation), *item.Page)
+			actor := currentActor(req, store, cfg)
+			targets := linkTargetsFor(rendering.CurrentWorkspace(ctx), app, actor, cfg)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)).WithFiles(files), actor, params, time.Now(), targets, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -215,4 +217,27 @@ func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]compos
 		"draft_applications": draftApplicationsProvider(store),
 		"current_workspace":  currentWorkspaceProvider(store),
 	}
+}
+
+// linkTargetsFor is what a link on one of app's pages may name: its own targets (Application.LinkTargets) and -- for a link
+// that says `in:` -- the screens of the Workspace's *other* Applications this viewer may open, each named
+// "<application id>/<item id>" (domain.ForeignLinkID). An Application that is not installed here, or that this viewer
+// cannot open, contributes none, so such a link is not drawn rather than drawn to a 403 or a 404. A screen that is no menu
+// entry (the form a list opens) may be named -- that is what "Create payment plan" is -- but a record page may not: it needs
+// the record's id, which only a link from inside the Application passes.
+func linkTargetsFor(ws domain.Workspace, app domain.Application, actor domain.Actor, cfg config.Config) []domain.NavigationItem {
+	targets := app.LinkTargets(ws.Navigation)
+	for _, other := range openableApplications(ws, actor, cfg) {
+		if other.ID == app.ID {
+			continue
+		}
+		for _, item := range other.AllNavigation {
+			if item.RecordOf != "" || item.Route == "" {
+				continue
+			}
+			item.ID = domain.ForeignLinkID(other.ID, item.ID)
+			targets = append(targets, item)
+		}
+	}
+	return targets
 }

@@ -447,6 +447,25 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 		for _, app := range wss[slug].Workspace.Applications {
 			declared := map[string]bool{}
 			pageOf := map[string]*domain.PageNode{}
+			// A link into another Application (`in:`) names a screen of that Application when it is installed in this
+			// Workspace, and nothing is owed when it is not (the link is not drawn).
+			foreign := map[string]bool{}
+			for _, other := range wss[slug].Workspace.Applications {
+				if other.ID == app.ID {
+					continue
+				}
+				for _, it := range other.AllNavigation {
+					foreign[domain.ForeignLinkID(other.ID, it.ID)] = it.RecordOf == ""
+				}
+			}
+			installed := func(appID string) bool {
+				for _, other := range wss[slug].Workspace.Applications {
+					if other.ID == appID {
+						return true
+					}
+				}
+				return false
+			}
 			for _, it := range app.LinkTargets(wss[slug].Workspace.Navigation) {
 				declared[it.ID] = true
 				pageOf[it.ID] = it.Page
@@ -469,6 +488,10 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 						t.Errorf("%s: link takes href from %q; only the reserved %q or a file Field's address (filehref:) is one", where, role, domain.PageRecordRole)
 					case fromHref:
 						recordLinks++
+					case n.In != "":
+						if installed(n.In) && !foreign[domain.ForeignLinkID(n.In, n.To)] {
+							t.Errorf("%s: link into %s names %q, which that Application has no linkable screen of", where, n.In, n.To)
+						}
 					case !declared[n.To]:
 						t.Errorf("%s: link to %q names no navigation item of this Application", where, n.To)
 					}

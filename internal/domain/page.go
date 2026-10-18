@@ -33,6 +33,12 @@ type PageNode struct {
 	// renaming a route in one place moves every page that links to it. Valid only on a `link`, which in turn
 	// has no other way to name a destination.
 	To string
+	// In (`in: app_instalments_payments`, beside to:) makes the link a **link into another Application of the same Workspace**
+	// (2026-10-18, mockup K01d's "Create payment plan"). Applications install and remove on their own, so the link is
+	// drawn only while that Application is installed here and this viewer may open it, and is simply not drawn otherwise;
+	// the loader refuses an `in:` that names an installed Application's item it does not have. Valid only on a link with
+	// to:, and never the page's own Application (use to: alone).
+	In string
 	// ListOf is the Dataset whose Machine a `static: link` opens the generic list page of
 	// (`list_of: ds_recent_documents` -> `MachineListRoute(<that Dataset's source>)`). It is the second way a
 	// link names a destination, for the screens that have no navigation item: a Machine claimed by no
@@ -419,6 +425,10 @@ const PageGroupLabelRole = "group:label"
 func PageDerivedRole(role string) bool {
 	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
 }
+
+// ForeignLinkID is how another Application's navigation item is named in a link-target list: "<application id>/<item id>".
+// An id never contains a slash, so it cannot be taken for one of the page's own Application's items.
+func ForeignLinkID(applicationID, itemID string) string { return applicationID + "/" + itemID }
 
 // PageBlockedRolePrefix and PageBlockedRoleOf are the derived role that says why an edge is not offered: `blocked:trn_contract_close`
 // is the declared reason (Constraint.Reason) of a Constraint that holds back this edge for this record -- "A contract cannot

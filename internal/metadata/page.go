@@ -35,6 +35,7 @@ type pageNodeDoc struct {
 	binding  *pageBindingDoc
 	from     map[string]string
 	to       string
+	in       string
 	listOf   string
 	param    string
 	count    *domain.PageCount
@@ -99,6 +100,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: to: names one navigation item id, such as nav_approval_inbox -- never a route", key.Line)
 			}
 			p.to = val.Value
+		case "in":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: in: names one Application id, such as app_instalments_payments -- the Application whose navigation item to: names", key.Line)
+			}
+			p.in = val.Value
 		case "param":
 			if val.Kind != yaml.ScalarNode || val.Value == "" {
 				return fmt.Errorf("line %d: param: names one query parameter, such as status -- the name a destination page's Dataset reads as $parameters.<name>", key.Line)
@@ -409,7 +415,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Counts: p.counts}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Counts: p.counts, In: p.in}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}

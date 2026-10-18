@@ -431,11 +431,22 @@ navigation:
               children:
                 - static: subheading
                   text: Instalments
-                - static: link
-                  to: nav_new_term
-                  text: + Add instalment
-                  variant: secondary
-                  pass: { contract: "record:id" }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: link
+                      to: nav_new_term
+                      text: + Add instalment
+                      variant: secondary
+                      pass: { contract: "record:id" }
+                    # Into Instalments & Payments (K01d): drawn only where that Application is installed and this viewer may
+                    # open it; the plan form asks which instalment is being paid.
+                    - static: link
+                      to: nav_new_plan
+                      in: app_instalments_payments
+                      text: Create payment plan
+                      variant: secondary
         - component: Table
           label: Instalments
           empty: No instalment yet. Add the first one above.

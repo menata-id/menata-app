@@ -1624,3 +1624,30 @@ func TestLowerWindowSaysTheDatasetsWindowInWordsAndWritesNoText(t *testing.T) {
 		}
 	}
 }
+
+// TestLower_aLinkIntoAnotherApplicationIsDrawnOnlyWhereItResolves: `in:` names the other Application, and the link is not an
+// error when this Workspace does not offer it to this viewer -- it is simply not drawn; the same link without in: still
+// fails loudly for a destination that does not exist.
+func TestLower_aLinkIntoAnotherApplicationIsDrawnOnlyWhereItResolves(t *testing.T) {
+	foreign := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "link", To: "nav_new_plan", In: "app_payments", Props: map[string]string{"text": "Create payment plan"}}}}
+	offered := Resolver{Route: NavigationRoutes([]domain.NavigationItem{{ID: domain.ForeignLinkID("app_payments", "nav_new_plan"), Label: "New plan", Route: "/pages/nav_new_plan"}})}
+	tree, err := Lower(foreign, offered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Children[0].Props; got["href"] != "/pages/nav_new_plan" || got["text"] != "Create payment plan" {
+		t.Errorf("an offered foreign link = %v, want href /pages/nav_new_plan", got)
+	}
+	tree, err = Lower(foreign, navFixture("/somewhere"))
+	if err != nil {
+		t.Fatalf("a link into an Application not offered here was an error: %v", err)
+	}
+	if len(tree.Children) != 0 {
+		t.Errorf("a link into an Application not offered here was drawn: %+v", tree.Children)
+	}
+	own := linkTo("nav_gone", nil)
+	if _, err := Lower(own, navFixture("/somewhere")); err == nil {
+		t.Error("a link to a missing screen of the page's own Application was accepted")
+	}
+}

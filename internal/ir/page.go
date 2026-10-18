@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -559,6 +560,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		return nil, err
 	}
 	props, err = lowerLink(n, props, r, path, record)
+	if errors.Is(err, errLinkNotDrawn) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -748,6 +752,10 @@ func lowerComplete(n domain.PageNode, set RecordSet, path string) (map[string]st
 	return props, nil
 }
 
+// errLinkNotDrawn is lowerLink's answer for a link into another Application that this Workspace does not offer this viewer:
+// not an error of the page, a link that is not there.
+var errLinkNotDrawn = errors.New("ir: link into an Application not offered here")
+
 func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string, record map[string]string) (map[string]string, error) {
 	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
 	for prop, role := range n.From {
@@ -762,6 +770,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		return nil, fmt.Errorf("%s: step: moves the parameter a link sends, so it is valid only on a static: link that names its destination with to:", path)
 	}
 	if !isLink {
+		if n.In != "" {
+			return nil, fmt.Errorf("%s: in: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
+		}
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
 		}
@@ -794,11 +805,21 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	if n.To == "" {
 		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>, list_of: <dataset id>, or from: {href: %s} inside a record template", path, domain.PageRecordRole)
 	}
+	if n.In != "" && (n.ListOf != "" || n.Step != nil) {
+		return nil, fmt.Errorf("%s: in: names the Application of the to: this link points at; it does not go with list_of: or step:", path)
+	}
 	if r.Route == nil {
 		return nil, fmt.Errorf("%s: no resolver for routes", path)
 	}
-	route, label, ok := r.Route(n.To)
+	routeID := n.To
+	if n.In != "" {
+		routeID = domain.ForeignLinkID(n.In, n.To)
+	}
+	route, label, ok := r.Route(routeID)
 	if !ok {
+		if n.In != "" {
+			return nil, errLinkNotDrawn // that Application is not installed here, or this viewer may not open it
+		}
 		return nil, fmt.Errorf("%s: to: %s names no navigation item in this Application", path, n.To)
 	}
 	out := make(map[string]string, len(props)+2)
