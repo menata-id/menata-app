@@ -13,7 +13,14 @@ fields:
   - { id: fld_due_date, name: Due date, type: date, required: true }
   - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
   # How many payment plans name this instalment: what "No plan" and "Create plan" read.
-  - { id: fld_plans, name: Plans, type: number, compute: { count_children: { machine: mch_payment_plan, via: fld_term } } }
+  # A rejected plan is not a plan (owner, 2026-10-18): every plan naming this instalment, less the rejected ones.
+  - id: fld_plans
+    name: Plans
+    type: number
+    compute:
+      subtract:
+        - { count_children: { machine: mch_payment_plan, via: fld_term } }
+        - { count_children: { machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, equals: Rejected } } }
 
 deletable_unless:
   - { field: fld_term_status, equals: Paid, reason: A paid instalment is a record of a payment and cannot be deleted. }
@@ -35,7 +42,7 @@ datasets:
         - { field: fld_term_status, op: equals, value: Overdue, if_param: view=overdue }
         - { field: fld_plans, op: equals, value: "0", if_param: view=noplan }
     relations:
-      - { id: rel_plans, machine: mch_payment_plan, via: fld_term }
+      - { id: rel_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
     sort: [{ field: fld_due_date }]
     limit: 100
   - id: ds_term_views

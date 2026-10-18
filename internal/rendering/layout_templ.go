@@ -2703,11 +2703,12 @@ func staticLink(href, text string) templ.Component {
 	})
 }
 
-// pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**
-// screens carried as five identical lines each.
+// pageHeader is the primitives' first consumer: the heading / subtitle block that **eleven** screens carried as
+// five identical lines each. It carried the Application's name as an eyebrow too, until the owner dropped it
+// (2026-10-18): the application bar beside the menu already names the Application, and no mockup draws it.
 //
-// All three strings are already declarations -- the Application's own `name:`, and the navigation item's
-// `title:` and `description:` -- so this composes rather than decides. The subtitle is omitted when no
+// Both strings are already declarations -- the navigation item's `title:` and `description:` -- so this
+// composes rather than decides. The subtitle is omitted when no
 // description is declared, which is the guard `approvalinbox.templ` established and the seven Stage 0.5
 // migrations adopted: an absent declaration must render nothing, not an empty styled element.
 //
@@ -2736,8 +2737,7 @@ func pageHeader(navID string) templ.Component {
 			templ_7745c5c3_Var91 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		app, _ := CurrentApplication(ctx)
-		templ_7745c5c3_Err = uiNode(headerTree(app.Name, titleByID(ctx, navID), descriptionByID(ctx, navID))).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = uiNode(headerTree(titleByID(ctx, navID), descriptionByID(ctx, navID))).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2757,9 +2757,8 @@ func pageHeader(navID string) templ.Component {
 // can be diffed byte-for-byte against eight live screens is worth more than a large one that cannot. The
 // subtitle node is omitted rather than emptied when no description is declared -- the same guard the templ
 // version had, now a property of the tree.
-func headerTree(appName, title, description string) ir.UINode {
+func headerTree(title, description string) ir.UINode {
 	children := []ir.UINode{
-		{Kind: ir.NodeStatic, Type: string(domain.StaticEyebrow), Props: map[string]string{"text": appName}},
 		{Kind: ir.NodeStatic, Type: string(domain.StaticHeading), Props: map[string]string{"text": title}},
 	}
 	if description != "" {
@@ -3029,7 +3028,7 @@ func uiNode(n ir.UINode) templ.Component {
 				var templ_7745c5c3_Var102 string
 				templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.ResolveAttributeValue(n.Props["anchor"])
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1478, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1477, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var102)
 				if templ_7745c5c3_Err != nil {

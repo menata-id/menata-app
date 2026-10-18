@@ -1375,11 +1375,12 @@ templ staticLink(href, text string) {
 	}
 }
 
-// pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**
-// screens carried as five identical lines each.
+// pageHeader is the primitives' first consumer: the heading / subtitle block that **eleven** screens carried as
+// five identical lines each. It carried the Application's name as an eyebrow too, until the owner dropped it
+// (2026-10-18): the application bar beside the menu already names the Application, and no mockup draws it.
 //
-// All three strings are already declarations -- the Application's own `name:`, and the navigation item's
-// `title:` and `description:` -- so this composes rather than decides. The subtitle is omitted when no
+// Both strings are already declarations -- the navigation item's `title:` and `description:` -- so this
+// composes rather than decides. The subtitle is omitted when no
 // description is declared, which is the guard `approvalinbox.templ` established and the seven Stage 0.5
 // migrations adopted: an absent declaration must render nothing, not an empty styled element.
 //
@@ -1388,8 +1389,7 @@ templ staticLink(href, text string) {
 // and three labelled values" is beyond Layout and Static Content, and pretending otherwise would be the
 // unbounded `GenericComponent` §12.3 forbids by name.
 templ pageHeader(navID string) {
-	{{ app, _ := CurrentApplication(ctx) }}
-	@uiNode(headerTree(app.Name, titleByID(ctx, navID), descriptionByID(ctx, navID)))
+	@uiNode(headerTree(titleByID(ctx, navID), descriptionByID(ctx, navID)))
 }
 
 // headerTree builds the header block as **UI IR** rather than as templ structure -- the first screen content
@@ -1404,9 +1404,8 @@ templ pageHeader(navID string) {
 // can be diffed byte-for-byte against eight live screens is worth more than a large one that cannot. The
 // subtitle node is omitted rather than emptied when no description is declared -- the same guard the templ
 // version had, now a property of the tree.
-func headerTree(appName, title, description string) ir.UINode {
+func headerTree(title, description string) ir.UINode {
 	children := []ir.UINode{
-		{Kind: ir.NodeStatic, Type: string(domain.StaticEyebrow), Props: map[string]string{"text": appName}},
 		{Kind: ir.NodeStatic, Type: string(domain.StaticHeading), Props: map[string]string{"text": title}},
 	}
 	if description != "" {

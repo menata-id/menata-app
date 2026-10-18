@@ -19,7 +19,14 @@ fields:
   # set by hand.
   - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
   # How many payment plans name this instalment (Instalments & Payments): what "No plan" and "Create plan" read.
-  - { id: fld_plans, name: Payment plans, type: number, compute: { count_children: { machine: mch_payment_plan, via: fld_term } } }
+  # A rejected plan is not a plan (owner, 2026-10-18): every plan naming this instalment, less the rejected ones.
+  - id: fld_plans
+    name: Payment plans
+    type: number
+    compute:
+      subtract:
+        - { count_children: { machine: mch_payment_plan, via: fld_term } }
+        - { count_children: { machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, equals: Rejected } } }
 
 card_fields:
   - { field: fld_term_label, role: title }
@@ -133,7 +140,7 @@ datasets:
         - { field: fld_due_date, op: lte, value: $today+7, if_param: view=due }
         - { field: fld_plans, op: equals, value: "0", if_param: view=noplan }
     relations:
-      - { id: rel_term_plans, machine: mch_payment_plan, via: fld_term }
+      - { id: rel_term_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
     sort: [{ field: fld_due_date, direction: asc }]
     limit: 200
   # A contract's own page (record_of): its instalments, the contract the route names being their parent.

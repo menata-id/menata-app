@@ -1274,8 +1274,8 @@ stores either. `TestSettingsHubNamesNoApplication` keeps the files that draw it 
 ### 12.1a `page:` — declaring a screen's body
 
 A navigation item may carry a `page:` block. The runtime then renders `/pages/<nav id>` with one generic
-handler: **no Go function, no `.templ`, no per-screen route** (007 §12.4, §15.1). The header (eyebrow,
-`<h1>`, subtitle) is **not written in `page:`**; it comes from the item's own `title:`/`description:`
+handler: **no Go function, no `.templ`, no per-screen route** (007 §12.4, §15.1). The header (`<h1>`,
+subtitle; no eyebrow since 2026-10-18 -- the application bar already names the Application) is **not written in `page:`**; it comes from the item's own `title:`/`description:`
 (`label:` when there is no title), so a heading is never stated twice (001 #8).
 
 A node is a mapping with **exactly one** of three discriminators, whose value is the type:
@@ -2992,7 +2992,7 @@ neither**. Where they are absent the screen's own subtitle is a literal in its `
 `activity.templ`'s "A cross-project feed of business events." is one -- and
 `TestRenderingHasNoHardcodedPageHeading` cannot see it, because that gate matches a *declared* string
 verbatim and there is nothing declared to match. So the page header is already almost entirely
-derivable (eyebrow from the Application's name, heading from `label:`/`title:`, subtitle from
+derivable (heading from `label:`/`title:`, subtitle from
 `description:`); what is missing is the declaration, not the mechanism. Declaring `description:` on a
 nav item is the cheapest real step toward the row above.
 

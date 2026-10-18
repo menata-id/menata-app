@@ -295,6 +295,23 @@ steps:
       shows: [">Wrap<", ">Create plan<", 'aria-current="true"']
       hides: [">First shooting day<", ">PP-0150<"]
     expect: ok
+  # A rejected plan is not a plan (owner, 2026-10-18): the instalment stays in No plan, with Create plan, and the
+  # Payment plan column does not name the rejected one.
+  - id: a-plan-for-wrap
+    as: silvia
+    create: { machine: mch_payment_plan, values: { fld_term: $wrap, fld_plan_no: PP-0151, fld_plan_amount: "12000" } }
+    expect: ok
+  - id: finance-rejects-it
+    as: fina
+    update: { ref: a-plan-for-wrap, values: { fld_plan_status: Rejected } }
+    expect: ok
+  - id: a-rejected-plan-leaves-the-instalment-without-one
+    as: silvia
+    view:
+      path: /pages/nav_unpaid?view=noplan
+      shows: [">Wrap<", ">Create plan<"]
+      hides: [">PP-0151<", ">Rejected<"]
+    expect: ok
 
   - id: contract-detail-status-badge
     as: silvia
