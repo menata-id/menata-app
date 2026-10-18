@@ -73,6 +73,7 @@ func main() {
 	}
 
 	go runScheduler(ctx, dh, store, time.Duration(cfg.ScheduleIntervalMinutes)*time.Minute)
+	go sweepExtractions(ctx, store, files, extractionKeepFor, extractionSweepEvery)
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
 	if err := newServer(":"+cfg.Port, dh).ListenAndServe(); err != nil {
@@ -104,6 +105,40 @@ func newServer(addr string, h http.Handler) *http.Server {
 // enough to place a leak or a saturation window within one review and rare enough (288 lines a day)
 // not to compete with the request lines it sits among.
 const poolReportInterval = 5 * time.Minute
+
+// extractionKeepFor is how long a document the reader proposed from is kept for a person to come back to (the page opens with
+// ?proposal=<id>); a proposal nobody saved by then is deleted with its document. extractionSweepEvery is how often that is looked for.
+const (
+	extractionKeepFor    = 24 * time.Hour
+	extractionSweepEvery = time.Hour
+)
+
+// sweepExtractions deletes, every interval, the document readings nobody saved and the documents they held: without it each
+// abandoned reading kept a file on disk for good. A file that is already gone is not an error (storage.Store.Remove).
+func sweepExtractions(ctx context.Context, store *data.Store, files *storage.Store, keep, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		keys, err := store.ExpireExtractions(ctx, time.Now().Add(-keep))
+		if err != nil {
+			log.Printf("extraction sweep: %v", err)
+			continue
+		}
+		for _, key := range keys {
+			if err := files.Remove(key); err != nil {
+				log.Printf("extraction sweep: removing %q: %v", key, err)
+			}
+		}
+		if len(keys) > 0 {
+			log.Printf("extraction sweep: %d unsaved readings deleted", len(keys))
+		}
+	}
+}
 
 // runScheduler is domain.Event's third trigger shape (Schedule) made real: every interval, for
 // every installed Workspace, it asks execution.RunScheduledEvents to evaluate whatever

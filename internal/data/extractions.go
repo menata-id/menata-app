@@ -99,3 +99,24 @@ func (s *Store) CountExtractions(ctx context.Context, workspaceID string, since 
 		workspaceID, since.Unix()).Scan(&n)
 	return n, err
 }
+
+// ExpireExtractions deletes the readings nobody saved -- proposals (and readings that never finished) created before cutoff,
+// in every Workspace -- and returns the keys of the documents they were holding, for the caller to remove. A saved reading is
+// never touched: its document is now the one kept on the record. A failed one holds no document and stays as the ledger.
+func (s *Store) ExpireExtractions(ctx context.Context, cutoff time.Time) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `DELETE FROM document_extractions WHERE status IN ($1, $2) AND created_at < $3 RETURNING file_key`,
+		ExtractionProposed, ExtractionReading, cutoff)
+	if err != nil {
+		return nil, fmt.Errorf("expire extractions: %w", err)
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}

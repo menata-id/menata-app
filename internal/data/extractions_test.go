@@ -56,3 +56,57 @@ func TestStore_Extraction(t *testing.T) {
 		t.Errorf("count = %d (%v), want 2 (the failed attempt counts)", n, err)
 	}
 }
+
+// TestStore_ExpireExtractions: a reading nobody saved is deleted once it is old enough, and its document's key is handed back;
+// a saved one -- whose document is now on a record -- and a recent one are left alone.
+func TestStore_ExpireExtractions(t *testing.T) {
+	store := NewStore(storePool(t))
+	ctx := context.Background()
+	ws := newAISessionTestWorkspace(t, store)
+	start := func(name string) *Extraction {
+		t.Helper()
+		e, err := store.StartExtraction(ctx, Extraction{WorkspaceID: ws, UserID: "usr_a", NavID: "nav_new", MachineID: "mch_c", FileKey: "k/" + name, FileName: name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return e
+	}
+	old := func(e *Extraction) {
+		t.Helper()
+		if _, err := store.pool.Exec(ctx, `UPDATE document_extractions SET created_at = NOW() - interval '2 days' WHERE id = $1`, e.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	abandoned, saved, recent, reading := start("abandoned.pdf"), start("saved.pdf"), start("recent.pdf"), start("reading.pdf")
+	for _, e := range []*Extraction{abandoned, saved, recent} {
+		if err := store.FinishExtraction(ctx, ws, e.ID, []byte(`{}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ok, err := store.MarkExtractionSaved(ctx, ws, saved.ID, "rec_1"); err != nil || !ok {
+		t.Fatalf("save: %v %v", ok, err)
+	}
+	old(abandoned)
+	old(saved)
+	old(reading)
+
+	keys, err := store.ExpireExtractions(ctx, time.Now().Add(-24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, k := range keys {
+		got[k] = true
+	}
+	if !got["k/abandoned.pdf"] || !got["k/reading.pdf"] || got["k/saved.pdf"] || got["k/recent.pdf"] {
+		t.Errorf("expired keys = %v", keys)
+	}
+	if _, err := store.GetExtraction(ctx, ws, abandoned.ID); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("the abandoned reading is still there: %v", err)
+	}
+	for _, e := range []*Extraction{saved, recent} {
+		if _, err := store.GetExtraction(ctx, ws, e.ID); err != nil {
+			t.Errorf("%s was deleted: %v", e.FileName, err)
+		}
+	}
+}
