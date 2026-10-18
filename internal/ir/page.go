@@ -197,6 +197,16 @@ func conditionHolds(c domain.PageCondition, record map[string]string, writes *Re
 	if writes != nil && writes.ShapeOnly {
 		return true, nil
 	}
+	// A Field read by id that holds a figure compares as one: "Rp 0" is 0, and `is: "0"` means it.
+	if id, byField := domain.PageFieldOfRole(c.Role); byField {
+		if n, ok := record[domain.PageRowNumberRole(id)]; ok {
+			a, errA := strconv.ParseFloat(n, 64)
+			b, errB := strconv.ParseFloat(operand, 64)
+			if errA == nil && errB == nil {
+				return (a == b) != negate, nil
+			}
+		}
+	}
 	return (have == operand) != negate, nil
 }
 
@@ -1086,7 +1096,7 @@ func lowerTotal(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		props[k] = v
 	}
 	props["value"] = value
-	if value == "0" {
+	if figureIs(value, 0) {
 		delete(props, "tone")
 	}
 	if h := n.HintFigure; h != nil {
@@ -1117,7 +1127,7 @@ func lowerHintFigure(h domain.PageCount, b domain.PageBinding, props map[string]
 		return "", err
 	}
 	words := h.Other
-	if figure == "1" && h.One != "" {
+	if figureIs(figure, 1) && h.One != "" {
 		words = h.One
 	}
 	return strings.ReplaceAll(words, domain.PageCountToken, figure), nil
@@ -1831,6 +1841,19 @@ func lowerTransitionAll(n domain.PageNode, r Resolver, path string, record map[s
 	props[formActionProp] = t.Route
 	props[formMethodProp] = domain.ButtonMethodPost
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// figureIs says whether a written figure is n: "0", "Rp 0" and "0.00" are all zero. A money total is written with its
+// currency (the review of step 4: "Rp 0" kept a Metric's alarm tone), so the figure is read past its symbol and grouping.
+func figureIs(written string, n float64) bool {
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' || r == '.' || r == '-' {
+			return r
+		}
+		return -1
+	}, written)
+	v, err := strconv.ParseFloat(digits, 64)
+	return err == nil && v == n
 }
 
 // lowerTransitionForm is a Form that takes a declared edge with what the edge asks (`binding: {write: transition,

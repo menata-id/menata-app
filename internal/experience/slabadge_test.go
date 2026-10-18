@@ -106,11 +106,11 @@ func TestResolveCardDate(t *testing.T) {
 		wantTone  domain.BadgeTone
 	}{
 		{"ahead, this year", "2026-10-12", false, "12 Oct", domain.ToneNeutral},
-		{"due today is not overdue", "2026-10-05", false, "5 Oct", domain.ToneNeutral},
-		{"past", "2026-10-01", false, "1 Oct", domain.ToneBad},
-		{"past but finished", "2026-10-01", true, "1 Oct", domain.ToneGood},
+		{"due today is not overdue", "2026-10-05", false, "05 Oct", domain.ToneNeutral},
+		{"past", "2026-10-01", false, "01 Oct", domain.ToneBad},
+		{"past but finished", "2026-10-01", true, "01 Oct", domain.ToneGood},
 		{"finished before its date", "2026-10-12", true, "12 Oct", domain.ToneGood},
-		{"another year keeps the year", "2027-01-03", false, "3 Jan 2027", domain.ToneNeutral},
+		{"another year keeps the year", "2027-01-03", false, "03 Jan 2027", domain.ToneNeutral},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ResolveCardDate(tc.value, tc.done, now)

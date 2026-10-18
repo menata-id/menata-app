@@ -88,11 +88,11 @@ navigation:
           columns:
             - { header: Category, from: "row:label", total_label: Total }
             - { header: Kind, from: "row:fld_cat_kind" }
-            - { header: Contracts, from: "measure:msr_category_count", align: end, total: msr_category_count }
-            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: msr_category_terms_paid/msr_category_terms }
-            - { header: Contract value, from: "measure:msr_category_value", align: end, total: msr_category_value }
-            - { header: Paid, from: "measure:msr_category_paid", align: end, total: msr_category_paid }
-            - { header: Outstanding, from: "measure:msr_category_outstanding", align: end, total: msr_category_outstanding }
+            - { header: Contracts, from: "measure:msr_category_count", align: end, total: sum }
+            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: sum }
+            - { header: Contract value, from: "measure:msr_category_value", align: end, total: sum }
+            - { header: Paid, from: "measure:msr_category_paid", align: end, total: sum }
+            - { header: Outstanding, from: "measure:msr_category_outstanding", align: end, total: sum }
           binding: { dataset: ds_contracts_by_category, rows: dimension }
         - component: Table
           label: Contracts
@@ -165,15 +165,14 @@ navigation:
           empty: No contract matches.
           framed: true
           complete: true
-          totals: ds_contract_totals
           columns:
-            - { header: Contract no., field: fld_contract_no, href: record, total: msr_total_count, total_label: contracts }
+            - { header: Contract no., field: fld_contract_no, href: record, total: count, total_label: contracts }
             - { header: Contracted party, field: fld_party_name }
             - { header: Category, field: fld_category }
-            - { header: Instalments, field: fld_terms_paid, of: fld_terms, total: msr_total_terms_paid/msr_total_terms }
-            - { header: Contract value, field: fld_value, align: end, total: msr_total_value }
-            - { header: Paid, field: fld_paid, align: end, total: msr_total_paid }
-            - { header: Outstanding, field: fld_outstanding, align: end, total: msr_total_outstanding }
+            - { header: Instalments, field: fld_terms_paid, of: fld_terms, total: sum }
+            - { header: Contract value, field: fld_value, align: end, total: sum }
+            - { header: Paid, field: fld_paid, align: end, total: sum }
+            - { header: Outstanding, field: fld_outstanding, align: end, total: sum }
             - { header: Status, field: fld_status }
             - { header: Payment, field: fld_payment_status }
           binding: { dataset: ds_contracts, rows: records }

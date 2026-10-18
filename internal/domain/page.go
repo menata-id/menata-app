@@ -89,9 +89,6 @@ type PageNode struct {
 	// Counts (`counts: {all: msr_unpaid, overdue: msr_overdue}` on a FilterChips bound with `rows: total`) is the Measure
 	// each named view's chip counts: chips over named views of a list, not over a Dimension's values (mockup K02a).
 	Counts map[string]string
-	// Totals (`totals: ds_x` on a records Table) names the aggregate Dataset its columns' `total:` read; a Dimension's
-	// Table reads its own binding.
-	Totals string
 	// Values (`values: {fld_contract: $parameters.contract}`) are what a create Form starts with from its request: each
 	// Field the form asks for, filled from a `$parameters.<name>` and drawn fixed (its words, not a control) when the
 	// request sends it. The route still validates the value as it validates any.
@@ -121,9 +118,9 @@ type PageColumn struct {
 	// Related (`related: rel_x`) shows the first record a Dataset's Relation found for the row -- its title and, when it
 	// has one, its status in its tone (K02a's "PP-0146 Submitted").
 	Related string
-	// Total puts this column's figure in the Table's total row: a Measure of the Table's totals Dataset ("msr_x"), or
-	// two as a fraction ("msr_a/msr_b"). TotalLabel words it ("9 contracts" from total: msr_count, total_label:
-	// contracts).
+	// Total puts this column in the Table's total row, added up from the rows shown: `sum` (a fraction's both figures,
+	// with `of:`) or `count`. TotalLabel words it ("9 contracts" from total: count, total_label: contracts; alone, a
+	// label such as "Total").
 	Total, TotalLabel string
 }
 

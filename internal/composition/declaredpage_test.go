@@ -662,7 +662,7 @@ func TestFillDerivedDateUsesTheRequestsClockAndTheMachinesCompletion(t *testing.
 		return item
 	}
 	open := fill(m, map[string]any{"fld_due": "2026-10-01", "fld_status": "todo"})
-	if open[domain.PageDateLabelRole] != "1 Oct" || open[domain.PageDateToneRole] != string(domain.ToneBad) {
+	if open[domain.PageDateLabelRole] != "01 Oct" || open[domain.PageDateToneRole] != string(domain.ToneBad) {
 		t.Errorf("open and past: %v", open)
 	}
 	done := fill(m, map[string]any{"fld_due": "2026-10-01", "fld_status": "done"})

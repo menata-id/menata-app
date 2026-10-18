@@ -267,3 +267,55 @@ func TestAFormNeverTypesWhatLoweringDerives(t *testing.T) {
 		t.Error("then: on an update Form was accepted")
 	}
 }
+
+// TestTableFooterAddsUpTheRowsShown (the review of step 4): the total row is the rows above it -- a search narrows both
+// -- written as the cells are ("Rp" and grouping read from them); count says how many; a cut list has no total row.
+func TestTableFooterAddsUpTheRowsShown(t *testing.T) {
+	cols := []domain.PageColumn{
+		{Header: "Contract", Field: "fld_no", Total: TotalCount, TotalLabel: "contracts"},
+		{Header: "Paid", Field: "fld_paid", Of: "fld_terms", Total: TotalSum},
+		{Header: "Value", Field: "fld_value", Total: TotalSum},
+	}
+	row := func(paid, terms, value, shown string) map[string]string {
+		return map[string]string{"num:fld_paid": paid, "num:fld_terms": terms, "num:fld_value": value, "field:fld_value": shown}
+	}
+	set := RecordSet{Records: []map[string]string{row("1", "3", "180000000", "Rp 180,000,000"), row("0", "2", "84000000", "Rp 84,000,000")}}
+	got, err := tableFooter(cols, set, false, "p", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "2 contracts\t1/5\tRp 264,000,000\t"; got != want {
+		t.Errorf("footer %q, want %q", got, want)
+	}
+	set.Truncated = true
+	if got, _ := tableFooter(cols, set, false, "p", false); got != "" {
+		t.Errorf("a cut list has a total row %q; it would add up only what is shown", got)
+	}
+}
+
+// TestFigureIsReadsPastTheCurrency: "Rp 0" is zero, so a Metric's alarm tone goes when nothing is overdue.
+func TestFigureIsReadsPastTheCurrency(t *testing.T) {
+	for written, want := range map[string]bool{"0": true, "Rp 0": true, "0.00": true, "Rp 10": false, "": false} {
+		if got := figureIs(written, 0); got != want {
+			t.Errorf("figureIs(%q, 0) = %v, want %v", written, got, want)
+		}
+	}
+}
+
+// TestAMoneyTotalOfZeroDropsItsAlarm: a Metric's tone is a signal drawn only when the figure is not zero, and a money
+// total writes its zero with its currency ("Rp 0").
+func TestAMoneyTotalOfZeroDropsItsAlarm(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentMetric)})
+	metric := domain.PageNode{Kind: "component", Type: "Metric", Props: map[string]string{"label": "Overdue, gross", "tone": "bad"},
+		Binding: &domain.PageBinding{Dataset: "ds", Measure: "msr", Rows: domain.PageRowsTotal}}
+	for value, toned := range map[string]bool{"Rp 0": false, "Rp 110,000,000": true} {
+		r := Resolver{Total: func(domain.PageBinding) (string, error) { return value, nil }}
+		tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{metric}}, r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, has := tree.Children[0].Props["tone"]; has != toned {
+			t.Errorf("%s: tone kept = %v, want %v", value, has, toned)
+		}
+	}
+}

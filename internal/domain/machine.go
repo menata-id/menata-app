@@ -1214,6 +1214,13 @@ func (m *Machine) LabelField() string {
 	}
 	// The first Field that holds words of its own: a relation's value is another record's id, which is never a name
 	// (a payment plan whose first Field is its instalment is named by its plan number, 2026-10-18).
+	// A Field of words first (a plan's number, a label), then any other of its own (a date, a number): never a relation's
+	// id, a file's key or a group.
+	for _, f := range m.Fields {
+		if f.Type == FieldTypeText {
+			return f.ID
+		}
+	}
 	for _, f := range m.Fields {
 		if !f.IsReference() && f.Type != FieldTypeRelation && f.Type != FieldTypePerson && f.Type != FieldTypeFile && f.Type != FieldTypeGroup {
 			return f.ID

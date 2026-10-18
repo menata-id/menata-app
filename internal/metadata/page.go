@@ -45,7 +45,6 @@ type pageNodeDoc struct {
 	window   string
 	columns  []domain.PageColumn
 	pass     map[string]string
-	totals   string
 	counts   map[string]string
 	values   map[string]string
 	children []pageNodeDoc
@@ -154,11 +153,6 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.columns = cols
-		case "totals":
-			if val.Kind != yaml.ScalarNode || val.Value == "" {
-				return fmt.Errorf("line %d: totals: names one aggregate dataset, the one a Table's total row reads", key.Line)
-			}
-			p.totals = val.Value
 		case "counts":
 			m, err := decodePageFrom(val)
 			if err != nil {
@@ -409,7 +403,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Totals: p.totals, Counts: p.counts}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Counts: p.counts}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -896,6 +890,9 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 				}
 			}
 		}
+		if f, ok := source.FieldByID(c.Field); c.Total == ir.TotalSum && ok && !f.Type.IsNumeric() {
+			issues = append(issues, fmt.Sprintf("%s: page: columns: total: sum adds %s, a %s Field, not a figure", where, c.Field, f.Type))
+		}
 		if c.Related != "" && !slices.ContainsFunc(ds.Relations, func(r domain.Relation) bool { return r.ID == c.Related }) {
 			issues = append(issues, fmt.Sprintf("%s: page: columns: related: %s is not a Relation dataset %q declares", where, c.Related, ds.ID))
 		}
@@ -1003,37 +1000,22 @@ func templateFieldRoles(children []pageNodeDoc) []string {
 	return out
 }
 
-// tableTotalsIssues holds a records Table's total row to the Dataset it names in `totals:`: an aggregate this Workspace
-// declares, with every Measure a column's `total:` names.
+// tableTotalsIssues holds a Table's total row to what it can add up from its rows: `total:` is `sum` on a column that
+// shows a figure (a Field of a number or money type, or a Measure on a Dimension's rows) or `count` anywhere.
 func tableTotalsIssues(n domain.PageNode, datasets map[string]domain.Dataset, where string) []string {
 	if n.Type != string(domain.ComponentTable) {
 		return nil
 	}
-	name, named := n.Totals, n.Totals != ""
-	var measures []string
-	for _, c := range n.Columns {
-		if c.Total != "" {
-			a, b, _ := strings.Cut(c.Total, "/")
-			measures = append(measures, a)
-			if b != "" {
-				measures = append(measures, b)
-			}
-		}
-	}
-	switch {
-	case len(measures) == 0 && named:
-		return []string{fmt.Sprintf("%s: page: totals: %s names a Dataset no column's total: reads", where, name)}
-	case len(measures) == 0:
-		return nil
-	}
-	ds, ok := datasets[name]
-	if !ok || ds.Select != "" {
-		return []string{fmt.Sprintf("%s: page: a column asks for a total, so totals: names an aggregate Dataset of this Workspace (got %q)", where, name)}
-	}
 	var issues []string
-	for _, m := range measures {
-		if !slicesHasMeasure(ds, m) {
-			issues = append(issues, fmt.Sprintf("%s: page: total: %s is not a Measure of dataset %q", where, m, name))
+	for _, c := range n.Columns {
+		switch c.Total {
+		case "", ir.TotalCount:
+		case ir.TotalSum:
+			if c.Field == "" && !strings.HasPrefix(c.From, "measure:") {
+				issues = append(issues, fmt.Sprintf("%s: page: columns: total: sum adds a figure, and column %q shows %q", where, c.Header, c.From+c.Related))
+			}
+		default:
+			issues = append(issues, fmt.Sprintf("%s: page: columns: total: is %s or %s (added up from the rows shown), not %q", where, ir.TotalSum, ir.TotalCount, c.Total))
 		}
 	}
 	return issues
@@ -1066,7 +1048,12 @@ func dimensionTableIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 			}
 			found := false
 			if target != nil {
-				_, found = target.FieldByID(strings.TrimPrefix(c.From, "row:"))
+				var f domain.Field
+				f, found = target.FieldByID(strings.TrimPrefix(c.From, "row:"))
+				// A file's key, a person's or a relation's id is never a cell's words.
+				if found && (f.IsReference() || f.Type == domain.FieldTypeRelation || f.Type == domain.FieldTypePerson || f.Type == domain.FieldTypeFile || f.Type == domain.FieldTypeGroup) {
+					issues = append(issues, fmt.Sprintf("%s: page: column %s -- a %s Field is not shown as a Dimension row's words", where, c.From, f.Type))
+				}
 			}
 			if !found {
 				issues = append(issues, fmt.Sprintf("%s: page: column %s -- the Dimension's related Machine has no such Field", where, c.From))
@@ -1074,15 +1061,8 @@ func dimensionTableIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		default:
 			issues = append(issues, fmt.Sprintf("%s: page: a Dimension's row shows %s, %s<id> or row:<field>, not %q", where, domain.PageRowLabelRole, "measure:", c.From))
 		}
-		if c.Total != "" {
-			a, b, _ := strings.Cut(c.Total, "/")
-			measure(a)
-			if b != "" {
-				measure(b)
-			}
-		}
 	}
-	return issues
+	return append(issues, tableTotalsIssues(n, nil, where)...)
 }
 
 // columnsRead reports whether any of a Table's columns shows the given role.

@@ -186,11 +186,10 @@ navigation:
           empty: No payment plan matches.
           framed: true
           complete: true
-          totals: ds_plan_totals
           columns:
-            - { header: Plan no., field: fld_plan_no, href: record, total: msr_plan_count, total_label: plans }
+            - { header: Plan no., field: fld_plan_no, href: record, total: count, total_label: plans }
             - { header: Instalment, field: fld_term }
-            - { header: Net, field: fld_plan_amount, align: end, total: msr_plan_amount }
+            - { header: Net, field: fld_plan_amount, align: end, total: sum }
             - { header: Planned, field: fld_plan_date }
             - { header: Paid on, field: fld_paid_date }
             - { header: Status, field: fld_plan_status }

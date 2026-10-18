@@ -1446,3 +1446,26 @@ func TestAnEdgeThatAsksIsAFormNotAButton(t *testing.T) {
 		t.Errorf("a Form on the same edge was refused: %v", got)
 	}
 }
+
+// TestAConditionalComparisonNeverTurnsOffAScope (the review of step 4): if_param belongs to a literal about the record in
+// all:; on the viewer it would list everyone's records when the view is not chosen, and in any: it would drop the group.
+func TestAConditionalComparisonNeverTurnsOffAScope(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "fld_owner", Type: domain.FieldTypePerson}, {ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"Open", "Late"}}}}
+	fields := map[string]domain.Field{"fld_owner": m.Fields[0], "fld_status": m.Fields[1]}
+	run := func(ds domain.Dataset) string {
+		ds.ID, ds.Source, ds.Select, ds.Limit = "ds_x", "mch_x", domain.SelectRecords, 10
+		return strings.Join(validateDataset(m, ds, fields, map[string]bool{}), "\n")
+	}
+	scoped := domain.Dataset{ViewerScoped: true, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_owner", Op: expression.OpEquals, Value: "$current_user", IfParam: "view=mine"}}}}
+	if got := run(scoped); !strings.Contains(got, "never the viewer") || !strings.Contains(got, "no top-level") {
+		t.Errorf("a conditional viewer scope: %q", got)
+	}
+	inAny := domain.Dataset{Where: &expression.Predicate{Any: []expression.Comparison{{Field: "fld_status", Op: expression.OpEquals, Value: "Late", IfParam: "view=late"}}}}
+	if got := run(inAny); !strings.Contains(got, "sit in all:") {
+		t.Errorf("a conditional comparison in any:: %q", got)
+	}
+	fine := domain.Dataset{Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_status", Op: expression.OpEquals, Value: "Late", IfParam: "view=late"}}}}
+	if got := run(fine); got != "" {
+		t.Errorf("a named view was refused: %q", got)
+	}
+}

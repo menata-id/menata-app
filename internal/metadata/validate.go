@@ -778,7 +778,7 @@ func viewerScopedIssues(m *domain.Machine, ds domain.Dataset, fieldsByID map[str
 	}
 	if ds.Where != nil {
 		for _, c := range ds.Where.All {
-			if c.Value != expression.SentinelCurrentUser || c.Op != expression.OpEquals {
+			if c.Value != expression.SentinelCurrentUser || c.Op != expression.OpEquals || c.IfParam != "" || c.Optional {
 				continue
 			}
 			f, ok := fieldsByID[c.Field]
@@ -851,6 +851,14 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		if msg := optionalAnyIssue(ds.Where); msg != "" {
 			issues = append(issues, fmt.Sprintf("dataset %q: %s", ds.ID, msg))
 		}
+		if ds.Where != nil {
+			for _, c := range ds.Where.Any {
+				if c.IfParam != "" {
+					issues = append(issues, fmt.Sprintf("dataset %q: where any: holds a conditional comparison (if_param), which would drop the group's alternatives and widen the list; a named view's comparisons sit in all:", ds.ID))
+					break
+				}
+			}
+		}
 		for _, c := range ds.Where.Comparisons() {
 			if c.Field == domain.RecordIDField {
 				if c.Op != expression.OpEquals || c.Optional {
@@ -881,6 +889,12 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				name, value, ok := strings.Cut(c.IfParam, "=")
 				if !ok || name == "" || value == "" || domain.SearchParamsReserved[name] || strings.ContainsAny(name+value, " &?#") {
 					issues = append(issues, fmt.Sprintf("dataset %q: where if_param %q is <parameter>=<value>, a plain word the runtime does not own", ds.ID, c.IfParam))
+				}
+				// A named view narrows a list: its comparisons are literals about the record (a status, a date window,
+				// a count). One about the viewer or the request would turn off a scope when the view is not chosen (the
+				// review of step 4 turned a My Tasks list into everyone's), and one on the record's id is a record page's.
+				if expression.IsSentinel(c.Value) && !expression.IsToday(c.Value) || c.Field == domain.RecordIDField || c.Optional {
+					issues = append(issues, fmt.Sprintf("dataset %q: where field %q is conditional (if_param), so it compares a literal or a $today day -- never the viewer, a request parameter, or the record's id", ds.ID, c.Field))
 				}
 			}
 			if c.Optional && !expression.IsParameter(c.Value) {

@@ -181,18 +181,17 @@ navigation:
         - component: Table
           label: Contracts by category
           columns:
-            - { header: Category, from: "row:label", total: msr_contracts_by_category, total_label: contracts }
+            - { header: Category, from: "row:label", total: count, total_label: categories }
             - { header: Type, from: "row:fld_category_kind" }
-            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: msr_category_terms_paid/msr_category_terms }
-            - { header: Value, from: "measure:msr_category_value", align: end, total: msr_category_value }
+            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: sum }
+            - { header: Value, from: "measure:msr_category_value", align: end, total: sum }
           binding: { dataset: ds_contracts_by_category, rows: dimension }
         - component: Table
           label: Contracts
-          totals: ds_contract_figures
           columns:
-            - { header: Contract no., field: fld_contract_no, total: msr_contract_count, total_label: contracts }
+            - { header: Contract no., field: fld_contract_no, total: count, total_label: contracts }
             - { header: Instalments, field: fld_terms_paid, of: fld_terms }
-            - { header: Value, field: fld_value, align: end, total: msr_contract_value }
+            - { header: Value, field: fld_value, align: end, total: sum }
           binding: { dataset: ds_contracts, rows: records }
   - id: nav_unpaid
     label: Unpaid

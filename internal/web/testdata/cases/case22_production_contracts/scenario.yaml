@@ -275,7 +275,7 @@ steps:
     as: silvia
     view:
       path: /pages/nav_by_category
-      shows: [">Lead Cast<", ">Cast<", 'role="progressbar"', ">1/3<", ">2 contracts<", ">Rp 264,000<", ">Rp 180,000<"]
+      shows: [">Lead Cast<", ">Cast<", 'role="progressbar"', ">1/3<", ">1 categories<", ">2 contracts<", ">Rp 264,000<", ">Rp 180,000<"]
     expect: ok
   - id: a-plan-for-the-second-instalment
     as: silvia

@@ -1815,14 +1815,13 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   columns:
     - { header: Category, from: "row:label", total_label: Total }
     - { header: Kind, from: "row:fld_cat_kind" }                    # a Field of the category record itself
-    - { header: Instalments, from: "measure:msr_terms_paid", of: msr_terms, total: msr_terms_paid/msr_terms }
-    - { header: Contract value, from: "measure:msr_value", align: end, total: msr_value }
+    - { header: Instalments, from: "measure:msr_terms_paid", of: msr_terms, total: sum }
+    - { header: Contract value, from: "measure:msr_value", align: end, total: sum }
   binding: { dataset: ds_contracts_by_category, rows: dimension }
-- component: Table                       # records, with a total row read from an aggregate
+- component: Table                       # records, with a total row
   label: Contracts
-  totals: ds_contract_totals
   columns:
-    - { header: Contract no., field: fld_contract_no, href: record, total: msr_count, total_label: contracts }
+    - { header: Contract no., field: fld_contract_no, href: record, total: count, total_label: contracts }
     - { header: Instalments, field: fld_terms_paid, of: fld_terms }       # "1/3" with a bar
     - { header: Payment plan, related: rel_term_plans }                    # the first plan: its name and status
 ```
@@ -1831,8 +1830,10 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   `row:<field>`, a Field of the related record.
 - **`of:`** draws a fraction with a bar ("1/3"): beside `field:` it names the Field it is over, beside `from: measure:<a>` the
   Measure `b`.
-- **`total:`** puts a column in the total row: a Measure, or `msr_a/msr_b` as a fraction; `total_label:` words it (alone, it
-  is a label: "Total"). A records Table names its aggregate Dataset in **`totals:`**; a Dimension's Table totals its own.
+- **`total: sum`** or **`total: count`** puts a column in the total row, **added up from the rows shown** -- so a search or a
+  chip narrows the total with the list, and a Dimension's total is its rows'. `sum` writes the figure as the cells do ("Rp",
+  grouping); beside `of:` it adds both ("9/36"). `total_label:` words it (alone, it is a label: "Total"). A list its
+  Dataset's bound cut has no total row.
 - **`related: rel_x`** shows the first record a Dataset's Relation found for the row (named by its title, else its first
   Field of its own words, never an id) and its status in its tone.
 - A row action may read a Field by id in `when:` -- `when: {role: "field:fld_plans", is: "0"}` draws "Create plan" only
@@ -1842,7 +1843,10 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   "today", "in 5 days").
 - **Chips over named views:** a FilterChips bound with `rows: total` lists `options:` (`overdue=Overdue` lines) and counts
   each with `counts: {all: msr_unpaid, overdue: msr_overdue}`; the list's Dataset says what each view selects with
-  **`if_param: view=overdue`** on a comparison (applied only when the request's `view` is `overdue`).
+  **`if_param: view=overdue`** on a comparison (applied only when the request's `view` is `overdue`). A conditional comparison
+sits in `all:`, compares a literal or a `$today` day, and never the viewer, a request parameter or the record's id (each would
+turn a scope off when the view is not chosen); it does not count as a `viewer_scoped:` scope. A Measure that counts a view is
+written beside it by hand: keep the two the same.
 
 **A Table's `children:` are its row actions** (2026-10-17): a template drawn once per record in a last, unnamed column --
 an Edit (`Popover` holding a `Form` with `binding: {write: update}`), a Delete (`Button` with `binding: {write: delete}`),

@@ -128,7 +128,7 @@ func ResolveRecordSLABadge(value any, done bool, now time.Time) SLABadge {
 		return badge
 	}
 	due, _ := time.Parse("2006-01-02", fmt.Sprint(value))
-	return SLABadge{Label: due.Format("2 Jan 2006"), Tone: domain.ToneGood, Present: true}
+	return SLABadge{Label: due.Format("02 Jan 2006"), Tone: domain.ToneGood, Present: true}
 }
 
 // CardDate is the resolved input for a date pill on a card: the short date text, a tone, and whether the
@@ -150,9 +150,9 @@ func ResolveCardDate(value any, done bool, now time.Time) CardDate {
 		return CardDate{}
 	}
 	due, _ := time.Parse("2006-01-02", fmt.Sprint(value))
-	label := due.Format("2 Jan")
+	label := due.Format("02 Jan")
 	if due.Year() != now.Year() {
-		label = due.Format("2 Jan 2006")
+		label = due.Format("02 Jan 2006")
 	}
 	tone := domain.ToneNeutral
 	switch {

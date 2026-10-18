@@ -1269,6 +1269,10 @@ func relationWhereIssues(child *domain.Machine, where *expression.Predicate) []s
 			issues = append(issues, msg)
 			continue
 		}
+		if c.IfParam != "" || c.Optional {
+			issues = append(issues, fmt.Sprintf("field %q: a relation reads its children once per page, with no request, so a comparison in its where: is neither optional nor if_param", c.Field))
+			continue
+		}
 		switch {
 		case c.Value == expression.SentinelDone:
 			if child.Completion == nil || c.Field != child.Completion.Field || (c.Op != expression.OpEquals && c.Op != expression.OpNotEquals) {

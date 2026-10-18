@@ -1435,9 +1435,9 @@ func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
 		}
 		return body[i : i+end]
 	}
-	label := past.Format("2 Jan")
+	label := past.Format("02 Jan")
 	if past.Year() != time.Now().UTC().Year() {
-		label = past.Format("2 Jan 2006")
+		label = past.Format("02 Jan 2006")
 	}
 	// The pill's colour is its tone's property since DS-D15 stage 2 (`bg-tone-bad-bg` is red under the default
 	// theme); the tone is what this asserts, so a Workspace's palette choice cannot make it pass or fail.

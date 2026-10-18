@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -166,7 +167,7 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			out.Children = append(out.Children, cell)
 		}
 	}
-	footer, err := tableFooter(n, cols, r, path, actions != nil)
+	footer, err := tableFooter(cols, set, dimension, path, actions != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -180,51 +181,64 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 // and never written.
 const tableFooterProp = "footer"
 
-// tableFooter is the total row: each column's `total:` read from the Table's totals Dataset (`totals:` on the Table, or
-// its own binding for a Dimension's rows) as a figure, or two as a fraction ("9/36"), worded by `total_label:`. Empty when
-// no column asks for a total.
-func tableFooter(n domain.PageNode, cols []domain.PageColumn, r Resolver, path string, actions bool) (string, error) {
+// Total keywords a column may declare: `sum` adds the column's figure over the rows shown (a fraction's numerator and
+// its `of:` both), `count` says how many rows there are.
+const (
+	TotalSum   = "sum"
+	TotalCount = "count"
+)
+
+// tableFooter is the total row, **computed from the rows the Table draws** (the review of step 4: a total read from a
+// separate aggregate ignored the search and the chips, and a Dimension's total counted records no row showed), so it
+// always adds up what is above it. `sum` adds the column's bare numbers, `count` counts the rows, `total_label:` words
+// it ("9 contracts"; alone, "Total"). A list its Dataset's bound cut has no total row: it would add up only the rows
+// shown, and the notice already says the list is cut.
+func tableFooter(cols []domain.PageColumn, set RecordSet, dimension bool, path string, actions bool) (string, error) {
 	asked := false
 	for _, c := range cols {
 		asked = asked || c.Total != "" || c.TotalLabel != ""
 	}
-	if !asked {
+	if !asked || (set.Truncated && !set.ShapeOnly) {
 		return "", nil
 	}
-	dataset := n.Totals
-	if n.Binding.Rows == domain.PageRowsDimension && dataset == "" {
-		dataset = n.Binding.Dataset
+	number := func(c domain.PageColumn, id string) string {
+		if id == "" {
+			return ""
+		}
+		return domain.PageRowNumberRole(id)
 	}
-	needsDataset := false
-	for _, c := range cols {
-		needsDataset = needsDataset || c.Total != ""
-	}
-	if dataset == "" && needsDataset {
-		return "", fmt.Errorf("%s: a column asks for a total, so the Table names the Dataset that adds it up in totals:", path)
-	}
-	if r.Total == nil {
-		return "", fmt.Errorf("%s: no resolver for totals", path)
-	}
-	figure := func(measure string) (string, error) {
-		return r.Total(domain.PageBinding{Dataset: dataset, Measure: measure, Rows: domain.PageRowsTotal})
+	sum := func(key string) float64 {
+		var total float64
+		for _, rec := range set.Records {
+			if n, err := strconv.ParseFloat(rec[key], 64); err == nil {
+				total += n
+			}
+		}
+		return total
 	}
 	cells := make([]string, 0, len(cols)+1)
-	for _, c := range cols {
+	for i, c := range cols {
 		text := ""
-		if c.Total != "" {
-			a, b, fraction := strings.Cut(c.Total, "/")
-			v, err := figure(a)
-			if err != nil {
-				return "", err
+		switch c.Total {
+		case "":
+		case TotalCount:
+			text = strconv.Itoa(len(set.Records))
+		case TotalSum:
+			value := c.Field
+			if dimension {
+				value = strings.TrimPrefix(c.From, "measure:")
 			}
-			text = v
-			if fraction {
-				w, err := figure(b)
-				if err != nil {
-					return "", err
-				}
-				text = v + "/" + w
+			if value == "" || (!dimension && c.Field == "") || (dimension && !strings.HasPrefix(c.From, "measure:")) {
+				return "", fmt.Errorf("%s.columns[%d]: total: sum adds a figure, so the column shows field: (or from: measure:<id> on a Dimension's rows)", path, i)
 			}
+			a := sum(number(c, value))
+			text = formatTotal(a, set.Records, c, value, dimension)
+			if c.Of != "" {
+				b := sum(number(c, c.Of))
+				text = strconv.FormatFloat(a, 'f', -1, 64) + "/" + strconv.FormatFloat(b, 'f', -1, 64)
+			}
+		default:
+			return "", fmt.Errorf("%s.columns[%d]: total: is %s or %s, not %q", path, i, TotalSum, TotalCount, c.Total)
 		}
 		if c.TotalLabel != "" {
 			text = strings.TrimSpace(text + " " + c.TotalLabel)
@@ -235,6 +249,56 @@ func tableFooter(n domain.PageNode, cols []domain.PageColumn, r Resolver, path s
 		cells = append(cells, "")
 	}
 	return strings.Join(cells, "\t"), nil
+}
+
+// formatTotal writes a column's sum the way its cells are written, read from the rows' own display: a currency symbol
+// before the figure ("Rp ") is kept, and a figure the rows group (money, "180,000") is grouped. ir sees only strings, so
+// the cells are the one statement of how this column is written.
+func formatTotal(total float64, rows []map[string]string, c domain.PageColumn, value string, dimension bool) string {
+	key := domain.PageFieldRole(value)
+	if dimension {
+		key = domain.PageMeasureRole(value)
+	}
+	prefix, grouped := "", false
+	for _, rec := range rows {
+		shown := strings.TrimPrefix(rec[key], "-")
+		if shown == "" {
+			continue
+		}
+		if i := strings.IndexAny(shown, "0123456789"); i > 0 {
+			prefix = shown[:i]
+		}
+		grouped = grouped || strings.Contains(shown, ",") || prefix != ""
+	}
+	if !grouped {
+		return strconv.FormatFloat(total, 'f', -1, 64)
+	}
+	out := groupThousands(total)
+	if rest, negative := strings.CutPrefix(out, "-"); negative {
+		return "-" + prefix + rest
+	}
+	return prefix + out
+}
+
+// groupThousands is the international grouping the rows used ("966,000,000"), to two decimals at most.
+func groupThousands(v float64) string {
+	s := strconv.FormatFloat(math.Abs(v), 'f', 2, 64)
+	whole, frac, _ := strings.Cut(s, ".")
+	frac = strings.TrimRight(frac, "0")
+	var b strings.Builder
+	if v < 0 {
+		b.WriteByte('-')
+	}
+	for i, d := range whole {
+		if i > 0 && (len(whole)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(d)
+	}
+	if frac != "" {
+		b.WriteString("." + frac)
+	}
+	return b.String()
 }
 
 func countNonEmpty(values ...string) int {

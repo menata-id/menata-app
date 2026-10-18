@@ -36,7 +36,7 @@ func TestEvaluateSLA(t *testing.T) {
 func TestResolveRecordSLABadge_aFinishedRecordIsNeverOverdue(t *testing.T) {
 	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
 	done := ResolveRecordSLABadge("2026-10-05", true, now)
-	if !done.Present || done.Label != "5 Oct 2026" || done.Tone != domain.ToneGood || done.Urgent {
+	if !done.Present || done.Label != "05 Oct 2026" || done.Tone != domain.ToneGood || done.Urgent {
 		t.Errorf("finished = %+v, want its date, good-toned, not urgent", done)
 	}
 	open := ResolveRecordSLABadge("2026-10-05", false, now)
