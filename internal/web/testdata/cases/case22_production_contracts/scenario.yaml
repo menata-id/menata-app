@@ -711,3 +711,31 @@ steps:
     as: silvia
     read: { nav: nav_new_contract, file: ctr-c-034.pdf, asks: [] }
     expect: refused
+
+  # Categories (K01e's first row): a declared page, with the count of contracts each holds, an Edit and a Delete on the row,
+  # and the delete refused -- and not offered -- while a contract still names the category.
+  - id: the-categories-page-lists-each-with-its-contracts
+    as: silvia
+    view:
+      path: /pages/nav_categories
+      shows: [">Lead Cast<", "+ New category", "Add category"]
+    expect: ok
+  - id: wardrobe
+    as: silvia
+    create: { machine: mch_category, values: { fld_category_name: Wardrobe, fld_category_kind: Item } }
+    expect: ok
+  - id: a-category-with-contracts-is-not-offered-for-delete
+    as: silvia
+    view:
+      path: /pages/nav_categories
+      shows: ['hx-delete="/machines/mch_category/records/$wardrobe"']
+      hides: ['hx-delete="/machines/mch_category/records/$lead-cast"']
+    expect: ok
+  - id: a-category-a-contract-names-cannot-be-deleted
+    as: silvia
+    delete: { ref: lead-cast }
+    expect: refused
+  - id: an-unused-category-is-deleted
+    as: silvia
+    delete: { ref: wardrobe, from: /pages/nav_categories }
+    expect: ok

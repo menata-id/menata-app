@@ -327,7 +327,50 @@ navigation:
               when: { role: "field:fld_plans", is: "0" }
   - id: nav_categories
     label: Categories
-    route: /machines/mch_category
+    route: /pages/nav_categories
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Category actions
+          children:
+            - component: Popover
+              label: + New category
+              title: New category
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add category
+                  binding: { dataset: ds_categories, write: create }
+        - component: Table
+          label: Categories
+          empty: No category yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Name, field: fld_category_name, total: count, total_label: categories }
+            - { header: Type, field: fld_category_kind }
+            - { header: Contracts, field: fld_category_contracts, align: end, total: sum }
+          binding: { dataset: ds_categories, rows: records }
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit category
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this category?
+              binding: { write: delete }
   - id: nav_instalments
     label: Instalments
     route: /machines/mch_contract_term

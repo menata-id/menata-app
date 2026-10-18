@@ -3,5 +3,10 @@ name: Category
 fields:
   - { id: fld_category_name, name: Name, type: text, required: true }
   - { id: fld_category_kind, name: Type, type: status, options: [Cast, Crew, Item] }
+  - { id: fld_category_contracts, name: Contracts, type: number, compute: { count_children: { machine: mch_contract, via: fld_category } } }
 card_fields:
   - { field: fld_category_name, role: title }
+datasets:
+  - { id: ds_categories, select: records, sort: [{ field: fld_category_name }], limit: 100 }
+permissions:
+  - { id: prm_category_delete, action: delete, roles: [production_manager] }

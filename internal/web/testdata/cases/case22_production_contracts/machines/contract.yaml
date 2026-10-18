@@ -17,7 +17,7 @@ fields:
   - { id: fld_terms_paid, name: Instalments paid, type: number,
       compute: { count_children: { machine: mch_contract_term, via: fld_contract, where: { field: fld_term_status, equals: Paid } } } }
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, options: [Cast, Crew, Item] }
-  - { id: fld_category, name: Category, type: relation, machine: mch_category }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, on_parent_delete: restrict }
   - { id: fld_payment_status, name: Payment, type: status, default: In progress, options: [In progress, Overdue, Settled] }
   # The contract's lifecycle beside its payment: a second status, toned by its own categories.
   - { id: fld_status, name: Status, type: status, default: Draft, options: [Draft, Active, Closed, Cancelled],

@@ -542,9 +542,56 @@ navigation:
     route: /settings/nav_contracts_settings
     icon: settings
     settings_hub: true
+  # Categories (K01e's first row): the master data contracts are grouped by -- a new one from the action, each one's name,
+  # kind and how many contracts name it, with Edit and Delete on the row. Delete is admin-only and refused while a contract
+  # still names the category.
   - id: nav_contract_categories
     label: Categories
+    title: Categories
     description: Departments, cost accounts, cast groups -- whatever contracts are grouped by.
-    route: /machines/mch_category
+    route: /pages/nav_contract_categories
     icon: settings
     settings_hub_member: true
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Category actions
+          children:
+            - component: Popover
+              label: + New category
+              title: New category
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add category
+                  binding: { dataset: ds_categories, write: create }
+        - component: Table
+          label: Categories
+          empty: No category yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Name, field: fld_cat_name, total: count, total_label: categories }
+            - { header: Kind, field: fld_cat_kind }
+            - { header: Contracts, field: fld_cat_contracts, align: end, total: sum }
+          binding: { dataset: ds_categories, rows: records }
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit category
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this category?
+              binding: { write: delete }

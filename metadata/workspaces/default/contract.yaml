@@ -14,7 +14,7 @@ fields:
     numbering: { pattern: "CTR/{fld_contract_kind}/{seq:3}", codes: { Cast: C, Crew: K, Item: I } }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, required: true, options: [Cast, Crew, Item] }
-  - { id: fld_category, name: Category, type: relation, machine: mch_category, required: true }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, required: true, on_parent_delete: restrict }
   - { id: fld_position, name: Position, type: text, required_when: { field: fld_contract_kind, equals: Crew } }
   - { id: fld_item_desc, name: Item description, type: text, required_when: { field: fld_contract_kind, equals: Item } }
   - { id: fld_value, name: Contract value, type: money, currency: IDR, required: true }
