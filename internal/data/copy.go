@@ -9,7 +9,7 @@ import "menata.app/internal/domain"
 func CopyableValues(m *domain.Machine, values map[string]any) map[string]any {
 	out := make(map[string]any, len(values))
 	for _, f := range m.Fields {
-		if f.Compute != nil || f.Stamp != "" || f.Type == domain.FieldTypeFile {
+		if f.Compute != nil || f.Stamp != "" || f.Numbering != nil || f.Type == domain.FieldTypeFile {
 			continue
 		}
 		if v, ok := values[f.ID]; ok {

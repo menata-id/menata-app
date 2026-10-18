@@ -269,7 +269,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   `steps:` roles, `Stepper`, `binding: {transition: trn_x}` on a Button or Form, link `pass:`, Form `values:`/`then: record`.
   `compute:` is one closed expression (`domain.ComputeExpr`; `parent:`, `sum_children`/`count_children`): a child's write
   recomputes its parents in the same transaction (`execution.RecomputeParents`), and every load recomputes stored records.
-  An inherited Field is `compute: {parent: fld_via.fld_x}` alone (the parent's value, any type; followed down by
+  A numbered Field (`numbering: {pattern, codes}`, `execution.AssignNumbers`) is a number the runtime writes on create, under a
+  lock, per prefix; never typed, never edited. An inherited Field is `compute: {parent: fld_via.fld_x}` alone (the parent's value, any type; followed down by
   `execution.recomputeChildren`): a child's list shows, searches and filters by what its parent holds.
   Table (2026-10-18): `rows: dimension` (`row:`/`measure:`), `total: sum|count` (added up from the rows shown), `of:`, `related:`; money `currency:`;
   `date:relative`; FilterChips `rows: total` + `counts:` over `if_param:` views.

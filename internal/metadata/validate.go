@@ -151,6 +151,7 @@ func Validate(m *domain.Machine) error {
 
 	for _, f := range m.Fields {
 		issues = append(issues, validateCompute(f, fieldsByID)...)
+		issues = append(issues, validateNumbering(f, fieldsByID)...)
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
 		issues = append(issues, validateLocks(f, fieldsByID)...)
@@ -1859,6 +1860,47 @@ func sortedFieldStamps() []string {
 // operation, operands that are number (or money) Fields of this Machine and not computed themselves (so the
 // order of evaluation cannot matter and no cycle can exist), and none of the declarations that
 // would contradict "the runtime writes this, a person does not" -- required, or a default.
+func validateNumbering(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	if f.Numbering == nil {
+		return nil
+	}
+	var issues []string
+	prefix, _, err := domain.ParseNumbering(f.Numbering.Pattern)
+	if err != nil {
+		return []string{fmt.Sprintf("field %q: %v", f.ID, err)}
+	}
+	switch {
+	case f.Type != domain.FieldTypeText:
+		issues = append(issues, fmt.Sprintf("field %q: numbering writes text, and this field is %s", f.ID, f.Type))
+	case f.Compute != nil || f.Stamp != "" || f.Default != nil || f.DefaultFrom != nil:
+		issues = append(issues, fmt.Sprintf("field %q: a numbered field is written by the runtime once, so it takes no compute, stamp or default", f.ID))
+	case f.RequiredWhen != nil:
+		issues = append(issues, fmt.Sprintf("field %q: a numbered field always has its number, so it takes no required_when", f.ID))
+	}
+	for _, p := range prefix {
+		if p.Field == "" {
+			continue
+		}
+		operand, ok := fieldsByID[p.Field]
+		switch {
+		case p.Field == f.ID:
+			issues = append(issues, fmt.Sprintf("field %q: numbering names itself", f.ID))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("field %q: numbering names %q, which this machine does not declare", f.ID, p.Field))
+		case operand.Type != domain.FieldTypeText && operand.Type != domain.FieldTypeStatus:
+			issues = append(issues, fmt.Sprintf("field %q: numbering reads %q, a %s field; the number is written from text or status words", f.ID, p.Field, operand.Type))
+		case operand.Compute != nil:
+			issues = append(issues, fmt.Sprintf("field %q: numbering reads %q, which is computed after the number is written", f.ID, p.Field))
+		}
+	}
+	for value, code := range f.Numbering.Codes {
+		if strings.TrimSpace(value) == "" || strings.TrimSpace(code) == "" || strings.ContainsAny(code, "{}") {
+			issues = append(issues, fmt.Sprintf("field %q: numbering codes map a value to letters, and %q -> %q is not that", f.ID, value, code))
+		}
+	}
+	return issues
+}
+
 func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []string {
 	if f.Compute == nil {
 		return nil
@@ -2397,6 +2439,10 @@ func validateFrozenWhen(machines []*domain.Machine) error {
 
 func validateDerivedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
 	return validateFieldsAreGenericallyWritten(machines, "conditionally required or derived", func(f domain.Field) bool { return f.RequiredWhen != nil || f.DefaultFrom != nil })
+}
+
+func validateNumberedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
+	return validateFieldsAreGenericallyWritten(machines, "numbered", func(f domain.Field) bool { return f.Numbering != nil })
 }
 
 func validateStampedFieldsAreGenericallyWritten(machines []*domain.Machine) error {

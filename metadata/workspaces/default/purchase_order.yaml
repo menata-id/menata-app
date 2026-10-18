@@ -4,7 +4,8 @@
 id: mch_po
 name: Purchase Order
 fields:
-  - { id: fld_po_no, name: PO no., type: text, required: true }
+  # Written by the runtime when the PO is created: PO/2026/0087, a counter per year (plan A4).
+  - { id: fld_po_no, name: PO no., type: text, required: true, numbering: { pattern: "PO/{year}/{seq:4}" } }
   - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true }
   - { id: fld_po_date, name: PO date, type: date, required: true }
   - { id: fld_po_file, name: PO file, type: file }

@@ -1066,7 +1066,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 		hx-encoding="multipart/form-data"
 	>
 		for _, f := range m.Fields {
-			if f.Compute == nil && f.Type != domain.FieldTypeFile {
+			if f.Compute == nil && f.Numbering == nil && f.Type != domain.FieldTypeFile {
 				<label class={ formLabelClasses(ctx) }>
 					{ f.Name }
 					@fieldInput(f, nil, relations, groups)

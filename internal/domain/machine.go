@@ -159,6 +159,9 @@ type Field struct {
 	// case, and the reason it is a Field property and not a form input: an input can name anyone, and an
 	// author a client may choose is not an author. Empty for an ordinary Field.
 	Stamp FieldStamp
+	// Numbering makes this text Field a number the runtime assigns on create ("CTR/C/026"): see FieldNumbering. Nil for an
+	// ordinary Field.
+	Numbering *FieldNumbering
 	// RequiredWhen makes this Field required only while another Field of the record holds one value
 	// ("a banner needs a reference file"). Nil for a Field that is required always (Required) or never.
 	// Enforced by internal/data.ValidateRecord on every write, so an update that changes the other Field
@@ -203,7 +206,8 @@ type DeleteGuard struct {
 
 // LockedField says whether f of a record whose stored values are stored may not change, and why.
 func (m *Machine) LockedField(f Field, stored map[string]any) (bool, string) {
-	if f.SetOnce {
+	// A numbered Field (FieldNumbering) is set once by the runtime, whatever else the Machine says of it.
+	if f.SetOnce || f.Numbering != nil {
 		if v, ok := stored[f.ID]; ok && v != nil && fmt.Sprint(v) != "" {
 			return true, fmt.Sprintf("%s is set once and cannot change", f.Name)
 		}

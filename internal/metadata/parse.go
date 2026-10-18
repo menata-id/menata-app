@@ -304,6 +304,8 @@ type fieldDoc struct {
 	Compute *computeDoc `yaml:"compute"`
 	// Stamp declares a stamped Field -- see domain.FieldStamp.
 	Stamp string `yaml:"stamp"`
+	// Numbering declares a number the runtime assigns -- see domain.FieldNumbering.
+	Numbering *numberingDoc `yaml:"numbering"`
 	// RequiredWhen and DefaultFrom: see domain.Field.
 	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
@@ -496,6 +498,11 @@ func (b *boundDoc) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
+type numberingDoc struct {
+	Pattern string            `yaml:"pattern"`
+	Codes   map[string]string `yaml:"codes"`
+}
+
 type constraintDoc struct {
 	ID         string `yaml:"id"`
 	On         string `yaml:"on"`
@@ -659,6 +666,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Default:        def,
 			Compute:        compute,
 			Stamp:          domain.FieldStamp(fd.Stamp),
+			Numbering:      numberingOf(fd.Numbering),
 		})
 	}
 	for _, cd := range doc.Constraints {
@@ -957,4 +965,11 @@ func generatesOf(d *generatesDoc) *domain.GenerateSchedule {
 	}
 	return &domain.GenerateSchedule{Machine: d.Machine, CountField: d.CountField, LinkField: d.LinkField, DueField: d.DueField,
 		DueEveryDays: d.DueEveryDays, AmountField: d.AmountField, AmountFrom: d.AmountFrom}
+}
+
+func numberingOf(d *numberingDoc) *domain.FieldNumbering {
+	if d == nil {
+		return nil
+	}
+	return &domain.FieldNumbering{Pattern: d.Pattern, Codes: d.Codes}
 }

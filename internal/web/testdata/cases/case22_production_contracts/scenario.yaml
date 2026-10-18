@@ -19,20 +19,20 @@ steps:
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/C/026, fld_party_name: Reza Anggara, fld_value: "180000", fld_category: $lead-cast } }
     expect: ok
-    record: { fld_value: "180000", fld_payment_status: In progress, fld_outstanding: "180000", fld_terms: "0" }
+    record: { fld_value: "180000", fld_payment_status: In progress, fld_outstanding: "180000", fld_terms: "0", fld_serial: CTR/C/001 }
 
   # Net is computed from money fields (deductions stored negative), so it is a sum the runtime keeps.
   - id: signing
     as: silvia
-    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Signing, fld_gross: "54000", fld_wht: "2700", fld_due_date: "2026-01-05" } }
+    create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: Signing, fld_gross: "54000", fld_wht: "2700", fld_due_date: "2026-01-05", fld_ref: INS/999 } }
     expect: ok
-    record: { fld_net: "51300", fld_term_status: Scheduled }
+    record: { fld_net: "51300", fld_term_status: Scheduled, fld_ref: INS/001 }
 
   - id: first-shooting-day
     as: silvia
     create: { machine: mch_contract_term, values: { fld_contract: $contract, fld_term_label: First shooting day, fld_gross: "72000", fld_due_date: "2099-11-02" } }
     expect: ok
-    record: { fld_party: Reza Anggara, fld_contract_ref: CTR/C/026, fld_category: $lead-cast }
+    record: { fld_party: Reza Anggara, fld_contract_ref: CTR/C/026, fld_category: $lead-cast, fld_ref: INS/002 }
 
   # An inherited field is the related record's own, so it is never typed, and it follows the contract when that changes.
   - id: an-inherited-field-is-not-typed
@@ -76,6 +76,7 @@ steps:
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/K/031, fld_party_name: Dimas Prayoga, fld_value: "84000", fld_contract_kind: Crew } }
     expect: ok
+    record: { fld_serial: CTR/K/001 }
 
   - id: a-cut-list-says-what-it-was-cut-from
     as: silvia
@@ -404,8 +405,9 @@ steps:
   # Machine's own list; deleting from any other screen stays on it.
   - id: a-contract-nobody-uses
     as: silvia
-    create: { machine: mch_contract, values: { fld_contract_no: CTR/D/001, fld_party_name: Nobody Yet, fld_value: "1000" } }
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/D/001, fld_party_name: Nobody Yet, fld_value: "1000", fld_serial: CTR/C/777 } }
     expect: ok
+    record: { fld_serial: CTR/C/002 }
   # A move nothing holds back says nothing: a draft contract has no Close to explain.
   - id: a-draft-contract-has-no-reason-to-show
     as: silvia
@@ -422,6 +424,17 @@ steps:
     as: silvia
     create: { machine: mch_contract, values: { fld_contract_no: CTR/D/002, fld_party_name: Nobody Either, fld_value: "1000" } }
     expect: ok
+    record: { fld_serial: CTR/C/002 }
+  # A number is never changed afterwards: not by the edit route, whatever it sends.
+  - id: a-number-cannot-be-changed
+    as: silvia
+    update: { ref: another-contract-nobody-uses, values: { fld_serial: CTR/C/999 } }
+    expect: refused
+  - id: and-an-edit-that-leaves-it-out-keeps-it
+    as: silvia
+    update: { ref: another-contract-nobody-uses, values: { fld_party_name: Nobody Either Still } }
+    expect: ok
+    record: { fld_serial: CTR/C/002, fld_party_name: Nobody Either Still }
   - id: deleted-from-a-list-it-stays-on-the-list
     as: silvia
     delete: { ref: another-contract-nobody-uses, from: /pages/nav_by_category }

@@ -3657,7 +3657,7 @@ func newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOp
 				return templ_7745c5c3_Err
 			}
 			for _, f := range m.Fields {
-				if f.Compute == nil && f.Type != domain.FieldTypeFile {
+				if f.Compute == nil && f.Numbering == nil && f.Type != domain.FieldTypeFile {
 					var templ_7745c5c3_Var194 = []any{formLabelClasses(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var194...)
 					if templ_7745c5c3_Err != nil {

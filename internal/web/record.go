@@ -84,6 +84,13 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 	var record *data.Record
 	// The checks and the insert are one transaction under the locks a total over this Machine calls for (writelock.go).
 	ok := withWriteLock(w, req, store, machines, machine, "", values, func(req *http.Request) bool {
+		// A numbered Field is the runtime's: its number is written here, under its lock, before the record is judged.
+		if err := execution.AssignNumbers(req.Context(), store, machine, values, time.Now()); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return false
+		}
+		// What is derived from the number (a computed Field reading it) is derived from the number just written.
+		execution.ApplyComputed(req.Context(), store, machine, "", values)
 		if !validRecord(w, req, store, machine, values) || !notFrozen(w, req, store, machine, "", values) || !withinBounds(w, req, store, machine, "", values) {
 			return false
 		}
@@ -712,6 +719,9 @@ func insertGenerated(ctx context.Context, store *data.Store, machines map[string
 	out := make([]generatedRecord, 0, len(batch.Rows))
 	for i, row := range batch.Rows {
 		// A generated row is a record like any: its computed Fields derived, and what it adds up to on its parent kept.
+		if err := execution.AssignNumbers(ctx, store, target, row, time.Now()); err != nil {
+			return nil, fmt.Errorf("generates: row %d of %s: %w", i+1, target.ID, err)
+		}
 		execution.ApplyComputed(ctx, store, target, "", row)
 		rec, err := store.CreateRecord(ctx, target.ID, row)
 		if err != nil {
@@ -1265,7 +1275,7 @@ func rejectDangerousUpload(file multipart.File) (io.Reader, error) {
 func carryForwardStored(ctx context.Context, store *data.Store, machine *domain.Machine, recordID string, uploaded map[string]any, values map[string]any) error {
 	fixed := false
 	for _, f := range machine.Fields {
-		if f.Type == domain.FieldTypeFile || f.Stamp != "" {
+		if f.Type == domain.FieldTypeFile || f.Stamp != "" || f.Numbering != nil {
 			fixed = true
 			break
 		}
@@ -1279,7 +1289,7 @@ func carryForwardStored(ctx context.Context, store *data.Store, machine *domain.
 		return err
 	}
 	for _, f := range machine.Fields {
-		if f.Stamp != "" {
+		if f.Stamp != "" || f.Numbering != nil {
 			delete(values, f.ID)
 		} else if f.Type != domain.FieldTypeFile {
 			continue

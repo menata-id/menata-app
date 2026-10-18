@@ -873,3 +873,25 @@ func (s *Store) BumpSessionGeneration(ctx context.Context, subject string) error
 	}
 	return nil
 }
+
+// HighestNumber is the largest counter already used under prefix for a numbered Field of a Machine (domain.FieldNumbering):
+// the records whose value is prefix followed by digits only, in this Workspace, and 0 when there is none. One statement,
+// however many records there are; the caller holds the lock that makes the next number its own (Store.Lock).
+func (s *Store) HighestNumber(ctx context.Context, machineID, fieldID, prefix string) (int, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return 0, errNotScoped
+	}
+	readLogFrom(ctx).record(machineID + " highest number")
+	var highest int
+	// #nosec G201 -- fieldID is a load-validated Field id in a JSONB path; the prefix is a bind parameter.
+	err := s.q(ctx).QueryRow(ctx, fmt.Sprintf(`SELECT COALESCE(max(substring(data->>'%s' FROM char_length($3) + 1)::bigint), 0)
+		FROM records
+		WHERE machine_id = $1 AND workspace_id = $2
+		  AND left(data->>'%s', char_length($3)) = $3
+		  AND substring(data->>'%s' FROM char_length($3) + 1) ~ '^[0-9]{1,9}$'`, fieldID, fieldID, fieldID), machineID, workspaceID, prefix).Scan(&highest)
+	if err != nil {
+		return 0, fmt.Errorf("highest number: %w", err)
+	}
+	return highest, nil
+}

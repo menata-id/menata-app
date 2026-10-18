@@ -4,6 +4,8 @@ fields:
   # A contract with instalments cannot be deleted from under them (K-13).
   - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
   - { id: fld_term_label, name: Label, type: text }
+  # One counter for every instalment, whatever a client sends for it.
+  - { id: fld_ref, name: Ref, type: text, numbering: { pattern: "INS/{seq:3}" } }
   # What an instalment says of its contract, kept on it by the runtime so a list of instalments is searched and filtered by
   # them: the contract's party, number and category (inherited fields).
   - { id: fld_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }

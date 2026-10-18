@@ -5,8 +5,13 @@
 id: mch_contract
 name: Contract
 fields:
-  # The number is the contract's identity on paper: set once (owner decision K1).
-  - { id: fld_contract_no, name: Contract no., type: text, required: true, set_once: true }
+  # The number is the contract's identity on paper: written by the runtime when the contract is created (plan A4) -- CTR/C/026,
+  # CTR/K/031, CTR/I/041, a counter per kind -- and never changed (owner decision K1).
+  - id: fld_contract_no
+    name: Contract no.
+    type: text
+    required: true
+    numbering: { pattern: "CTR/{fld_contract_kind}/{seq:3}", codes: { Cast: C, Crew: K, Item: I } }
   - { id: fld_party_name, name: Contracted party, type: text, required: true }
   - { id: fld_contract_kind, name: Type, type: status, default: Cast, required: true, options: [Cast, Crew, Item] }
   - { id: fld_category, name: Category, type: relation, machine: mch_category, required: true }

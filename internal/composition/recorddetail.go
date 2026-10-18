@@ -238,7 +238,7 @@ func checklistFor(m *domain.Machine, parentField string, records []*data.Record)
 // required Field (or one required now, given the defaults) is filled by a default, a computation or a stamp.
 func createdFromTextAlone(m *domain.Machine, parentField, textField string) bool {
 	for _, f := range m.Fields {
-		if f.ID == parentField || f.ID == textField || f.Default != nil || f.Compute != nil || f.Stamp != "" {
+		if f.ID == parentField || f.ID == textField || f.Default != nil || f.Compute != nil || f.Stamp != "" || f.Numbering != nil {
 			continue
 		}
 		if f.Required {

@@ -7,7 +7,8 @@ name: Payment Plan
 fields:
   # An instalment with a payment plan cannot be deleted from under it.
   - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true, on_parent_delete: restrict }
-  - { id: fld_plan_no, name: Plan no., type: text, required: true, set_once: true }
+  # Written by the runtime when the plan is created: PP-0146 (plan A4).
+  - { id: fld_plan_no, name: Plan no., type: text, required: true, numbering: { pattern: "PP-{seq:4}" } }
   # What a plan says of its instalment's contract (K02b): searched by counterparty and filtered by category, two hops down.
   - { id: fld_plan_party, name: Contracted party, type: text, compute: { parent: fld_term.fld_party } }
   - { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }

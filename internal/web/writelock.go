@@ -57,6 +57,14 @@ func writeLockKeys(workspaceID string, machines map[string]*domain.Machine, mach
 			}
 		}
 	}
+	if id == "" {
+		// A numbered Field is written under its own lock: two creates must not read the same highest number.
+		for _, f := range machine.Fields {
+			if f.Numbering != nil {
+				set[execution.NumberingLockKey(workspaceID, machine.ID, f.ID)] = true
+			}
+		}
+	}
 	if id != "" {
 		for _, t := range machine.Transitions {
 			if t.Generates != nil {

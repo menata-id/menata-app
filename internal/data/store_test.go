@@ -715,3 +715,36 @@ func TestStore_ListRecordsSelectGroupsAlternativesAndFindsEmpty(t *testing.T) {
 		FieldPredicate{Field: "fld_due", Order: ">", Value: "2026-10-17", Alternative: true},
 	), "late", "late-done")
 }
+
+// TestStore_HighestNumberCountsOnlyDigitsUnderThePrefixInThisWorkspace: the next number of a numbered Field (FieldNumbering)
+// is one past the highest counter already written under the same prefix -- "CTR/C/" and "CTR/K/" count separately, a
+// counter wider than its padding still sorts as a number, text after the prefix is not a counter, and another Workspace's
+// records are not seen.
+func TestStore_HighestNumberCountsOnlyDigitsUnderThePrefixInThisWorkspace(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+	other := WithWorkspaceScope(context.Background(), "ws_store_test_other")
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM records WHERE machine_id = $1`, storeTestMachine)
+	})
+
+	for _, no := range []string{"CTR/C/001", "CTR/C/009", "CTR/C/1000", "CTR/C/12x", "CTR/K/005", "OTHER/9"} {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_no": no}); err != nil {
+			t.Fatalf("create %s: %v", no, err)
+		}
+	}
+	if _, err := store.CreateRecord(other, storeTestMachine, map[string]any{"fld_no": "CTR/C/500"}); err != nil {
+		t.Fatal(err)
+	}
+	for prefix, want := range map[string]int{"CTR/C/": 1000, "CTR/K/": 5, "CTR/I/": 0, "CTR/": 0, "OTHER/": 9} {
+		got, err := store.HighestNumber(ctx, storeTestMachine, "fld_no", prefix)
+		if err != nil || got != want {
+			t.Errorf("HighestNumber(%q) = %d, %v; want %d", prefix, got, err, want)
+		}
+	}
+	if _, err := store.HighestNumber(context.Background(), storeTestMachine, "fld_no", "CTR/"); err == nil {
+		t.Error("a read with no Workspace scope was answered")
+	}
+}

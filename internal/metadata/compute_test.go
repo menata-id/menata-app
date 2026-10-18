@@ -323,3 +323,44 @@ fields:
 		})
 	}
 }
+
+// TestANumberedFieldIsATextFieldWrittenOnceFromWords: `numbering:` is a pattern with one counter; the Field is text, takes no
+// compute/stamp/default, and reads only text or status Fields of its own Machine that nothing computes.
+func TestANumberedFieldIsATextFieldWrittenOnceFromWords(t *testing.T) {
+	const src = `id: mch_c
+name: C
+fields:
+  - { id: fld_kind, name: Kind, type: status, default: Cast, options: [Cast, Crew] }
+  - { id: fld_n, name: N, type: number }
+  - { id: fld_no, name: No, type: text, numbering: { pattern: "CTR/{fld_kind}/{seq:3}", codes: { Cast: C, Crew: K } } }
+`
+	load := func(s string) error {
+		m, err := Parse([]byte(s))
+		if err != nil {
+			return err
+		}
+		return Validate(m)
+	}
+	if err := load(src); err != nil {
+		t.Fatalf("a well-formed numbering was refused: %v", err)
+	}
+	for name, tc := range map[string]struct{ from, to, want string }{
+		"on a number":    {"{ id: fld_no, name: No, type: text", "{ id: fld_no, name: No, type: number", "numbering writes text"},
+		"no counter":     {`pattern: "CTR/{fld_kind}/{seq:3}"`, `pattern: "CTR/{fld_kind}"`, "needs one {seq:N}"},
+		"unknown field":  {"{fld_kind}", "{fld_gone}", "does not declare"},
+		"a figure field": {"{fld_kind}", "{fld_n}", "text or status"},
+		"itself":         {"{fld_kind}", "{fld_no}", "names itself"},
+		"with a default": {"{ id: fld_no, name: No, type: text,", "{ id: fld_no, name: No, type: text, default: x,", "takes no compute, stamp or default"},
+		"a bad code":     {"Cast: C", "Cast: ''", "is not that"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := strings.Replace(src, tc.from, tc.to, 1)
+			if s == src {
+				t.Fatalf("fixture edit %q did not apply", tc.from)
+			}
+			if err := load(s); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("got %v, want an error naming %q", err, tc.want)
+			}
+		})
+	}
+}

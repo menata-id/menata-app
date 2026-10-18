@@ -135,6 +135,7 @@ var Capabilities = []Capability{
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
 	key("fieldDoc", "locked_when", "behaviour", "behavior", false, editRuleReason),
+	key("fieldDoc", "numbering", "behaviour", "behavior", false, "a number the runtime assigns on create (2026-10-18, plan A4: CTR/C/026, PP-0146); the assistant gains it with the edit/delete rules"),
 	key("fieldDoc", "currency", "presentation", "experience", false, "a money Field's currency (2026-10-18, plan A2); the assistant gains it with the edit/delete rules"),
 	key("fieldDoc", "categories", "presentation", "experience", false, "a second status Field's tones (2026-10-17, Dokter Kecil's payment status); the assistant writes the Machine's status_categories: and gains this slot with the edit/delete rules"),
 	key("fieldDoc", "set_once", "behaviour", "behavior", false, editRuleReason),

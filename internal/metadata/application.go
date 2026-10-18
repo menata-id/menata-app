@@ -682,6 +682,7 @@ func LoadApplication(path string) (*App, error) {
 		// After stampWorkflowRoles, because it asks which Machines an engine casts.
 		{"computed fields", func() error { return validateComputedFieldsAreGenericallyWritten(machines) }},
 		{"stamped fields", func() error { return validateStampedFieldsAreGenericallyWritten(machines) }},
+		{"numbered fields", func() error { return validateNumberedFieldsAreGenericallyWritten(machines) }},
 		{"conditional and derived fields", func() error { return validateDerivedFieldsAreGenericallyWritten(machines) }},
 		{"aggregate bounds", func() error { return validateBoundsAreGenericallyWritten(machines) }},
 		{"frozen records", func() error { return validateFrozenWhen(machines) }},

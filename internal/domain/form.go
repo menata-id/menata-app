@@ -94,7 +94,7 @@ func RecordMoveRoute(recordRoute, direction string) string {
 // give the record a status.
 func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 	for _, f := range m.Fields {
-		if f.Compute != nil || f.Stamp != "" || f.Type == FieldTypeFile {
+		if f.Compute != nil || f.Stamp != "" || f.Numbering != nil || f.Type == FieldTypeFile {
 			continue
 		}
 		if f.Type == FieldTypeStatus && f.Default != nil && m.GovernsTransitions(f.ID) {
@@ -138,7 +138,7 @@ func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 	var inputs []FormInput
 	for _, f := range m.Fields {
-		if f.Compute != nil || f.Stamp != "" || f.Type == FieldTypeFile || f.Type == FieldTypeGroup ||
+		if f.Compute != nil || f.Stamp != "" || f.Numbering != nil || f.Type == FieldTypeFile || f.Type == FieldTypeGroup ||
 			f.Type == FieldTypeBoolean || (f.Type == FieldTypeStatus && m.GovernsTransitions(f.ID)) || f.IsReference() {
 			continue
 		}
