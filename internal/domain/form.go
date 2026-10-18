@@ -144,6 +144,10 @@ func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 		if f.Type == FieldTypeStatus && f.Default != nil && m.GovernsTransitions(f.ID) {
 			continue
 		}
+		// A Field an edge writes when it is taken (`sets:`: an approval date, a payment date) is the runtime's, never typed.
+		if m.SetByTransition(f.ID) {
+			continue
+		}
 		if f.Type == FieldTypeGroup {
 			unsupported = append(unsupported, f)
 			continue
@@ -161,6 +165,35 @@ func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 		inputs = append(inputs, in)
 	}
 	return inputs, unsupported
+}
+
+// SetByTransition says some Transition of m writes the Field itself when it is taken (`sets:`), so a person is not asked for it.
+func (m *Machine) SetByTransition(fieldID string) bool {
+	for _, t := range m.Transitions {
+		if _, ok := t.Sets[fieldID]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// SelectInputs is the controls a Form that declares `fields:` asks for: those Fields of inputs, in that order. An id that is
+// no control of the form is left out here (the loader refuses it, so a loaded Form never names one).
+func SelectInputs(inputs []FormInput, ids []string) []FormInput {
+	if len(ids) == 0 {
+		return inputs
+	}
+	byID := make(map[string]FormInput, len(inputs))
+	for _, in := range inputs {
+		byID[in.FieldID] = in
+	}
+	out := make([]FormInput, 0, len(ids))
+	for _, id := range ids {
+		if in, ok := byID[id]; ok {
+			out = append(out, in)
+		}
+	}
+	return out
 }
 
 // EditFormInputs is every control an update form for one record of m asks for, each starting as the record's

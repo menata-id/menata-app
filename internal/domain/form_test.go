@@ -47,3 +47,30 @@ func TestCreateFormInputsLeaveAGovernedStatusAtItsDefault(t *testing.T) {
 			"along its edges; one with no default still needs a value; an ungoverned status is a plain choice", ids)
 	}
 }
+
+// A Field an edge writes when it is taken (`sets:`: an approval date) is the runtime's, so the create form does not ask for it;
+// and `fields:` picks the controls and their order.
+func TestCreateFormInputsLeaveOutWhatATransitionSetsAndSelectInputsPicksAndOrders(t *testing.T) {
+	m := &Machine{ID: "mch_plan", Fields: []Field{
+		{ID: "fld_amount", Name: "Amount", Type: FieldTypeMoney, Required: true},
+		{ID: "fld_date", Name: "Date", Type: FieldTypeDate, Required: true},
+		{ID: "fld_approved_on", Name: "Approved on", Type: FieldTypeDate},
+		{ID: "fld_status", Name: "Status", Type: FieldTypeStatus, Options: []string{"a", "b"}},
+	}, Transitions: []Transition{{Field: "fld_status", From: "a", To: "b", Sets: map[string]string{"fld_approved_on": "today"}}}}
+	got, _ := m.CreateFormInputs()
+	for _, in := range got {
+		if in.FieldID == "fld_approved_on" {
+			t.Errorf("the form asks for a Field a transition writes: %+v", got)
+		}
+	}
+	if !m.SetByTransition("fld_approved_on") || m.SetByTransition("fld_date") {
+		t.Error("SetByTransition does not say which Field an edge writes")
+	}
+	picked := SelectInputs(got, []string{"fld_date", "fld_amount"})
+	if len(picked) != 2 || picked[0].FieldID != "fld_date" || picked[1].FieldID != "fld_amount" {
+		t.Errorf("SelectInputs = %+v, want date then amount", picked)
+	}
+	if all := SelectInputs(got, nil); len(all) != len(got) {
+		t.Errorf("no fields: must leave every control, got %d of %d", len(all), len(got))
+	}
+}

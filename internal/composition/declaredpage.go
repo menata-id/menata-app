@@ -126,6 +126,7 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 		return ir.FormSpec{}, fmt.Errorf("composition: dataset %q names machine %q, which this Workspace does not install", b.Dataset, ds.Source)
 	}
 	inputs, _ := src.CreateFormInputs()
+	inputs = domain.SelectInputs(inputs, b.FormFields)
 	if err := fillChoices(ctx, l, src, inputs); err != nil {
 		return ir.FormSpec{}, err
 	}

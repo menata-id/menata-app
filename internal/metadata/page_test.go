@@ -1526,6 +1526,37 @@ func TestAFormStartsWithARequestValueOrIsFixedToItNeverBoth(t *testing.T) {
 	}
 }
 
+// TestAFormsFieldsAreOnesItAsksForAndLeaveOutNothingItNeeds: `fields:` names controls the form asks for, once each; a Field it
+// leaves out must not be required without a default (no form could be submitted), and `values:`/`starts:` name only listed Fields.
+func TestAFormsFieldsAreOnesItAsksForAndLeaveOutNothingItNeeds(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{
+		{ID: "fld_name", Type: domain.FieldTypeText, Required: true},
+		{ID: "fld_note", Type: domain.FieldTypeText},
+		{ID: "fld_kind", Type: domain.FieldTypeStatus, Options: []string{"a", "b"}, Required: true, Default: "a"},
+	}}
+	ds := domain.Dataset{ID: "ds_x", Source: "mch_x", Select: domain.SelectRecords}
+	run := func(b domain.PageBinding) string {
+		b.Dataset, b.Write = "ds_x", domain.PageWriteCreate
+		return strings.Join(writeBindingIssues(b, ds, m, "w"), "\n")
+	}
+	if got := run(domain.PageBinding{FormFields: []string{"fld_name"}}); got != "" {
+		t.Errorf("a narrowed form was refused (the omitted required Field has a default): %s", got)
+	}
+	for name, tc := range map[string]struct {
+		b    domain.PageBinding
+		want string
+	}{
+		"an unknown Field":          {domain.PageBinding{FormFields: []string{"fld_name", "fld_nope"}}, `"fld_nope" is not a Field`},
+		"listed twice":              {domain.PageBinding{FormFields: []string{"fld_name", "fld_name"}}, "listed twice"},
+		"a required Field left out": {domain.PageBinding{FormFields: []string{"fld_note"}}, `leaves out "fld_name"`},
+		"a start on a hidden Field": {domain.PageBinding{FormFields: []string{"fld_name"}, Starts: map[string]string{"fld_note": "$parameters.n"}}, "starts: fld_note is not a Field this form asks for"},
+	} {
+		if got := run(tc.b); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}
+
 // TestABlockedRoleNamesATransitionAConstraintHoldsBack: `blocked:trn_x` is the declared reason of a Constraint holding
 // that edge back; the Machine must declare the edge, and some Constraint on it that says a reason -- otherwise there is
 // never anything to show and the page would carry a node that can never be drawn.

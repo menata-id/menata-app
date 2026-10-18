@@ -2055,6 +2055,14 @@ the request's value but leaves it a control the person may change; with a link's
 starts: { fld_party_name: $parameters.fld_party_name, fld_category: $parameters.fld_category, fld_value: $parameters.fld_value }
 ```
 
+**Which controls a create Form asks for: `fields:` (2026-10-18).** Without it a Form asks for every Field its Machine allows a form to
+ask for -- not a computed, stamped, numbered, file or group Field, not a governed status that has a default, and **not a Field a
+transition writes when it is taken** (`sets:`: an approval date, a payment date -- the runtime's, never typed). `fields: [fld_term,
+fld_plan_amount, fld_plan_date]` on the Form narrows that to the named controls, **in that order**. The loader refuses a Field the
+form would not ask for anyway, one listed twice, a required Field with no default that the list leaves out (no form could be
+submitted), a `values:`/`starts:` naming a Field that is not listed, and an `extract:` proposing one. An ordinary Form that says
+nothing is unchanged.
+
 A Field is fixed (`values:`) or started (`starts:`), not both. A file Field is read through **`file:fld_doc`** (its name with its
 size, "ctr-c-026.pdf · 1.4 MB") and **`filehref:fld_doc`** (the address that serves it), the only roles of a file Field:
 `{static: link, from: {text: "file:fld_doc", href: "filehref:fld_doc"}}` draws the Document of mockup K01d, and nothing when

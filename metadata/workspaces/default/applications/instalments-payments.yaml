@@ -255,6 +255,9 @@ navigation:
           submit: Submit plan
           then: record
           values: { fld_term: $parameters.term }
+          # What the form asks: the instalment, the amount, the date and the method. Who approved it and when it was paid are
+          # written by the runtime as the plan moves.
+          fields: [fld_term, fld_plan_amount, fld_plan_date, fld_method]
           # The instalment's net amount comes with the link: a start, still a control the person may change.
           starts: { fld_plan_amount: $parameters.fld_plan_amount }
           binding: { dataset: ds_payment_plans, write: create }

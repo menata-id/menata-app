@@ -755,5 +755,6 @@ steps:
     view:
       path: /pages/nav_new_plan?term=$first-shooting-day&fld_plan_amount=68400
       shows: ['name="fld_plan_amount"', 'value="68400"', "Submit plan"]
+      hides: ['name="fld_remark"', 'name="fld_paid_date"']
     expect: ok
 

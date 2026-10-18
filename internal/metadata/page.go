@@ -29,28 +29,30 @@ import (
 // The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of`, `count`, `hint_figure`, `when`, `each`, `step` and `window`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
-	kind     string
-	typ      string
-	props    map[string]string
-	binding  *pageBindingDoc
-	from     map[string]string
-	to       string
-	in       string
-	listOf   string
-	param    string
-	count    *domain.PageCount
-	hint     *domain.PageCount
-	when     *domain.PageCondition
-	each     string
-	step     *domain.PageStep
-	window   string
-	columns  []domain.PageColumn
-	pass     map[string]string
-	counts   map[string]string
-	values   map[string]string
-	starts   map[string]string
-	extract  *domain.FormExtract
-	children []pageNodeDoc
+	kind    string
+	typ     string
+	props   map[string]string
+	binding *pageBindingDoc
+	from    map[string]string
+	to      string
+	in      string
+	listOf  string
+	param   string
+	count   *domain.PageCount
+	hint    *domain.PageCount
+	when    *domain.PageCondition
+	each    string
+	step    *domain.PageStep
+	window  string
+	columns []domain.PageColumn
+	pass    map[string]string
+	counts  map[string]string
+	values  map[string]string
+	starts  map[string]string
+	// formFields is a Form's `fields:` list.
+	formFields []string
+	extract    *domain.FormExtract
+	children   []pageNodeDoc
 }
 
 type pageBindingDoc struct {
@@ -179,6 +181,16 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				p.starts = m
 			default:
 				p.values = m
+			}
+		case "fields":
+			if val.Kind != yaml.SequenceNode {
+				return fmt.Errorf("line %d: fields: is the list of Fields a Form asks for", key.Line)
+			}
+			for _, item := range val.Content {
+				if item.Kind != yaml.ScalarNode || item.Value == "" {
+					return fmt.Errorf("line %d: fields: lists Field ids, one per item", item.Line)
+				}
+				p.formFields = append(p.formFields, item.Value)
 			}
 		case "extract":
 			x, err := decodeFormExtract(val)
@@ -508,7 +520,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, Extract: p.extract, Counts: p.counts, In: p.in}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, FormFields: p.formFields, Extract: p.extract, Counts: p.counts, In: p.in}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -529,6 +541,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
 		out.Binding.Values = p.values
 		out.Binding.Starts = p.starts
+		out.Binding.FormFields = p.formFields
 		out.Binding.Extract = p.extract
 		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
 		// names it to the Data Plane the same way a Table's column does.
@@ -837,6 +850,11 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
 			if b.Extract != nil && b.Write == domain.PageWriteCreate {
 				issues = append(issues, extractIssues(*b.Extract, machines[ds.Source], machines, where)...)
+				for _, id := range b.Extract.Fields {
+					if len(b.FormFields) > 0 && !slices.Contains(b.FormFields, id) {
+						issues = append(issues, fmt.Sprintf("%s: page: extract: fields: %q is not among the Form's fields:, so it has no control to fill", where, id))
+					}
+				}
 			}
 		case b.Rows == domain.PageRowsRecords:
 			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], machines, where)...)
@@ -956,6 +974,28 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 	asked := map[string]bool{}
 	for _, in := range inputs {
 		asked[in.FieldID] = true
+	}
+	// `fields:` narrows the controls to the ones it names. A Field it leaves out must not be one the form needs: a required Field with
+	// no default would make the form impossible to submit.
+	if len(b.FormFields) > 0 {
+		listed := map[string]bool{}
+		for _, id := range b.FormFields {
+			switch {
+			case !asked[id]:
+				issues = append(issues, fmt.Sprintf("%s: page: fields: %q is not a Field %q's create form asks for", where, id, source.ID))
+			case listed[id]:
+				issues = append(issues, fmt.Sprintf("%s: page: fields: %q is listed twice", where, id))
+			}
+			listed[id] = true
+		}
+		for _, in := range inputs {
+			if !listed[in.FieldID] && in.Required && in.Default == "" {
+				issues = append(issues, fmt.Sprintf("%s: page: fields: leaves out %q, which is required and has no default -- no form could be submitted", where, in.FieldID))
+			}
+		}
+		for id := range asked {
+			asked[id] = listed[id]
+		}
 	}
 	for _, key := range []struct {
 		name string

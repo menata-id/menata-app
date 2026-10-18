@@ -102,6 +102,9 @@ type PageNode struct {
 	// Starts (`starts: {fld_party_name: $parameters.fld_party_name}`) are what a create Form begins with, like Values, but
 	// left an ordinary control the person may change: the form a Copy link opens, filled from the record it copies.
 	Starts map[string]string
+	// FormFields (`fields: [fld_a, fld_b]` on a create Form) names the controls the form asks for and their order. Without it a
+	// form asks for every Field the Machine allows a form to ask for (Machine.CreateFormInputs).
+	FormFields []string
 	// Extract (`extract:` on a create Form) lets the form be filled from a document: see FormExtract.
 	Extract  *FormExtract
 	Children []PageNode
@@ -328,6 +331,8 @@ type PageBinding struct {
 	Transition string
 	// Starts is the Form's `starts:` (PageNode.Starts), copied here at load like Values.
 	Starts map[string]string
+	// FormFields is the Form's `fields:` (PageNode.FormFields), copied here at load like Starts.
+	FormFields []string
 	// Extract is the Form's `extract:` (PageNode.Extract), copied here at load like Starts.
 	Extract *FormExtract
 	// Values is the Form's `values:` (PageNode.Values), copied here at load so the resolver that builds the form reads
