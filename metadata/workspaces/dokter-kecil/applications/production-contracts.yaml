@@ -440,8 +440,9 @@ navigation:
             - { header: Gross, field: fld_gross, align: end }
             - { header: Status, field: fld_term_status }
           binding: { dataset: ds_terms_of_contract, rows: records }
-  # Instalments are entered here, one row per instalment, naming their contract (adding one from the contract page is
-  # plan direction B2).
+  # Every instalment as the runtime's own Machine screen. Not in the menu (owner, 2026-10-18; mockup K01 has Overview,
+  # Contracts, Settings): an instalment is added from its contract's page, and the unpaid ones are worked in
+  # Instalments & Payments.
   - id: nav_contract_instalments
     label: Instalments
     title: Instalments
@@ -449,6 +450,7 @@ navigation:
     route: /machines/mch_contract_term
     priority: 3
     icon: calendar
+    in_menu: false
   # Settings (K01e): the runtime's own hub; Categories is master data, so it sits here rather than in the menu.
   - id: nav_contracts_settings
     label: Settings
