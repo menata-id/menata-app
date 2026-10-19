@@ -2065,6 +2065,12 @@ form would not ask for anyway, one listed twice, a required Field with no defaul
 submitted), a `values:`/`starts:` naming a Field that is not listed, and an `extract:` proposing one. An ordinary Form that says
 nothing is unchanged.
 
+**The same key narrows an edit Form** (`write: update` inside a records template, 2026-10-19): `fields: [fld_party_name, fld_value]` is
+what a person may edit there, in that order. An edit form already leaves out computed, stamped, numbered, file, group, boolean,
+reference and governed-status Fields; `fields:` also leaves out one a *rollup* writes (a contract's payment status, which the
+instalments keep) or one a person should not touch. A Field it leaves out needs no default -- the record holds its value. The loader refuses
+an unknown Field and one listed twice. Dokter Kecil's two "Edit contract" forms say it.
+
 A Field is fixed (`values:`) or started (`starts:`), not both. A file Field is read through **`file:fld_doc`** (its name with its
 size, "ctr-c-026.pdf · 1.4 MB") and **`filehref:fld_doc`** (the address that serves it), the only roles of a file Field:
 `{static: link, from: {text: "file:fld_doc", href: "filehref:fld_doc"}}` draws the Document of mockup K01d, and nothing when

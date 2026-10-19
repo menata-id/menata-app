@@ -226,7 +226,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
 	"case14_lending":              {Rejected: 0, Passed: 9, Steps: 9},
 	"case09_accounting":           {Rejected: 0, Passed: 14, Steps: 14},
-	"case22_production_contracts": {Rejected: 0, Passed: 113, Steps: 113},
+	"case22_production_contracts": {Rejected: 0, Passed: 114, Steps: 114},
 	"case23_number_format":        {Rejected: 0, Passed: 4, Steps: 4},
 }
 

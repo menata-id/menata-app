@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"maps"
 	"mime/multipart"
 	"net/http"
@@ -351,6 +352,12 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 	return record, true
 }
 
+// logPatch writes one line naming the Fields a PATCH sent -- never their values -- so that "I only pressed Save and the status changed"
+// can be settled from the log: an Edit form names its own controls, a transition Button names its one status Field.
+func logPatch(machineID, recordID string, fields []string) {
+	log.Printf("RECORD-PATCH machine=%s record=%s fields=%s", machineID, recordID, strings.Join(fields, ","))
+}
+
 // patchRecordForm changes only the Fields the request names and keeps the rest of the record as it is.
 // updateRecordForm replaces a record from a whole form, which is right for an edit form and wrong for a
 // card's completion circle, quick edit or move: each knows one Field and must not blank the others by
@@ -378,12 +385,15 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 		}
 		values, submitted := maps.Clone(existing.Values), data.ValuesFromForm(machine, req.Form)
 		var changed int
+		var named []string
 		for _, f := range machine.Fields {
-			if _, named := req.Form[f.ID]; named && f.Type != domain.FieldTypeFile && f.Stamp == "" {
+			if _, sent := req.Form[f.ID]; sent && f.Type != domain.FieldTypeFile && f.Stamp == "" {
 				values[f.ID] = submitted[f.ID]
+				named = append(named, f.ID)
 				changed++
 			}
 		}
+		logPatch(machine.ID, id, named)
 		// A file sent with the change (a proof of payment uploaded as the plan is marked paid) is stored as the edit
 		// route stores one.
 		uploaded, err := handleFileUploads(req, machine, files)

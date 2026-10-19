@@ -1504,7 +1504,14 @@ func lowerUpdateForm(n domain.PageNode, path string, record map[string]string, w
 	if writes == nil || writes.Edit == nil {
 		return nil, fmt.Errorf("%s: the Collection's resolver supplied no update form for this record", path)
 	}
-	return buildForm(n, path, *writes.Edit, domain.PageWriteUpdate, "the record's Machine")
+	// `fields:` narrows the controls to the ones it names, in its order; the record already holds every value it leaves out.
+	// (A narrowing that names none of the controls the resolver gave is the load-time placeholder's, which has one stand-in control: the
+	// loader has already checked the names against the real Machine, so a real resolver never takes this path.)
+	spec := *writes.Edit
+	if picked := domain.SelectInputs(spec.Inputs, n.Binding.FormFields); len(picked) > 0 {
+		spec.Inputs = picked
+	}
+	return buildForm(n, path, spec, domain.PageWriteUpdate, "the record's Machine")
 }
 
 // Button properties a delete Button's lowering derives. `confirm` is the one thing an author writes beyond the

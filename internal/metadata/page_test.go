@@ -1668,3 +1668,28 @@ func TestAnExtractNamesWhatADocumentMayFillAndWhereItsRowsLand(t *testing.T) {
 		t.Errorf("countExtracts = %d, want 2", countExtracts(two))
 	}
 }
+
+// `fields:` on an edit form names controls the edit form asks for, once each; leaving one out needs no default (the record holds it).
+func TestAnEditFormsFieldsAreOnesItAsksFor(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{
+		{ID: "fld_name", Type: domain.FieldTypeText, Required: true},
+		{ID: "fld_note", Type: domain.FieldTypeText},
+		{ID: "fld_roll", Type: domain.FieldTypeNumber, Compute: &domain.FieldCompute{Op: domain.ComputeSum}},
+	}}
+	if got := updateBindingIssues(domain.PageBinding{Write: domain.PageWriteUpdate, FormFields: []string{"fld_note"}}, m, "w"); len(got) != 0 {
+		t.Errorf("a narrowed edit form was refused: %v", got)
+	}
+	for name, tc := range map[string]struct {
+		fields []string
+		want   string
+	}{
+		"an unknown Field": {[]string{"fld_nope"}, `"fld_nope" is not a Field`},
+		"a computed Field": {[]string{"fld_roll"}, `"fld_roll" is not a Field`},
+		"listed twice":     {[]string{"fld_name", "fld_name"}, "listed twice"},
+	} {
+		got := strings.Join(updateBindingIssues(domain.PageBinding{Write: domain.PageWriteUpdate, FormFields: tc.fields}, m, "w"), "\n")
+		if !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+}

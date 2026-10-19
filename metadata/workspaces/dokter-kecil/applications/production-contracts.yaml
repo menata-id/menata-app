@@ -188,6 +188,8 @@ navigation:
               children:
                 - component: Form
                   submit: Save
+                  # What a person edits: not the payment status (the instalments' rollup writes it) and nothing the runtime owns.
+                  fields: [fld_party_name, fld_contract_kind, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
                   binding: { write: update }
             - component: Button
               label: Delete
@@ -311,6 +313,8 @@ navigation:
                       children:
                         - component: Form
                           submit: Save
+                          # What a person edits: not the payment status (the instalments' rollup writes it) and nothing the runtime owns.
+                          fields: [fld_party_name, fld_contract_kind, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
                           binding: { write: update }
                     - static: link
                       to: nav_new_contract

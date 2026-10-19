@@ -933,7 +933,23 @@ func updateBindingIssues(b domain.PageBinding, item *domain.Machine, where strin
 	case len(item.EditFormInputs(nil)) == 0:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q has no Field an edit form can ask for (booleans, statuses, references, groups, files, computed and stamped Fields are not drawn)", where, domain.PageWriteUpdate, item.ID)}
 	}
-	return nil
+	// `fields:` names controls the edit form asks for, once each. A Field it leaves out needs no default: the record already holds a value.
+	var issues []string
+	asked := map[string]bool{}
+	for _, in := range item.EditFormInputs(nil) {
+		asked[in.FieldID] = true
+	}
+	listed := map[string]bool{}
+	for _, id := range b.FormFields {
+		switch {
+		case !asked[id]:
+			issues = append(issues, fmt.Sprintf("%s: page: fields: %q is not a Field %q's edit form asks for", where, id, item.ID))
+		case listed[id]:
+			issues = append(issues, fmt.Sprintf("%s: page: fields: %q is listed twice", where, id))
+		}
+		listed[id] = true
+	}
+	return issues
 }
 
 // deleteBindingIssues is what a `write: delete` binding asks: to sit inside a records Collection, to name no

@@ -175,6 +175,18 @@ navigation:
                       variant: secondary
                       confirm: Cancel this contract? A cancelled contract cannot be reopened.
                       binding: { write: transition, transition: trn_contract_cancel }
+                    - component: Popover
+                      label: Edit
+                      title: Edit contract
+                      trigger: secondary
+                      align: start
+                      density: regular
+                      children:
+                        - component: Form
+                          submit: Save
+                          # Only what a person edits: not the payment status (the instalments' rollup writes it), not the type.
+                          fields: [fld_party_name, fld_value]
+                          binding: { write: update }
                     - component: Button
                       label: Delete
                       variant: danger

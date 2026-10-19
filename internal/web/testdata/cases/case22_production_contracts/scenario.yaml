@@ -261,12 +261,20 @@ steps:
     expect: ok
   # A move nothing leads back from asks first (Cancel contract: no edge leaves Cancelled), and says so in words that cannot be taken
   # for dismissing a dialog; one that can be undone (Activate) asks nothing.
+  # An edit form asks for what its `fields:` names and nothing else: the payment status is the rollup's, not a person's to pick.
+  - id: the-edit-form-asks-only-for-its-fields
+    as: silvia
+    view:
+      path: /pages/nav_contract/$contract
+      shows: ['role="dialog" aria-label="Edit contract"', 'name="fld_party_name"', 'name="fld_value"', "Cancel</button>"]
+      hides: ['name="fld_payment_status"', 'name="fld_contract_kind"']
+    expect: ok
   - id: cancelling-a-contract-asks-first-and-is-not-called-cancel
     as: silvia
     view:
       path: /pages/nav_contract/$contract
       shows: [">Cancel contract<", 'hx-confirm="Cancel this contract? A cancelled contract cannot be reopened."']
-      hides: [">Cancel<", 'hx-confirm="Activate']
+      hides: ['aria-label="Cancel: ', 'hx-confirm="Activate']
     expect: ok
   - id: a-record-page-needs-a-record-of-its-machine
     as: silvia

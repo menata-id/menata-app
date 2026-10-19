@@ -1,6 +1,7 @@
 package web
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -57,5 +58,19 @@ func TestRouterMountsTheUploadLedger(t *testing.T) {
 	}
 	if !strings.Contains(string(src), "pr.Use(discardRefusedUploads(") {
 		t.Error("router.go does not mount discardRefusedUploads on the authenticated routes: a refused write would leave its upload on disk")
+	}
+}
+
+// A PATCH is logged by the names of the Fields it sent and never their values, so a dispute about what a Save did is settled from
+// the log: an Edit form sends its own controls, a transition Button sends the status Field alone.
+func TestLogPatchNamesTheFieldsAndNeverTheirValues(t *testing.T) {
+	var buf strings.Builder
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(prev)
+	logPatch("mch_contract", "rec_1", []string{"fld_party_name", "fld_value"})
+	got := buf.String()
+	if !strings.Contains(got, "RECORD-PATCH machine=mch_contract record=rec_1 fields=fld_party_name,fld_value") {
+		t.Errorf("the line does not name the Fields: %q", got)
 	}
 }
