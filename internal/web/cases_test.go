@@ -221,7 +221,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case01_design_request":       {Rejected: 0, Passed: 13, Steps: 13, Red: nil},
 	"case02_leave_request":        {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":             {Rejected: 0, Passed: 15, Steps: 15},
-	"case19_project_tasks":        {Rejected: 0, Passed: 30, Steps: 30},
+	"case19_project_tasks":        {Rejected: 0, Passed: 39, Steps: 39},
 	"case04_maintenance":          {Rejected: 0, Passed: 6, Steps: 6},
 	"case05_inventory":            {Rejected: 0, Passed: 6, Steps: 6},
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
@@ -965,6 +965,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 // substituteRefs fills `$<actor>` with that actor's user record id and `$<step id>` with the record that step created,
 // so a later step can point a relation at it. The longest step id goes first, so `$open-period` is not read as `$open`.
 func substituteRefs(v string, actors, steps map[string]string) string {
+	v = substituteDates(v, time.Now())
 	for name, id := range actors {
 		v = strings.ReplaceAll(v, "$"+name, id)
 	}
@@ -977,6 +978,29 @@ func substituteRefs(v string, actors, steps map[string]string) string {
 		v = strings.ReplaceAll(v, "$"+sid, steps[sid])
 	}
 	return v
+}
+
+// caseToday is how a step names a day of the request's own clock, which a case cannot spell as a literal: `$today` and `$today+3` / `$today-1`
+// are YYYY-MM-DD, and `$monthname` is the month the request is in as the Calendar's heading says it ("October 2026").
+var caseToday = regexp.MustCompile(`\$today([+-]\d+)?`)
+
+func substituteDates(v string, now time.Time) string {
+	v = caseToday.ReplaceAllStringFunc(v, func(m string) string {
+		days, _ := strconv.Atoi(strings.TrimPrefix(m, "$today"))
+		return now.AddDate(0, 0, days).Format("2006-01-02")
+	})
+	return strings.ReplaceAll(v, "$monthname", now.Format("January 2006"))
+}
+
+func TestSubstituteDates(t *testing.T) {
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	for in, want := range map[string]string{
+		"$today": "2026-10-19", "due $today+3": "due 2026-10-22", "$today-19": "2026-09-30", "$monthname": "October 2026", "$todo": "$todo",
+	} {
+		if got := substituteDates(in, now); got != want {
+			t.Errorf("substituteDates(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
 func TestSubstituteRefs(t *testing.T) {

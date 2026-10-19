@@ -1014,6 +1014,10 @@ func TestPage_aWeekToolbarLoadsAndEachKeyIsCheckedAtLoad(t *testing.T) {
 		"a window that is a list":               {okStep, "          window: [ds_week]", okWhenKey, "window"},
 		"a when with a role and a parameter":    {okStep, okWindow, "          when: { parameter: week, role: status, is_not: \"0\" }", "not both"},
 		"a when comparing a week to a word":     {okStep, okWindow, "          when: { parameter: week, is_not: soon }", "whole number"},
+		"a month step to a page reading $week":  {"          step: { parameter: month, by: 1 }", okWindow, okWhenKey, "reading $month"},
+		"a month step beyond its bound":         {"          step: { parameter: month, by: 121 }", okWindow, okWhenKey, "beyond the 120"},
+		"a when comparing the range to a word":  {okStep, okWindow, "          when: { parameter: range, is: yearly }", "range"},
+		"a when on a parameter nothing names":   {okStep, okWindow, "          when: { parameter: page, is: \"1\" }", "not one a page may test"},
 	} {
 		nav := weekToolbar(c.step, c.window, c.when)
 		if strings.HasPrefix(name, "a step to a page") {
@@ -1058,24 +1062,24 @@ func TestPage_aDisclosureLoadsWithABodyAndABlankSummaryIsRefused(t *testing.T) {
 	}
 }
 
-// TestPage_aSegmentedControlLoadsAndABadOneIsRefused: a page may declare `component: SegmentedControl` with its four
-// inputs; a lone option, a selected value outside the options, a bad parameter name and any undeclared property are
-// load errors.
+// TestPage_aSegmentedControlLoadsAndABadOneIsRefused: a page may declare `component: SegmentedControl` with its label, its
+// parameter and its options (which choice is showing is the request's, never written); a lone option, a written `selected`,
+// a bad parameter name and any undeclared property are load errors.
 func TestPage_aSegmentedControlLoadsAndABadOneIsRefused(t *testing.T) {
-	page := func(label, query, options, selected, extra string) string {
+	page := func(label, query, options, extra string) string {
 		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: SegmentedControl\n" +
-			"          label: " + label + "\n          query: " + query + "\n          options: |-\n" + options + "          selected: " + selected + "\n" + extra
+			"          label: " + label + "\n          query: " + query + "\n          options: |-\n" + options + extra
 	}
 	two := "            week=Week\n            month=Month\n"
-	if err := pageFixture(t, page("Range", "range", two, "week", "")); err != nil {
+	if err := pageFixture(t, page("Range", "range", two, "")); err != nil {
 		t.Errorf("a valid SegmentedControl was refused: %v", err)
 	}
 	for name, c := range map[string]struct{ doc, want string }{
-		"one option":        {page("Range", "range", "            week=Week\n", "week", ""), "fewer than two"},
-		"selected not in":   {page("Range", "range", two, "year", ""), "selected"},
-		"a bad query":       {page("Range", "Range", two, "week", ""), "query"},
-		"a blank label":     {page("\"  \"", "range", two, "week", ""), "label"},
-		"an undeclared key": {page("Range", "range", two, "week", "          class: mt-2\n"), "class"},
+		"one option":         {page("Range", "range", "            week=Week\n", ""), "fewer than two"},
+		"a written selected": {page("Range", "range", two, "          selected: month\n"), "never written"},
+		"a bad query":        {page("Range", "Range", two, ""), "query"},
+		"a blank label":      {page("\"  \"", "range", two, ""), "label"},
+		"an undeclared key":  {page("Range", "range", two, "          class: mt-2\n"), "class"},
 	} {
 		err := pageFixture(t, c.doc)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

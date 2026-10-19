@@ -619,6 +619,19 @@ The loader refuses `column_actions`/`add_column` on a board whose `group_by` is 
 a navigation item of the Application. **The AI assistant has no slot for either key** (`registry.Capabilities` says why: a generated board groups by a status
 Field's options, which are not records).
 
+**A calendar of weeks and months (2026-10-19, mockup PM05).** The window is `$week`..`$week+6` or, new, `$month`..`$month_end` (the first and last
+day of the month `?month=N` selects, N whole months from the one holding today; no offsets, a month's length is not a number of days); `?range=week|month`
+chooses the grain and a request that sends neither, or nonsense, is the week. A page tests it with `when: {parameter: range, is: month}` (also `week` and
+`month` as whole numbers), steps it with `step: {parameter: month, by: 1}` and, so a step or a "This month" link stays a month, `set: {range: month}` on the
+link (the one parameter a link sets, from a closed set). `component: SegmentedControl` with `query: range` is the Week | Month switch (its state is the
+request's; the other parameters, the project among them, stay in each link). A grouped Collection takes `binding: {group: date, fill: weeks}` to draw
+whole Monday-to-Sunday weeks around the window (the added days are quiet, hold nothing and take no drop) and `moves: true` to make each card the viewer may
+edit draggable to another day -- a drop, or Space then the arrows then Space on its title, writes the record's own date Field through the generic patch
+route (a named script exception, below). Its heading template reads `bucket:label`, or the parts `bucket:day` ("Mon"), `bucket:date` ("05 Oct"),
+`bucket:number` ("5"). A `static: link` may be `variant: quiet` (the secondary ink, picked for a finished record with `when:`) or, as a button, carry
+`icon: chevron-left|chevron-right` in place of its words (the words stay its accessible name). The properties lowering alone produces -- a section's
+`outside`, `dropField`, `dropValue` and a stack's `move` -- are never written.
+
 **Moving a card from the keyboard (2026-10-19, mockup PM01b):** Space on a focused card lifts it, the arrow keys choose the list and the place, Space drops it and
 Esc puts it back; the board's status line says where it is going. It ends in the very PATCH a drop sends, so there is one contract. It is part of the board's
 drag script in `machine.templ` (see "Script is the exception").
@@ -1393,7 +1406,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 | Key | Value | Meaning |
 |---|---|---|
-| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `anchor`, `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap` |
+| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `anchor`, `current`, `dropField`, `dropValue`, `gap`, `outside`; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap`, `move` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note`, `code` | Text that is the same for everyone (`code` keeps its line breaks and spacing: a verdict or a file's content). Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, `EmptyState`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
@@ -1459,7 +1472,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Callout` | stable | Declared by the runtime's own page for the template library (a template that cannot be installed here, and why) |
 | `Diff` | stable | Declared by the runtime's own page for replacing a Workspace file (what applying the reviewed draft would change) |
 | `Disclosure` | stable | Declared by the runtime's own page for Groups ("+ New group"); Members still draws it in Go ("+ Invite member") |
-| `SegmentedControl` | experimental | No installed `page:` declares one yet: the record list's view switch draws it in Go, and a declared page has no handler that reads the query parameter |
+| `SegmentedControl` | stable | The Calendar of the Project Management Application declares one (Week \| Month); the record list's view switch draws it in Go |
 | `Table` | stable | Declared by an installed page (Helpdesk's All tickets in Workspace `default`) |
 | `NavList` | stable | Declared by the runtime's own page for Groups, installed in every Workspace |
 | `SearchBox` | stable | Declared by the runtime's own page for Members, installed in every Workspace |
@@ -2256,11 +2269,12 @@ binding and the request and are never written.
 
 **`component: SegmentedControl`** (2026-10-14) is a short row of mutually exclusive choices of the page itself, the selected one
 marked. `label` names the group for assistive technology, `query` is the query parameter the choice travels in,
-`options` lists `value=Label` pairs (two or more, values unique, no spaces or URL punctuation in a value) and `selected`
-is one of the values. A choice is a link to the page's own route with `?query=value`, so you never type a route.
-**`experimental`**: the record list's view switch draws it, and no installed page declares one, because a declared
-page has no handler that reads the parameter yet. It is the navigation shape only; a choice held in the page and switched
-by script (the Builder mockup's `radiogroup`) needs `actions` and is not covered.
+`options` lists `value=Label` pairs (two or more, values unique, no spaces or URL punctuation in a value). **Which one is
+showing is the request's, never written** (2026-10-19): the choice the request carried under `query` is the selected one (the first
+option when it carried none, or something that is no option), and the request's other parameters stay in every link, so choosing
+Month leaves the project and the window as they were. A choice is a link to the page's own route with `?query=value`, so you
+never type a route. **`stable`**: the Calendar declares one. It is the navigation shape only; a choice held in the page and
+switched by script (the Builder mockup's `radiogroup`) needs `actions` and is not covered.
 
 ```yaml
 - component: SegmentedControl
@@ -2269,7 +2283,6 @@ by script (the Builder mockup's `radiogroup`) needs `actions` and is not covered
   options: |-
     week=Week
     month=Month
-  selected: week
 ```
 
 **A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with
@@ -3114,6 +3127,7 @@ is added to this list in the same change, or it is not allowed.**
 | **The shell: closing a dialog** (2026-10-19) | **A dialog (a Popover that holds a form) closes on its Cancel, its close mark (`data-popover-close`) and on Escape** | A `<details>` cannot be closed by a button inside it, nor by a key, without script | Closes only `details[data-popover]`; never on a tap outside (a half-filled form would lose its typing); changes no value |
 | **The shell: the money control** (2026-10-18) | **Groups the thousands of a money control as it is typed, stops at two decimals, pads to two decimals when the control is left, and sends the plain decimal** | A `number` control cannot show marks at all, and a `text` control cannot group digits as they are typed without script. The server only ever sees the plain decimal, so it cannot do this for the person typing | **Forms only, and only a `data-money` control** (a money Field of a Form). It reads the Workspace's marks from the control's `data-thousands`/`data-decimal` (the server wrote them from `number_format:`); it names no mark itself. It changes nothing but that control's text, and replaces the value in the request with the plain decimal. Without script the control is a text control holding the plain decimal, and the server accepts it as it always did. Display is never done by script: every table, total, metric and page is written by the server |
 | `leaveguard`, `signatureplacement`, `reviewdocument`, `machine.templ` (board drag, **keyboard move**, quick edit) | Their own screens' interaction (a "leave this page?" guard, placing a signature on a PDF, dragging a card -- or lifting it with Space, moving it with the arrows, dropping it with Space and cancelling with Esc, reporting in the board's status line) | Pointer and focus behaviour; a gesture has no declarative form | Each in its own template, none reads a Workspace's data; the move ends in the same PATCH a drop sends |
+| **`declaredscreen.templ` (a calendar card moved to another day, 2026-10-19)** | **A grouped list that declares `moves: true` draws each card the viewer may edit as draggable, and each day as a drop target: dropping a card on another day -- or Space on its title, the arrows to choose the day (left and right a day, up and down a week), Space to drop, Esc to cancel -- sends one PATCH of the record's own date Field through the generic patch route, whose answer to a declared page is a refresh** | A drag has no declarative form (§12.3's `actions` carries a click, not a gesture); the keyboard path is the same gesture another way | One delegated listener, on a page that has such a card and no other (`treeMovesCards`); writes only the date Field the binding names, only to a day of the window (a day added to fill a week is no drop target), and only for a record the viewer may edit; moves nothing in the DOM; its status line is a live region on the page before anything is lifted |
 
 What this means for an author: you write `type: money` and `number_format:`, never a script. If a screen needs behaviour that none of the
 rows above gives, say so as a gap; do not work around it with a property that smuggles a handler in.

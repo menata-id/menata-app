@@ -726,7 +726,7 @@ func TestDateBucketsAreTheDatasetsOwnWindow(t *testing.T) {
 	ds, src := weekDataset("$week", "$week+6")
 	rec := func(due string) *data.Record { return &data.Record{Values: map[string]any{"fld_due": due}} }
 	b, keys, err := dateBuckets(ds, src, []*data.Record{rec("2026-10-12"), rec("2026-10-18")},
-		expression.Context{Today: "2026-10-14", Parameters: map[string]string{}})
+		expression.Context{Today: "2026-10-14", Parameters: map[string]string{}}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -737,12 +737,12 @@ func TestDateBucketsAreTheDatasetsOwnWindow(t *testing.T) {
 		t.Errorf("keys = %v", keys)
 	}
 	// next week, through the parameter the page's link sends
-	b, _, err = dateBuckets(ds, src, nil, expression.Context{Today: "2026-10-14", Parameters: map[string]string{"week": "1"}})
+	b, _, err = dateBuckets(ds, src, nil, expression.Context{Today: "2026-10-14", Parameters: map[string]string{"week": "1"}}, false)
 	if err != nil || b[0].Key != "2026-10-19" {
 		t.Errorf("?week=1 starts at %+v (%v), want 2026-10-19", b, err)
 	}
 	ds, src = weekDataset("2026-02-27", "2026-03-02") // across a month end, not a leap year
-	b, _, err = dateBuckets(ds, src, nil, expression.Context{})
+	b, _, err = dateBuckets(ds, src, nil, expression.Context{}, false)
 	if err != nil || len(b) != 4 || b[1].Key != "2026-02-28" || b[2].Key != "2026-03-01" {
 		t.Errorf("a literal window over a month end = %+v (%v)", b, err)
 	}
@@ -756,13 +756,13 @@ func TestDateBucketsRefuseAWindowThatIsNotARangeOfDays(t *testing.T) {
 		"a parameter not sent":      {"$parameters.from", "2026-10-12", "resolves to nothing"},
 	} {
 		ds, src := weekDataset(c.lo, c.hi)
-		_, _, err := dateBuckets(ds, src, nil, expression.Context{Parameters: map[string]string{}})
+		_, _, err := dateBuckets(ds, src, nil, expression.Context{Parameters: map[string]string{}}, false)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: want an error mentioning %q, got %v", name, c.want, err)
 		}
 	}
 	ds, src := weekDataset("2026-10-12", "2026-10-12")
-	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}); err != nil || len(b) != 1 {
+	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}, false); err != nil || len(b) != 1 {
 		t.Errorf("a one-day window = %+v (%v), want one bucket", b, err)
 	}
 }
@@ -771,11 +771,11 @@ func TestDateBucketsRefuseAWindowThatIsNotARangeOfDays(t *testing.T) {
 // are refused, and a window missing either bound is no range at all.
 func TestDateBucketsCapIsInclusiveAndNeedsBothBounds(t *testing.T) {
 	ds, src := weekDataset("2026-01-01", "2026-03-03") // 31 + 28 + 3 = 62 days
-	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}); err != nil || len(b) != domain.PageGroupMaxBuckets {
+	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}, false); err != nil || len(b) != domain.PageGroupMaxBuckets {
 		t.Errorf("62 days = %d buckets (%v), want all drawn", len(b), err)
 	}
 	ds, src = weekDataset("2026-01-01", "2026-03-04")
-	if _, _, err := dateBuckets(ds, src, nil, expression.Context{}); err == nil || !strings.Contains(err.Error(), "exceeds") {
+	if _, _, err := dateBuckets(ds, src, nil, expression.Context{}, false); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Errorf("63 days: want a refusal, got %v", err)
 	}
 	for name, keep := range map[string]func([]expression.Comparison) []expression.Comparison{
@@ -784,7 +784,7 @@ func TestDateBucketsCapIsInclusiveAndNeedsBothBounds(t *testing.T) {
 	} {
 		ds, src = weekDataset("2026-10-12", "2026-10-18")
 		ds.Where.All = keep(ds.Where.All)
-		if _, _, err := dateBuckets(ds, src, nil, expression.Context{}); err == nil || !strings.Contains(err.Error(), "not a range") {
+		if _, _, err := dateBuckets(ds, src, nil, expression.Context{}, false); err == nil || !strings.Contains(err.Error(), "not a range") {
 			t.Errorf("%s: want a refusal that it is no range, got %v", name, err)
 		}
 	}
@@ -796,7 +796,7 @@ func TestDateBucketsReadOnlyTheDateRolesBounds(t *testing.T) {
 	ds.Where.All = append(ds.Where.All,
 		expression.Comparison{Field: "fld_other", Op: expression.OpGreaterOrEqual, Value: "2026-01-01"},
 		expression.Comparison{Field: "fld_other", Op: expression.OpLessOrEqual, Value: "2026-01-02"})
-	b, _, err := dateBuckets(ds, src, nil, expression.Context{})
+	b, _, err := dateBuckets(ds, src, nil, expression.Context{}, false)
 	if err != nil || len(b) != 7 || b[0].Key != "2026-10-12" {
 		t.Errorf("buckets = %+v (%v), want the date role's own week", b, err)
 	}
@@ -814,7 +814,7 @@ func TestDateBucketsMarkTheRequestsOwnDay(t *testing.T) {
 		"outside": {"2026-11-01", make([]bool, 7)},
 	} {
 		ds, src := weekDataset("2026-10-12", "2026-10-18")
-		b, _, err := dateBuckets(ds, src, nil, expression.Context{Today: tc.today})
+		b, _, err := dateBuckets(ds, src, nil, expression.Context{Today: tc.today}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -842,7 +842,7 @@ func TestWeekStepMovesTheRequestsOwnOffsetAndClampsWhereTheDatasetDoes(t *testin
 		"the upper bound holds":        {map[string]string{"week": "520"}, 1, "520"},
 		"the lower bound holds":        {map[string]string{"week": "-520"}, -1, "-520"},
 	} {
-		if got := weekStep(c.params, c.by); got != c.want {
+		if got := windowStep("week", c.params, c.by); got != c.want {
 			t.Errorf("%s: weekStep = %q, want %q", name, got, c.want)
 		}
 	}
@@ -894,5 +894,59 @@ func TestFillDerivedPersonIsEmptyForNobody(t *testing.T) {
 		if got, present := item[domain.PagePersonInitialsRole]; got != tc.want || !present {
 			t.Errorf("%s: initials = %q (present %v), want %q present", name, got, present, tc.want)
 		}
+	}
+}
+
+// A bucket says its name in parts -- the weekday, the date, the bare day number -- so a heading can set them apart.
+func TestDateBucketsNameTheirPartsForAHeading(t *testing.T) {
+	ds, src := weekDataset("2026-10-05", "2026-10-11")
+	b, _, err := dateBuckets(ds, src, nil, expression.Context{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := b[0]; got.Day != "Mon" || got.Date != "05 Oct" || got.Number != "5" || got.Label != "Mon 05 Oct" {
+		t.Errorf("first bucket = %+v, want Mon / 05 Oct / 5 / Mon 05 Oct", got)
+	}
+	if got := b[6]; got.Number != "11" || got.Day != "Sun" {
+		t.Errorf("last bucket = %+v", got)
+	}
+}
+
+// `fill: weeks` widens a window to whole Monday-to-Sunday weeks: October 2026 starts on a Thursday and ends on a Saturday, so the grid begins
+// the Monday before and ends the Sunday after, and exactly the days added are outside the window. A window that is already whole weeks gains
+// nothing, and a window inside one week gains the rest of it.
+func TestDateBucketsFillWholeWeeksAndMarkTheDaysAdded(t *testing.T) {
+	for name, tc := range map[string]struct {
+		lo, hi, first, last string
+		days, outside       int
+	}{
+		"a month":         {"2026-10-01", "2026-10-31", "2026-09-28", "2026-11-01", 35, 4},
+		"whole weeks":     {"2026-10-05", "2026-10-18", "2026-10-05", "2026-10-18", 14, 0},
+		"inside one week": {"2026-10-07", "2026-10-08", "2026-10-05", "2026-10-11", 7, 5},
+		"a leap February": {"2028-02-01", "2028-02-29", "2028-01-31", "2028-03-05", 35, 6},
+	} {
+		ds, src := weekDataset(tc.lo, tc.hi)
+		b, _, err := dateBuckets(ds, src, nil, expression.Context{}, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := 0
+		for _, bk := range b {
+			if bk.Outside {
+				out++
+			}
+		}
+		if len(b) != tc.days || b[0].Key != tc.first || b[len(b)-1].Key != tc.last || out != tc.outside {
+			t.Errorf("%s: %d days %s..%s with %d outside, want %d days %s..%s with %d outside", name, len(b), b[0].Key, b[len(b)-1].Key, out, tc.days, tc.first, tc.last, tc.outside)
+		}
+		if len(b)%7 != 0 || b[0].Key != tc.first {
+			t.Errorf("%s: a grid of whole weeks has a multiple of seven days", name)
+		}
+	}
+	// Without fill the window is exactly its own days, none outside.
+	ds, src := weekDataset("2026-10-01", "2026-10-31")
+	b, _, _ := dateBuckets(ds, src, nil, expression.Context{}, false)
+	if len(b) != 31 || b[0].Outside {
+		t.Errorf("unfilled October = %d days, first outside=%v", len(b), b[0].Outside)
 	}
 }

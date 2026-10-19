@@ -24,9 +24,7 @@ import (
 // with what is true of it instead. Closed both ways: a Component that gains an installed use must leave (and be
 // promoted from experimental on the same change), and an entry naming a type nothing registers fails too. An empty map
 // stays declared, like any emptied ratchet.
-var componentsWithoutInstalledUse = map[string]string{
-	"SegmentedControl": "drawn by the record list's view switch only (`viewSwitcher`, every Machine with two or more Views) -- registered over that one site (2026-10-14, rencana 2.5 step 1); no `page:` declares one, because a declared page has no handler that reads the query parameter yet",
-}
+var componentsWithoutInstalledUse = map[string]string{}
 
 // installedComponentUse counts, over every installed Workspace's declared `page:`, the Components an author wrote
 // (`written`) and the Components that exist once the page is lowered (`lowered`), which is a superset: a Form lowers to

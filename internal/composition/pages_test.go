@@ -33,6 +33,10 @@ func TestCalendarRange(t *testing.T) {
 		{"one month", "2026-09-14", "2026-09-20", "14 \u2013 20 Sep 2026"},
 		{"across a month", "2026-09-28", "2026-10-04", "28 Sep \u2013 04 Oct 2026"},
 		{"across a year", "2026-12-28", "2027-01-03", "28 Dec 2026 \u2013 03 Jan 2027"},
+		// A window that is exactly one whole month is said as the month, in full -- what a month grid's heading reads.
+		{"a whole month", "2026-10-01", "2026-10-31", "October 2026"},
+		{"a whole leap February", "2028-02-01", "2028-02-29", "February 2028"},
+		{"not quite a month", "2026-10-02", "2026-10-31", "02 \u2013 31 Oct 2026"},
 	} {
 		if got := calendarRange(day(tc.first), day(tc.last)); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)

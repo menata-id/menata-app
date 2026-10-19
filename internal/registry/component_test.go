@@ -600,7 +600,6 @@ func TestValidateSegmentedControl(t *testing.T) {
 		"a percent":          with("options", "a=A\nb%c=C"),
 		"a trailing tab":     with("options", "a=A\nc\t=C"),
 		"selected not in":    with("selected", "z"),
-		"no selected":        with("selected", "-"),
 		"a class":            with("class", "mt-2"),
 		"a hook":             with("hx-get", "/x"),
 	} {

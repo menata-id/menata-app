@@ -43,6 +43,7 @@ type pageNodeDoc struct {
 	when    *domain.PageCondition
 	each    string
 	step    *domain.PageStep
+	set     map[string]string
 	window  string
 	columns []domain.PageColumn
 	// cells are the Table's column cell templates (`columns[i].cell:`), by column place.
@@ -63,8 +64,11 @@ type pageBindingDoc struct {
 	Rows    string
 	Write   string
 	Group   string
-	All     bool
-	Action  string
+	// Fill and Moves: see domain.PageBinding.Fill and Moves.
+	Fill   string
+	Moves  bool
+	All    bool
+	Action string
 	// Transition: see domain.PageBinding.Transition.
 	Transition string
 }
@@ -143,6 +147,17 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.step = st
+		case "set":
+			m, err := decodePageFrom(val)
+			if err != nil {
+				return fmt.Errorf("line %d: set: is a mapping of a parameter to one value -- %w", key.Line, err)
+			}
+			for name, v := range m {
+				if name != domain.PageParameterRange || !domain.KnownPageRanges[v] {
+					return fmt.Errorf("line %d: set: %s: %s -- a link sets the range of the window (%s: %s or %s) and nothing else", key.Line, name, v, domain.PageParameterRange, domain.PageRangeWeek, domain.PageRangeMonth)
+				}
+			}
+			p.set = m
 		case "window":
 			if val.Kind != yaml.ScalarNode || val.Value == "" {
 				return fmt.Errorf("line %d: window: names one dataset id, such as ds_tasks_due_week -- the Dataset whose date window the text says", key.Line)
@@ -450,9 +465,6 @@ func decodePageStep(n *yaml.Node) (*domain.PageStep, error) {
 			if err != nil {
 				return nil, fmt.Errorf("line %d: step.by: %q is not a whole number", key.Line, val.Value)
 			}
-			if by > expression.MaxWeekOffset || by < -expression.MaxWeekOffset {
-				return nil, fmt.Errorf("line %d: step.by: %d is beyond the %d weeks either way a request can be moved", key.Line, by, expression.MaxWeekOffset)
-			}
 			st.By = by
 		default:
 			return nil, fmt.Errorf("line %d: %q is not a key step declares (parameter, by)", key.Line, key.Value)
@@ -461,7 +473,21 @@ func decodePageStep(n *yaml.Node) (*domain.PageStep, error) {
 	if st.Parameter == "" || st.By == 0 {
 		return nil, fmt.Errorf("line %d: step: names a parameter and a by: that is not zero", n.Line)
 	}
+	if !domain.KnownPageStepParameters[st.Parameter] {
+		return nil, fmt.Errorf("line %d: step: parameter %q is not one a link moves (%s, %s)", n.Line, st.Parameter, domain.PageParameterWeek, domain.PageParameterMonth)
+	}
+	if bound := stepBound(st.Parameter); st.By > bound || st.By < -bound {
+		return nil, fmt.Errorf("line %d: step.by: %d is beyond the %d %ss either way a request can be moved", n.Line, st.By, bound, st.Parameter)
+	}
 	return st, nil
+}
+
+// stepBound is how many whole weeks or months either way a request can be moved: the bound the runtime clamps the parameter to.
+func stepBound(parameter string) int {
+	if parameter == domain.PageParameterMonth {
+		return expression.MaxMonthOffset
+	}
+	return expression.MaxWeekOffset
 }
 
 // decodePageWhen reads `when: {role: status, is_not: $done}`: one role and exactly one comparison, both scalars.
@@ -501,8 +527,15 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 	}
 	if c.Parameter != "" {
 		operand := c.Is + c.IsNot
-		if weeks, err := strconv.Atoi(operand); err == nil && (weeks > expression.MaxWeekOffset || weeks < -expression.MaxWeekOffset) {
-			return nil, fmt.Errorf("line %d: when: %s %s is beyond the %d weeks either way a request is clamped to, so the comparison could never (or would always) hold", n.Line, c.Parameter, operand, expression.MaxWeekOffset)
+		switch {
+		case !domain.KnownPageParameters[c.Parameter]:
+			return nil, fmt.Errorf("line %d: when: parameter %q is not one a page may test (%s, %s, %s)", n.Line, c.Parameter, domain.PageParameterWeek, domain.PageParameterMonth, domain.PageParameterRange)
+		case c.Parameter == domain.PageParameterRange && !domain.KnownPageRanges[operand]:
+			return nil, fmt.Errorf("line %d: when: range %s is not a range a request takes (%s, %s), so the comparison could never (or would always) hold", n.Line, operand, domain.PageRangeWeek, domain.PageRangeMonth)
+		case c.Parameter != domain.PageParameterRange:
+			if offset, err := strconv.Atoi(operand); err == nil && (offset > stepBound(c.Parameter) || offset < -stepBound(c.Parameter)) {
+				return nil, fmt.Errorf("line %d: when: %s %s is beyond the %d %ss either way a request is clamped to, so the comparison could never (or would always) hold", n.Line, c.Parameter, operand, stepBound(c.Parameter), c.Parameter)
+			}
 		}
 	}
 	return c, nil
@@ -529,6 +562,13 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Write = val.Value
 		case "group":
 			b.Group = val.Value
+		case "fill":
+			b.Fill = val.Value
+		case "moves":
+			if val.Value != "true" && val.Value != "false" {
+				return nil, fmt.Errorf("line %d: binding.moves: %q is not true or false", key.Line, val.Value)
+			}
+			b.Moves = val.Value == "true"
 		case "action":
 			b.Action = val.Value
 		case "transition":
@@ -539,19 +579,19 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			}
 			b.All = val.Value == "true"
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, all, action, transition)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group, fill, moves, all, action, transition)", key.Line, key.Value)
 		}
 	}
 	return b, nil
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, FormFields: p.formFields, Extract: p.extract, Counts: p.counts, In: p.in}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Set: p.set, Window: p.window, Columns: p.columns, Pass: p.pass, Values: p.values, Starts: p.starts, FormFields: p.formFields, Extract: p.extract, Counts: p.counts, In: p.in}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, All: p.binding.All, Action: p.binding.Action, Transition: p.binding.Transition}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group, Fill: p.binding.Fill, Moves: p.binding.Moves, All: p.binding.All, Action: p.binding.Action, Transition: p.binding.Transition}
 		for _, c := range p.columns {
 			for _, id := range []string{c.Field, c.Of, c.Under} {
 				if id != "" && c.Field != "" && !slices.Contains(out.Binding.Fields, id) {
@@ -1218,6 +1258,15 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if n.Binding != nil && n.Binding.Group != "" {
 		issues = append(issues, groupBindingIssues(n.Binding.Group, ds, source, where)...)
 	}
+	if n.Binding != nil && n.Binding.Group == "" && (n.Binding.Fill != "" || n.Binding.Moves) {
+		issues = append(issues, fmt.Sprintf("%s: page: fill: and moves: shape a grouped list, so they sit beside group: %s", where, domain.PageGroupDate))
+	}
+	if n.Binding != nil && n.Binding.Fill != "" && n.Binding.Fill != domain.PageFillWeeks {
+		issues = append(issues, fmt.Sprintf("%s: page: fill: %q is not one a grouped list takes (%s)", where, n.Binding.Fill, domain.PageFillWeeks))
+	}
+	if n.Binding != nil && n.Binding.Moves && n.Binding.Group != "" && source.AppendOnly {
+		issues = append(issues, fmt.Sprintf("%s: page: moves: machine %q is append-only, so no card of it can be moved", where, source.ID))
+	}
 	if readsDerivedRole(n.Children, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
 	}
@@ -1673,8 +1722,8 @@ func stepIssues(n domain.PageNode, navigation []domain.NavigationItem, datasets 
 			if dest.ID != n.To {
 				continue
 			}
-			if dest.Page == nil || !pageReadsWeek(*dest.Page, datasets) {
-				issues = append(issues, fmt.Sprintf("%s: page: to: %s with step: %s, but that page binds no Dataset reading $week", where, n.To, n.Step.Parameter))
+			if dest.Page == nil || !pageReadsWindow(*dest.Page, datasets, n.Step.Parameter) {
+				issues = append(issues, fmt.Sprintf("%s: page: to: %s with step: %s, but that page binds no Dataset reading $%s", where, n.To, n.Step.Parameter, n.Step.Parameter))
 			}
 		}
 	}
@@ -1684,18 +1733,21 @@ func stepIssues(n domain.PageNode, navigation []domain.NavigationItem, datasets 
 	return issues
 }
 
-func pageReadsWeek(n domain.PageNode, datasets map[string]domain.Dataset) bool {
+// pageReadsWindow says whether the page, or a node under it, binds a Dataset whose `where:` reads the window the parameter moves: `$week` for week,
+// `$month` / `$month_end` for month.
+func pageReadsWindow(n domain.PageNode, datasets map[string]domain.Dataset, parameter string) bool {
 	if n.Binding != nil {
 		if ds, ok := datasets[n.Binding.Dataset]; ok {
 			for _, c := range ds.Where.Comparisons() {
-				if strings.HasPrefix(c.Value, expression.SentinelWeek) {
+				if (parameter == domain.PageParameterWeek && strings.HasPrefix(c.Value, expression.SentinelWeek)) ||
+					(parameter == domain.PageParameterMonth && expression.IsMonth(c.Value)) {
 					return true
 				}
 			}
 		}
 	}
 	for _, c := range n.Children {
-		if pageReadsWeek(c, datasets) {
+		if pageReadsWindow(c, datasets, parameter) {
 			return true
 		}
 	}
@@ -1781,7 +1833,7 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 			continue
 		}
 		for _, role := range n.From {
-			if _, byField := domain.PageFieldOfRole(role); role != domain.PageRecordRole && role != domain.PageBucketLabelRole && !domain.PageDerivedRole(role) && !byField { // reserved: the record's route, a bucket's name, the derived roles and a Field read by id, not Projection roles
+			if _, byField := domain.PageFieldOfRole(role); role != domain.PageRecordRole && !domain.PageBucketRole(role) && !domain.PageDerivedRole(role) && !byField { // reserved: the record's route, a bucket's name, the derived roles and a Field read by id, not Projection roles
 				out[role] = true
 			}
 		}

@@ -135,9 +135,67 @@ func DeclaredScreen(navID string, body ir.UINode, header *ViewHeader, workspaceN
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if treeMovesCards(rest) {
+				templ_7745c5c3_Err = bucketMoveScript().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 			return nil
 		})
 		templ_7745c5c3_Err = appShell(titleByID(ctx, navID), workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// treeMovesCards says a screen draws a card the viewer may move to another day -- a stack carrying `move`, which lowering produces only for a grouped
+// list that declares `moves:` -- so the one script that carries the gesture is on the page, and on no page that has none.
+func treeMovesCards(n ir.UINode) bool {
+	if n.Props[ir.StackMoveProp] != "" {
+		return true
+	}
+	for _, c := range n.Children {
+		if treeMovesCards(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// bucketMoveScript moves a card to another day of a grouped list: a drop on a day, or Space then the arrow keys then Space on a focused card, ends in the
+// one PATCH of the record's date Field (the generic patch route, whose answer to a declared page is a refresh). Nothing is moved in the DOM: the page that
+// comes back is the proof it saved, and a refused write leaves the card where it was (the shell's shared notice). This is the third named vanilla-JS
+// exception, beside signature placement and `boardDragScript`: a gesture has no declarative form (007 §12.3's `actions` carries a click, not a gesture).
+// The live region is on the page before anything is lifted -- one that appears with its text is often not read.
+func bucketMoveScript() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p data-move-live role=\"status\" aria-live=\"polite\" class=\"sr-only\"></p><script>\n\t\t(function () {\n\t\t\tif (window.menataBucketMove) return;\n\t\t\twindow.menataBucketMove = true;\n\t\t\tvar dragged = null, lifted = null;\n\t\t\tfunction days() { return Array.prototype.slice.call(document.querySelectorAll(\"[data-drop-value]\")); }\n\t\t\tfunction clear() {\n\t\t\t\tdocument.querySelectorAll(\"[data-drop-value].ring-2\").forEach(function (d) { d.classList.remove(\"ring-2\", \"ring-emerald-600\"); });\n\t\t\t}\n\t\t\tfunction say(text) {\n\t\t\t\tvar live = document.querySelector(\"[data-move-live]\");\n\t\t\t\tif (live) live.textContent = text || \"\";\n\t\t\t}\n\t\t\tfunction write(card, day) {\n\t\t\t\tvar from = card.closest(\"[data-drop-value]\");\n\t\t\t\tif (!day || (from && from.dataset.dropValue === day.dataset.dropValue)) return;\n\t\t\t\tvar values = {};\n\t\t\t\tvalues[day.dataset.dropField] = day.dataset.dropValue;\n\t\t\t\thtmx.ajax(\"PATCH\", card.dataset.moveUrl, { source: card, swap: \"none\", values: values });\n\t\t\t}\n\t\t\tfunction titleOf(card) {\n\t\t\t\tvar a = card.querySelector(\"a[href]\");\n\t\t\t\treturn a ? a.textContent.trim() : \"\";\n\t\t\t}\n\t\t\tfunction dayName(day) {\n\t\t\t\tvar h = day.querySelector(\"h1,h2,h3,h4,h5,h6,p,span\");\n\t\t\t\treturn day.getAttribute(\"aria-label\") || (h ? h.textContent.trim() : day.dataset.dropValue);\n\t\t\t}\n\t\t\tdocument.addEventListener(\"dragstart\", function (e) {\n\t\t\t\tvar c = e.target.closest && e.target.closest(\"[data-move-url]\");\n\t\t\t\tif (!c) return;\n\t\t\t\tdragged = c;\n\t\t\t\te.dataTransfer.effectAllowed = \"move\";\n\t\t\t\te.dataTransfer.setData(\"text/plain\", c.dataset.moveUrl);\n\t\t\t\tsetTimeout(function () { c.classList.add(\"opacity-40\"); }, 0);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragover\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar day = e.target.closest(\"[data-drop-value]\");\n\t\t\t\tif (!day) return;\n\t\t\t\te.preventDefault();\n\t\t\t\te.dataTransfer.dropEffect = \"move\";\n\t\t\t\tclear();\n\t\t\t\tday.classList.add(\"ring-2\", \"ring-emerald-600\");\n\t\t\t});\n\t\t\tdocument.addEventListener(\"drop\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar day = e.target.closest(\"[data-drop-value]\");\n\t\t\t\tif (!day) return;\n\t\t\t\te.preventDefault();\n\t\t\t\tvar card = dragged;\n\t\t\t\tclear();\n\t\t\t\twrite(card, day);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragend\", function () {\n\t\t\t\tif (dragged) dragged.classList.remove(\"opacity-40\");\n\t\t\t\tdragged = null;\n\t\t\t\tclear();\n\t\t\t});\n\t\t\t// The same move from the keyboard: Space on a focused card's title lifts it, Left and Right choose the day before or after, Up and Down\n\t\t\t// a week earlier or later, Space drops it, Esc puts it back. A day added only to fill a week is not a place a card can go.\n\t\t\tfunction show() {\n\t\t\t\tclear();\n\t\t\t\tlifted.day.classList.add(\"ring-2\", \"ring-emerald-600\");\n\t\t\t\tsay(\"Moving \\u201c\" + titleOf(lifted.card) + \"\\u201d to \" + dayName(lifted.day) + \". Arrow keys choose the day, Space drops it, Esc cancels.\");\n\t\t\t}\n\t\t\tfunction cancel() { lifted = null; clear(); say(\"\"); }\n\t\t\tdocument.addEventListener(\"keydown\", function (e) {\n\t\t\t\tvar card = e.target.closest && e.target.closest(\"[data-move-url]\");\n\t\t\t\tif (!lifted) {\n\t\t\t\t\tif (e.key !== \" \" || !card || !e.target.matches(\"a[href]\")) return;\n\t\t\t\t\tvar day = card.closest(\"[data-drop-value]\");\n\t\t\t\t\tif (!day) return;\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tlifted = { card: card, day: day };\n\t\t\t\t\tshow();\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tif (e.key === \"Escape\") { e.preventDefault(); cancel(); return; }\n\t\t\t\tif (e.key === \" \" || e.key === \"Enter\") {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tvar card2 = lifted.card, day2 = lifted.day;\n\t\t\t\t\tcancel();\n\t\t\t\t\twrite(card2, day2);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar by = 0;\n\t\t\t\tif (e.key === \"ArrowLeft\") by = -1; else if (e.key === \"ArrowRight\") by = 1;\n\t\t\t\telse if (e.key === \"ArrowUp\") by = -7; else if (e.key === \"ArrowDown\") by = 7; else return;\n\t\t\t\te.preventDefault();\n\t\t\t\t// The day `by` days from this one, by the calendar and not by position, so a day added to fill a week (which takes no card) is skipped over.\n\t\t\t\tvar when = new Date(lifted.day.dataset.dropValue + \"T00:00:00Z\");\n\t\t\t\twhen.setUTCDate(when.getUTCDate() + by);\n\t\t\t\tvar key = when.toISOString().slice(0, 10), target = days().filter(function (d) { return d.dataset.dropValue === key; })[0];\n\t\t\t\tif (target) { lifted.day = target; show(); }\n\t\t\t});\n\t\t\tdocument.addEventListener(\"focusout\", function (e) {\n\t\t\t\tif (lifted && lifted.card.contains(e.target) && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel();\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -179,29 +237,29 @@ func actionBar(label string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var5 == nil {
-			templ_7745c5c3_Var5 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div role=\"group\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div role=\"group\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/declaredscreen.templ`, Line: 64, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/declaredscreen.templ`, Line: 191, Col: 37}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Var7 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Var8 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -213,17 +271,17 @@ func actionBar(label string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templ_7745c5c3_Var5.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = templ_7745c5c3_Var6.Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

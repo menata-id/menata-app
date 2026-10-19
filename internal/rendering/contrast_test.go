@@ -488,10 +488,10 @@ func TestCurrentSectionReadsSecondaryAsBody(t *testing.T) {
 	ctx := context.Background()
 	const override = "[--color-ink-secondary:var(--color-ink-body)]"
 	// Whole class parts: the two classes must be separate tokens, or gluing them breaks both (a reviewer's mutation).
-	if parts := strings.Fields(sectionFillClass(ctx, true)); !slices.Contains(parts, override) || !slices.Contains(parts, "bg-tone-info-bg") {
+	if parts := strings.Fields(sectionFillClass(ctx, true, false)); !slices.Contains(parts, override) || !slices.Contains(parts, "bg-tone-info-bg") {
 		t.Errorf("the current section lost its fill or the secondary override as separate class parts: %q", parts)
 	}
-	if got := sectionFillClass(ctx, false); strings.Contains(got, "ink-secondary") {
+	if got := sectionFillClass(ctx, false, false); strings.Contains(got, "ink-secondary") {
 		t.Errorf("an ordinary section must not redefine secondary: %q", got)
 	}
 }

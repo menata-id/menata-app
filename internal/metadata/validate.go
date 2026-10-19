@@ -939,7 +939,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if c.Value == expression.SentinelDone {
 				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, doneIssue(m, c)))
 			} else if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
-				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s[+-n], %s[+-n], %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelWeek, expression.SentinelParameterPrefix))
+				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s[+-n], %s[+-n], %s, %s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelWeek, expression.SentinelMonth, expression.SentinelMonthEnd, expression.SentinelParameterPrefix))
 			}
 		}
 	} else {

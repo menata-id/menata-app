@@ -206,12 +206,12 @@ func componentHasSlot(t string) bool { return slottedComponents[t] }
 // Kept as data beside the validator rather than as a switch, so adding a property to a node type is one entry
 // and a reader can see the whole surface at once.
 var allowedProps = map[string][]string{
-	"layout/stack":               {"gap", "anchor"},
+	"layout/stack":               {"gap", "anchor", "move"},
 	"layout/row":                 {"gap", "align", "justify"},
 	"layout/grid":                {"gap", "mobile", "columns"},
 	"layout/split":               {"gap", "side", "aside"},
 	"layout/columns":             {"gap", "align"},
-	"layout/section":             {"gap", "current", "anchor"},
+	"layout/section":             {"gap", "current", "anchor", "outside", "dropField", "dropValue"},
 	"layout/panel":               {},
 	"static/eyebrow":             {"text"},
 	"static/heading":             {"text"},
@@ -223,7 +223,7 @@ var allowedProps = map[string][]string{
 	"static/message":             {"text"},
 	"static/note":                {"text"},
 	"static/code":                {"text"},
-	"static/link":                {"href", "text", "variant"},
+	"static/link":                {"href", "text", "variant", "icon"},
 	"component/StatusBadge":      {"label", "tone", "size"},
 	"component/Avatar":           {"initials", "label", "size", "presence"},
 	"component/Metric":           {"label", "value", "hint", "tone", "href"},
@@ -238,7 +238,7 @@ var allowedProps = map[string][]string{
 	"component/Callout":          {"text", "tone"},
 	"component/EmptyState":       {"text"},
 	"component/Disclosure":       {"summary"},
-	"component/SegmentedControl": {"label", "query", "options", "selected"},
+	"component/SegmentedControl": {"label", "query", "options", "selected", "keep"},
 	"component/Popover":          {"label", "title", "trigger", "align", "density"},
 	"component/Table":            {"label", "empty", "headers", "aligns", "hidden", "truncated", "framed", "footer"},
 	"component/NavList":          {"label", "variant", "home", "rows"},

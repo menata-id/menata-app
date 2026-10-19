@@ -50,6 +50,11 @@ const (
 	// days from it, so a seven-day window is `$week` and `$week+6`. Which week is the request's `week` parameter
 	// (WeekParameter), counted in whole weeks from the one containing `$today`.
 	SentinelWeek = "$week"
+	// SentinelMonth and SentinelMonthEnd are the first and the last day of the month the request is looking at, the window a month grid
+	// closes on (`$month` .. `$month_end`). Which month is the request's `month` parameter (MonthParameter), counted in whole months
+	// from the one containing `$today`. They take no offset: a month's length is not a number of days a page could write.
+	SentinelMonth    = "$month"
+	SentinelMonthEnd = "$month_end"
 	// SentinelDone is "the value that means finished" for the Machine the comparison is on. It is **not** a
 	// Context value: the Machine's own `completion:` answers it, so `metadata.Normalize` replaces it with that
 	// declared value at load and Resolve never sees one. KnownSentinel deliberately does not list it, so one
@@ -68,6 +73,13 @@ func IsSentinel(value string) bool { return strings.HasPrefix(value, SentinelPre
 // (DeclaredPage: what a request may supply is what the bound Datasets read). A value that is not a whole number
 // is this week, as the bespoke Calendar always treated it, and is clamped to +-MaxWeekOffset.
 const WeekParameter = "week"
+
+// MonthParameter is the second parameter the runtime names itself, for the reason WeekParameter is: `?month=N` is N whole months from the month
+// containing `$today` (0, the default, is this month), and a calendar's previous/next links and its Datasets must agree on it.
+const MonthParameter = "month"
+
+// MaxMonthOffset bounds `?month=N`: ten years either way, the same reach as MaxWeekOffset's ten years of weeks.
+const MaxMonthOffset = 120
 
 // MaxWeekOffset bounds `?week=N`: ten years either way is more than any plan reaches, and it keeps a request from
 // asking time.AddDate for a date it cannot represent (the bound the bespoke Calendar used).
@@ -126,8 +138,11 @@ func IsWeek(value string) bool {
 	return ok
 }
 
+// IsMonth reports whether value is `$month` or `$month_end`, exactly: a month's edges take no offset.
+func IsMonth(value string) bool { return value == SentinelMonth || value == SentinelMonthEnd }
+
 // IsDate reports whether value stands for a calendar date, which only a date Field may be compared to.
-func IsDate(value string) bool { return IsToday(value) || IsWeek(value) }
+func IsDate(value string) bool { return IsToday(value) || IsWeek(value) || IsMonth(value) }
 
 // KnownSentinel reports whether value is one this runtime resolves.
 //
@@ -179,6 +194,9 @@ func (c Context) Resolve(value string) (string, bool) {
 	if days, ok := WeekOffset(value); ok {
 		return c.weekDay(days)
 	}
+	if IsMonth(value) {
+		return c.monthDay(value == SentinelMonthEnd)
+	}
 	if name, found := strings.CutPrefix(value, SentinelParameterPrefix); found {
 		got, ok := c.Parameters[name]
 		return got, ok && got != ""
@@ -209,4 +227,28 @@ func (c Context) weekDay(days int) (string, bool) {
 	// Go's Weekday starts on Sunday and a calendar week here starts on Monday, so Sunday is six days after it.
 	sinceMonday := (int(today.Weekday()) + 6) % 7
 	return today.AddDate(0, 0, -sinceMonday+7*weeks+days).Format("2006-01-02"), true
+}
+
+// RequestMonth is the month the request is looking at, in whole months from the one containing `$today`: 0 when the parameter is missing or
+// not a whole number, clamped to +-MaxMonthOffset. The one place that reading lives, as RequestWeek is for weeks.
+func RequestMonth(parameters map[string]string) int {
+	months, _ := strconv.Atoi(parameters[MonthParameter])
+	return max(-MaxMonthOffset, min(MaxMonthOffset, months))
+}
+
+// monthDay is the first (or last) day of the request's month. The month is built from the first of today's month, never by adding months to
+// today itself, because the 31st plus a month is a day of the month after next.
+func (c Context) monthDay(last bool) (string, bool) {
+	if c.Today == "" {
+		return "", false
+	}
+	today, err := time.Parse("2006-01-02", c.Today)
+	if err != nil {
+		return "", false
+	}
+	first := time.Date(today.Year(), today.Month()+time.Month(RequestMonth(c.Parameters)), 1, 0, 0, 0, 0, time.UTC)
+	if last {
+		return first.AddDate(0, 1, -1).Format("2006-01-02"), true
+	}
+	return first.Format("2006-01-02"), true
 }

@@ -1798,7 +1798,8 @@ func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
 	}
 	body := getPage(t, h, cookie, "/pages/nav_calendar")
 	head := func(offset int) int {
-		at := strings.Index(body, ">"+monday.AddDate(0, 0, offset).Format("Mon 02 Jan")+"<")
+		// A day's heading is its weekday over its date (two nodes); the date is what places it.
+		at := strings.Index(body, ">"+monday.AddDate(0, 0, offset).Format("02 Jan")+"<")
 		if at < 0 {
 			t.Fatalf("no heading for day %d of the week", offset)
 		}
@@ -1831,7 +1832,7 @@ func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
 // count alone would pass a page that marked the wrong day.
 func TestDeclaredPageSetsTodayApartInTheWeekInView(t *testing.T) {
 	h, cookie, _, _, _, _, _ := routerSetupFor(t, "declaredtoday", "default")
-	todayHeading := ">" + time.Now().Format("Mon 02 Jan") + "<"
+	todayHeading := ">" + time.Now().Format("02 Jan") + "<"
 	body := getPage(t, h, cookie, "/pages/nav_calendar")
 	if n := strings.Count(body, `aria-current="date"`); n != 1 {
 		t.Fatalf("this week marks %d days as current, want exactly 1", n)
@@ -1880,11 +1881,11 @@ func TestDeclaredPageWeekToolbarFollowsTheWeekInView(t *testing.T) {
 	}
 }
 
-// TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee: a card on the migrated Calendar carries what the
-// bespoke screen's card did -- its assignee's name, and a plain request to finish an open task or reopen a
-// finished one -- and offers each only to the task it changes. Located per record route, since a count of
-// buttons would pass a page offering Mark done on a finished task.
-func TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee(t *testing.T) {
+// TestDeclaredCalendarCardIsACircleATitleAndWhoHoldsIt: a card on the Calendar is a completion circle that finishes an open task and
+// reopens a finished one (pressed for the finished one), the title in the link's ink while open and the quiet ink once finished, and
+// the assignee as an avatar of initials named for them. Located per record route, since a count of circles would pass a page that
+// offered the wrong state on the wrong task.
+func TestDeclaredCalendarCardIsACircleATitleAndWhoHoldsIt(t *testing.T) {
 	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredcal", "default")
 	var task *domain.Machine
 	for _, m := range ws.Machines {
@@ -1907,16 +1908,30 @@ func TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee(t *testing.T) {
 	open, finished := mk("Cal-probe-open", task.ReopenValue()), mk("Cal-probe-finished", task.Completion.Done)
 	body := getPage(t, h, cookie, "/pages/nav_calendar")
 
-	button := func(rec *data.Record, label string) bool {
-		route := "/machines/" + task.ID + "/records/" + rec.ID
-		re := regexp.MustCompile(`<button[^>]*hx-patch="` + regexp.QuoteMeta(route) + `"[^>]*>` + label + `</button>`)
+	route := func(rec *data.Record) string { return "/machines/" + task.ID + "/records/" + rec.ID }
+	circle := func(rec *data.Record, title string, pressed bool) bool {
+		re := regexp.MustCompile(`<form[^>]*hx-patch="` + regexp.QuoteMeta(route(rec)) + `"[^>]*>.*?<button[^>]*aria-pressed="` + fmt.Sprint(pressed) + `"[^>]*aria-label="Mark \x{201c}` + title + `\x{201d} (?:not )?complete"`)
 		return re.MatchString(body)
 	}
-	if !button(open, "Mark done") || button(open, "Reopen") {
-		t.Error("the open task is not offered exactly Mark done")
+	if !circle(open, "Cal-probe-open", false) || circle(open, "Cal-probe-open", true) {
+		t.Error("the open task is not offered exactly an unpressed circle")
 	}
-	if !button(finished, "Reopen") || button(finished, "Mark done") {
-		t.Error("the finished task is not offered exactly Reopen")
+	if !circle(finished, "Cal-probe-finished", true) || circle(finished, "Cal-probe-finished", false) {
+		t.Error("the finished task is not offered exactly a pressed circle")
+	}
+	if strings.Contains(body, ">Mark done<") || strings.Contains(body, ">Reopen<") {
+		t.Error("a card still carries a Mark done / Reopen text button")
+	}
+	// The title: accent while open, quiet once finished.
+	if !strings.Contains(body, `href="`+route(open)+`" class="text-accent`) || !strings.Contains(body, `href="`+route(finished)+`" class="text-ink-secondary`) {
+		t.Error("the open title is not in the link's ink, or the finished title is not in the quiet ink")
+	}
+	// Both cards are draggable by whoever may edit them: the patch route and the day they are dropped on are on the page.
+	if n := strings.Count(body, `data-move-url="`+route(open)+`"`) + strings.Count(body, `data-move-url="`+route(finished)+`"`); n != 2 {
+		t.Errorf("%d of our two cards carry a move route, want both", n)
+	}
+	if !strings.Contains(body, `data-drop-value="`+due+`"`) {
+		t.Error("today is not a day a card can be dropped on")
 	}
 	if n := strings.Count(body, "declaredcal@example.com"); n < 2 {
 		t.Errorf("the assignee is named on %d cards, want both of ours", n)

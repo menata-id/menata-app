@@ -79,6 +79,10 @@ type PageNode struct {
 	// The value is never written -- it depends on the request, which a page cannot know -- so `ir.Lower` asks the
 	// Resolver for it. Valid only on a link that names its destination with `to:`.
 	Step *PageStep
+	// Set is what a link sends as parameters beside where it goes (`set: {range: month}` on a `static: link` with `to:`): a window's range, so a
+	// "This month" link stays a month view and the stepper's links keep the grain they step through. A closed vocabulary -- PageParameterRange and
+	// one of KnownPageRanges -- since an arbitrary parameter would be a route written in pieces. Valid only on a link that names its destination with to:.
+	Set map[string]string
 	// Window is the Dataset whose date window a `static` node says in words (`window: ds_tasks_due_week` -> "12 --
 	// 18 Oct 2026"): the very bounds a `group: date` Collection over it draws its days from, so the label above a
 	// list and the days in it cannot disagree. The node's text is produced, never written. Valid only on a
@@ -239,6 +243,29 @@ type PageStep struct {
 // holds the two equal.
 const PageParameterWeek = "week"
 
+// PageParameterMonth names the month a calendar steps through, the second offset parameter (`?month=N`, whole months from the month holding
+// today), and PageParameterRange the grain of the window a page draws (`?range=week|month`). Both repeat `expression` names (MonthParameter) or
+// words a page's Datasets are named by, because `internal/domain` may not import expression; `TestPageParametersAreTheExpressionOnes` holds them equal.
+const (
+	PageParameterMonth = "month"
+	PageParameterRange = "range"
+)
+
+// PageRangeWeek and PageRangeMonth are the two values `?range=` may take; a request that sends neither is the week.
+const (
+	PageRangeWeek  = "week"
+	PageRangeMonth = "month"
+)
+
+// KnownPageRanges is the closed set a `?range=` takes.
+var KnownPageRanges = map[string]bool{PageRangeWeek: true, PageRangeMonth: true}
+
+// KnownPageStepParameters are the offset parameters a link's `step:` may move: a whole number of weeks or of months, from the request's own.
+var KnownPageStepParameters = map[string]bool{PageParameterWeek: true, PageParameterMonth: true}
+
+// KnownPageParameters are every parameter a page may test with `when:`: the two offsets, compared as whole numbers, and the range, compared as a word.
+var KnownPageParameters = map[string]bool{PageParameterWeek: true, PageParameterMonth: true, PageParameterRange: true}
+
 // PageEachTags is the one list `each:` can walk: a record's tags, as its Machine's `card_tags:` declares them.
 const PageEachTags = "tags"
 
@@ -327,6 +354,12 @@ type PageBinding struct {
 	// what the Data Plane hands back -- which buckets exist, and which record is in which -- and not how the
 	// Collection looks; the page declares what a bucket and a record look like as its two child templates.
 	Group string
+	// Fill, with Group, widens the window to whole weeks (PageFillWeeks), so a month is a grid of week rows rather than a ragged list of days.
+	Fill string
+	// Moves, with Group, lets a card be moved to another bucket: the record's own date Field is written the way its page's edit would write it
+	// (the generic patch route, the same `edit` Permission and guards), by a gesture the runtime draws and a page does not describe. Offered
+	// only for a record this viewer may edit.
+	Moves bool
 	// All, with `write: transition`, makes the Button act on every record of Dataset the viewer may move rather than on
 	// the record of the Collection it sits in: a "mark all as read". It is the one transition binding that names a
 	// Dataset and sits outside a template. Nothing is written except through the same guards as moving each record
@@ -373,6 +406,24 @@ const (
 // reading it there is a lowering error rather than a blank -- and is reserved by its colon, as the other derived
 // roles are, so it can never be a Projection role.
 const PageBucketLabelRole = "bucket:label"
+
+// The other roles a bucket's heading template reads, each a part of the same name so a heading can set its parts apart (the mockup's small
+// weekday over a bold date; a month cell's bare day number): `bucket:day` ("Mon"), `bucket:date` ("05 Oct") and `bucket:number` ("5").
+const (
+	PageBucketDayRole    = "bucket:day"
+	PageBucketDateRole   = "bucket:date"
+	PageBucketNumberRole = "bucket:number"
+)
+
+// PageBucketRole says role is one of the four a bucket's heading template has.
+func PageBucketRole(role string) bool {
+	return role == PageBucketLabelRole || role == PageBucketDayRole || role == PageBucketDateRole || role == PageBucketNumberRole
+}
+
+// PageFillWeeks is the one `fill:` a grouped binding takes: the window is drawn as whole Monday-to-Sunday weeks, the days around it added so every
+// row of a grid is a week. Those added days are the window's neighbours, not part of it: they select nothing, hold no record, and are quiet and not
+// a place a card can be dropped (`outside`).
+const PageFillWeeks = "weeks"
 
 // The Rows modes. `dimension` is a Metric per Dimension value (or, on a Collection, one item per Dimension value,
 // its template reading the value and every Measure through PageRowLabelRole/PageMeasureRole), `records` a

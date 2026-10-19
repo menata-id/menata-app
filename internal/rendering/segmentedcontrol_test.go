@@ -13,7 +13,7 @@ import (
 func renderSegments(t *testing.T, ctx context.Context, label, query, options, selected string) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := segmentedControl(label, query, options, selected).Render(ctx, &buf); err != nil {
+	if err := segmentedControl(label, query, options, selected, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()
@@ -76,5 +76,16 @@ func TestSegmentedControl_isDrawnWhenAPageDeclaresIt(t *testing.T) {
 	got := buf.String()
 	if !strings.Contains(got, `aria-label="Range"`) || !strings.Contains(got, `href="?range=week"`) || !strings.Contains(got, `aria-current="true">Month</span>`) {
 		t.Errorf("the declared control is not drawn: %s", got)
+	}
+}
+
+// A control on a page keeps the request's other parameters in each link (its own set to the option), so choosing Month leaves the project chosen.
+func TestSegmentedControl_keepsTheRequestsOtherParameters(t *testing.T) {
+	var buf bytes.Buffer
+	if err := segmentedControl("Range", "range", "week=Week\nmonth=Month", "month", "project=rec_1&week=2").Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); !strings.Contains(got, `href="?project=rec_1&amp;range=week&amp;week=2"`) || !strings.Contains(got, `aria-current="true">Month</span>`) {
+		t.Errorf("got %s", got)
 	}
 }

@@ -1781,7 +1781,7 @@ func viewSwitcher(m *domain.Machine, selected domain.View) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		views := selectableViews(m)
 		if len(views) > 1 {
-			templ_7745c5c3_Err = segmentedControl("View", "view", viewSegments(views), selected.ID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = segmentedControl("View", "view", viewSegments(views), selected.ID, "").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

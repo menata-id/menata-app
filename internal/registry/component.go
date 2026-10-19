@@ -402,12 +402,15 @@ func validatePopover(inputs map[string]string) []string {
 // `viewSwitcher` already drew nothing below two).
 var segmentedControlContract = domain.ComponentContract{
 	Type:   domain.ComponentSegmentedControl,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "query", Kind: "string", Required: true},
 		{Name: "options", Kind: "string", Required: true},
-		{Name: "selected", Kind: "string", Required: true},
+		// selected and keep are what a page's lowering reads off the request (the value the request carried, the other parameters it
+		// carried); a caller that draws one directly passes the selected value itself.
+		{Name: "selected", Kind: "string"},
+		{Name: "keep", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,

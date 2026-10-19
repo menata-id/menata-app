@@ -466,7 +466,17 @@ navigation:
                 component: Toggle
                 from: { describes: title }
                 binding: { write: transition }
-            - { header: Task, from: title, href: record }
+            - header: Task
+              cell:
+                layout: row
+                children:
+                  - static: link
+                    from: { text: title, href: record }
+                    when: { role: status, is_not: $done }
+                  - static: link
+                    variant: quiet
+                    from: { text: title, href: record }
+                    when: { role: status, is: $done }
             - header: List
               empty: no list
               cell:
@@ -491,10 +501,12 @@ navigation:
                 size: compact
                 presence: present
                 from: { initials: "person:initials", label: person }
-  # The Calendar, declared (K15 Calendar, stages 1-5; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
-  # the seven days of the week `?week=N` selects, one section per day through `group: date`, today set apart, week
-  # links and the range in words. A finished task is a Reopen button, an open one a Mark done, as My Tasks does.
-  # Not built, as on the screen this replaced: a month view and dragging a card to another day (007 §12.3 `actions`).
+  # The Calendar, declared (K15 Calendar, stages 1-5, then slice 4 of the Case 19 alignment to mockup PM05): a week (`?week=N`) or a month (`?month=N`),
+  # chosen with `?range=week|month`, one section per day through `group: date`, today set apart. The date controls sit on the left because they belong
+  # to this arrangement (the right of the header is the view group's). A task is a card -- its labels, a circle and its title, who holds it -- and a
+  # card can be moved to another day (`moves: true`: a drop writes the task's own date through the generic patch route). A finished task keeps its day
+  # and turns quiet: the circle is filled, and the title takes the quiet link. The month is the same tasks in a grid of whole weeks (`fill: weeks`),
+  # the days around it quiet and not a place to drop a card.
   - id: nav_calendar
     label: Calendar
     route: /pages/nav_calendar
@@ -502,7 +514,7 @@ navigation:
     in_menu: false
     view_group: vg_tasks
     icon: calendar
-    description: Tasks sit on the day they are due. Press Mark done to finish one; step through the weeks to see what is coming.
+    description: Tasks sit on the day they are due. Drag one to another day to move the date, or tick its circle to finish it.
     page:
       layout: stack
       gap: default
@@ -526,77 +538,157 @@ navigation:
           gap: default
           align: center
           children:
-            - static: link
-              to: nav_calendar
-              text: Previous week
-              step: {parameter: week, by: -1}
-            - static: link
-              to: nav_calendar
-              text: Next week
-              step: {parameter: week, by: 1}
-            - static: caption
-              window: ds_tasks_due_week
-            - static: link
-              to: nav_calendar
-              text: This week
-              when: {parameter: week, is_not: "0"}
+            - component: SegmentedControl
+              label: Range
+              query: range
+              options: |-
+                week=Week
+                month=Month
+            - layout: row
+              gap: tight
+              align: center
+              when: { parameter: range, is: week }
+              children:
+                - static: link
+                  to: nav_calendar
+                  text: Previous week
+                  variant: secondary
+                  icon: chevron-left
+                  step: { parameter: week, by: -1 }
+                - static: subheading
+                  window: ds_tasks_due_week
+                - static: link
+                  to: nav_calendar
+                  text: Next week
+                  variant: secondary
+                  icon: chevron-right
+                  step: { parameter: week, by: 1 }
+                - static: link
+                  to: nav_calendar
+                  text: This week
+                  variant: secondary
+                  when: { parameter: week, is_not: "0" }
+            - layout: row
+              gap: tight
+              align: center
+              when: { parameter: range, is: month }
+              children:
+                - static: link
+                  to: nav_calendar
+                  text: Previous month
+                  variant: secondary
+                  icon: chevron-left
+                  step: { parameter: month, by: -1 }
+                  set: { range: month }
+                - static: subheading
+                  window: ds_tasks_due_month
+                - static: link
+                  to: nav_calendar
+                  text: Next month
+                  variant: secondary
+                  icon: chevron-right
+                  step: { parameter: month, by: 1 }
+                  set: { range: month }
+                - static: link
+                  to: nav_calendar
+                  text: This month
+                  variant: secondary
+                  set: { range: month }
+                  when: { parameter: month, is_not: "0" }
         - layout: grid
           gap: tight
           mobile: 1
           columns: 7
+          when: { parameter: range, is: week }
           children:
             - component: Collection
               gap: tight
               empty: "—"
-              binding:
-                dataset: ds_tasks_due_week
-                rows: records
-                group: date
+              binding: { dataset: ds_tasks_due_week, rows: records, group: date, moves: true }
               children:
-                - static: subheading
-                  from:
-                    text: "bucket:label"
                 - layout: stack
-                  gap: tight
+                  gap: hair
                   children:
-                    - static: link
-                      from:
-                        text: title
-                        href: record
-                    - layout: row
-                      gap: tight
-                      align: center
-                      children:
-                        - component: StatusBadge
-                          from:
-                            label: "date:label"
-                            tone: "date:tone"
-                        - component: Tag
-                          each: tags
-                          from:
-                            label: title
-                            color: color
                     - static: caption
-                      from:
-                        text: person
-                    - component: Button
-                      label: Mark done
-                      variant: secondary
-                      becomes: $done
-                      when: {role: status, is_not: $done}
-                      from:
-                        describes: title
-                      binding:
-                        write: transition
-                    - component: Button
-                      label: Reopen
-                      variant: secondary
-                      becomes: $reopen
-                      when: {role: status, is: $done}
-                      from:
-                        describes: title
-                      binding:
-                        write: transition
+                      from: { text: "bucket:day" }
+                    - static: subheading
+                      from: { text: "bucket:date" }
+                - layout: panel
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - layout: row
+                          gap: tight
+                          children:
+                            - component: Tag
+                              each: tags
+                              from: { label: title, color: color }
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - component: Toggle
+                              from: { describes: title }
+                              binding: { write: transition }
+                            - static: link
+                              from: { text: title, href: record }
+                              when: { role: status, is_not: $done }
+                            - static: link
+                              variant: quiet
+                              from: { text: title, href: record }
+                              when: { role: status, is: $done }
+                        - component: Avatar
+                          size: compact
+                          presence: present
+                          from: { initials: "person:initials", label: person }
+        - layout: grid
+          gap: tight
+          mobile: 1
+          columns: 7
+          when: { parameter: range, is: month }
+          children:
+            - component: Collection
+              gap: tight
+              binding: { dataset: ds_tasks_due_month, rows: records, group: date, fill: weeks, moves: true }
+              children:
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: "bucket:day" }
+                    - static: subheading
+                      from: { text: "bucket:number" }
+                - layout: panel
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                        - layout: row
+                          gap: tight
+                          children:
+                            - component: Tag
+                              each: tags
+                              from: { label: title, color: color }
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - component: Toggle
+                              from: { describes: title }
+                              binding: { write: transition }
+                            - static: link
+                              from: { text: title, href: record }
+                              when: { role: status, is_not: $done }
+                            - static: link
+                              variant: quiet
+                              from: { text: title, href: record }
+                              when: { role: status, is: $done }
+                        - component: Avatar
+                          size: compact
+                          presence: present
+                          from: { initials: "person:initials", label: person }
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

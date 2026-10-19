@@ -117,6 +117,20 @@ datasets:
       - field: sort_order
         direction: asc
     limit: 200
+  # The Calendar's month: the same tasks and the same optional project scope as the week, over `$month` .. `$month_end` (`?month=N`).
+  - id: ds_tasks_due_month
+    select: records
+    where:
+      all:
+        - { field: fld_due_date, op: gte, value: $month }
+        - { field: fld_due_date, op: lte, value: $month_end }
+        - { field: fld_project, op: equals, value: $parameters.project, optional: true }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
   # The Table's rows (Case 19 PM08): every Task, grouped by the List it sits in and in the order the board keeps inside each.
   # `fld_list` orders by the stored reference, which keeps one List's Tasks together -- the order *of the Lists* is the board's
   # own (Board Settings), which a Dataset cannot yet say, so the Table's groups follow the reference, not that order.

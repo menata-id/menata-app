@@ -969,7 +969,7 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	@sectionSurface(gap, false) {
+	@sectionSurface(gap, false, sectionBucket{}) {
 		{ children... }
 	}
 }
@@ -980,18 +980,36 @@ templ sectionLayout(gap domain.Gap) {
 // is what a screen reader hears. The palette's text colour is deliberately left out (toneFillClass): a section's
 // children carry their own ink, and a colour inherited into whichever one does not would be a surprise.
 templ currentSectionLayout(gap domain.Gap) {
-	@sectionSurface(gap, true) {
+	@sectionSurface(gap, true, sectionBucket{}) {
+		{ children... }
+	}
+}
+
+// sectionBucket is what makes a section one day of a grouped list: a day added only to fill out a week (`Outside`, drawn quieter and holding nothing)
+// and the Field and value a card dropped on it writes (`DropField`, `DropValue`). The zero value is an ordinary section.
+type sectionBucket struct {
+	Outside              bool
+	DropField, DropValue string
+}
+
+// bucketSection is a day of a grouped list: the section surface, marked for the move script where a card may be dropped on it.
+templ bucketSection(gap domain.Gap, current bool, bucket sectionBucket) {
+	@sectionSurface(gap, current, bucket) {
 		{ children... }
 	}
 }
 
 // sectionSurface is the one `<section>` both section layouts draw, so the surface is declared once.
-templ sectionSurface(gap domain.Gap, current bool) {
+templ sectionSurface(gap domain.Gap, current bool, bucket sectionBucket) {
 	<section
 		if current {
 			aria-current="date"
 		}
-		class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), sectionFillClass(ctx, current), paddingClass(ctx, domain.PaddingSection) }
+		if bucket.DropValue != "" {
+			data-drop-field={ bucket.DropField }
+			data-drop-value={ bucket.DropValue }
+		}
+		class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), sectionFillClass(ctx, current, bucket.Outside), paddingClass(ctx, domain.PaddingSection) }
 	>
 		{ children... }
 	</section>
@@ -1001,9 +1019,13 @@ templ sectionSurface(gap domain.Gap, current bool) {
 // 4.38:1 (Chromium audit, 2026-10-14; the pair passes on white and fails on blue-50), and any section child may carry
 // secondary ink (a placeholder, a meta line). So inside it `secondary` is the body ink: the property the role classes
 // read is redefined for the subtree, which keeps every child's own class and needs no per-child decision.
-func sectionFillClass(ctx context.Context, current bool) string {
-	if current {
+func sectionFillClass(ctx context.Context, current, outside bool) string {
+	switch {
+	case current:
 		return toneFillClass(ctx, domain.ToneInfo) + " [--color-ink-secondary:var(--color-ink-body)]"
+	case outside:
+		// A day added only to make a whole week sits on the page's own ground, not raised: it is the window's neighbour, not part of it.
+		return backgroundClass(ctx, domain.BackgroundBase)
 	}
 	return backgroundClass(ctx, domain.BackgroundRaised)
 }
@@ -1428,15 +1450,28 @@ func headerTree(title, description string) ir.UINode {
 templ uiLayout(n ir.UINode) {
 	switch domain.LayoutKind(n.Type) {
 		case domain.LayoutStack:
-			@stackLayout(domain.Gap(n.Props["gap"])) {
-				@uiChildren(n)
+			if n.Props[ir.StackMoveProp] != "" {
+				// A card the viewer may move: one element that says where its patch goes, for the move script (no primitive takes an arbitrary attribute).
+				<div data-move-url={ n.Props[ir.StackMoveProp] } draggable="true" class="cursor-grab">
+					@stackLayout(domain.Gap(n.Props["gap"])) {
+						@uiChildren(n)
+					}
+				</div>
+			} else {
+				@stackLayout(domain.Gap(n.Props["gap"])) {
+					@uiChildren(n)
+				}
 			}
 		case domain.LayoutPanel:
 			@panelLayout() {
 				@uiChildren(n)
 			}
 		case domain.LayoutSection:
-			if n.Props[ir.SectionCurrentProp] == "true" {
+			if n.Props[ir.SectionDropValueProp] != "" || n.Props[ir.SectionOutsideProp] == "true" {
+				@bucketSection(domain.Gap(n.Props["gap"]), n.Props[ir.SectionCurrentProp] == "true", sectionBucket{Outside: n.Props[ir.SectionOutsideProp] == "true", DropField: n.Props[ir.SectionDropFieldProp], DropValue: n.Props[ir.SectionDropValueProp]}) {
+					@uiChildren(n)
+				}
+			} else if n.Props[ir.SectionCurrentProp] == "true" {
 				@currentSectionLayout(domain.Gap(n.Props["gap"])) {
 					@uiChildren(n)
 				}
@@ -1483,7 +1518,11 @@ templ uiNode(n ir.UINode) {
 		case ir.NodeStatic:
 			switch domain.StaticKind(n.Type) {
 				case domain.StaticLink:
-					if v := domain.ButtonVariant(n.Props["variant"]); v != "" && n.Props["href"] != "" {
+					if v := domain.ButtonVariant(n.Props["variant"]); v == domain.LinkQuiet && n.Props["href"] != "" {
+						@quietLink(n.Props["href"], n.Props["text"])
+					} else if v != "" && n.Props["icon"] != "" && n.Props["href"] != "" {
+						@iconLinkButton(n.Props["text"], n.Props["href"], n.Props["icon"], v)
+					} else if v != "" && n.Props["href"] != "" {
 						@linkButton(n.Props["text"], n.Props["href"], v)
 					} else {
 						@staticLink(n.Props["href"], n.Props["text"])
@@ -1526,7 +1565,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentSegmentedControl:
-					@segmentedControl(n.Props["label"], n.Props["query"], n.Props["options"], n.Props["selected"])
+					@segmentedControl(n.Props["label"], n.Props["query"], n.Props["options"], n.Props["selected"], n.Props["keep"])
 				case domain.ComponentPopover:
 					@popover(n.Props["label"], n.Props["title"], domain.PopoverTrigger(n.Props["trigger"]), domain.PopoverAlign(n.Props["align"]), domain.PopoverDensity(n.Props["density"])) {
 						@uiChildren(n)

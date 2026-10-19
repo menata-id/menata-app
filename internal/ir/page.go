@@ -87,11 +87,27 @@ type RecordSet struct {
 	// lowering refuses it rather than drawing a page that quietly lacks a task.
 	Buckets    []Bucket
 	BucketKeys []string
+	// Drags is, for a binding with `moves:`, each record's answer in the same order: the route a drop writes and the Field it writes, and whether
+	// this viewer may. Courtesy, like every record-level answer here -- the patch route asks again.
+	Drags []RecordDrag
+	// DropField is the Field a drop onto a bucket writes (the date Field the buckets are days of); "" when the binding declares no `moves:`.
+	DropField string
+}
+
+// RecordDrag is the answer for a card that can be moved to another bucket: the record's generic patch route, the date Field a drop writes, and
+// whether this viewer may write it (the `edit` Permission, a frozen parent, the state model). Not Permitted draws the card still.
+type RecordDrag struct {
+	Route, Field string
+	Permitted    bool
 }
 
 // Bucket is one group of a grouped records binding: Key is what records name it by, Label what its heading says.
 type Bucket struct {
 	Key, Label string
+	// Day, Date and Number are the parts of Label ("Mon", "05 Oct", "5") a heading may set apart.
+	Day, Date, Number string
+	// Outside marks a day added only to make a whole week (domain.PageFillWeeks): it holds nothing and is drawn quiet.
+	Outside bool
 	// Current marks the bucket that holds the request's own moment (today's day), which lowering names on the
 	// section it draws so a renderer can set it apart. The resolver decides it from the request's date; a bucket
 	// is never current by what its heading says.
@@ -226,18 +242,24 @@ func parameterHolds(c domain.PageCondition, r Resolver, path string) (bool, erro
 	if (c.Is == "") == (c.IsNot == "") {
 		return false, fmt.Errorf("%s: when: takes exactly one of is: and is_not:", path)
 	}
-	if c.Parameter != domain.PageParameterWeek {
-		return false, fmt.Errorf("%s: when: parameter: %q is not one a page may test (%s)", path, c.Parameter, domain.PageParameterWeek)
+	if !domain.KnownPageParameters[c.Parameter] {
+		return false, fmt.Errorf("%s: when: parameter: %q is not one a page may test (%s, %s, %s)", path, c.Parameter, domain.PageParameterWeek, domain.PageParameterMonth, domain.PageParameterRange)
 	}
 	operand, negate := c.Is, false
 	if c.IsNot != "" {
 		operand, negate = c.IsNot, true
 	}
-	weeks, err := strconv.Atoi(operand)
-	if err != nil {
-		return false, fmt.Errorf("%s: when: %s is compared as a whole number of weeks, and %q is not one -- it would never (or always) hold", path, c.Parameter, operand)
+	if c.Parameter == domain.PageParameterRange {
+		if !domain.KnownPageRanges[operand] {
+			return false, fmt.Errorf("%s: when: range is compared with %s or %s, and %q is neither -- it would never (or always) hold", path, domain.PageRangeWeek, domain.PageRangeMonth, operand)
+		}
+	} else {
+		offset, err := strconv.Atoi(operand)
+		if err != nil {
+			return false, fmt.Errorf("%s: when: %s is compared as a whole number, and %q is not one -- it would never (or always) hold", path, c.Parameter, operand)
+		}
+		operand = strconv.Itoa(offset)
 	}
-	operand = strconv.Itoa(weeks)
 	if r.Parameter == nil {
 		return true, nil
 	}
@@ -546,6 +568,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentFilterSelect) {
 		return lowerFilterSelect(n, r, path)
 	}
+	if NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentSegmentedControl) {
+		return lowerSegmentedControl(n, r, path)
+	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteAction {
 		return lowerAction(n, r, path, record)
 	}
@@ -573,6 +598,11 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	_, fromCurrent := n.From[SectionCurrentProp]
 	if _, written := n.Props[SectionCurrentProp]; (written || fromCurrent) && NodeKind(n.Kind) == NodeLayout {
 		return nil, fmt.Errorf("%s: %s: is produced by lowering for the day a grouped list is drawing on, and is never written -- a page cannot know which day it is read on", path, SectionCurrentProp)
+	}
+	for _, p := range []string{SectionOutsideProp, SectionDropFieldProp, SectionDropValueProp, StackMoveProp} {
+		if _, written := n.Props[p]; written && NodeKind(n.Kind) == NodeLayout {
+			return nil, fmt.Errorf("%s: %s: is produced by lowering for a grouped list's days and cards, and is never written -- a page cannot know which day is outside its window or what the viewer may move", path, p)
+		}
 	}
 	props := n.Props
 	if len(n.From) > 0 {
@@ -812,6 +842,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	if n.Step != nil && !(isLink && n.To != "") {
 		return nil, fmt.Errorf("%s: step: moves the parameter a link sends, so it is valid only on a static: link that names its destination with to:", path)
 	}
+	if len(n.Set) > 0 && !(isLink && n.To != "") {
+		return nil, fmt.Errorf("%s: set: is a parameter a link sends beside its destination, so it is valid only on a static: link that names it with to:", path)
+	}
 	if !isLink {
 		if n.In != "" {
 			return nil, fmt.Errorf("%s: in: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
@@ -825,7 +858,18 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		return props, nil
 	}
 	if v, ok := n.Props["variant"]; ok && !domain.KnownLinkVariants[domain.ButtonVariant(v)] {
-		return nil, fmt.Errorf("%s: variant: %q -- a link is drawn as a link, or as a primary or secondary button", path, v)
+		return nil, fmt.Errorf("%s: variant: %q -- a link is drawn as a link, as a quiet link, or as a primary or secondary button", path, v)
+	}
+	if icon, ok := n.Props["icon"]; ok {
+		if !domain.KnownLinkIcons[icon] {
+			return nil, fmt.Errorf("%s: icon: %q is not a mark a link takes (chevron-left, chevron-right)", path, icon)
+		}
+		if v := domain.ButtonVariant(n.Props["variant"]); v != domain.ButtonPrimary && v != domain.ButtonSecondary {
+			return nil, fmt.Errorf("%s: icon: draws a link as a button with a mark in place of its words, so it takes variant: primary or secondary", path)
+		}
+		if n.Props["text"] == "" && n.From["text"] == "" {
+			return nil, fmt.Errorf("%s: icon: replaces the words on the page, not for a screen reader -- the link still writes text:, which is its accessible name", path)
+		}
 	}
 	if _, written := n.Props["href"]; written {
 		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id>, list_of: <dataset id> or, inside a record template, from: {href: %s}; never a typed href -- a route is declared once (001 #3, #8)", path, domain.PageRecordRole)
@@ -875,8 +919,8 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	out["href"] = route
 	if n.Step != nil {
 		step := n.Step
-		if step.Parameter != domain.PageParameterWeek || step.By == 0 {
-			return nil, fmt.Errorf("%s: step: moves %s by a whole number of weeks other than zero", path, domain.PageParameterWeek)
+		if !domain.KnownPageStepParameters[step.Parameter] || step.By == 0 {
+			return nil, fmt.Errorf("%s: step: moves %s or %s by a whole number other than zero", path, domain.PageParameterWeek, domain.PageParameterMonth)
 		}
 		value := "1"
 		if r.Step != nil {
@@ -885,6 +929,19 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		if value != "" {
 			out["href"] = route + "?" + url.QueryEscape(step.Parameter) + "=" + url.QueryEscape(value)
 		}
+	}
+	if len(n.Set) > 0 {
+		for name, v := range n.Set {
+			if name != domain.PageParameterRange || !domain.KnownPageRanges[v] {
+				return nil, fmt.Errorf("%s: set: %s: %s -- a link sets the range of the window and nothing else", path, name, v)
+			}
+		}
+		path0, query, _ := strings.Cut(out["href"], "?")
+		q, _ := url.ParseQuery(query)
+		for name, v := range n.Set {
+			q.Set(name, v)
+		}
+		out["href"] = path0 + "?" + q.Encode()
 	}
 	if len(n.Pass) > 0 {
 		// pass: carries the record's own values to the destination, so it needs a record and the link's own route.
@@ -1313,6 +1370,16 @@ const bucketGap = string(domain.GapTight)
 // group). Lowering produces it from Bucket.Current; an author never writes it.
 const SectionCurrentProp = "current"
 
+// The properties lowering alone produces for a grouped list's draggable cards: a section's `outside` (a day added to make a whole week) and the
+// Field and value a drop on it writes, and a stack's `move` (the patch route of the card it holds). A page never writes one -- it cannot know which
+// day is outside the window, or what the viewer may move -- and a written one is refused as `current` is.
+const (
+	SectionOutsideProp   = "outside"
+	SectionDropFieldProp = "dropField"
+	SectionDropValueProp = "dropValue"
+	StackMoveProp        = "move"
+)
+
 // lowerGrouped expands a records Collection whose binding names `group:` (domain.PageGroupDate) into one `section`
 // per bucket, **as siblings in the parent** -- the way a bound Metric expands into one Metric per row -- so the
 // layout around it (a seven-column grid for a week, a stack for an agenda) is the author's and the primitive
@@ -1376,7 +1443,15 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if bk.Current {
 			cell.Props[SectionCurrentProp] = "true"
 		}
-		head, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), map[string]string{domain.PageBucketLabelRole: bk.Label}, &RecordWrites{})
+		if bk.Outside {
+			cell.Props[SectionOutsideProp] = "true"
+		} else if set.DropField != "" {
+			// A day of the window is a place a card can be dropped: the Field it writes and the value, both for the script to read.
+			cell.Props[SectionDropFieldProp], cell.Props[SectionDropValueProp] = set.DropField, bk.Key
+		}
+		head, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), map[string]string{
+			domain.PageBucketLabelRole: bk.Label, domain.PageBucketDayRole: bk.Day, domain.PageBucketDateRole: bk.Date, domain.PageBucketNumberRole: bk.Number,
+		}, &RecordWrites{})
 		if err != nil {
 			return nil, fmt.Errorf("bucket %q: %w", bk.Key, err)
 		}
@@ -1397,6 +1472,10 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 			items, err := lowerRecordItem(n.Children[1], r, fmt.Sprintf("%s.children[1]", path), set, i)
 			if err != nil {
 				return nil, err
+			}
+			// A card the viewer may move is wrapped in the one node that says so (`move:`, its patch route); the renderer draws the gesture.
+			if i < len(set.Drags) && set.Drags[i].Permitted && len(items) > 0 {
+				items = []UINode{{Kind: NodeLayout, Type: string(domain.LayoutStack), Props: map[string]string{"gap": bucketGap, StackMoveProp: set.Drags[i].Route}, Children: items}}
 			}
 			list.Children = append(list.Children, items...)
 		}
@@ -1915,6 +1994,41 @@ func lowerNavList(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		props["home"] = s.Home
 	}
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentNavList), Props: props}}, nil
+}
+
+// lowerSegmentedControl fills a SegmentedControl's `selected` with the choice the request carried under its `query` (the first option when it
+// carried none, or one that is no option) and `keep` with the request's other parameters, so choosing an option changes only its own parameter and a
+// calendar's Week | Month switch leaves the project and the window where they were. The page writes the label, the parameter and the options; the
+// state is the request's and a page that writes one is refused.
+func lowerSegmentedControl(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	if len(n.Children) > 0 || n.Binding != nil || len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: a SegmentedControl takes a label, a query and its options and nothing else", path)
+	}
+	for _, p := range []string{"selected", "keep"} {
+		if _, written := n.Props[p]; written {
+			return nil, fmt.Errorf("%s: %s: is produced by lowering from the request, and is never written", path, p)
+		}
+	}
+	props := make(map[string]string, len(n.Props)+2)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	options := domain.ParseSegmentOptions(props["options"])
+	if len(options) < 2 {
+		return nil, fmt.Errorf("%s: a SegmentedControl offers fewer than two options (a value=Label per line), and has %d", path, len(options))
+	}
+	props["selected"] = options[0].Value
+	if r.Query != nil {
+		for _, o := range options {
+			if o.Value == r.Query(props["query"]) {
+				props["selected"] = o.Value
+			}
+		}
+	}
+	if keep := keepQuery(r, props["query"]); keep != "" {
+		props["keep"] = keep
+	}
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentSegmentedControl), Props: props}}, nil
 }
 
 // lowerSearchBox fills a SearchBox's `value` with the words the request already carried under its `param`, so the page

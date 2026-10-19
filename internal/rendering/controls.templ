@@ -142,6 +142,24 @@ templ linkButton(label, href string, variant domain.ButtonVariant) {
 	<a href={ templ.URL(href) } data-control class={ buttonClasses(ctx, variant) }>{ label }</a>
 }
 
+// iconLinkButton is a link declared with a `variant:` and an `icon:`: the button's look, square, with the mark in place of its words, which are its
+// accessible name. The width is the button recipe's own with the horizontal padding swapped for the height, so the two cannot drift.
+templ iconLinkButton(label, href, name string, variant domain.ButtonVariant) {
+	<a href={ templ.URL(href) } data-control aria-label={ label } title={ label } class={ iconButtonClasses(ctx, variant) }>
+		@icon(name, "size-4")
+	</a>
+}
+
+// iconButtonClasses is buttonClasses for a control that holds only a mark: square.
+func iconButtonClasses(ctx context.Context, variant domain.ButtonVariant) string {
+	return strings.Replace(buttonClasses(ctx, variant), " px-4", " w-9", 1)
+}
+
+// quietLink is a link in the secondary ink -- what a link to something finished reads as, still an <a> that opens like any other.
+templ quietLink(href, text string) {
+	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) }>{ text }</a>
+}
+
 // button is the registered renderer for `domain.ComponentButton`: a real `<button type="submit">` with a
 // label and, optionally, the native name/value pair it posts. **Its signature is the contract's teeth** -- four
 // strings and a closed variant, no `any` to parse and no attribute map to pass `hx-*` through, which is what

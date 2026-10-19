@@ -219,3 +219,59 @@ func TestRequestWeekIsTheOffsetWeekReadsAndClampsIt(t *testing.T) {
 		t.Errorf("RequestWeek(nil) = %d, want 0", got)
 	}
 }
+
+// $month is the first day of the request's month and $month_end its last, with `?month=N` stepping whole months from the one that
+// holds today. 2026-10-19 is in October, a 31-day month; February of a leap year ends on the 29th; a step across a year lands on
+// the right December/January; and nothing reads the clock.
+func TestResolve_monthIsTheFirstAndLastDayOfTheSelectedMonth(t *testing.T) {
+	for _, tc := range []struct {
+		today, param, first, last string
+	}{
+		{"2026-10-19", "", "2026-10-01", "2026-10-31"},
+		{"2026-10-31", "", "2026-10-01", "2026-10-31"},
+		{"2026-10-19", "0", "2026-10-01", "2026-10-31"},
+		{"2026-10-19", "1", "2026-11-01", "2026-11-30"},
+		{"2026-10-19", "-1", "2026-09-01", "2026-09-30"},
+		{"2026-10-19", "3", "2027-01-01", "2027-01-31"},
+		{"2028-01-31", "1", "2028-02-01", "2028-02-29"}, // from the 31st: February, not March
+		{"2026-01-31", "1", "2026-02-01", "2026-02-28"},
+		{"2026-10-19", "abc", "2026-10-01", "2026-10-31"},
+		{"2026-10-19", "1.5", "2026-10-01", "2026-10-31"},
+	} {
+		c := Context{Today: tc.today, Parameters: map[string]string{"month": tc.param}}
+		if got, ok := c.Resolve("$month"); !ok || got != tc.first {
+			t.Errorf("Resolve($month) on %s with ?month=%q = %q, %v; want %q", tc.today, tc.param, got, ok, tc.first)
+		}
+		if got, ok := c.Resolve("$month_end"); !ok || got != tc.last {
+			t.Errorf("Resolve($month_end) on %s with ?month=%q = %q, %v; want %q", tc.today, tc.param, got, ok, tc.last)
+		}
+	}
+	// Out of bounds is clamped, never a date time cannot represent: ten years is the bound either way.
+	for _, param := range []string{"99999", "-99999", "99999999999999999999"} {
+		c := Context{Today: "2026-10-19", Parameters: map[string]string{"month": param}}
+		got, ok := c.Resolve("$month")
+		if !ok {
+			t.Fatalf("?month=%s resolved to nothing", param)
+		}
+		year := got[:4]
+		if year != "2036" && year != "2016" {
+			t.Errorf("?month=%s = %s, want the bound (2036 or 2016)", param, got)
+		}
+	}
+}
+
+func TestResolve_monthNeedsADateAndIsExactOnly(t *testing.T) {
+	for _, value := range []string{"$month", "$month_end"} {
+		if got, ok := (Context{}).Resolve(value); ok {
+			t.Errorf("Resolve(%q) with no date = %q, true; want not-ok", value, got)
+		}
+		if !KnownSentinel(value) || !IsDate(value) {
+			t.Errorf("%q must be a known date value", value)
+		}
+	}
+	for _, bad := range []string{"$month+1", "$month-1", "$months", "$month_start", "$month_end+1", "$monthly"} {
+		if KnownSentinel(bad) {
+			t.Errorf("KnownSentinel(%q) = true; a malformed month value must be a load error, not a literal", bad)
+		}
+	}
+}

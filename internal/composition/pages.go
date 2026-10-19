@@ -68,6 +68,8 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 // them, and each end carries its own when they do not.
 func calendarRange(first, last time.Time) string {
 	switch {
+	case first.Day() == 1 && last.Equal(first.AddDate(0, 1, -1)):
+		return first.Format("January 2006")
 	case first.Year() != last.Year():
 		return first.Format("02 Jan 2006") + " \u2013 " + last.Format("02 Jan 2006")
 	case first.Month() != last.Month():

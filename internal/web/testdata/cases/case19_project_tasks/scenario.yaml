@@ -262,3 +262,100 @@ steps:
       shows:
         - <option value="$first-season" selected
         - name="fld_project" value="$first-season"
+
+  # --- The Calendar (slice 4, mockup PM05) -----------------------------------------------------------------------------------------
+  # Two tasks on today: one open, one finished. Dates are the request's own clock (`$today`), which a case cannot write as a literal.
+  - id: rehearsal
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Rehearsal, fld_due_date: "$today", fld_assignee: $nia } }
+    expect: ok
+  - id: wrap-up
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Wrap-up, fld_due_date: "$today", fld_status: done } }
+    expect: ok
+  # The week draws its own controls on the left (a Week | Month choice, a step back and forward, the range in words) and no longer says
+  # "Mark done": a task is a circle and its title, and the whole card is a thing that can be moved to another day.
+  - id: the-week-draws-its-controls-and-offers-the-month
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar
+      shows:
+        - aria-label="Range"
+        - aria-current="true">Week</span>
+        - href="?range=month"
+        - aria-label="Previous week"
+        - aria-label="Next week"
+        - Rehearsal
+        - aria-label="Mark “Rehearsal” complete"
+        - data-drop-field="fld_due_date"
+        - data-drop-value="$today"
+        - data-move-url="/machines/mch_task/records/$rehearsal"
+      hides:
+        - ">Previous week<"
+        - ">Next week<"
+        - ">Mark done<"
+        - ">Reopen<"
+  # A finished task keeps its day and turns quiet: the circle is pressed and the title is in the quiet ink, not the link's.
+  - id: a-finished-task-turns-quiet
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar
+      shows:
+        - aria-pressed="true"
+        - Wrap-up
+        - href="/machines/mch_task/records/$wrap-up" class="text-ink-secondary hover:text-ink-strong"
+        - href="/machines/mch_task/records/$rehearsal" class="text-accent hover:text-accent-hover"
+  # The month is the same tasks in a grid of whole weeks, its steps and its way back to the week in the same place, the project kept.
+  - id: the-month-is-a-grid-of-whole-weeks
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?range=month
+      shows:
+        - $monthname
+        - aria-current="true">Month</span>
+        - href="?range=week"
+        - aria-label="Previous month"
+        - aria-label="Next month"
+        - Rehearsal
+        - data-drop-value="$today"
+      hides:
+        - aria-label="Previous week"
+  - id: the-month-keeps-its-range-and-the-project-on-its-steps
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?range=month&project=$first-season
+      shows:
+        - href="/pages/nav_calendar?month=1&amp;project=$first-season&amp;range=month"
+        - href="?project=$first-season&amp;range=week"
+  - id: this-month-is-offered-away-from-it
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?range=month&month=2
+      shows:
+        - This month
+        - href="/pages/nav_calendar?range=month"
+      hides:
+        - This week
+  # A request that asks for neither range is the week, and one that asks for nonsense is too.
+  - id: an-unknown-range-is-the-week
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?range=decade
+      shows:
+        - aria-current="true">Week</span>
+        - aria-label="Previous week"
+  # The same quiet in the Table: a finished task's title is in the quiet ink and an open one's in the link's, so the list reads at a glance.
+  - id: a-finished-task-is-quiet-in-the-table
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - href="/machines/mch_task/records/$wrap-up" class="text-ink-secondary hover:text-ink-strong"
+        - href="/machines/mch_task/records/$rehearsal" class="text-accent hover:text-accent-hover"

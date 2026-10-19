@@ -354,7 +354,7 @@ func fromRolesUnder(nodes []domain.PageNode) []string {
 		for prop, role := range n.From {
 			// The reserved word is the record's route, not a Projection role; it is judged where it is used
 			// (a link's href) by TestEveryInstalledLinkNamesItsDestinationOnce, and by ir.Lower for any other prop.
-			if domain.PageDerivedRole(role) || role == domain.PageBucketLabelRole {
+			if domain.PageDerivedRole(role) || domain.PageBucketRole(role) {
 				continue
 			}
 			if role == domain.PageRecordRole && n.Kind == "static" && n.Type == string(domain.StaticLink) && prop == "href" {
@@ -1199,13 +1199,14 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 		for _, item := range tm.Application.AllNavigation {
 			if item.ID == "nav_calendar" && item.Page != nil {
 				for _, b := range pageBindings(*item.Page) {
-					if b.Rows == domain.PageRowsRecords {
+					// The first records binding is the week's; the month's (`ds_tasks_due_month`) follows it.
+					if b.Rows == domain.PageRowsRecords && pageDataset == "" {
 						pageDataset = b.Dataset
 					}
 				}
 				var find func(n domain.PageNode)
 				find = func(n domain.PageNode) {
-					if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
+					if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords && pageEmpty == "" {
 						pageEmpty = n.Props["empty"]
 					}
 					for _, c := range n.Children {
@@ -1277,6 +1278,19 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 func TestPageParameterWeekIsTheExpressionOne(t *testing.T) {
 	if domain.PageParameterWeek != expression.WeekParameter {
 		t.Errorf("domain.PageParameterWeek = %q, expression.WeekParameter = %q; they must be one name", domain.PageParameterWeek, expression.WeekParameter)
+	}
+}
+
+// TestPageParametersAreTheExpressionOnes: the month parameter a page steps and tests is the key `$month` reads, and the range's two words are the
+// ones a calendar's SegmentedControl offers; one word in two packages, held equal for the reason the week's is.
+func TestPageParametersAreTheExpressionOnes(t *testing.T) {
+	if domain.PageParameterMonth != expression.MonthParameter {
+		t.Errorf("domain.PageParameterMonth = %q, expression.MonthParameter = %q; they must be one name", domain.PageParameterMonth, expression.MonthParameter)
+	}
+	for _, p := range []string{domain.PageParameterWeek, domain.PageParameterMonth, domain.PageParameterRange} {
+		if !domain.ParamReserved(p) {
+			t.Errorf("%q is a parameter the runtime names, so a SearchBox, a link's pass: or a scope may not take it", p)
+		}
 	}
 }
 

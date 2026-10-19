@@ -101,7 +101,7 @@ func validateViewGroupShape(doc applicationDoc) []string {
 				issues = append(issues, fmt.Sprintf("%s: scope.machine %q is not one of this application's own machines", where, s.Machine))
 			case s.Field == "" || s.Dataset == "":
 				issues = append(issues, fmt.Sprintf("%s: scope.field names the group machine's relation Field to the scope machine, and scope.dataset the records Dataset of the scope machine the menu lists", where))
-			case !regexp.MustCompile(`^[a-z][a-z0-9_]*$`).MatchString(s.Parameter) || domain.ParamReserved(s.Parameter) || s.Parameter == expression.WeekParameter:
+			case !regexp.MustCompile(`^[a-z][a-z0-9_]*$`).MatchString(s.Parameter) || domain.ParamReserved(s.Parameter) || s.Parameter == expression.WeekParameter || s.Parameter == expression.MonthParameter || s.Parameter == domain.PageParameterRange:
 				issues = append(issues, fmt.Sprintf("%s: scope.parameter %q is a lower-case word the runtime does not own", where, s.Parameter))
 			case s.Switch == "" || s.All == "" || !strings.Contains(s.Chosen, domain.ViewCountToken) || !strings.Contains(s.Overall, domain.ViewCountToken):
 				issues = append(issues, fmt.Sprintf("%s: scope words: switch and all are said, chosen and overall each carry %s", where, domain.ViewCountToken))
@@ -207,7 +207,7 @@ func headerResolvable(ds domain.Dataset) string {
 	for _, c := range ds.Where.Comparisons() {
 		switch {
 		case c.Optional:
-		case c.Value == expression.SentinelCurrentUser || strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) || strings.HasPrefix(c.Value, expression.SentinelWeek):
+		case c.Value == expression.SentinelCurrentUser || strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) || strings.HasPrefix(c.Value, expression.SentinelWeek) || expression.IsMonth(c.Value):
 			return fmt.Sprintf("filters on %s", c.Value)
 		}
 	}

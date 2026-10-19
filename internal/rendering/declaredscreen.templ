@@ -39,7 +39,134 @@ templ DeclaredScreen(navID string, body ir.UINode, header *ViewHeader, workspace
 			}
 		}
 		@uiNode(rest)
+		if treeMovesCards(rest) {
+			@bucketMoveScript()
+		}
 	}
+}
+
+// treeMovesCards says a screen draws a card the viewer may move to another day -- a stack carrying `move`, which lowering produces only for a grouped
+// list that declares `moves:` -- so the one script that carries the gesture is on the page, and on no page that has none.
+func treeMovesCards(n ir.UINode) bool {
+	if n.Props[ir.StackMoveProp] != "" {
+		return true
+	}
+	for _, c := range n.Children {
+		if treeMovesCards(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// bucketMoveScript moves a card to another day of a grouped list: a drop on a day, or Space then the arrow keys then Space on a focused card, ends in the
+// one PATCH of the record's date Field (the generic patch route, whose answer to a declared page is a refresh). Nothing is moved in the DOM: the page that
+// comes back is the proof it saved, and a refused write leaves the card where it was (the shell's shared notice). This is the third named vanilla-JS
+// exception, beside signature placement and `boardDragScript`: a gesture has no declarative form (007 §12.3's `actions` carries a click, not a gesture).
+// The live region is on the page before anything is lifted -- one that appears with its text is often not read.
+templ bucketMoveScript() {
+	<p data-move-live role="status" aria-live="polite" class="sr-only"></p>
+	<script>
+		(function () {
+			if (window.menataBucketMove) return;
+			window.menataBucketMove = true;
+			var dragged = null, lifted = null;
+			function days() { return Array.prototype.slice.call(document.querySelectorAll("[data-drop-value]")); }
+			function clear() {
+				document.querySelectorAll("[data-drop-value].ring-2").forEach(function (d) { d.classList.remove("ring-2", "ring-emerald-600"); });
+			}
+			function say(text) {
+				var live = document.querySelector("[data-move-live]");
+				if (live) live.textContent = text || "";
+			}
+			function write(card, day) {
+				var from = card.closest("[data-drop-value]");
+				if (!day || (from && from.dataset.dropValue === day.dataset.dropValue)) return;
+				var values = {};
+				values[day.dataset.dropField] = day.dataset.dropValue;
+				htmx.ajax("PATCH", card.dataset.moveUrl, { source: card, swap: "none", values: values });
+			}
+			function titleOf(card) {
+				var a = card.querySelector("a[href]");
+				return a ? a.textContent.trim() : "";
+			}
+			function dayName(day) {
+				var h = day.querySelector("h1,h2,h3,h4,h5,h6,p,span");
+				return day.getAttribute("aria-label") || (h ? h.textContent.trim() : day.dataset.dropValue);
+			}
+			document.addEventListener("dragstart", function (e) {
+				var c = e.target.closest && e.target.closest("[data-move-url]");
+				if (!c) return;
+				dragged = c;
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/plain", c.dataset.moveUrl);
+				setTimeout(function () { c.classList.add("opacity-40"); }, 0);
+			});
+			document.addEventListener("dragover", function (e) {
+				if (!dragged) return;
+				var day = e.target.closest("[data-drop-value]");
+				if (!day) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "move";
+				clear();
+				day.classList.add("ring-2", "ring-emerald-600");
+			});
+			document.addEventListener("drop", function (e) {
+				if (!dragged) return;
+				var day = e.target.closest("[data-drop-value]");
+				if (!day) return;
+				e.preventDefault();
+				var card = dragged;
+				clear();
+				write(card, day);
+			});
+			document.addEventListener("dragend", function () {
+				if (dragged) dragged.classList.remove("opacity-40");
+				dragged = null;
+				clear();
+			});
+			// The same move from the keyboard: Space on a focused card's title lifts it, Left and Right choose the day before or after, Up and Down
+			// a week earlier or later, Space drops it, Esc puts it back. A day added only to fill a week is not a place a card can go.
+			function show() {
+				clear();
+				lifted.day.classList.add("ring-2", "ring-emerald-600");
+				say("Moving \u201c" + titleOf(lifted.card) + "\u201d to " + dayName(lifted.day) + ". Arrow keys choose the day, Space drops it, Esc cancels.");
+			}
+			function cancel() { lifted = null; clear(); say(""); }
+			document.addEventListener("keydown", function (e) {
+				var card = e.target.closest && e.target.closest("[data-move-url]");
+				if (!lifted) {
+					if (e.key !== " " || !card || !e.target.matches("a[href]")) return;
+					var day = card.closest("[data-drop-value]");
+					if (!day) return;
+					e.preventDefault();
+					lifted = { card: card, day: day };
+					show();
+					return;
+				}
+				if (e.key === "Escape") { e.preventDefault(); cancel(); return; }
+				if (e.key === " " || e.key === "Enter") {
+					e.preventDefault();
+					var card2 = lifted.card, day2 = lifted.day;
+					cancel();
+					write(card2, day2);
+					return;
+				}
+				var by = 0;
+				if (e.key === "ArrowLeft") by = -1; else if (e.key === "ArrowRight") by = 1;
+				else if (e.key === "ArrowUp") by = -7; else if (e.key === "ArrowDown") by = 7; else return;
+				e.preventDefault();
+				// The day `by` days from this one, by the calendar and not by position, so a day added to fill a week (which takes no card) is skipped over.
+				var when = new Date(lifted.day.dataset.dropValue + "T00:00:00Z");
+				when.setUTCDate(when.getUTCDate() + by);
+				var key = when.toISOString().slice(0, 10), target = days().filter(function (d) { return d.dataset.dropValue === key; })[0];
+				if (target) { lifted.day = target; show(); }
+			});
+			document.addEventListener("focusout", function (e) {
+				if (lifted && lifted.card.contains(e.target) && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel();
+			});
+		})();
+	</script>
 }
 
 // liftActionBars takes the ActionBars at the root of a page's body out of it: a page's primary actions are drawn in its

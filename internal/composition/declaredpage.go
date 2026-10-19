@@ -100,16 +100,18 @@ func DeclaredPageCarrying(ctx context.Context, l *Loader, viewer domain.Actor, p
 			return ""
 		},
 		Parameter: func(name string) string {
-			if name == domain.PageParameterWeek {
+			switch name {
+			case domain.PageParameterWeek:
 				return strconv.Itoa(expression.RequestWeek(params))
+			case domain.PageParameterMonth:
+				return strconv.Itoa(expression.RequestMonth(params))
+			case domain.PageParameterRange:
+				return requestRange(params)
 			}
 			return ""
 		},
 		Step: func(name string, by int) string {
-			if name != domain.PageParameterWeek {
-				return ""
-			}
-			return weekStep(params, by)
+			return windowStep(name, params, by)
 		},
 		Window: func(datasetID string) (string, error) {
 			return datasetWindowWords(l, datasetID, expression.Context{Parameters: params, Today: now.Format("2006-01-02")})
@@ -397,8 +399,15 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		}
 	}
 	if b.Group == domain.PageGroupDate {
-		if set.Buckets, set.BucketKeys, err = dateBuckets(ds, src, records, where); err != nil {
+		if set.Buckets, set.BucketKeys, err = dateBuckets(ds, src, records, where, b.Fill == domain.PageFillWeeks); err != nil {
 			return ir.RecordSet{}, err
+		}
+		if b.Moves {
+			set.DropField = src.CardFieldFor(domain.CardFieldRoleDate)
+			for _, r := range records {
+				// What the patch route would refuse for a reason outside the record -- a parent freezing it -- is not offered either.
+				set.Drags = append(set.Drags, ir.RecordDrag{Route: RecordRoute(src.ID, r.ID), Field: set.DropField, Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer) && !held[r.ID].frozen})
+			}
 		}
 	}
 	if src.Completion != nil {
@@ -407,13 +416,30 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	return set, nil
 }
 
-// weekStep is the `?week=` value a link `by` weeks from the request's own should carry: the offset moved and
-// clamped to the same bound the Dataset's `$week` reads, and "" for this week, which is the plain route rather
-// than `?week=0` -- the form every other link to the page already has.
-func weekStep(params map[string]string, by int) string {
+// requestRange is the grain of the window the request asks to see: month when `?range=month` says so, the week otherwise -- including for a value
+// that is neither, so a page's conditions and its Datasets cannot disagree about what `?range=weekly` meant.
+func requestRange(params map[string]string) string {
+	if params[domain.PageParameterRange] == domain.PageRangeMonth {
+		return domain.PageRangeMonth
+	}
+	return domain.PageRangeWeek
+}
+
+// windowStep is the `?week=` or `?month=` value a link `by` steps from the request's own should carry: the offset moved and clamped to the
+// same bound the Dataset's `$week` / `$month` reads, and "" for the current one, which is the plain route rather than `?week=0` -- the form
+// every other link to the page already has.
+func windowStep(name string, params map[string]string, by int) string {
+	bound, current := expression.MaxWeekOffset, expression.RequestWeek(params)
+	switch name {
+	case domain.PageParameterWeek:
+	case domain.PageParameterMonth:
+		bound, current = expression.MaxMonthOffset, expression.RequestMonth(params)
+	default:
+		return ""
+	}
 	// by is clamped first: the sum of two ints near the extremes wraps, and a wrapped sum clamps to the wrong end.
-	by = max(-expression.MaxWeekOffset, min(expression.MaxWeekOffset, by))
-	next := max(-expression.MaxWeekOffset, min(expression.MaxWeekOffset, expression.RequestWeek(params)+by))
+	by = max(-bound, min(bound, by))
+	next := max(-bound, min(bound, current+by))
 	if next == 0 {
 		return ""
 	}
@@ -480,16 +506,25 @@ func dateWindow(ds domain.Dataset, src *domain.Machine, where expression.Context
 // what is checked again here is what only a request can break -- a bound that resolves to no date, an inverted
 // window, one longer than domain.PageGroupMaxBuckets days. A record whose date is not a bucket is an error and
 // not a skipped row, since the Dataset's own filter is what put it here.
-func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record, where expression.Context) ([]ir.Bucket, []string, error) {
+func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record, where expression.Context, wholeWeeks bool) ([]ir.Bucket, []string, error) {
 	field := src.CardFieldFor(domain.CardFieldRoleDate)
 	lo, hi, err := dateWindow(ds, src, where)
 	if err != nil {
 		return nil, nil, err
 	}
+	first, last := lo, hi
+	if wholeWeeks {
+		// The weeks a window touches, Monday to Sunday: the days added at either end select nothing and are marked, so a grid has whole rows.
+		first = lo.AddDate(0, 0, -((int(lo.Weekday()) + 6) % 7))
+		last = hi.AddDate(0, 0, 6-((int(hi.Weekday())+6)%7))
+	}
 	var buckets []ir.Bucket
-	for d := lo; !d.After(hi); d = d.AddDate(0, 0, 1) {
+	for d := first; !d.After(last); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
-		buckets = append(buckets, ir.Bucket{Key: key, Label: d.Format("Mon 02 Jan"), Current: where.Today != "" && key == where.Today})
+		buckets = append(buckets, ir.Bucket{
+			Key: key, Label: d.Format("Mon 02 Jan"), Day: d.Format("Mon"), Date: d.Format("02 Jan"), Number: strconv.Itoa(d.Day()),
+			Current: where.Today != "" && key == where.Today, Outside: d.Before(lo) || d.After(hi),
+		})
 	}
 	keys := make([]string, len(records))
 	for i, r := range records {

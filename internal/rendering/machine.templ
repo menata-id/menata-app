@@ -585,7 +585,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
 	{{ views := selectableViews(m) }}
 	if len(views) > 1 {
-		@segmentedControl("View", "view", viewSegments(views), selected.ID)
+		@segmentedControl("View", "view", viewSegments(views), selected.ID, "")
 	}
 }
 
