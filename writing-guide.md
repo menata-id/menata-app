@@ -1381,7 +1381,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
-| `Popover` | stable | Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go |
+| `Popover` | stable | Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go. **On a phone (below `sm`, 2026-10-19) the panel is fixed to the viewport**, a gutter in from each side and above the bottom bar, scrolling inside when it is tall -- not anchored to its trigger, where it ran off the screen or was cut by the scrolling table it opened from (`align:` only matters from `sm` up) |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry

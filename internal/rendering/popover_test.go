@@ -27,11 +27,11 @@ func renderPopover(t *testing.T, ctx context.Context, label, title string, tr do
 // strings are what the first rendered at 376acf0 (captured before the migration) with the one deliberate change: the
 // panel opens 6px under its trigger, where it was 4px and 8px. The body now sits in a wrapper that carries the room.
 func TestPopover_reproducesThePreMigrationMarkup(t *testing.T) {
-	const wantMenu = `<details class="relative"><summary aria-label="Card actions" class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border-surface bg-bg-raised px-4 font-sans text-sm text-ink-body hover:bg-hover-wash cursor-pointer list-none">⋯</summary><div class="absolute z-10 mt-1.5 w-72 top-full left-0 rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="flex flex-col gap-1 p-2">ROWS</div></div></details>`
+	const wantMenu = `<details class="relative"><summary aria-label="Card actions" class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border-surface bg-bg-raised px-4 font-sans text-sm text-ink-body hover:bg-hover-wash cursor-pointer list-none">⋯</summary><div class="absolute z-10 mt-1.5 w-72 max-sm:fixed max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:overflow-y-auto top-full left-0 rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="flex flex-col gap-1 p-2">ROWS</div></div></details>`
 	if got := renderPopover(t, context.Background(), "⋯", "Card actions", domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact, "ROWS"); got != wantMenu {
 		t.Errorf("menu:\n got %s\nwant %s", got, wantMenu)
 	}
-	const wantNew = `<details class="relative"><summary class="cursor-pointer list-none rounded-md bg-ink-strong px-3 py-1.5 text-xs font-medium text-bg-raised hover:bg-ink-strong/90">New task</summary><div class="absolute z-10 mt-1.5 w-72 top-full right-0 rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="p-4">FORM</div></div></details>`
+	const wantNew = `<details class="relative"><summary class="cursor-pointer list-none rounded-md bg-ink-strong px-3 py-1.5 text-xs font-medium text-bg-raised hover:bg-ink-strong/90">New task</summary><div class="absolute z-10 mt-1.5 w-72 max-sm:fixed max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:overflow-y-auto top-full right-0 rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="p-4">FORM</div></div></details>`
 	if got := renderPopover(t, context.Background(), "New task", "", domain.PopoverTriggerFilled, domain.PopoverAlignEnd, domain.PopoverDensityRegular, "FORM"); got != wantNew {
 		t.Errorf("new card:\n got %s\nwant %s", got, wantNew)
 	}
@@ -83,6 +83,19 @@ func TestFormLabelClasses_followTheTheme(t *testing.T) {
 	for _, want := range []string{"text-base", "font-normal", "gap-3"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("a declared theme did not move the label (%q missing): %s", want, got)
+		}
+	}
+}
+
+// Below `sm` the panel is fixed to the viewport, a gutter in from each side, wherever its trigger sits: anchored to the trigger
+// it ran off the left edge of a phone and was cut by the scrolling table it opened from (the Categories screen, 2026-10-19).
+func TestPopover_isFixedToTheViewportOnAPhone(t *testing.T) {
+	for _, al := range []domain.PopoverAlign{domain.PopoverAlignStart, domain.PopoverAlignEnd} {
+		got := renderPopover(t, context.Background(), "Edit", "Edit", domain.PopoverTriggerSecondary, al, domain.PopoverDensityRegular, "FORM")
+		for _, want := range []string{"max-sm:fixed", "max-sm:inset-x-4", "max-sm:overflow-y-auto", "max-sm:max-h-96"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("align %s: the panel does not carry %q: %s", al, want, got)
+			}
 		}
 	}
 }

@@ -104,7 +104,7 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 = []any{"absolute z-10 mt-1.5 w-72", popoverAlignClass(align), surfaceClasses(ctx), "shadow-lg"}
+		var templ_7745c5c3_Var6 = []any{"absolute z-10 mt-1.5 w-72", popoverPhoneClasses, popoverAlignClass(align), surfaceClasses(ctx), "shadow-lg"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -159,6 +159,14 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 		return nil
 	})
 }
+
+// popoverPhoneClasses is where the panel goes below `sm`, where a panel anchored to its trigger (right under it, one side
+// flush with it) ran off the screen -- a trigger near the left edge opened it to the left of the screen -- or was cut by
+// the scrolling table the trigger sits in. Below `sm` the panel is fixed to the viewport instead: a card a page-gutter
+// in from each side, above the bottom bar (so the trigger, which is usually in the upper part of the page, stays in sight to close it),
+// as tall as its content up to the room there is, scrolling inside when it needs more.
+// Fixed escapes the table's clipping, and one rule serves every trigger wherever it sits.
+const popoverPhoneClasses = "max-sm:fixed max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:overflow-y-auto"
 
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
