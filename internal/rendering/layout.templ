@@ -989,7 +989,7 @@ templ currentSectionLayout(gap domain.Gap) {
 // and the Field and value a card dropped on it writes (`DropField`, `DropValue`). The zero value is an ordinary section.
 type sectionBucket struct {
 	Outside              bool
-	DropField, DropValue string
+	DropField, DropValue, DropLabel string
 }
 
 // bucketSection is a day of a grouped list: the section surface, marked for the move script where a card may be dropped on it.
@@ -1008,8 +1008,9 @@ templ sectionSurface(gap domain.Gap, current bool, bucket sectionBucket) {
 		if bucket.DropValue != "" {
 			data-drop-field={ bucket.DropField }
 			data-drop-value={ bucket.DropValue }
+			data-drop-label={ bucket.DropLabel }
 		}
-		class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), sectionFillClass(ctx, current, bucket.Outside), paddingClass(ctx, domain.PaddingSection) }
+		class={ "flex-col", templ.KV("flex", !bucket.Outside), templ.KV("hidden sm:flex", bucket.Outside), layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), sectionFillClass(ctx, current, bucket.Outside), paddingClass(ctx, domain.PaddingSection) }
 	>
 		{ children... }
 	</section>
@@ -1468,7 +1469,7 @@ templ uiLayout(n ir.UINode) {
 			}
 		case domain.LayoutSection:
 			if n.Props[ir.SectionDropValueProp] != "" || n.Props[ir.SectionOutsideProp] == "true" {
-				@bucketSection(domain.Gap(n.Props["gap"]), n.Props[ir.SectionCurrentProp] == "true", sectionBucket{Outside: n.Props[ir.SectionOutsideProp] == "true", DropField: n.Props[ir.SectionDropFieldProp], DropValue: n.Props[ir.SectionDropValueProp]}) {
+				@bucketSection(domain.Gap(n.Props["gap"]), n.Props[ir.SectionCurrentProp] == "true", sectionBucket{Outside: n.Props[ir.SectionOutsideProp] == "true", DropField: n.Props[ir.SectionDropFieldProp], DropValue: n.Props[ir.SectionDropValueProp], DropLabel: n.Props[ir.SectionLabelProp]}) {
 					@uiChildren(n)
 				}
 			} else if n.Props[ir.SectionCurrentProp] == "true" {
@@ -1506,6 +1507,18 @@ templ uiLayout(n ir.UINode) {
 // rather than guessing, and `ir.Validate` is what refuses one before it gets here -- which is the division
 // §15.3 states ("the compiler MUST reject") and the reason the walker stays this small.
 templ uiNode(n ir.UINode) {
+	if n.Props[ir.SpanProp] == "all" {
+		// A notice about a grid, not one of its cells: it takes the whole row, whatever the column count at this width.
+		<div class="col-span-full">
+			@uiNodeBody(n)
+		</div>
+	} else {
+		@uiNodeBody(n)
+	}
+}
+
+// uiNodeBody is uiNode's dispatch on a closed kind: split off so the one wrapper above is not repeated in every branch.
+templ uiNodeBody(n ir.UINode) {
 	switch n.Kind {
 		case ir.NodeLayout:
 			if n.Props["anchor"] != "" {

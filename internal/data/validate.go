@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"menata.app/internal/domain"
 )
@@ -64,6 +65,14 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 			case float64, float32, int, int64:
 			default:
 				issues = append(issues, fmt.Sprintf("field %q: value %v is not a number", f.ID, v))
+			}
+		case domain.FieldTypeDate:
+			// A day, YYYY-MM-DD: what the date control sends and what every window, bucket and sort reads. Anything else stored
+			// would belong to no day of a calendar and could not be told apart from a typo.
+			if s, ok := v.(string); !ok {
+				issues = append(issues, fmt.Sprintf("field %q: value %v is not a date (YYYY-MM-DD)", f.ID, v))
+			} else if _, err := time.Parse("2006-01-02", s); err != nil {
+				issues = append(issues, fmt.Sprintf("field %q: value %q is not a date (YYYY-MM-DD)", f.ID, s))
 			}
 		case domain.FieldTypeRelation, domain.FieldTypePerson:
 			if s, ok := v.(string); !ok || s == "" {

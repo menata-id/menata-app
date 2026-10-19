@@ -719,6 +719,21 @@ func weekDataset(lo, hi string) (domain.Dataset, *domain.Machine) {
 	}}}, src
 }
 
+// A stored value that is no day of the window ("2026-10-14x" passes a lexical bound) is a record the page cannot place: it
+// is keyed to no bucket -- "" -- and the page says so, instead of failing for everyone who opens the calendar.
+func TestDateBucketsKeyAStrayDateToNoBucket(t *testing.T) {
+	ds, src := weekDataset("$week", "$week+6")
+	rec := func(due any) *data.Record { return &data.Record{Values: map[string]any{"fld_due": due}} }
+	_, keys, err := dateBuckets(ds, src, []*data.Record{rec("2026-10-14x"), rec("2026-10-14"), rec(nil), rec("2026-11-01"), rec(20261014)},
+		expression.Context{Today: "2026-10-14", Parameters: map[string]string{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(keys, []string{"", "2026-10-14", "", "", ""}) {
+		t.Errorf("keys = %q, want only the real day keyed", keys)
+	}
+}
+
 // The days a grouped list draws are the Dataset's own window, read back the way the database reads it: Monday to
 // Sunday for `$week`..`$week+6`, a written range for literals, in order, each exactly once, and the label is the
 // day's short name.

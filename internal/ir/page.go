@@ -599,7 +599,10 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if _, written := n.Props[SectionCurrentProp]; (written || fromCurrent) && NodeKind(n.Kind) == NodeLayout {
 		return nil, fmt.Errorf("%s: %s: is produced by lowering for the day a grouped list is drawing on, and is never written -- a page cannot know which day it is read on", path, SectionCurrentProp)
 	}
-	for _, p := range []string{SectionOutsideProp, SectionDropFieldProp, SectionDropValueProp, StackMoveProp} {
+	if _, written := n.Props[SpanProp]; written {
+		return nil, fmt.Errorf("%s: %s: is produced by lowering for a notice about a grouped list's grid, and is never written", path, SpanProp)
+	}
+	for _, p := range []string{SectionOutsideProp, SectionDropFieldProp, SectionDropValueProp, SectionLabelProp, StackMoveProp} {
 		if _, written := n.Props[p]; written && NodeKind(n.Kind) == NodeLayout {
 			return nil, fmt.Errorf("%s: %s: is produced by lowering for a grouped list's days and cards, and is never written -- a page cannot know which day is outside its window or what the viewer may move", path, p)
 		}
@@ -1378,6 +1381,12 @@ const (
 	SectionDropFieldProp = "dropField"
 	SectionDropValueProp = "dropValue"
 	StackMoveProp        = "move"
+	// SpanProp, "all" on a node a grouped list adds after its days: it takes the whole row of the grid around it (a notice about the
+	// grid, not a day of it). Produced by lowering and never written.
+	SpanProp = "span"
+	// SectionLabelProp is a day's whole name ("Sun 18 Oct") on the section a card may be dropped on, for the move script to say where a card
+	// is going: the heading is the author's and may show only a part of it (the weekday).
+	SectionLabelProp = "dropLabel"
 )
 
 // lowerGrouped expands a records Collection whose binding names `group:` (domain.PageGroupDate) into one `section`
@@ -1424,8 +1433,17 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		byKey[bk.Key] = i
 	}
 	members := make([][]int, len(set.Buckets))
+	left, lastLoaded := 0, -1
 	for i, key := range set.BucketKeys {
+		if key == "" {
+			// The resolver could not place it in a day (its date is not one): left out, and counted for the notice below.
+			left++
+			continue
+		}
 		at, ok := byKey[key]
+		if ok && at > lastLoaded {
+			lastLoaded = at
+		}
 		if !ok {
 			return nil, fmt.Errorf("record %d: sits in bucket %q, which the group does not draw -- the window comes from the Dataset's own where:, so a record outside it is a resolver defect", i, key)
 		}
@@ -1447,7 +1465,7 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 			cell.Props[SectionOutsideProp] = "true"
 		} else if set.DropField != "" {
 			// A day of the window is a place a card can be dropped: the Field it writes and the value, both for the script to read.
-			cell.Props[SectionDropFieldProp], cell.Props[SectionDropValueProp] = set.DropField, bk.Key
+			cell.Props[SectionDropFieldProp], cell.Props[SectionDropValueProp], cell.Props[SectionLabelProp] = set.DropField, bk.Key, bk.Label
 		}
 		head, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), map[string]string{
 			domain.PageBucketLabelRole: bk.Label, domain.PageBucketDayRole: bk.Day, domain.PageBucketDateRole: bk.Date, domain.PageBucketNumberRole: bk.Number,
@@ -1456,18 +1474,14 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 			return nil, fmt.Errorf("bucket %q: %w", bk.Key, err)
 		}
 		cell.Children = append(cell.Children, head...)
-		props := n.Props
-		if at == 0 && set.Truncated && set.Limit > 0 {
-			// A window is complete by construction -- the Dataset selects every record between its two bounds -- so
-			// a bound that bit is a week quietly missing tasks, and no author's claim is needed to say so. The notice
-			// is drawn once, above the first day's list.
-			props = make(map[string]string, len(n.Props)+1)
-			for k, v := range n.Props {
-				props[k] = v
-			}
-			props[collectionTruncatedProp] = strconv.Itoa(set.Limit)
+		if bk.Outside {
+			// A day added only to make a whole week is outside the Dataset's window, so it was not asked for what is due on it: it
+			// shows its date and nothing else, and does not claim (with the author's `empty:` words) that nothing is due. On a phone
+			// it is not drawn at all (the renderer), since a column of days that say nothing is the stack's whole length.
+			out = append(out, cell)
+			continue
 		}
-		list := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
+		list := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
 		for _, i := range members[at] {
 			items, err := lowerRecordItem(n.Children[1], r, fmt.Sprintf("%s.children[1]", path), set, i)
 			if err != nil {
@@ -1481,6 +1495,29 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		}
 		cell.Children = append(cell.Children, list)
 		out = append(out, cell)
+	}
+	// A window is complete by construction -- the Dataset selects every record between its two bounds -- so a bound that bit is a
+	// week quietly missing tasks, and no author's claim is needed to say so. The notice is one node under the whole grid, not a
+	// line inside the first day (which may be a quiet day outside the window and says nothing of which days lost cards): it
+	// names the bound and the last day any record was loaded for, from which cards may be missing, since the cut falls on the
+	// latest dates.
+	var notes []string
+	if set.Truncated && set.Limit > 0 {
+		from := ""
+		if lastLoaded >= 0 {
+			from = fmt.Sprintf("; days from %s on may be missing cards", set.Buckets[lastLoaded].Label)
+		}
+		notes = append(notes, fmt.Sprintf("Showing the first %d only — more match than fit in this window%s.", set.Limit, from))
+	}
+	if left > 0 {
+		who := "records hold a date that is not a day and are"
+		if left == 1 {
+			who = "record holds a date that is not a day and is"
+		}
+		notes = append(notes, fmt.Sprintf("%d %s not shown here.", left, who))
+	}
+	if len(notes) > 0 {
+		out = append(out, UINode{Kind: NodeComponent, Type: string(domain.ComponentCallout), Props: map[string]string{"text": strings.Join(notes, " "), "tone": string(domain.ToneWarn), SpanProp: "all"}})
 	}
 	return out, nil
 }

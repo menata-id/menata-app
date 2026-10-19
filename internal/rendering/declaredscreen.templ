@@ -79,9 +79,13 @@ templ bucketMoveScript() {
 				var live = document.querySelector("[data-move-live]");
 				if (live) live.textContent = text || "";
 			}
-			function write(card, day) {
+			// A move answers with a refresh of the page, which would drop a keyboard user's place: the card they moved is remembered for the
+			// next load, which gives it focus again (the key is read once and cleared, so a refused move leaves no stale claim).
+			var KEY = "menata-refocus-card";
+			function write(card, day, keyboard) {
 				var from = card.closest("[data-drop-value]");
 				if (!day || (from && from.dataset.dropValue === day.dataset.dropValue)) return;
+				if (keyboard) { try { sessionStorage.setItem(KEY, card.dataset.moveUrl); } catch (err) {} }
 				var values = {};
 				values[day.dataset.dropField] = day.dataset.dropValue;
 				htmx.ajax("PATCH", card.dataset.moveUrl, { source: card, swap: "none", values: values });
@@ -91,8 +95,8 @@ templ bucketMoveScript() {
 				return a ? a.textContent.trim() : "";
 			}
 			function dayName(day) {
-				var h = day.querySelector("h1,h2,h3,h4,h5,h6,p,span");
-				return day.getAttribute("aria-label") || (h ? h.textContent.trim() : day.dataset.dropValue);
+				// The day's whole name, from the runtime ("Sun 18 Oct"); the heading may show only a part of it.
+				return day.dataset.dropLabel || day.dataset.dropValue;
 			}
 			document.addEventListener("dragstart", function (e) {
 				var c = e.target.closest && e.target.closest("[data-move-url]");
@@ -149,7 +153,7 @@ templ bucketMoveScript() {
 					e.preventDefault();
 					var card2 = lifted.card, day2 = lifted.day;
 					cancel();
-					write(card2, day2);
+					write(card2, day2, true);
 					return;
 				}
 				var by = 0;
@@ -162,6 +166,15 @@ templ bucketMoveScript() {
 				var key = when.toISOString().slice(0, 10), target = days().filter(function (d) { return d.dataset.dropValue === key; })[0];
 				if (target) { lifted.day = target; show(); }
 			});
+			try {
+				var moved = sessionStorage.getItem(KEY);
+				sessionStorage.removeItem(KEY);
+				if (moved) {
+					var again = Array.prototype.slice.call(document.querySelectorAll("[data-move-url]")).filter(function (c) { return c.dataset.moveUrl === moved; })[0];
+					var link = again && again.querySelector("a[href]");
+					if (link) link.focus();
+				}
+			} catch (err) {}
 			document.addEventListener("focusout", function (e) {
 				if (lifted && lifted.card.contains(e.target) && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel();
 			});

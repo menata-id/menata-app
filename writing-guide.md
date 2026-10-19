@@ -625,9 +625,9 @@ chooses the grain and a request that sends neither, or nonsense, is the week. A 
 `month` as whole numbers), steps it with `step: {parameter: month, by: 1}` and, so a step or a "This month" link stays a month, `set: {range: month}` on the
 link (the one parameter a link sets, from a closed set). `component: SegmentedControl` with `query: range` is the Week | Month switch (its state is the
 request's; the other parameters, the project among them, stay in each link). A grouped Collection takes `binding: {group: date, fill: weeks}` to draw
-whole Monday-to-Sunday weeks around the window (the added days are quiet, hold nothing and take no drop) and `moves: true` to make each card the viewer may
+whole Monday-to-Sunday weeks around the window (the added days are quiet, show their date alone -- they were not asked what is due -- take no drop, and are not drawn on a phone) and `moves: true` to make each card the viewer may
 edit draggable to another day -- a drop, or Space then the arrows then Space on its title, writes the record's own date Field through the generic patch
-route (a named script exception, below). Its heading template reads `bucket:label`, or the parts `bucket:day` ("Mon"), `bucket:date` ("05 Oct"),
+route (a named script exception, below; after a keyboard move the page reloads and the moved card has focus again). A date Field holds a day, `YYYY-MM-DD`: the Data Plane refuses any other value on a create, an update or a drag, and a record whose stored date is no day of the window (a value from before that check) is left out of the days and counted in one notice under the grid, which also says when the Dataset's `limit:` cut the window and from which day cards may be missing. Its heading template reads `bucket:label`, or the parts `bucket:day` ("Mon"), `bucket:date` ("05 Oct"),
 `bucket:number` ("5"). A `static: link` may be `variant: quiet` (the secondary ink, picked for a finished record with `when:`) or, as a button, carry
 `icon: chevron-left|chevron-right` in place of its words (the words stay its accessible name). The properties lowering alone produces -- a section's
 `outside`, `dropField`, `dropValue` and a stack's `move` -- are never written.

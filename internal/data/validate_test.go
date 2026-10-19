@@ -163,3 +163,24 @@ func assertContains(t *testing.T, err error, substr string) {
 		t.Errorf("error = %q, want it to contain %q", err.Error(), substr)
 	}
 }
+
+// A date Field holds a day, YYYY-MM-DD: a value that is not one ("2027-01-05x") would sit in storage and fall into no day of
+// any calendar window that happens to include it.
+func TestValidateRecord_dateField(t *testing.T) {
+	m := testMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_due", Name: "Due", Type: domain.FieldTypeDate})
+	for _, ok := range []string{"2027-01-05", "2024-02-29"} {
+		if err := ValidateRecord(m, map[string]any{"fld_title": "x", "fld_status": "todo", "fld_due": ok}); err != nil {
+			t.Errorf("date %q: error = %v, want nil", ok, err)
+		}
+	}
+	for _, bad := range []any{"2027-01-05x", "05/01/2027", "2027-13-01", "2023-02-29", "tomorrow", 20270105, true} {
+		err := ValidateRecord(m, map[string]any{"fld_title": "x", "fld_status": "todo", "fld_due": bad})
+		if err == nil || !strings.Contains(err.Error(), "fld_due") {
+			t.Errorf("date %v: error = %v, want a refusal naming fld_due", bad, err)
+		}
+	}
+	if err := ValidateRecord(m, map[string]any{"fld_title": "x", "fld_status": "todo", "fld_due": ""}); err != nil {
+		t.Errorf("an empty date is no date, not a bad one: %v", err)
+	}
+}

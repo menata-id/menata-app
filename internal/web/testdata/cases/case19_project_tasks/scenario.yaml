@@ -341,6 +341,23 @@ steps:
         - href="/pages/nav_calendar?range=month"
       hides:
         - This week
+  # A date Field holds a day. A value that is not one ("2026-10-05x" still falls between two dates written as text) would sit in
+  # storage and fall into no day of any window, so the Data Plane refuses it when it is written -- by a create, an update and a drag alike.
+  - id: a-task-cannot-be-given-a-date-that-is-not-a-day
+    as: nia
+    expect: refused
+    update: { ref: scout, values: { fld_due_date: "2026-10-05x" } }
+  - id: a-new-task-cannot-either
+    as: nia
+    expect: refused
+    create: { machine: mch_task, values: { fld_title: Typo date, fld_due_date: "05/10/2026" } }
+  - id: the-calendar-still-draws-after-the-refusals
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?range=month
+      shows:
+        - aria-label="Next month"
   # A request that asks for neither range is the week, and one that asks for nonsense is too.
   - id: an-unknown-range-is-the-week
     as: nia

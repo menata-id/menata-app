@@ -1385,8 +1385,9 @@ func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
 	}
 }
 
-// A window that was cut short by its Dataset's limit is a week missing tasks, and the page says so once, above the
-// first day, without the author claiming anything. A window that was not cut carries nothing.
+// A window that was cut short by its Dataset's limit is a week missing tasks, and the page says so once, **under the
+// whole grid** (a notice inside the first day would sit in a day that may be quiet and say nothing of which days lost
+// cards), naming the day from which cards may be missing. A window that was not cut carries nothing.
 func TestLowerGroupedNamesTheBoundOnlyWhenItBit(t *testing.T) {
 	days := []Bucket{{Key: "d1", Label: "Mon"}, {Key: "d2", Label: "Tue"}}
 	for _, truncated := range []bool{false, true} {
@@ -1397,10 +1398,44 @@ func TestLowerGroupedNamesTheBoundOnlyWhenItBit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		first, second := got.Children[0].Children[1], got.Children[1].Children[1]
-		if want := map[bool]string{false: "", true: "200"}[truncated]; first.Props["truncated"] != want || second.Props["truncated"] != "" {
-			t.Errorf("truncated=%v: first list says %q, second says %q; want %q on the first only", truncated, first.Props["truncated"], second.Props["truncated"], want)
+		for i := 0; i < 2; i++ {
+			if v := got.Children[i].Children[1].Props["truncated"]; v != "" {
+				t.Errorf("day %d's list carries truncated=%q; the notice belongs to the grid", i, v)
+			}
 		}
+		if !truncated {
+			if len(got.Children) != 2 {
+				t.Errorf("an uncut window drew %d children, want the two days only", len(got.Children))
+			}
+			continue
+		}
+		if len(got.Children) != 3 {
+			t.Fatalf("a cut window drew %d children, want two days and one notice", len(got.Children))
+		}
+		note := got.Children[2]
+		if note.Props[SpanProp] != "all" || !strings.Contains(note.Props["text"], "200") || !strings.Contains(note.Props["text"], "Tue") {
+			t.Errorf("notice = %+v, want one spanning the grid, naming the bound and the last day loaded", note)
+		}
+	}
+}
+
+// A record whose key names no bucket ("" from the resolver: its date is not a day) is not drawn and not an error; the page says
+// how many it left out.
+func TestLowerGroupedLeavesOutARecordWithNoDayAndSaysSo(t *testing.T) {
+	days := []Bucket{{Key: "d1", Label: "Mon"}, {Key: "d2", Label: "Tue"}}
+	got, err := Lower(groupedList(), groupedRecords(days, []string{"", "d1", ""},
+		map[string]string{"title": "a", "status": "s"}, map[string]string{"title": "b", "status": "s"}, map[string]string{"title": "c", "status": "s"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Children) != 3 {
+		t.Fatalf("children = %d, want two days and one notice", len(got.Children))
+	}
+	if note := got.Children[2]; note.Props[SpanProp] != "all" || !strings.Contains(note.Props["text"], "2") || !strings.Contains(note.Props["text"], "not a day") {
+		t.Errorf("notice = %+v, want it to count the 2 records left out", note)
+	}
+	if _, err := Lower(groupedList(), groupedRecords(days, []string{"nope"}, map[string]string{"title": "a", "status": "s"})); err == nil {
+		t.Error("a key that names a bucket the group does not draw is still a resolver defect")
 	}
 }
 
@@ -1881,5 +1916,43 @@ func TestLower_aLinkKeepsWhatTheRequestCarriesToItsDestination(t *testing.T) {
 	res.Carry = nil
 	if tree, _ = Lower(linkTo("nav_x", nil), res); tree.Children[0].Props["href"] != "/somewhere" {
 		t.Error("no Carry leaves the address as it was")
+	}
+}
+
+// A day added only to fill a whole week is outside the Dataset's window: it shows its date and nothing else, so it does not say with the
+// author's `empty:` words that nothing is due on a day the Dataset never looked at.
+func TestLowerGroupedAnOutsideDayClaimsNothing(t *testing.T) {
+	days := []Bucket{{Key: "d0", Label: "Sun", Outside: true}, {Key: "d1", Label: "Mon"}}
+	got, err := Lower(groupedList(), groupedRecords(days, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outside, inside := got.Children[0], got.Children[1]; len(outside.Children) != 1 || len(inside.Children) != 2 {
+		t.Errorf("outside day has %d children, inside has %d; want the heading alone and the heading with its list", len(outside.Children), len(inside.Children))
+	}
+}
+
+// A day a card may be dropped on carries its whole name for the move script to announce, and a page cannot write it.
+func TestLowerGroupedNamesTheDayForTheScript(t *testing.T) {
+	days := []Bucket{{Key: "2026-10-18", Label: "Sun 18 Oct", Day: "Sun"}}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Buckets: days, DropField: "fld_due"}, nil
+	}}
+	got, err := Lower(groupedList(), res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := got.Children[0].Props[SectionLabelProp]; v != "Sun 18 Oct" {
+		t.Errorf("drop label = %q, want the whole day name", v)
+	}
+}
+
+// A page cannot write the properties lowering produces for a grouped list's grid and days.
+func TestLowerRefusesAPageWritingTheGridsOwnProperties(t *testing.T) {
+	for _, prop := range []string{SpanProp, SectionLabelProp} {
+		n := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{prop: "x"}, Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "a"}}}}
+		if _, err := Lower(n, Resolver{}); err == nil || !strings.Contains(err.Error(), prop) {
+			t.Errorf("%s written on a layout: err = %v, want a refusal naming it", prop, err)
+		}
 	}
 }

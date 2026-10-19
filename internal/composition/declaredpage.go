@@ -504,8 +504,8 @@ func dateWindow(ds domain.Dataset, src *domain.Machine, where expression.Context
 // resolved the way the database resolves it (`$week`, `$today+n`, a written date), so the days drawn and the
 // records selected cannot disagree. metadata.groupBindingIssues guarantees exactly one of each bound at load;
 // what is checked again here is what only a request can break -- a bound that resolves to no date, an inverted
-// window, one longer than domain.PageGroupMaxBuckets days. A record whose date is not a bucket is an error and
-// not a skipped row, since the Dataset's own filter is what put it here.
+// window, one longer than domain.PageGroupMaxBuckets days. A record whose date is not a bucket is keyed "" and lowering
+// leaves it out and says so: the Dataset's own filter put it here, but a stored value can still be no day at all.
 func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record, where expression.Context, wholeWeeks bool) ([]ir.Bucket, []string, error) {
 	field := src.CardFieldFor(domain.CardFieldRoleDate)
 	lo, hi, err := dateWindow(ds, src, where)
@@ -526,9 +526,18 @@ func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record,
 			Current: where.Today != "" && key == where.Today, Outside: d.Before(lo) || d.After(hi),
 		})
 	}
+	// A record keyed to no day -- its value is not a date the window draws ("2026-10-14x" passes the Dataset's lexical bound, and
+	// so does a value stored before dates were validated on write) -- gets "" and is left out by lowering, with a notice that
+	// counts it: one stray record must not take the calendar from everyone who opens it.
+	drawn := make(map[string]bool, len(buckets))
+	for _, b := range buckets {
+		drawn[b.Key] = true
+	}
 	keys := make([]string, len(records))
 	for i, r := range records {
-		keys[i] = DisplayString(r.Values[field])
+		if key := DisplayString(r.Values[field]); drawn[key] {
+			keys[i] = key
+		}
 	}
 	return buckets, keys, nil
 }

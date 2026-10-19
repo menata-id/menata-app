@@ -1601,3 +1601,31 @@ func TestTouchTargetClass_growsOnlyUnderACoarsePointer(t *testing.T) {
 		}
 	}
 }
+
+// A notice about a grid takes the whole row; a day added only to fill a week is not drawn on a phone; a day a card may be dropped on
+// carries its whole name for the script that announces a move.
+func TestUINodeSpanOutsideDayAndDropLabel(t *testing.T) {
+	render := func(n ir.UINode) string {
+		var buf bytes.Buffer
+		if err := uiNode(n).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	note := render(ir.UINode{Kind: ir.NodeComponent, Type: string(domain.ComponentCallout), Props: map[string]string{"text": "cut", "tone": "warn", ir.SpanProp: "all"}})
+	if !strings.Contains(note, `class="col-span-full"`) {
+		t.Errorf("a spanning node is not wrapped to take the row:\n%s", note)
+	}
+	plain := render(ir.UINode{Kind: ir.NodeComponent, Type: string(domain.ComponentCallout), Props: map[string]string{"text": "cut", "tone": "warn"}})
+	if strings.Contains(plain, "col-span-full") {
+		t.Errorf("a node that did not ask to span did:\n%s", plain)
+	}
+	day := render(ir.UINode{Kind: ir.NodeLayout, Type: string(domain.LayoutSection), Props: map[string]string{"gap": "tight", ir.SectionDropFieldProp: "fld_due", ir.SectionDropValueProp: "2026-10-18", ir.SectionLabelProp: "Sun 18 Oct"}})
+	if !strings.Contains(day, `data-drop-label="Sun 18 Oct"`) || strings.Contains(day, "hidden sm:flex") {
+		t.Errorf("a droppable day:\n%s", day)
+	}
+	quiet := render(ir.UINode{Kind: ir.NodeLayout, Type: string(domain.LayoutSection), Props: map[string]string{"gap": "tight", ir.SectionOutsideProp: "true"}})
+	if !strings.Contains(quiet, "hidden sm:flex") {
+		t.Errorf("an outside day is drawn on a phone:\n%s", quiet)
+	}
+}
