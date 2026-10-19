@@ -102,3 +102,25 @@ func TestEveryInlineScriptIsAListedException(t *testing.T) {
 		}
 	}
 }
+
+// The top bar's content and the page share one column (pageColumnClasses): the bar's rows and <main> all carry it, so on a wide
+// screen the bar's left edge is the page's left edge. Inside an Application there are three: the bar's top row, its menu row and
+// the page.
+func TestTopBarAndPageShareOneColumn(t *testing.T) {
+	items := []domain.NavigationItem{{ID: "nav_home", Label: "Home", Route: "/home"}, {ID: "nav_one", Label: "One", Route: "/one"}, {ID: "nav_two", Label: "Two", Route: "/two"}}
+	app := domain.Application{ID: "app_x", Name: "Docs", Navigation: items, AllNavigation: items}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: items}, "W", false)
+	ctx = WithCurrentApplication(ctx, app)
+	ctx = WithCurrentPath(ctx, "/one", "")
+	var buf bytes.Buffer
+	if err := appShell("T", "W", Viewer{Initials: "AN"}, "/s").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(buf.String(), "mx-auto w-full max-w-[1180px] px-4 sm:px-6"); got != 3 {
+		t.Errorf("the bar's two rows and the page share the column %d times, want 3", got)
+	}
+	// The bar's rule and background still run edge to edge: they are on the <header>, not in the column.
+	if !strings.Contains(buf.String(), `<header class="sticky top-0 z-40 flex flex-col border-b`) {
+		t.Error("the header lost its full-width bar")
+	}
+}

@@ -98,6 +98,12 @@ type Viewer struct {
 // keyed on); every real identity gets the link regardless of how many Workspaces they actually
 // belong to, by owner request (2026-09-20) -- /switch-workspace is where an "add workspace" entry
 // point is meant to land next, so it stays offered even to a single-Workspace identity.
+// pageColumnClasses is the one column the page and the top bar share: centred, at most 1180px wide, a gutter in from each side
+// (`px-4`, `sm:px-6`). The bar's background and rule run edge to edge, but what is in it -- the launcher, the breadcrumb, the
+// menu -- sits in this same column, so on a wide screen the bar's left edge is the page's left edge (owner, 2026-10-19: on a
+// 1900px screen the bar's content stood far out to the sides of a page that was centred).
+const pageColumnClasses = "mx-auto w-full max-w-[1180px] px-4 sm:px-6"
+
 templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -235,7 +241,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// menus themselves no longer depend on this: they are `popover` elements, which the
 			// browser paints in the top layer, above every z-index on the page.
 			<header class={ "sticky top-0 z-40 flex flex-col border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised) }>
-				<div class={ "flex h-15 shrink-0 items-center", layoutGap(ctx, domain.GapTight), "px-4 sm:pr-7 sm:pl-9" }>
+				<div class={ "flex h-15 shrink-0 items-center", layoutGap(ctx, domain.GapTight), pageColumnClasses }>
 					@appLauncher(workspaceName, switchWorkspaceHref, viewer, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
 					// (board 07 / M07) the Workspace name stands alone up here and the Application
@@ -276,7 +282,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					@applicationMenuRow(menu, currentApp)
 				}
 			</header>
-			<main class={ "mx-auto flex w-full max-w-[1180px] flex-col", layoutGap(ctx, domain.GapComfortable), "px-4 pt-6 sm:px-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
+			<main class={ pageColumnClasses, "flex flex-col", layoutGap(ctx, domain.GapComfortable), "pt-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
 				{ children... }
 			</main>
 			if hasAppMenu {
@@ -448,7 +454,8 @@ func anyActive(items []navMenuItem) bool {
 // /authorization-matrix (a Workspace-level admin screen) and calling it this Application's own,
 // which would have been a worse lie than the gap.
 templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
-	<nav aria-label="Application" class={ "hidden items-center", layoutGap(ctx, domain.GapMicro), "border-t " + borderClass(ctx, domain.BorderDivider) + " px-4 py-1.5 sm:flex sm:px-6" }>
+	<div class={ "hidden border-t sm:block", borderClass(ctx, domain.BorderDivider) }>
+	<nav aria-label="Application" class={ "flex items-center", layoutGap(ctx, domain.GapMicro), pageColumnClasses, "py-1.5" }>
 		<span class={ "mr-1 flex items-center", layoutGap(ctx, domain.GapTight) }>
 			if app.Icon != "" {
 				<span class={ "flex size-6 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), appIconClasses(app.Color) }>
@@ -504,6 +511,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			</a>
 		}
 	</nav>
+	</div>
 }
 
 // navBadge is the live count a navigation item declares, drawn wherever that item is (the header

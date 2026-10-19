@@ -1374,7 +1374,7 @@ func TestLadderGaps_followTheThemeAtMigratedSites(t *testing.T) {
 	if err := appShell("T", "WS", Viewer{}, "/s").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), `<main class="mx-auto flex w-full max-w-[1180px] flex-col gap-6`) {
+	if !strings.Contains(buf.String(), `<main class="mx-auto w-full max-w-[1180px] px-4 sm:px-6 flex flex-col gap-6`) {
 		t.Error("a moved theme.gap must move the shell's main column gap")
 	}
 }

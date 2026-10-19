@@ -16,7 +16,7 @@ import (
 // moves the small-screen value and not the large-screen one at these sites. 43 across 17 files; most are the pre-auth
 // screens (no Theme reaches them) and the app shell's header and sheet, where a responsive change of size is the layout.
 var handWrittenVariantTokens = map[string]int{
-	"acceptinvite.templ": 1, "account.templ": 5, "appshell.templ": 13, "authshell.templ": 4, "checkyouremail.templ": 1,
+	"acceptinvite.templ": 1, "account.templ": 5, "appshell.templ": 12, "authshell.templ": 4, "checkyouremail.templ": 1,
 	"controls.templ": 1, "createworkspace.templ": 1, "deleteaccount.templ": 1, "forgotpassword.templ": 1, "layout.templ": 1,
 	"login.templ": 4, "register.templ": 1, "resendverification.templ": 1, "resetpassword.templ": 1, "rolematrix.templ": 1,
 	"workspacemembers.templ": 1,
