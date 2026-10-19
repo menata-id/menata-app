@@ -21,7 +21,7 @@ func TestMachineBody_recordsComeBeforeTheFieldSchema(t *testing.T) {
 	m := docMachine()
 	records := []*data.Record{{ID: "doc_1", Values: map[string]any{"fld_title": "Kontrak A"}}}
 	var buf bytes.Buffer
-	if err := MachineBody(m, m.Views[1], records, nil, nil, nil, nil, domain.Actor{ID: "usr_ana", WorkspaceRole: "admin"}, time.Now()).Render(context.Background(), &buf); err != nil {
+	if err := MachineBody(m, m.Views[1], records, nil, nil, nil, nil, domain.Actor{ID: "usr_ana", WorkspaceRole: "admin"}, time.Now(), nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()

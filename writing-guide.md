@@ -1155,6 +1155,7 @@ Creating a Workspace through the UI writes this file for you, with the three sha
 | `machines[]` | `mch_*` ids | Selected from the Workspace's set, never file paths. At most one Application may claim a given Machine |
 | `roles[]` | strings | This Application's own role vocabulary; optional. Captions the Members list — not yet an authorization input |
 | `navigation[]` | list of items | This Application's own menu |
+| `view_groups[]` | list | Optional (2026-10-19). Screens that are **arrangements of one Machine's records** and share one header -- see **View groups** below |
 | `workflow` | `{engine, roles{}}` | Optional — which runtime workflow engine this Application runs on, and which of its own Machines plays each role in it (2026-09-28). See below |
 
 **Installing one of these instead of writing it** (2026-09-28): `metadata/applications/*.yaml` is a
@@ -1233,6 +1234,8 @@ Navigation item keys:
 | `back_to` | navigation item id | Optional (2026-10-18), on a `record_of` page only: the screen of the same Application a person lands on when they delete the record from its own page (a `write: delete` Button). Without it they land on the Machine's own list. A delete from any other screen stays on it |
 | `record_of` | Machine id | Optional (2026-10-17). Makes the page **one record's page**: it opens at `/pages/<id>/<record id>`, reads the record as `$parameters.id`, draws its own heading, is no menu entry, and every link to a record of that Machine (a Table's `href: record`) opens it. See **One record's page** below |
 | `in_menu` | bool | Optional (2026-10-17), default `true`. `false` keeps the item out of the Application's menu while its route stays valid and `to:` still resolves it: a screen another screen opens, such as the "New contract" form behind a list's action |
+| `view_group` | `view_groups[].id` | Optional (2026-10-19). Makes the screen one arrangement of that group: it draws the group's header (title, summary, the Board / Table / Calendar switch, the scope control) **instead of its own heading**, and keeps the group's scope choice on its links to the group's other screens. Items of a group are listed in the switch in the order they are declared |
+| `summary` | `counts` | Optional (2026-10-19), only beside `view_group`. Words the group's header with its counts ("11 tasks · grouped by List · 2 complete") instead of the item's own `description`, for the arrangements that show every record |
 
 **Icon names** (`domain.KnownIcons`, drawn by `internal/rendering/icons.templ`). A name, never a
 glyph or a path: metadata says *which* icon, the runtime says how it is drawn, so the whole set is
@@ -1254,6 +1257,48 @@ This replaced `icon: "▣"`, a single literal character, on 2026-09-24. A charac
 carry a consistent stroke weight across a set, because it belongs to whichever font happened to
 have that codepoint — which is why the convention's own declaration comment had always called
 it a placeholder.
+
+**View groups (`view_groups:`, 2026-10-19, Case 19 mockups PM01/PM05/PM08).** A Board, a Table and a Calendar of the same tasks are three
+screens, not three Views of one page: the Board is the Machine's `board` View, the others are `page:` blocks. What they share is a
+**header**, and that is declared once on the Application and named by each screen's `view_group:`:
+
+```yaml
+view_groups:
+  - id: vg_tasks
+    machine: mch_task
+    figures: { dataset: ds_task_group_figures, total: msr_all, complete: msr_completed }   # an aggregate Dataset of the Machine
+    summary:
+      total: { one: "{n} task", other: "{n} tasks" }
+      complete: "{n} complete"
+      grouped: "grouped by {field}"          # said only on the screen that is the Machine's board
+    scope:                                    # optional: which one of a larger thing these records are of
+      machine: mch_project
+      field: fld_project                      # the group Machine's relation to it
+      dataset: ds_projects_with_tasks         # a records Dataset of the scope Machine: the menu's choices
+      parameter: project                      # ?project=<record id>
+      switch: Switch project
+      all: All projects
+      chosen: "one of {n} projects in this workspace"
+      overall: "{n} projects in this workspace"
+navigation:
+  - { id: nav_board, route: /machines/mch_task, view_group: vg_tasks, summary: counts, ... }
+  - { id: nav_task_table, view_group: vg_tasks, summary: counts, in_menu: false, page: ... }
+```
+
+The header reads the runtime's own numbers -- the figures come from the aggregate Dataset (the whole set, so a list's `limit:` never
+understates them), the project count from the scope's Dataset -- and no screen writes a count or a name. A request with **no** scope
+parameter shows every record (tasks that name no project stay visible) and the title is the screen's own heading; with one, the title is
+that record's name and every screen shows only its records. **The scope is carried by declaration, not by luck**: every records Dataset a
+`page:` of the group reads over the group's Machine, and the two Measures the summary counts, must carry
+`{field: fld_project, op: equals, value: $parameters.project, optional: true}` -- the loader refuses a group where one does not, so choosing
+a project cannot change one screen and leave another unfiltered. The Board reads the same declaration. A parameter naming no record of the
+scope is dropped (the screens show everything), not turned into an empty filter. Links between the group's screens (the switch, and a
+`to:` link on a page, week links included) keep the choice; any other link does not. A Workspace with no project has no pill and no
+sentence about projects. **The AI assistant has no slot for `view_groups`** (it writes no `page:` either; `UnwritableByTheAssistant`'s
+`page` entry says so).
+
+`optional: true` on an **aggregate Measure's** `where:` is new with this (a count follows the same request parameter a list does); it is
+valid over a non-reserved `$parameters.<name>` only.
 
 ### 12.1b `settings_hub` / `settings_hub_member` — an Application's Settings page
 

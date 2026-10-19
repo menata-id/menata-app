@@ -1001,8 +1001,17 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if msg := emptyComparisonIssue(c); msg != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
 			}
-			if c.Optional || c.IfParam != "" {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional or if_param, and an aggregate has no request parameters", ds.ID, ms.ID, c.Field))
+			if c.IfParam != "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is if_param, which names a view of a list and an aggregate has none", ds.ID, ms.ID, c.Field))
+			}
+			// An optional comparison is how a count follows the same request parameter a list does (a view group's summary
+			// counts the tasks of the project the Board shows): left out when the request does not send it.
+			if c.Optional {
+				if !expression.IsParameter(c.Value) {
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional, so its value must be a %s<name>, not %q", ds.ID, ms.ID, c.Field, expression.SentinelParameterPrefix, c.Value))
+				} else if name := strings.TrimPrefix(c.Value, expression.SentinelParameterPrefix); domain.ParamReserved(name) {
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where field %q is optional on %s, which the runtime sets as a scope -- a scope is never left out", ds.ID, ms.ID, c.Field, c.Value))
+				}
 			}
 			if ok {
 				if msg := containsIssue(whereField, c); msg != "" {
@@ -1013,8 +1022,8 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				switch {
 				case c.Value == expression.SentinelDone:
 					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, doneIssue(m, c)))
-				case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value):
-					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value an aggregate cannot resolve -- it has no viewer and no request parameters, only %s and %s", ds.ID, ms.ID, c.Value, expression.SentinelToday, expression.SentinelDone))
+				case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value) && !(c.Optional && expression.IsParameter(c.Value)):
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value an aggregate cannot resolve -- it has no viewer, and a request parameter only in an `optional: true` comparison (left out when the request sends none), otherwise only %s and %s", ds.ID, ms.ID, c.Value, expression.SentinelToday, expression.SentinelDone))
 				default:
 					for _, msg := range orderedComparisonIssues(whereField, c) {
 						issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))

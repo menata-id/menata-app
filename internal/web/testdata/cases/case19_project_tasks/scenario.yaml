@@ -11,13 +11,21 @@ steps:
     as: nia
     create: { machine: mch_list, values: { fld_name: Done } }
     expect: ok
+  - id: first-season
+    as: nia
+    create: { machine: mch_project, values: { fld_name: Season 1, fld_status: active } }
+    expect: ok
+  - id: second-season
+    as: nia
+    create: { machine: mch_project, values: { fld_name: Season 2, fld_status: active } }
+    expect: ok
   - id: scout
     as: nia
-    create: { machine: mch_task, values: { fld_title: Scout rooftop location, fld_list: $todo, fld_assignee: $nia, fld_due_date: "2026-10-03" } }
+    create: { machine: mch_task, values: { fld_title: Scout rooftop location, fld_list: $todo, fld_assignee: $nia, fld_due_date: "2026-10-03", fld_project: $first-season } }
     expect: ok
   - id: signed
     as: nia
-    create: { machine: mch_task, values: { fld_title: Sign location contract, fld_list: $done-list, fld_status: done, fld_assignee: $nia, fld_due_date: "2026-10-02" } }
+    create: { machine: mch_task, values: { fld_title: Sign location contract, fld_list: $done-list, fld_status: done, fld_assignee: $nia, fld_due_date: "2026-10-02", fld_project: $second-season } }
     expect: ok
   - id: loose
     as: nia
@@ -75,3 +83,80 @@ steps:
         - ">Delete<"
         - ">Edit<"
         - ">Add<"
+
+  # The three arrangements of the tasks share one header: what the records are, how many, the switch between the arrangements and
+  # which project they are of -- counted by the runtime, never typed on a screen.
+  - id: the-header-counts-every-task-when-no-project-is-chosen
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - Table
+        - Board
+        - 3 tasks
+        - 1 complete
+        - 2 projects in this workspace
+        - Switch project
+        - All projects
+  - id: the-board-has-the-same-header
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task
+      shows:
+        - Board
+        - 3 tasks
+        - grouped by List
+        - 1 complete
+        - 2 projects in this workspace
+        - Switch project
+  # Choosing a project narrows every arrangement to its tasks, names it, and is carried to the others.
+  - id: a-project-narrows-the-table
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table?project=$first-season
+      shows:
+        - Season 1
+        - 1 task
+        - 0 complete
+        - one of 2 projects in this workspace
+        - Scout rooftop location
+        - /machines/mch_task?project=$first-season
+      hides:
+        - Sign location contract
+        - Update crew contact sheet
+  - id: a-project-narrows-the-board
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task?project=$second-season
+      shows:
+        - Season 2
+        - 1 task
+        - 1 complete
+        - Sign location contract
+        - /pages/nav_task_table?project=$second-season
+      hides:
+        - Scout rooftop location
+        - Update crew contact sheet
+  # A project that is not there is not a filter that shows nothing: it is no choice.
+  - id: a-stale-project-is-no-choice
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table?project=rec_gone
+      shows:
+        - 3 tasks
+        - Update crew contact sheet
+  - id: the-calendar-keeps-the-project-on-its-week-links
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar?project=$first-season
+      shows:
+        - Season 1
+        - Calendar
+        - href="/pages/nav_calendar?project=$first-season&amp;week=1"
+        - /machines/mch_task?project=$first-season

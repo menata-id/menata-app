@@ -823,6 +823,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			issues = append(issues, stepIssues(*item.Page, app.LinkTargets(workspaceNav), datasets, where)...)
 		}
 	}
+	issues = append(issues, validateViewGroups(applications, byID, datasets)...)
 	// The Workspace's own pages (`navigation:` on the manifest) are checked the same way. What differs is what a link on
 	// one may name: no Application owns the page, so `to:` resolves against the whole Workspace -- its own pages, the
 	// runtime's screens and every installed Application's navigation.

@@ -114,6 +114,7 @@ datasets:
       all:
         - { field: fld_due_date, op: gte, value: $week }
         - { field: fld_due_date, op: lte, value: $week+6 }
+        - { field: fld_project, op: equals, value: $parameters.project, optional: true }
     sort:
       - field: fld_due_date
         direction: asc
@@ -126,12 +127,29 @@ datasets:
   # `limit: 200` is the same safety cap as the Datasets above; the page makes no claim to be complete.
   - id: ds_task_table
     select: records
+    where:
+      all:
+        - { field: fld_project, op: equals, value: $parameters.project, optional: true }
     sort:
       - field: fld_list
         direction: asc
       - field: sort_order
         direction: asc
     limit: 200
+  # What the Board, Table and Calendar's shared header counts (view group vg_tasks): every task, and the finished ones, of the project
+  # the request chose -- or of every project when it chose none (`optional: true` leaves the comparison out). The whole set, not a
+  # list cut by a `limit:`, so the numbers in the header are the numbers of the Machine.
+  - id: ds_task_group_figures
+    measures:
+      - id: msr_all
+        aggregate: count
+        where: { field: fld_project, op: equals, value: $parameters.project, optional: true }
+      - id: msr_completed
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: equals, value: $done }
+            - { field: fld_project, op: equals, value: $parameters.project, optional: true }
   - id: ds_my_tasks_later
     select: records
     viewer_scoped: true

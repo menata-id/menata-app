@@ -1,0 +1,63 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// ViewHeader is the header a view group's screens share (domain.ViewGroup, 2026-10-19; mockups PM01, PM05, PM08): which records these
+// are, how many, the switch between the arrangements, and the scope control. It arrives **already resolved** -- composition counts and
+// words it, this package draws it -- so the Board, the Table and the Calendar cannot come to head their records differently.
+type ViewHeader struct {
+	// Title is the scope record's name when one is chosen, the screen's own heading otherwise.
+	Title string
+	// Summary is the one line under it: counts, or the screen's own description.
+	Summary string
+	// Tabs are the group's screens in declaration order, the viewer's own marked.
+	Tabs []SegmentTab
+	// Scope is nil for a group with no scope.
+	Scope *ViewScopeMenu
+}
+
+// ViewScopeMenu is the "Switch project" control: its words and one link per choice, "all" first.
+type ViewScopeMenu struct {
+	Label string
+	Items []ViewScopeItem
+}
+
+// ViewScopeItem is one choice of the scope menu.
+type ViewScopeItem struct {
+	Label, Href string
+	Current     bool
+}
+
+// viewHeader draws a ViewHeader: the title with the scope control beside it and the summary under, and opposite them the switch and
+// whatever actions the screen lifted into its header (`children`). Below `sm` the two halves stack.
+templ viewHeader(h ViewHeader) {
+	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
+		<div class={ "flex min-w-0 max-w-2xl flex-col", layoutGap(ctx, domain.GapMicro) }>
+			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+				<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ h.Title }</h1>
+				if h.Scope != nil {
+					@scopeMenu(*h.Scope)
+				}
+			}
+			if h.Summary != "" {
+				@staticText(domain.StaticMessage, h.Summary)
+			}
+		</div>
+		<div class={ "flex shrink-0 flex-wrap items-center", layoutGap(ctx, domain.GapDefault) }>
+			if len(h.Tabs) > 1 {
+				@segmentedTrack("View", h.Tabs)
+			}
+			{ children... }
+		</div>
+	}
+}
+
+// scopeMenu is the control that picks which record of a larger set the screens are about: a Popover of links, each the screen's own
+// route with the scope parameter, the viewer's choice marked.
+templ scopeMenu(m ViewScopeMenu) {
+	@popover(m.Label, m.Label, domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
+		for _, it := range m.Items {
+			@menuLink(it.Label, it.Href, it.Current)
+		}
+	}
+}

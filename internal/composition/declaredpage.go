@@ -56,8 +56,15 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 // DeclaredPageFor is DeclaredPage for the page that belongs to navigation item pageID, which is how a NavList marks the
 // row for the screen the viewer is on.
 func DeclaredPageFor(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, pageID string, page domain.PageNode) (ir.UINode, error) {
+	return DeclaredPageCarrying(ctx, l, viewer, params, now, navigation, pageID, page, nil)
+}
+
+// DeclaredPageCarrying is DeclaredPageFor for a screen of a view group: carry (ViewCarry) keeps the group's scope choice on its
+// links to the group's other screens.
+func DeclaredPageCarrying(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, pageID string, page domain.PageNode, carry func(navID, href string) string) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		PageID: pageID,
+		Carry:  carry,
 		Number: numberFormatOf(ctx),
 		Route:  ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {

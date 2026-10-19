@@ -23,7 +23,7 @@ func TestUnmappedLengthTokensMatchTheirLiterals(t *testing.T) {
 		{"control-height", "controls.templ", "func fieldClasses(", "h-9"},
 		{"pad-control-x", "controls.templ", "func buttonClasses(", "px-4"},
 		{"pad-metric", "machine.templ", "templ metricTile(", "p-3"},
-		{"radius-inner", "segmentedcontrol.templ", "templ segmentedControl(", "rounded"},
+		{"radius-inner", "segmentedcontrol.templ", "templ segmentedTrack(", "rounded"},
 	}
 	for _, c := range cases {
 		if _, ok := dsUnmapped[c.token]; !ok {

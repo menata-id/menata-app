@@ -927,6 +927,12 @@ templ notificationBell() {
 	</a>
 }
 
+// menuLink is one row of a menu: a link that fills the row, washed on hover, and when it is the viewer's current choice named so
+// for assistive technology (`aria-current`) and set in the emphasis weight. The account menu's rows and the scope menu's choices.
+templ menuLink(label, href string, current bool) {
+	<a href={ templ.URL(href) } if current { aria-current="true" } class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx), templ.KV(weightClass(ctx, domain.WeightEmphasis), current) }>{ label }</a>
+}
+
 templ accountMenu(viewer Viewer, aboveBar bool) {
 	<div class="shrink-0">
 		<button
@@ -952,9 +958,9 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 				</div>
 				<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
 			}
-			<a href="/account-profile" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Profile</a>
-			<a href="/account-notifications" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Notifications</a>
-			<a href="/account-security" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkBody), hoverWashClass(ctx) }>Security</a>
+			@menuLink("Profile", "/account-profile", false)
+			@menuLink("Notifications", "/account-notifications", false)
+			@menuLink("Security", "/account-security", false)
 			<div class={ "my-1 h-px", borderFillClass(ctx, domain.BorderDivider) }></div>
 			// Workspaces (AccountMenu.dc.html, Flow 2 canvas re-audit -- ROADMAP.md, 2026-09-27):
 			// loaded lazily, not threaded through appShell's own parameters, because appShell

@@ -1419,9 +1419,11 @@ func TestOptionalAndContainsAreHeldToTheirMeaning(t *testing.T) {
 		"optional mixed in any:": {domain.Dataset{Select: domain.SelectRecords, Limit: 10, Where: &expression.Predicate{Any: []expression.Comparison{
 			{Field: "fld_name", Op: expression.OpEquals, Value: "$current_user"},
 			{Field: "fld_name", Op: expression.OpContains, Value: "$parameters.q", Optional: true}}}}, "mixes optional and required"},
-		"an id from a literal":  {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "rec_1"}), "compares with a request parameter"},
-		"an id mistyped":        {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "$paramters.id"}), "compares with a request parameter"},
-		"optional in a measure": {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "an aggregate has no request parameters"},
+		"an id from a literal":                       {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "rec_1"}), "compares with a request parameter"},
+		"an id mistyped":                             {records(expression.Comparison{Field: "id", Op: expression.OpEquals, Value: "$paramters.id"}), "compares with a request parameter"},
+		"optional in a measure":                      {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "x", Optional: true}}}}}}, "so its value must be a $parameters."},
+		"a measure's parameter that is not optional": {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "$parameters.p"}}}}}}, "only in an `optional: true` comparison"},
+		"a measure optional on the runtime's scope":  {domain.Dataset{Dimension: "fld_name", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "$parameters.application", Optional: true}}}}}}, "never left out"},
 	} {
 		if got := run(tc.ds); !strings.Contains(got, tc.want) {
 			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)

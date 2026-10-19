@@ -263,6 +263,7 @@ test's own doc comment is the authoritative explanation; read it before changing
   `TestHandWrittenCreateFormsOnlyShrink`, `TestEveryInstalledButtonIsADeclaredRecordWrite` (delete/move/transition).
   A list screen's vocabulary (2026-10-17): Table `columns: [{field: fld_x}]`, `where:` `contains` + `optional: true`,
   `FilterChips`/`FilterSelect` (dimension-bound), `ActionBar` (lifted into the header), link `variant:`, nav `in_menu: false`,
+  **view groups** (Application `view_groups:`, nav `view_group:`/`summary: counts`; a Board/Table/Calendar of one Machine share a declared header and a scope parameter that every Dataset of the group must carry as an `optional: true` comparison),
   a Table's children = its row actions. Edit/delete rules: `set_once`, `locked_when`, `on_parent_delete: restrict`,
   `deletable_unless` -- a button reads the same rule the route enforces (`composition.heldRecords`).
   One record's page: nav `record_of:` (`/pages/<nav>/<id>`, `$parameters.id`, `where: {field: id}`), `field:`/`tone:`/

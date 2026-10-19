@@ -63,7 +63,7 @@ func renderBoard(t *testing.T) string {
 	m, v := boardMachine()
 	records, cards, columns := boardFixture()
 	var buf bytes.Buffer
-	if err := MachineBody(m, v, records, nil, nil, columns, cards, domain.Actor{ID: "usr_ana"}, time.Now()).Render(context.Background(), &buf); err != nil {
+	if err := MachineBody(m, v, records, nil, nil, columns, cards, domain.Actor{ID: "usr_ana"}, time.Now(), nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

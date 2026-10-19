@@ -32,6 +32,29 @@ machines:
   - mch_comment
   - mch_checklist_item
 
+view_groups:
+  # The Board, Table and Calendar are three arrangements of the same tasks and share one header (domain.ViewGroup; mockups PM01, PM05,
+  # PM08): the project's name with Switch project beside it, a summary made of counts, and the switch between the three. The scope
+  # parameter is `project`; a request with none shows every project's tasks, so tasks that name no project stay visible. Every
+  # Dataset a screen of the group reads over mch_task carries the same optional comparison (the loader checks), and the Board
+  # reads the same declaration.
+  - id: vg_tasks
+    machine: mch_task
+    figures: { dataset: ds_task_group_figures, total: msr_all, complete: msr_completed }
+    summary:
+      total: { one: "{n} task", other: "{n} tasks" }
+      complete: "{n} complete"
+      grouped: "grouped by {field}"
+    scope:
+      machine: mch_project
+      field: fld_project
+      dataset: ds_projects_with_tasks
+      parameter: project
+      switch: Switch project
+      all: All projects
+      chosen: "one of {n} projects in this workspace"
+      overall: "{n} projects in this workspace"
+
 navigation:
   # Board leads, matching the Case 19 mockup (PM01..PM06): Board / My Tasks / Dashboard / Calendar,
   # then the rest behind "More" (rendering.appMenuTabLimit). mch_task's default view is vw_task_board;
@@ -42,6 +65,8 @@ navigation:
     priority: 1
     icon: board
     description: Tasks grouped by List.
+    view_group: vg_tasks
+    summary: counts
   # My Tasks, declared (K15, 2026-10-11): four Collections over four Datasets (the Task Machine's ds_my_tasks_*) that
   # say what the bespoke My Tasks screen computed in Go -- overdue, the next seven days, later (undated, or past
   # the window: the first `any:` group) and completed. Each row's date badge, list name, tags and project come from
@@ -396,6 +421,75 @@ navigation:
                     - static: caption
                       from:
                         text: person
+  # The Table, the Board's second arrangement of the same tasks (Case 19 PM08): one flat list, a row per Task -- the completion
+  # circle, the title, the List it sits in, its labels, its date in the tone the Machine derives, and who holds it. Every cell is
+  # a template over the Machine's own declarations (a column's `cell:`), so the page names no Field, status, route or colour. It is
+  # not a menu entry (`in_menu: false`): it is reached from the Board's view switch, as the mockup draws it.
+  - id: nav_task_table
+    label: Table
+    route: /pages/nav_task_table
+    priority: 5
+    in_menu: false
+    icon: board
+    description: The same tasks as the board, in one flat list.
+    view_group: vg_tasks
+    summary: counts
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Task actions
+          children:
+            - component: Popover
+              label: New task
+              title: New task
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add task
+                  fields: [fld_title, fld_list, fld_due_date, fld_assignee, fld_project]
+                  values: { fld_project: $parameters.project }
+                  binding: { dataset: ds_task_table, write: create }
+        - component: Table
+          label: Tasks
+          empty: No tasks yet.
+          framed: true
+          binding: { dataset: ds_task_table, rows: records }
+          columns:
+            - header: Complete
+              hide_header: true
+              cell:
+                component: Toggle
+                from: { describes: title }
+                binding: { write: transition }
+            - { header: Task, from: title, href: record }
+            - header: List
+              empty: no list
+              cell:
+                component: StatusBadge
+                tone: neutral
+                from: { label: "group:label" }
+            - header: Label
+              empty: "—"
+              cell:
+                component: Tag
+                each: tags
+                from: { label: title, color: color }
+            - header: Due
+              empty: "—"
+              cell:
+                component: StatusBadge
+                from: { label: "date:label", tone: "date:tone" }
+            - header: Assignee
+              empty: "—"
+              cell:
+                component: Avatar
+                size: compact
+                presence: present
+                from: { initials: "person:initials", label: person }
   # The Calendar, declared (K15 Calendar, stages 1-5; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
   # the seven days of the week `?week=N` selects, one section per day through `group: date`, today set apart, week
   # links and the range in words. A finished task is a Reopen button, an open one a Mark done, as My Tasks does.
@@ -404,12 +498,29 @@ navigation:
     label: Calendar
     route: /pages/nav_calendar
     priority: 4
+    in_menu: false
+    view_group: vg_tasks
     icon: calendar
     description: Tasks sit on the day they are due. Press Mark done to finish one; step through the weeks to see what is coming.
     page:
       layout: stack
       gap: default
       children:
+        - component: ActionBar
+          label: Task actions
+          children:
+            - component: Popover
+              label: New task
+              title: New task
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add task
+                  fields: [fld_title, fld_list, fld_due_date, fld_assignee, fld_project]
+                  values: { fld_project: $parameters.project }
+                  binding: { dataset: ds_tasks_due_week, write: create }
         - layout: row
           gap: default
           align: center
@@ -485,58 +596,6 @@ navigation:
                         describes: title
                       binding:
                         write: transition
-  # The Table, the Board's second arrangement of the same tasks (Case 19 PM08): one flat list, a row per Task -- the completion
-  # circle, the title, the List it sits in, its labels, its date in the tone the Machine derives, and who holds it. Every cell is
-  # a template over the Machine's own declarations (a column's `cell:`), so the page names no Field, status, route or colour. It is
-  # not a menu entry (`in_menu: false`): it is reached from the Board's view switch, as the mockup draws it.
-  - id: nav_task_table
-    label: Table
-    route: /pages/nav_task_table
-    priority: 5
-    in_menu: false
-    icon: board
-    description: The same tasks as the board, in one flat list.
-    page:
-      layout: stack
-      gap: default
-      children:
-        - component: Table
-          label: Tasks
-          empty: No tasks yet.
-          framed: true
-          binding: { dataset: ds_task_table, rows: records }
-          columns:
-            - header: Complete
-              hide_header: true
-              cell:
-                component: Toggle
-                from: { describes: title }
-                binding: { write: transition }
-            - { header: Task, from: title, href: record }
-            - header: List
-              empty: no list
-              cell:
-                component: StatusBadge
-                tone: neutral
-                from: { label: "group:label" }
-            - header: Label
-              empty: "—"
-              cell:
-                component: Tag
-                each: tags
-                from: { label: title, color: color }
-            - header: Due
-              empty: "—"
-              cell:
-                component: StatusBadge
-                from: { label: "date:label", tone: "date:tone" }
-            - header: Assignee
-              empty: "—"
-              cell:
-                component: Avatar
-                size: compact
-                presence: present
-                from: { initials: "person:initials", label: person }
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

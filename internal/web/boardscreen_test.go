@@ -44,7 +44,7 @@ func TestBoardComposerCreatesACardInItsColumn(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("composer POST = %d\n%s", rec.Code, out)
 	}
-	for _, want := range []string{"Composer card", "2 cards · grouped by List", `aria-label="Shooting"`} {
+	for _, want := range []string{"Composer card", "2 tasks · grouped by List", `aria-label="Shooting"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("response after composing is missing %q", want)
 		}

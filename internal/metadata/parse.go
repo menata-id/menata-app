@@ -210,7 +210,7 @@ type predicateDoc struct {
 }
 
 // filterDoc is one comparison of a `where:`, which -- unlike a constraint's condition -- may be `optional: true`:
-// expression.Comparison.Optional, valid only on a records Dataset comparing against a `$parameters.<name>`.
+// expression.Comparison.Optional, valid only comparing against a `$parameters.<name>`, on a records Dataset's where: or on an aggregate's Measure (a view group's summary).
 type filterDoc struct {
 	comparisonDoc `yaml:",inline"`
 	Optional      bool   `yaml:"optional"`

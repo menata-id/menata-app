@@ -473,10 +473,10 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time) {
+templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time, header *ViewHeader) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
 		<div id="machine-body" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
-			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor, now)
+			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor, now, header)
 		</div>
 	}
 }
@@ -492,9 +492,9 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // one that was (the ?view= it resolved). cards is non-nil only for a cards View, for the same
 // caller-supplies-I/O reason as boardColumns -- the projection is resolved in
 // internal/composition, which this package cannot import.
-templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, now time.Time) {
+templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, now time.Time, header *ViewHeader) {
 	if v.EffectiveType() == domain.ViewBoard {
-		@boardScreen(m, v, records, relations, groups, boardColumns, cards, actor)
+		@boardScreen(m, v, records, relations, groups, boardColumns, cards, actor, header)
 	} else {
 		@machineScreen(m, v, records, relations, groups, cards, actor, now)
 	}
@@ -657,15 +657,22 @@ type CardTag struct {
 // name -- a Workspace's `nav_board` says "Board" and the Machine says "Task", and a screen titles itself
 // with what its own navigation calls it (the same rule pageHeader follows). The summary is computed from the
 // records and the View's own `group_by`: no count or Field name is typed here.
-templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
-	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
-		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ machineHeading(ctx, m) }</h1>
-			@staticText(domain.StaticMessage, boardSummary(m, v, len(records), cards))
-		</div>
-		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-			@viewSwitcher(m, v)
+templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, header *ViewHeader) {
+	if header != nil {
+		// One arrangement of a view group: the group's header, with this screen's own "New <machine>" as its action.
+		@viewHeader(*header) {
 			@newCardPopover(m, relations, groups)
+		}
+	} else {
+		@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
+				<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ machineHeading(ctx, m) }</h1>
+				@staticText(domain.StaticMessage, boardSummary(m, v, len(records), cards))
+			</div>
+			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+				@viewSwitcher(m, v)
+				@newCardPopover(m, relations, groups)
+			}
 		}
 	}
 	@boardLayout(m, v, records, boardColumns, cards, actor)

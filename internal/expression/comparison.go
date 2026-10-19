@@ -120,8 +120,9 @@ type Comparison struct {
 	Value string
 	// Optional drops the comparison when its `$parameters.<name>` value is absent or empty, instead of failing closed:
 	// the "All" of a row of filter chips, and a search box nobody typed in, list everything rather than nothing. A
-	// comparison that is not optional keeps 007 §9.2's fail-closed meaning. Valid on a records Dataset's `where:` over a
-	// request parameter only (metadata.validateDataset).
+	// comparison that is not optional keeps 007 §9.2's fail-closed meaning. Valid over a request parameter only, on a records
+	// Dataset's `where:` and on an aggregate Measure's (metadata.validateDataset), the latter so a count follows the same
+	// parameter a list does.
 	Optional bool
 	// IfParam (`if_param: view=overdue`) applies the comparison only when the request's parameter holds that value: a
 	// named view of a list ("Overdue", "Due within 7 days", "No plan") is a set of comparisons a chip switches on. Unset,

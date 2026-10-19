@@ -16,12 +16,34 @@ import (
 // list it resolves to the address the hand-written link spelled out. The selected option is a `<span aria-current>`.
 // The track and the knob follow the Theme (surface tile, raised and sunken fills, strong and secondary ink).
 templ segmentedControl(label, query, options, selected string) {
+	@segmentedTrack(label, segmentTabs(query, options, selected))
+}
+
+// SegmentTab is one choice of a segmented track already resolved to where it goes: the words, the address, whether it is the one
+// the viewer is on. A SegmentedControl builds them from a query parameter; a view group's header from the routes of its screens.
+type SegmentTab struct {
+	Label, Href string
+	Current     bool
+}
+
+// segmentTabs resolves a SegmentedControl's `options` to tabs: each unselected one is the page's own route with one parameter.
+func segmentTabs(query, options, selected string) []SegmentTab {
+	var tabs []SegmentTab
+	for _, o := range domain.ParseSegmentOptions(options) {
+		tabs = append(tabs, SegmentTab{Label: o.Label, Href: fmt.Sprintf("?%s=%s", query, url.QueryEscape(o.Value)), Current: o.Value == selected})
+	}
+	return tabs
+}
+
+// segmentedTrack is the track and its knob: the one place a row of mutually exclusive choices is drawn, whether they switch a query
+// parameter (SegmentedControl) or move between the screens of a view group (the shared header's Board / Table / Calendar).
+templ segmentedTrack(label string, tabs []SegmentTab) {
 	<nav class={ "inline-flex", layoutGap(ctx, domain.GapHair), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label={ label }>
-		for _, o := range domain.ParseSegmentOptions(options) {
-			if o.Value == selected {
+		for _, o := range tabs {
+			if o.Current {
 				<span class={ "rounded " + backgroundClass(ctx, domain.BackgroundSunken) + " px-3 py-1", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) } aria-current="true">{ o.Label }</span>
 			} else {
-				<a class={ "rounded px-3 py-1", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) } href={ templ.URL(fmt.Sprintf("?%s=%s", query, url.QueryEscape(o.Value))) }>{ o.Label }</a>
+				<a class={ "rounded px-3 py-1", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) } href={ templ.URL(o.Href) }>{ o.Label }</a>
 			}
 		}
 	</nav>

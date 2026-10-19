@@ -271,6 +271,8 @@ type FullApplicationCheckDoc struct {
 	SummaryMachine string   `yaml:"summary_machine"`
 	ShowNav        *bool    `yaml:"show_nav"`
 	Navigation     []any    `yaml:"navigation"`
+	// ViewGroups -- the header the Board, Table and Calendar of one Machine share (domain.ViewGroup, 2026-10-19).
+	ViewGroups []any `yaml:"view_groups"`
 	// Workflow -- the binding an Application declares (domain.Workflow, 2026-09-28).
 	Workflow any `yaml:"workflow"`
 }

@@ -265,6 +265,9 @@ type Application struct {
 	// resolve the real route even though the item never appears in a menu. Both
 	// metadata-hardcoding conformance gates depend on this property.
 	AllNavigation []NavigationItem
+	// ViewGroups are the sets of screens that share one header -- see ViewGroup. Declared on the Application, named by a
+	// navigation item's `view_group:`.
+	ViewGroups []ViewGroup
 }
 
 // HasMachine reports whether machineID is installed in this Workspace. A Workspace with no

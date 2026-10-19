@@ -138,7 +138,7 @@ func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, workspaceName, viewer, switchHref, time.Now()))
+		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, workspaceName, viewer, switchHref, time.Now(), p.header))
 	}
 }
 
@@ -152,7 +152,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		serverError(w, err)
 		return
 	}
-	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, time.Now()))
+	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, time.Now(), p.header))
 }
 
 // machineViewReads is everything one arrangement of a Machine's records needs to render. Both the
@@ -165,6 +165,8 @@ type machineViewReads struct {
 	groups       rendering.GroupOptions
 	boardColumns []experience.Column
 	cards        []rendering.RecordCard
+	// header is the view group's header when this Machine's Board is one of its screens, nil otherwise (the generic board header).
+	header *rendering.ViewHeader
 }
 
 func readMachineView(req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, v domain.View) (machineViewReads, error) {
@@ -172,6 +174,18 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 	records, err := ld.ListRecords(req.Context(), machine.ID)
 	if err != nil {
 		return machineViewReads{}, err
+	}
+	// A Board that is one screen of a view group draws the group's header and shows the records of the scope the request chose
+	// (a fragment after a write asks the same, from the page it came from).
+	var header *rendering.ViewHeader
+	if app, ok := rendering.CurrentApplication(req.Context()); ok {
+		if item, group, ok := composition.ViewGroupItem(app, machine.ID, ""); ok {
+			var params map[string]string
+			if header, params, err = composition.ViewHeaderFor(req.Context(), ld, app, item, group, scopeParams(req, group), time.Now()); err != nil {
+				return machineViewReads{}, err
+			}
+			records = composition.ScopeRecords(group, params, records)
+		}
 	}
 	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
@@ -195,7 +209,25 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 		groups:       groups,
 		boardColumns: boardColumns,
 		cards:        composition.RecordCards(machine, v, records, relations, tags, time.Now(), composition.NumberFormatOf(req.Context())),
+		header:       header,
 	}, nil
+}
+
+// scopeParams is the request's value for a view group's scope parameter, as a parameter map: from the address, or -- for a fragment
+// a write swaps in -- from the page the viewer was looking at (HX-Current-URL, as resolveView reads the View), so a created task
+// lands in the project that was showing.
+func scopeParams(req *http.Request, group domain.ViewGroup) map[string]string {
+	out := map[string]string{}
+	if group.Scope == nil {
+		return out
+	}
+	name := group.Scope.Parameter
+	if v := req.URL.Query().Get(name); v != "" {
+		out[name] = v
+	} else if current, err := url.Parse(req.Header.Get("HX-Current-URL")); err == nil && current.Query().Get(name) != "" {
+		out[name] = current.Query().Get(name)
+	}
+	return out
 }
 
 // viewParam is the query parameter a Machine page uses to select among its declared Views. A

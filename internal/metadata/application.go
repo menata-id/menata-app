@@ -383,6 +383,8 @@ type applicationDoc struct {
 	// to false and silently suppress every Application's menu.
 	ShowNav    *bool        `yaml:"show_nav"`
 	Navigation []navItemDoc `yaml:"navigation"`
+	// ViewGroups -- see domain.ViewGroup. Optional.
+	ViewGroups []viewGroupDoc `yaml:"view_groups"`
 	// Workflow binds this Application to a runtime workflow engine and says which of its own
 	// Machines plays each role -- see domain.Workflow. Optional: a plain CRUD Application declares
 	// none, which is the normal case.
@@ -425,6 +427,9 @@ type navItemDoc struct {
 	RecordOf string `yaml:"record_of"`
 	// BackTo -- see domain.NavigationItem.BackTo. Optional; only on a record page.
 	BackTo string `yaml:"back_to"`
+	// ViewGroup and Summary -- see domain.NavigationItem.ViewGroup and .SummaryCounts. Optional.
+	ViewGroup string `yaml:"view_group"`
+	Summary   string `yaml:"summary"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -852,6 +857,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		issues = append(issues, fmt.Sprintf("application %q: summary_machine %q is not one of this application's own machines -- a card must report its own count, not another application's", doc.ID, doc.SummaryMachine))
 	}
 	issues = append(issues, validateWorkflowBinding(doc)...)
+	issues = append(issues, validateViewGroupShape(doc)...)
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -932,6 +938,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		PrimaryNavGroup: primaryNavGroup,
 		HomeRoute:       homeRoute,
 		AllNavigation:   allNavigation,
+		ViewGroups:      toViewGroups(doc.ViewGroups),
 		Workflow:        workflow,
 	}, nil
 }
@@ -1076,6 +1083,8 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			RecordOf:          n.RecordOf,
 			BackTo:            n.BackTo,
 			OwnsHeading:       n.RecordOf != "",
+			ViewGroup:         n.ViewGroup,
+			SummaryCounts:     n.Summary == domain.SummaryCounts,
 		})
 	}
 	return items

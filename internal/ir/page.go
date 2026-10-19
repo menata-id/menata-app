@@ -405,6 +405,10 @@ type Resolver struct {
 	Step StepResolver
 	// Window answers a `window:`: the words that say a Dataset's date window.
 	Window WindowResolver
+	// Carry adds to the address of a link that names a navigation item (`to:`) what the request carries to that item: the scope
+	// choice of a view group, kept between its screens. Nil is a page of no group; it is given the item's id and the address the
+	// link would have, and answers the address to use.
+	Carry func(navID, href string) string
 	// PDF says whether this host can print a page to PDF. Nil is the load-time placeholder, for which every host can.
 	PDF func() bool
 }
@@ -902,6 +906,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 			q.Set(name, v)
 		}
 		out["href"] = route + "?" + q.Encode()
+	}
+	if r.Carry != nil {
+		out["href"] = r.Carry(routeID, out["href"])
 	}
 	if _, has := out["text"]; !has && n.From["text"] == "" {
 		out["text"] = label

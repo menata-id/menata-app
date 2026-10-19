@@ -164,6 +164,9 @@ func resolveMeasureFilters(ds domain.Dataset, ctx expression.Context) (map[strin
 		} {
 			for _, c := range *group.from {
 				value, ok := ctx.Resolve(c.Value)
+				if c.Optional && (!ok || value == "") {
+					continue // an optional filter nobody set is no filter, as in a records Dataset's where:
+				}
 				if !ok {
 					return nil, fmt.Errorf("composition: dataset %s measure %s filters on %s, which this request cannot resolve", ds.ID, ms.ID, c.Value)
 				}

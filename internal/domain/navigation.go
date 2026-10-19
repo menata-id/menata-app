@@ -156,6 +156,13 @@ type NavigationItem struct {
 	// SettingsCurrent names the settings row this screen sits under, when it is not itself a row: a Group's own screen
 	// marks "Groups" as where the viewer is. Empty means the screen's own id.
 	SettingsCurrent string
+	// ViewGroup (`view_group: vg_tasks`) makes this screen one arrangement of that Application ViewGroup: it draws the group's
+	// header (title, summary, the switch between arrangements, the scope control) instead of its own heading, and the group's
+	// scope parameter is carried by every link between its members.
+	ViewGroup string
+	// SummaryCounts (`summary: counts`) says the group's header words this screen with the group's counts ("11 tasks · grouped
+	// by List · 2 complete") instead of its own Description, for the arrangements that show every record.
+	SummaryCounts bool
 	// OwnsHeading says the page draws its own heading (a record's name), so the generic header is not drawn above it.
 	OwnsHeading bool
 	// RecordSource, on a runtime screen that is one record's page, names the registry.RuntimeSources entry the record

@@ -12,10 +12,17 @@ import (
 //
 // Named `DeclaredScreen`, not `…Page`, on purpose: `TestBespokeScreensOnlyShrink` counts `…Page(` functions as
 // screens somebody wrote by hand, and this is the opposite of one.
-templ DeclaredScreen(navID string, body ir.UINode, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ DeclaredScreen(navID string, body ir.UINode, header *ViewHeader, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, navID), workspaceName, viewer, switchWorkspaceHref) {
 		{{ actions, rest := liftActionBars(body) }}
-		if !ownsHeadingByID(ctx, navID) {
+		if header != nil {
+			// One arrangement of a view group: the group's header stands where the screen's own would, its lifted actions beside the switch.
+			@viewHeader(*header) {
+				for _, a := range actions {
+					@uiNode(a)
+				}
+			}
+		} else if !ownsHeadingByID(ctx, navID) {
 			if len(actions) > 0 {
 				@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 					@pageHeader(navID)

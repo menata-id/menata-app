@@ -1858,3 +1858,28 @@ func TestLower_aTransitionButtonMayAskBeforeAMoveThatCannotBeTakenBack(t *testin
 		t.Errorf("the question did not reach the Button: %+v", tree)
 	}
 }
+
+// TestLower_aLinkKeepsWhatTheRequestCarriesToItsDestination: the resolver's Carry is applied to the address a `to:` link would have --
+// the plain route, and one a `step:` moved -- and is told which item the link names, so it can leave a link to anywhere else alone.
+func TestLower_aLinkKeepsWhatTheRequestCarriesToItsDestination(t *testing.T) {
+	res := navFixture("/somewhere")
+	var asked []string
+	res.Carry = func(navID, href string) string {
+		asked = append(asked, navID)
+		return href + "#carried"
+	}
+	tree, err := Lower(linkTo("nav_x", nil), res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Children[0].Props["href"]; got != "/somewhere#carried" {
+		t.Errorf("href = %q, want the carried address", got)
+	}
+	if len(asked) != 1 || asked[0] != "nav_x" {
+		t.Errorf("Carry was asked about %v, want the item the link names", asked)
+	}
+	res.Carry = nil
+	if tree, _ = Lower(linkTo("nav_x", nil), res); tree.Children[0].Props["href"] != "/somewhere" {
+		t.Error("no Carry leaves the address as it was")
+	}
+}

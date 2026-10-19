@@ -1230,6 +1230,8 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 	for _, c := range lib.Where.Comparisons() {
 		v, ok := ctx.Resolve(c.Value)
 		switch {
+		case c.Optional && c.Field == "fld_project":
+			// The view group's scope (vg_tasks): left out when the request names no project, which is this window's request.
 		case !ok:
 			t.Errorf("the library's where value %q does not resolve", c.Value)
 		case c.Field != "fld_due_date":

@@ -14,22 +14,64 @@ description: Task boards, a personal worklist, a calendar and a dashboard.
 icon: board
 color: emerald
 summary_machine: mch_task
+view_groups:
+  # The Board, Table and Calendar are three arrangements of the same tasks and share one header (domain.ViewGroup; mockups PM01, PM05,
+  # PM08): the project's name with Switch project beside it, a summary made of counts, and the switch between the three. The scope
+  # parameter is `project`; a request with none shows every project's tasks, so tasks that name no project stay visible. Every
+  # Dataset a screen of the group reads over mch_task carries the same optional comparison (the loader checks), and the Board
+  # reads the same declaration.
+  - id: vg_tasks
+    machine: mch_task
+    figures: { dataset: ds_task_group_figures, total: msr_all, complete: msr_completed }
+    summary:
+      total: { one: "{n} task", other: "{n} tasks" }
+      complete: "{n} complete"
+      grouped: "grouped by {field}"
+    scope:
+      machine: mch_project
+      field: fld_project
+      dataset: ds_projects_with_tasks
+      parameter: project
+      switch: Switch project
+      all: All projects
+      chosen: "one of {n} projects in this workspace"
+      overall: "{n} projects in this workspace"
+
 navigation:
   - id: nav_board
     label: Board
     route: /machines/mch_task
     priority: 1
     icon: board
+    view_group: vg_tasks
+    summary: counts
   - id: nav_task_table
     label: Table
     route: /pages/nav_task_table
     priority: 2
     in_menu: false
     icon: board
+    view_group: vg_tasks
+    summary: counts
     page:
       layout: stack
       gap: default
       children:
+        - component: ActionBar
+          label: Task actions
+          children:
+            - component: Popover
+              label: New task
+              title: New task
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add task
+                  fields: [fld_title, fld_list, fld_due_date, fld_assignee, fld_project]
+                  values: { fld_project: $parameters.project }
+                  binding: { dataset: ds_task_table, write: create }
         - component: Table
           label: Tasks
           empty: No tasks yet.
@@ -67,3 +109,28 @@ navigation:
                 size: compact
                 presence: present
                 from: { initials: "person:initials", label: person }
+  # The Calendar's week links keep the chosen project: a step to the next week is still that project's.
+  - id: nav_calendar
+    label: Calendar
+    route: /pages/nav_calendar
+    in_menu: false
+    icon: calendar
+    view_group: vg_tasks
+    description: Tasks sit on the day they are due.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - static: link
+          to: nav_calendar
+          text: Next week
+          step: { parameter: week, by: 1 }
+        - static: caption
+          window: ds_tasks_due_week
+        - component: Collection
+          gap: tight
+          empty: "—"
+          binding: { dataset: ds_tasks_due_week, rows: records }
+          children:
+            - static: link
+              from: { text: title, href: record }
