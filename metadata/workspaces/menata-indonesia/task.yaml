@@ -120,6 +120,18 @@ datasets:
       - field: sort_order
         direction: asc
     limit: 200
+  # The Table's rows (Case 19 PM08): every Task, grouped by the List it sits in and in the order the board keeps inside each.
+  # `fld_list` orders by the stored reference, which keeps one List's Tasks together -- the order *of the Lists* is the board's
+  # own (Board Settings), which a Dataset cannot yet say, so the Table's groups follow the reference, not that order.
+  # `limit: 200` is the same safety cap as the Datasets above; the page makes no claim to be complete.
+  - id: ds_task_table
+    select: records
+    sort:
+      - field: fld_list
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
   - id: ds_my_tasks_later
     select: records
     viewer_scoped: true

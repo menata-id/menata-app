@@ -3127,6 +3127,11 @@ func uiNode(n ir.UINode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			case domain.ComponentToggle:
+				templ_7745c5c3_Err = toggle(n.Props["describes"], n.Props["checked"] == "true", n.Props["action"], n.Props["name"], n.Props["value"]).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			case domain.ComponentForm:
 				templ_7745c5c3_Var104 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -3270,7 +3275,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentTable:
-				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["footer"], uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["hidden"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["footer"], uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

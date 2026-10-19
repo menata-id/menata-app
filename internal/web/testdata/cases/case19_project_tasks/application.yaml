@@ -1,0 +1,69 @@
+# Case 19 -- Project Management's task Table, mockup PM08 (menata-app-document: the PM mockup alignment, slice 1). What the case
+# measures is the screen: the same tasks as the board, in one flat list, each row a completion circle, the task, the list it
+# sits in, its labels, its due date and who it is assigned to -- drawn by a `page:` over the Machine's own declarations,
+# with no Field, route or class named by the page.
+id: app_project_tasks
+name: Project Management
+machines:
+  - mch_project
+  - mch_list
+  - mch_label
+  - mch_task
+  - mch_card_label
+description: Task boards, a personal worklist, a calendar and a dashboard.
+icon: board
+color: emerald
+summary_machine: mch_task
+navigation:
+  - id: nav_board
+    label: Board
+    route: /machines/mch_task
+    priority: 1
+    icon: board
+  - id: nav_task_table
+    label: Table
+    route: /pages/nav_task_table
+    priority: 2
+    in_menu: false
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Tasks
+          empty: No tasks yet.
+          framed: true
+          binding: { dataset: ds_task_table, rows: records }
+          columns:
+            - header: Complete
+              hide_header: true
+              cell:
+                component: Toggle
+                from: { describes: title }
+                binding: { write: transition }
+            - { header: Task, from: title, href: record }
+            - header: List
+              empty: no list
+              cell:
+                component: StatusBadge
+                tone: neutral
+                from: { label: "group:label" }
+            - header: Label
+              empty: "—"
+              cell:
+                component: Tag
+                each: tags
+                from: { label: title, color: color }
+            - header: Due
+              empty: "—"
+              cell:
+                component: StatusBadge
+                from: { label: "date:label", tone: "date:tone" }
+            - header: Assignee
+              empty: "—"
+              cell:
+                component: Avatar
+                size: compact
+                presence: present
+                from: { initials: "person:initials", label: person }

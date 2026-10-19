@@ -18,6 +18,9 @@ const MaxTableColumns = 12
 const (
 	tableHeadersProp = "headers"
 	tableAlignsProp  = "aligns"
+	// tableHiddenProp is the places (0-based, comma-joined) of the columns whose header is kept for assistive technology and
+	// not drawn (`hide_header: true`), lowered and never written, for the reason the other two are not.
+	tableHiddenProp = "hidden"
 )
 
 // lowerTable turns a Table bound with `rows: records` into its header row and one row of cells per record. The cells
@@ -34,15 +37,26 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	switch {
 	case b.Measure != "" || b.Group != "":
 		return nil, fmt.Errorf("%s: a Table lists records or a Dimension's rows, so its binding takes no measure and no group", path)
-	case dimension && len(n.Children) > 0:
-		return nil, fmt.Errorf("%s: a Table of a Dimension's rows has no row actions -- a row is a group of records, not one", path)
 	case len(n.From) > 0 || n.To != "" || n.Param != "":
 		return nil, fmt.Errorf("%s: from:, to: and param: do not belong on a Table; a column takes its role with from: inside columns:", path)
 	}
-	for _, p := range []string{tableHeadersProp, tableAlignsProp} {
+	for _, p := range []string{tableHeadersProp, tableAlignsProp, tableHiddenProp} {
 		if _, written := n.Props[p]; written {
 			return nil, fmt.Errorf("%s: %s: comes from columns: and is never written", path, p)
 		}
+	}
+	// A child marked with a column's place is that column's cell template; the rest are the row actions.
+	cellTemplates := map[int]domain.PageNode{}
+	var rowActions []domain.PageNode
+	for _, ch := range n.Children {
+		if ch.Cell > 0 {
+			cellTemplates[ch.Cell] = ch
+		} else {
+			rowActions = append(rowActions, ch)
+		}
+	}
+	if dimension && len(rowActions) > 0 {
+		return nil, fmt.Errorf("%s: a Table of a Dimension's rows has no row actions -- a row is a group of records, not one", path)
 	}
 	cols := n.Columns
 	if len(cols) == 0 {
@@ -53,14 +67,23 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	}
 	headers := make([]string, len(cols))
 	aligns := make([]string, len(cols))
+	var hidden []string
 	for i, c := range cols {
 		where := fmt.Sprintf("%s.columns[%d]", path, i)
 		switch {
 		case strings.TrimSpace(c.Header) == "" || strings.ContainsAny(c.Header, "\n\r"):
-			return nil, fmt.Errorf("%s: header: words on one line", where)
+			return nil, fmt.Errorf("%s: header: words on one line (a header drawn for no one to see is hide_header: true, not a blank one)", where)
+		case c.Cell && (c.From != "" || c.Field != "" || c.Related != "" || c.Href != "" || c.Of != "" || c.Under != "" || c.Total != "" || c.TotalLabel != ""):
+			return nil, fmt.Errorf("%s: a column with a cell: template shows what the template draws, so it takes no from:, field:, related:, href:, under:, of: or total:", where)
+		case c.Cell && dimension:
+			return nil, fmt.Errorf("%s: a Dimension's row is not a record, so a column of one takes no cell: template", where)
+		case c.Empty != "" && !c.Cell:
+			return nil, fmt.Errorf("%s: empty: is the words a cell: template says when it draws nothing, so it sits beside cell:", where)
+		case c.Cell && cellTemplates[i+1].Kind == "":
+			return nil, fmt.Errorf("%s: the cell: template was not carried with the Table's children", where)
 		case c.Under != "" && (c.Field == "" || c.Of != ""):
 			return nil, fmt.Errorf("%s: under: is a second line under a Field's value, so it sits beside field: and not of:", where)
-		case countNonEmpty(c.From, c.Field, c.Related) != 1:
+		case !c.Cell && countNonEmpty(c.From, c.Field, c.Related) != 1:
 			return nil, fmt.Errorf("%s: a column shows exactly one of from: (a Projection role, or row:/measure: on a Dimension's rows), field: (a Field id) or related: (a Relation)", where)
 		case c.Of != "" && c.Field == "" && !strings.HasPrefix(c.From, "measure:"):
 			return nil, fmt.Errorf("%s: of: draws a fraction of two figures, so it sits beside field: or from: measure:<id>", where)
@@ -74,6 +97,9 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			return nil, fmt.Errorf("%s: align: %q is not start or end", where, c.Align)
 		}
 		headers[i] = c.Header
+		if c.HideHeader {
+			hidden = append(hidden, strconv.Itoa(i))
+		}
 		aligns[i] = string(domain.TableAlignStart)
 		if c.Align != "" {
 			aligns[i] = c.Align
@@ -116,9 +142,9 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	// way a Collection's item is -- an Edit, a Delete, a transition, each offered only where the record's own rules let
 	// this viewer -- and drawn as one more cell at the row's end, under an unnamed header.
 	var actions *domain.PageNode
-	if len(n.Children) > 0 {
+	if len(rowActions) > 0 {
 		actions = &domain.PageNode{Kind: string(NodeLayout), Type: string(domain.LayoutRow),
-			Props: map[string]string{"gap": string(domain.GapTight), "align": string(domain.RowAlignCenter), "justify": string(domain.RowJustifyStart)}, Children: n.Children}
+			Props: map[string]string{"gap": string(domain.GapTight), "align": string(domain.RowAlignCenter), "justify": string(domain.RowJustifyStart)}, Children: rowActions}
 		headers, aligns = append(headers, ""), append(aligns, string(domain.TableAlignEnd))
 	}
 	// `complete: true` is the Collection's claim, read the same way (owner decision K2): a list cut by its Dataset's bound
@@ -135,9 +161,20 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		props[collectionTruncatedProp] = t + "/" + strconv.Itoa(set.Total)
 	}
 	props[tableHeadersProp], props[tableAlignsProp] = strings.Join(headers, "\n"), strings.Join(aligns, ",")
+	if len(hidden) > 0 {
+		props[tableHiddenProp] = strings.Join(hidden, ",")
+	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, rec := range set.Records {
 		for j, c := range cols {
+			if c.Cell {
+				cell, err := lowerCell(cellTemplates[j+1], c.Empty, r, fmt.Sprintf("%s.columns[%d].cell", path, j), set, i)
+				if err != nil {
+					return nil, err
+				}
+				out.Children = append(out.Children, cell)
+				continue
+			}
 			key := c.From
 			switch {
 			case c.Field != "":
@@ -186,6 +223,25 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		out.Props[tableFooterProp] = footer
 	}
 	return []UINode{out}, nil
+}
+
+// lowerCell draws one cell of a column that declares a `cell:` template: the template lowered for this record exactly as a
+// Collection's item is, so everything a record template may hold (a Tag per label with `each: tags`, an Avatar, a StatusBadge
+// toned by a derived role, the completion Toggle) reads the same grammar. A template that draws nothing for the record (a node
+// reading a derived role the record has no value for is not drawn) leaves the column's `empty:` words, and one that draws several
+// nodes (the Tags of a record with three labels) lays them in a row, so a cell is always one node.
+func lowerCell(tmpl domain.PageNode, empty string, r Resolver, path string, set RecordSet, i int) (UINode, error) {
+	items, err := lowerRecordItem(tmpl, r, path, set, i)
+	if err != nil {
+		return UINode{}, err
+	}
+	switch len(items) {
+	case 0:
+		return UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": empty}}, nil
+	case 1:
+		return items[0], nil
+	}
+	return UINode{Kind: NodeLayout, Type: string(domain.LayoutRow), Props: map[string]string{"gap": string(domain.GapTight), "align": string(domain.RowAlignCenter), "justify": string(domain.RowJustifyStart)}, Children: items}, nil
 }
 
 // tableFooterProp is a Table's total row, lowered from its columns' `total:` -- one tab-separated cell per column --

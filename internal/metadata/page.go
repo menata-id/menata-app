@@ -45,10 +45,12 @@ type pageNodeDoc struct {
 	step    *domain.PageStep
 	window  string
 	columns []domain.PageColumn
-	pass    map[string]string
-	counts  map[string]string
-	values  map[string]string
-	starts  map[string]string
+	// cells are the Table's column cell templates (`columns[i].cell:`), by column place.
+	cells  map[int]pageNodeDoc
+	pass   map[string]string
+	counts map[string]string
+	values map[string]string
+	starts map[string]string
 	// formFields is a Form's `fields:` list.
 	formFields []string
 	extract    *domain.FormExtract
@@ -158,11 +160,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				p.props[key.Value] = val.Value
 				break
 			}
-			cols, err := decodePageColumns(val)
+			cols, cells, err := decodePageColumns(val)
 			if err != nil {
 				return err
 			}
-			p.columns = cols
+			p.columns, p.cells = cols, cells
 		case "counts":
 			m, err := decodePageFrom(val)
 			if err != nil {
@@ -226,22 +228,39 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
-// decodePageColumns reads a Table's `columns:`: a list of `{header, from, align, href}`, every value a scalar. Whether
-// the role exists and the Table is bound is `ir.Lower`'s and `bindingIssues`' question, which have the tree and the Machine.
-func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
+// decodePageColumns reads a Table's `columns:`: a list of `{header, from, align, href, ...}`, every value a scalar except
+// `cell:`, which is a page node (the template of the column's cell, drawn once per record). Whether the role exists and the
+// Table is bound is `ir.Lower`'s and `bindingIssues`' question, which have the tree and the Machine.
+func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, map[int]pageNodeDoc, error) {
 	if n.Kind != yaml.SequenceNode || len(n.Content) == 0 {
-		return nil, fmt.Errorf("line %d: columns: is a list of {header, from} entries, such as [{header: Title, from: title}]", n.Line)
+		return nil, nil, fmt.Errorf("line %d: columns: is a list of {header, from} entries, such as [{header: Title, from: title}]", n.Line)
 	}
 	var out []domain.PageColumn
+	var cells map[int]pageNodeDoc
 	for _, item := range n.Content {
 		if item.Kind != yaml.MappingNode {
-			return nil, fmt.Errorf("line %d: a column is a mapping of header and from, and optionally align and href", item.Line)
+			return nil, nil, fmt.Errorf("line %d: a column is a mapping of header and from, and optionally align and href", item.Line)
 		}
 		var c domain.PageColumn
 		for i := 0; i+1 < len(item.Content); i += 2 {
 			key, val := item.Content[i], item.Content[i+1]
+			if key.Value == "cell" {
+				if val.Kind != yaml.MappingNode {
+					return nil, nil, fmt.Errorf("line %d: columns.cell: is one page node, such as {component: Tag, each: tags, from: {label: title, color: color}}", key.Line)
+				}
+				var doc pageNodeDoc
+				if err := val.Decode(&doc); err != nil {
+					return nil, nil, err
+				}
+				if cells == nil {
+					cells = map[int]pageNodeDoc{}
+				}
+				cells[len(out)+1] = doc
+				c.Cell = true
+				continue
+			}
 			if val.Kind != yaml.ScalarNode {
-				return nil, fmt.Errorf("line %d: columns.%s: a single value, not a list or mapping", key.Line, key.Value)
+				return nil, nil, fmt.Errorf("line %d: columns.%s: a single value, not a list or mapping", key.Line, key.Value)
 			}
 			switch key.Value {
 			case "header":
@@ -264,13 +283,20 @@ func decodePageColumns(n *yaml.Node) ([]domain.PageColumn, error) {
 				c.Total = val.Value
 			case "total_label":
 				c.TotalLabel = val.Value
+			case "empty":
+				c.Empty = val.Value
+			case "hide_header":
+				if val.Value != "true" && val.Value != "false" {
+					return nil, nil, fmt.Errorf("line %d: columns.hide_header: is true or false", key.Line)
+				}
+				c.HideHeader = val.Value == "true"
 			default:
-				return nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from, field or related, under, of, align, href, total, total_label)", key.Line, key.Value)
+				return nil, nil, fmt.Errorf("line %d: %q is not a key a column declares (header, from or field or related or cell, under, of, align, href, total, total_label, empty, hide_header)", key.Line, key.Value)
 			}
 		}
 		out = append(out, c)
 	}
-	return out, nil
+	return out, cells, nil
 }
 
 // decodeFormExtract reads a Form's `extract:`: {file, read, instruction, fields, rows: [{label, machine, via, fields}]}. Whether
@@ -545,7 +571,8 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Binding.Extract = p.extract
 		// A records template that reads a Field by id (`from: {text: "field:fld_x"}`, its `tone:` or its `steps:`)
 		// names it to the Data Plane the same way a Table's column does.
-		for _, id := range append(templateFieldRoles(p.children), whenFieldRoles(p.children)...) {
+		templates := append(slices.Clone(p.children), p.cellDocs()...)
+		for _, id := range append(templateFieldRoles(templates), whenFieldRoles(templates)...) {
 			if !slices.Contains(out.Binding.Fields, id) {
 				out.Binding.Fields = append(out.Binding.Fields, id)
 			}
@@ -556,6 +583,25 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 	}
 	for _, c := range p.children {
 		out.Children = append(out.Children, c.toDomain())
+	}
+	// A Table's column cells follow its row actions as children marked with their column's place (domain.PageNode.Cell).
+	for i := range p.columns {
+		if doc, ok := p.cells[i+1]; ok {
+			cell := doc.toDomain()
+			cell.Cell = i + 1
+			out.Children = append(out.Children, cell)
+		}
+	}
+	return out
+}
+
+// cellDocs are a Table's column cell templates in column order, for the walks that read a record template's Fields.
+func (p pageNodeDoc) cellDocs() []pageNodeDoc {
+	var out []pageNodeDoc
+	for i := range p.columns {
+		if doc, ok := p.cells[i+1]; ok {
+			out = append(out, doc)
+		}
 	}
 	return out
 }
@@ -627,6 +673,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
 			rec[domain.PageDateRelativeRole] = "x"
 			rec[domain.PageGroupLabelRole] = "x"
+			rec[domain.PagePersonInitialsRole] = "x"
 			rec[domain.PageCreatedLabelRole] = "x"
 			rec[domain.PageStatusToneRole] = string(domain.ToneNeutral)
 			// The Fields a Table names by id: whether each is a Field of the real Machine is `recordsBindingIssues`'.
@@ -1534,6 +1581,18 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 			}
 		}
 		return []string{fmt.Sprintf("%s: page: transition: %s is not a declared edge of machine %q", where, b.Transition, item.ID)}
+	}
+	if n.Type == string(domain.ComponentToggle) {
+		// A Toggle writes the Machine's completion the other way round, so it has no `becomes:`: what it needs is a
+		// `completion:` to write, over a status Field that holds both of its values.
+		if item.Completion == nil {
+			return []string{fmt.Sprintf("%s: page: a Toggle completes a record, so machine %q declares a `completion:`", where, item.ID)}
+		}
+		var issues []string
+		for _, becomes := range []string{domain.PageTransitionDone, domain.PageTransitionReopen} {
+			issues = append(issues, transitionTargetIssues(item, becomes, where)...)
+		}
+		return issues
 	}
 	return transitionTargetIssues(item, n.Props["becomes"], where)
 }

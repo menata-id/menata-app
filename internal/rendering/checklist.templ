@@ -72,19 +72,7 @@ templ checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) {
 	<li>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 			if canEdit {
-				<form class="m-0 shrink-0" hx-patch={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) } hx-swap="none">
-					<input type="hidden" name={ it.Complete.Field } value={ it.Complete.Next }/>
-					<button
-						type="submit"
-						aria-pressed={ fmt.Sprint(it.Complete.Done) }
-						aria-label={ completeLabel(it.Complete.Done, it.Text) }
-						class={ "grid size-5 place-items-center rounded-full border-2", touchTargetClass(), onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), it.Complete.Done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !it.Complete.Done) }
-					>
-						if it.Complete.Done {
-							@icon("check", "size-3")
-						}
-					</button>
-				</form>
+				@toggle(it.Text, it.Complete.Done, fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID), it.Complete.Field, it.Complete.Next)
 			}
 			<span class={ textClass(ctx, domain.RoleBody), templ.KV(inkClass(ctx, domain.InkSecondary) + " line-through", it.Complete.Done) }>{ it.Text }</span>
 		}

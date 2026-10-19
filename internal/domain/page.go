@@ -106,7 +106,11 @@ type PageNode struct {
 	// form asks for every Field the Machine allows a form to ask for (Machine.CreateFormInputs).
 	FormFields []string
 	// Extract (`extract:` on a create Form) lets the form be filled from a document: see FormExtract.
-	Extract  *FormExtract
+	Extract *FormExtract
+	// Cell, 1-based, marks a child that is not a row action but the template of one Table column's cell (`columns: [{header,
+	// cell: {...}}]`): the Table's own `columns:` produce it, never an author, so every walker over a node's children sees the
+	// cell's nodes as it sees a Collection's item template. 0 is an ordinary child -- for a Table, a row action.
+	Cell     int
 	Children []PageNode
 }
 
@@ -183,6 +187,18 @@ type PageColumn struct {
 	// with `of:`) or `count`. TotalLabel words it ("9 contracts" from total: count, total_label: contracts; alone, a
 	// label such as "Total").
 	Total, TotalLabel string
+	// Cell says the column's cell is a template (`cell: {component: Tag, each: tags, ...}`) drawn once per record the way a
+	// Collection's item is, instead of one value the column names: any Component or static a record template may hold -- a
+	// Tag per label, an Avatar of the person, a StatusBadge toned by the date, the completion Toggle. The template itself
+	// is the Table node's child marked PageNode.Cell = this column's place (1-based), so it is validated and lowered as
+	// every record template is. A column shows exactly one of from:, field:, related: or a cell.
+	Cell bool
+	// HideHeader keeps the header's words for assistive technology and draws none of them (`hide_header: true`): the completion
+	// circle's column is headed "Complete" for a screen reader and heads nothing for the eye, as the mockups draw it.
+	HideHeader bool
+	// Empty is the words the cell says when its template draws nothing for a record (no label, no date, nobody assigned --
+	// "—", "no list"). Valid only beside cell:.
+	Empty string
 }
 
 // PageRowPositionColumn is a column's `from:` that shows the row's own place in the list, 1 first (mockup K01d's "#"). It
@@ -410,6 +426,8 @@ const (
 var WritableComponents = map[ComponentType][]string{
 	ComponentForm:   {PageWriteCreate, PageWriteUpdate, PageWriteAction, PageWriteTransition},
 	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition, PageWriteAction, PageWritePrint, PageWritePDF},
+	// A Toggle writes the one thing: the Machine's completion, the other way round.
+	ComponentToggle: {PageWriteTransition},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a
@@ -493,10 +511,15 @@ func PageMeasureRole(measureID string) string {
 // of options. Like the date roles it is empty when the record has no group, and a node reading it is then not drawn.
 const PageGroupLabelRole = "group:label"
 
+// PagePersonInitialsRole is the fourth derived role: the initials of the person a record's `person` card role names ("Budi
+// Santoso" -> "BS"), what an Avatar draws in its circle (`from: {initials: "person:initials", label: person}`). Empty when
+// the record has no person, and a node reading it is then not drawn -- a circle of "?" for nobody is a defect, not a design.
+const PagePersonInitialsRole = "person:initials"
+
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PageCreatedLabelRole || role == PageStatusToneRole
+	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PagePersonInitialsRole || role == PageCreatedLabelRole || role == PageStatusToneRole
 }
 
 // ForeignLinkID is how another Application's navigation item is named in a link-target list: "<application id>/<item id>".

@@ -1,0 +1,243 @@
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_description
+    name: Description
+    type: long_text
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [todo, in_progress, done]
+    default: todo
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_due_date
+    name: Due Date
+    type: date
+  - id: fld_priority
+    name: Priority
+    type: number
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+  - id: fld_list
+    name: List
+    type: relation
+    machine: mch_list
+
+# A Task's own status move gets logged to the Project Activity feed (ROADMAP.md Phase 14),
+# generalized here (2026-09-19) from what used to be hardcoded Go (internal/web's
+# currentTaskStatus/logTaskStatusMove) into the first real declared Event -- the second known
+# "write happened, log it" case (alongside record-created logging and the Document-approval
+# decide cascade) that justified building the primitive at all (007 §4.1 Composition over
+# Specialization). summary_override_when/summary_override reproduce the old code's one wording
+# exception (moving to "done" reads "completed", not "moved from X to Y") without generalizing
+# Service.Summary into a full templating language.
+events:
+  - id: evt_task_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+      summary_override_when: done
+      summary_override: "\"{fld_title}\" completed"
+  # A Task moved to another List (Case 19 PM01/PM02: a drag, or the Move panel). `{old}`/`{new}` name the
+  # Lists, not their ids -- a `relation` Field's value is resolved through the related Machine's own
+  # `card_fields: title` (execution.relationTitles), so no template has to know which Machine it points at.
+  - id: evt_task_list_changed
+    on: fld_list
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+  # A Task logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+  # logRecordCreated switch into the same declared Event mechanism evt_task_status_changed above
+  # already proved -- the on_create shape's own worked example.
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
+
+# Declared Datasets (007 §7.2): what the Dashboard and My Tasks select through. Each is a
+# named selection or count, so a screen names a Dataset id and no query.
+datasets:
+  # My Tasks' four buckets as Datasets (K15, 2026-10-10), so a `page:` can draw each without Go bucketing the
+  # viewer's Tasks. Each says one fact about the viewer's own Tasks:
+  # "finished" is `$done` (the `completion:` block), the window is `$today` .. `$today+7`, and
+  # "Later" is the first Dataset to need a disjunction -- an open Task that is undated, or due past the window.
+  # `is_empty` is how "undated" is said: `equals ""` cannot, an absent Field not being the empty string.
+  # `limit: 200` is a safety cap, declared so the day it truncates a worklist the number is findable; the page
+  # claims `complete: true` and says so when the cap bites. Later and Completed declare no `sort:`, which keeps the Store's own ordering.
+  - id: ds_my_tasks_overdue
+    select: records
+    viewer_scoped: true
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_due_date, op: lt, value: $today }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
+  - id: ds_my_tasks_next7
+    select: records
+    viewer_scoped: true
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_due_date, op: gte, value: $today }
+        - { field: fld_due_date, op: lte, value: $today+7 }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
+  - id: ds_tasks_due_week
+    select: records
+    where:
+      all:
+        - { field: fld_due_date, op: gte, value: $week }
+        - { field: fld_due_date, op: lte, value: $week+6 }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
+  # The Table's rows (Case 19 PM08): every Task, grouped by the List it sits in and in the order the board keeps inside each.
+  # `fld_list` orders by the stored reference, which keeps one List's Tasks together -- the order *of the Lists* is the board's
+  # own (Board Settings), which a Dataset cannot yet say, so the Table's groups follow the reference, not that order.
+  # `limit: 200` is the same safety cap as the Datasets above; the page makes no claim to be complete.
+  - id: ds_task_table
+    select: records
+    sort:
+      - field: fld_list
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
+  - id: ds_my_tasks_later
+    select: records
+    viewer_scoped: true
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+      any:
+        - { field: fld_due_date, op: is_empty }
+        - { field: fld_due_date, op: gt, value: $today+7 }
+    limit: 200
+  - id: ds_my_tasks_completed
+    select: records
+    viewer_scoped: true
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: equals, value: $done }
+    limit: 200
+
+  # The Dashboard's four headline figures as Measures, so a `page:` can show each one as a Metric bound with
+  # `rows: total` (2026-10-10). Both ends are read from declarations rather than restated: "finished" is
+  # `$done`, the `completion:` block below, and "overdue" is not-finished AND due before `$today` -- the same
+  # two facts `composition.isOverdue` tests per record in Go.
+  #
+  # No `select:`, so this reads the Machine's whole record set (it has no `limit:` to truncate it): a count
+  # that silently stopped at a bound would understate every tile.
+  - id: ds_task_figures
+    measures:
+      - id: msr_all
+        aggregate: count
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+      - id: msr_overdue
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: lt, value: $today }
+      - id: msr_completed
+        aggregate: count
+        where: { field: fld_status, op: equals, value: $done }
+      # The two derived hints (K15 D1): how many Projects the cards sit in, and finished as a share of all.
+      - id: msr_projects
+        aggregate: count_distinct
+        field: fld_project
+      - id: msr_completed_share
+        aggregate: percentage
+        numerator: msr_completed
+        denominator: msr_all
+      - id: msr_due_today
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: equals, value: $today }
+      # `$today+7` is a week from the request's date: the window My Tasks calls "Next 7 days", today included.
+      - id: msr_due_week
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: gte, value: $today }
+            - { field: fld_due_date, op: lte, value: $today+7 }
+
+  # Open cards per person (K15, 2026-10-10). The Dimension is a reference Field -- a stored id -- so the page
+  # draws each row under the related record's title (a person's name) and a row whose value names no record is
+  # left out rather than shown as an id. Per project is `ds_projects_with_tasks` (a Relation, so an empty Project shows).
+  - id: ds_open_by_assignee
+    dimension: fld_assignee
+    measures:
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+      # Everything assigned, so a bar can say open out of all (the Dashboard's "Open cards per person").
+      - id: msr_all
+        aggregate: count
+
+# card_fields: what a Task's own records show wherever a screen renders them without picking
+# Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading
+# fld_title/fld_status/fld_due_date off the record in their own .templ files: My Tasks, Calendar and
+# the Dashboard render their own markup -- a row, a calendar cell, a table cell -- but the *shape*
+# they render is this declaration, resolved once by composition.ProjectCardFields.
+#
+# Three roles, from the closed set (domain.KnownCardFieldRoles): what to call it, what state it is
+# in, and when it is due. Nothing here says how any of them is drawn.
+# completion: which status value means a Task is finished (domain.Completion). A card's date pill reads
+# it -- a finished card shows its date green with a check, never overdue -- and it is what the hover
+# circle on a card will write. Nothing else in the runtime knew which option was terminal: the Dashboard
+# still compares against a literal "done" in internal/composition/pages.go (P3).
+completion: { field: fld_status, done: done }
+
+# card_tags: the chips a board card shows above its title -- the mch_card_label records pointing at it
+# (007 §7.5's Relation shape: machine + via) and the label each one names (`tag`). What a chip *looks*
+# like is mch_label's own card_fields, not this block.
+card_tags: { machine: mch_card_label, via: fld_task, tag: fld_label }
+
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+  - { field: fld_assignee, role: person }
+  - { field: fld_project, role: container }
+
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_list
+  - id: vw_task_table
+    name: Table
+    type: table

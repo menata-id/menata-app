@@ -3,6 +3,7 @@ package rendering
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -212,6 +213,37 @@ templ requestButton(label string, variant domain.ButtonVariant, name, value, act
 	} else {
 		@button(label, variant, name, value)
 	}
+}
+
+// toggle is the registered renderer for `domain.ComponentToggle`: a record's completion circle, a one-field form that PATCHes the
+// Machine's status Field the other way (`name`/`value` are derived by lowering, never typed) and swaps nothing -- the generic patch
+// route answers a request from a declared page with `HX-Refresh: true`, so the page re-reads with the task finished (or open
+// again). Its accessible name says what pressing it does and names the record, as the board card's circle always has.
+templ toggle(describes string, checked bool, action, name, value string) {
+	<form class="m-0 inline-flex shrink-0" hx-patch={ action } hx-swap="none">
+		<input type="hidden" name={ name } value={ value }/>
+		@completionCircle(completeLabel(checked, describes), checked)
+	</form>
+}
+
+// completionCircle is the circle itself -- the one `<button>` both the Toggle Component and a board card's hover circle draw, so
+// the two cannot come to look or sound different: a ring while open, a filled mark with a check once finished, `aria-pressed` for
+// the state and `label` for what pressing it does. It submits the form it sits in; where that form goes is the caller's.
+templ completionCircle(label string, done bool) {
+	<button type="submit" aria-pressed={ fmt.Sprint(done) } aria-label={ label } class={ "grid size-5 place-items-center rounded-full border-2", touchTargetClass(), onFillClass(ctx), completionStateClasses(ctx, done) }>
+		if done {
+			@icon("check", "size-3")
+		}
+	</button>
+}
+
+// completionStateClasses is what changes between the two states of the circle: the finished mark's border and fill, or the
+// control border of the ring with the finished border on hover. Theme roles, never a literal colour.
+func completionStateClasses(ctx context.Context, done bool) string {
+	if done {
+		return markGoodBorder() + " " + markGoodFill()
+	}
+	return borderClass(ctx, domain.BorderControl) + " " + markGoodHoverBorder()
 }
 
 // requestVals is the JSON htmx merges into a request's body: the one Field a transition Button sets, so the patch

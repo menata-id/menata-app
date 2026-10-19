@@ -746,7 +746,7 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 		machine *domain.Machine
 		dataset domain.Dataset
 	}
-	deletes, moves, transitions, prints := 0, 0, 0, 0
+	deletes, moves, transitions, prints, toggles := 0, 0, 0, 0, 0
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
 		sourceOf := map[string]source{}
@@ -758,6 +758,34 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 		for _, app := range ws.Applications {
 			var walk func(n domain.PageNode, where string, item *source)
 			walk = func(n domain.PageNode, where string, item *source) {
+				if n.Kind == "component" && n.Type == string(domain.ComponentToggle) {
+					// The completion circle (2026-10-19): a transition write that names no status -- the Machine's `completion:` is
+					// the whole of it, written the other way from where the record stands. Re-derived here from the Machine.
+					toggles++
+					switch {
+					case n.Binding == nil || n.Binding.Write != domain.PageWriteTransition:
+						t.Errorf("%s: a Toggle is bound with write: %s", where, domain.PageWriteTransition)
+					case item == nil:
+						t.Errorf("%s: a Toggle sits inside a record template (a Table's cell:, or a records Collection's item)", where)
+					case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "" || n.Binding.Transition != "":
+						t.Errorf("%s: a Toggle acts on its own record's completion and names no dataset, rows, measure or edge", where)
+					case n.From["describes"] == "":
+						t.Errorf("%s: a Toggle repeats down a list, so it names its record with from: {describes: <role>}", where)
+					case item.machine.AppendOnly || item.machine.Completion == nil:
+						t.Errorf("%s: machine %s is append-only or declares no completion:, so a Toggle has nothing to write", where, item.machine.ID)
+					default:
+						m := item.machine
+						field, ok := m.FieldByID(m.CardFieldFor(domain.CardFieldRoleStatus))
+						if !ok || !slices.Contains(field.Options, m.Completion.Done) || !slices.Contains(field.Options, m.ReopenValue()) {
+							t.Errorf("%s: machine %s's status Field cannot hold both the completion value %q and the reopen value %q", where, m.ID, m.Completion.Done, m.ReopenValue())
+						}
+					}
+					for _, key := range []string{"checked", "action", "name", "value", "becomes", "confirm"} {
+						if _, typed := n.Props[key]; typed {
+							t.Errorf("%s: a Toggle derives %q from the Machine and the record; a page never writes it", where, key)
+						}
+					}
+				}
 				if n.Kind == "component" && n.Type == string(domain.ComponentButton) {
 					for _, key := range []string{"action", "method", "href", "name", "value"} {
 						if _, typed := n.Props[key]; typed {
@@ -864,7 +892,8 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						}
 					}
 				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove || n.Binding.Write == domain.PageWriteTransition) &&
-					!(n.Type == string(domain.ComponentForm) && n.Binding.Write == domain.PageWriteTransition && n.Binding.Transition != "") {
+					!(n.Type == string(domain.ComponentForm) && n.Binding.Write == domain.PageWriteTransition && n.Binding.Transition != "") &&
+					!(n.Type == string(domain.ComponentToggle) && n.Binding.Write == domain.PageWriteTransition) {
 					// A Form may take a declared edge with what it asks (a proof with "Mark as paid"); nothing else but a
 					// Button deletes, moves or transitions.
 					t.Errorf("%s: write: %s is bound to a %s; only a Button deletes, moves or transitions", where, n.Binding.Write, n.Type)
@@ -899,6 +928,9 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 	}
 	if prints == 0 {
 		t.Fatal("no installed page declares a print Button -- the print half of this gate is measuring nothing")
+	}
+	if toggles == 0 {
+		t.Fatal("no installed page declares a Toggle -- the completion half of this gate is measuring nothing")
 	}
 }
 

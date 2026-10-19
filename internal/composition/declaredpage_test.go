@@ -878,3 +878,21 @@ func TestAStatusWithNoValueStillHasANeutralTone(t *testing.T) {
 		t.Error("a status with a value lost its tone key")
 	}
 }
+
+// TestFillDerivedPersonIsEmptyForNobody: the Avatar's initials come from the person the record names, and a record naming nobody holds
+// the empty string -- which leaves the node undrawn, where "?" would say someone is assigned.
+func TestFillDerivedPersonIsEmptyForNobody(t *testing.T) {
+	for name, tc := range map[string]struct{ person, want string }{
+		"two words": {"Budi Santoso", "BS"},
+		"one word":  {"Budi", "B"},
+		"lower":     {"dedi wahyu", "DW"},
+		"nobody":    {"", ""},
+		"blank":     {"   ", ""},
+	} {
+		item := map[string]string{string(domain.CardFieldRolePerson): tc.person}
+		fillDerivedPerson(item)
+		if got, present := item[domain.PagePersonInitialsRole]; got != tc.want || !present {
+			t.Errorf("%s: initials = %q (present %v), want %q present", name, got, present, tc.want)
+		}
+	}
+}

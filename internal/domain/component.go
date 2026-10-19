@@ -217,6 +217,11 @@ const (
 	// options in order, the ones passed done, the current one marked, the rest to come. The steps are derived from the
 	// Field's options and `status_categories:` (`from: {steps: "steps:fld_status"}`), never written.
 	ComponentStepper ComponentType = "Stepper"
+	// ComponentToggle is a record's completion circle (mockup PM01/PM08): one round control that is open (a ring) or finished (a
+	// filled circle with a check) and writes the Machine's own `completion:` Field the other way when pressed. It is a Component of
+	// its own rather than a Button because what it says is a *state* (aria-pressed), not an action's name; the Field it writes and
+	// the value are the Machine's, derived by lowering, never typed.
+	ComponentToggle ComponentType = "Toggle"
 )
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action

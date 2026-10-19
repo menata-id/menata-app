@@ -23,7 +23,7 @@ func renderTable(t *testing.T, label, empty, headers, aligns string, cells ...st
 		cs[i] = cellText(c)
 	}
 	var b bytes.Buffer
-	if err := table(label, empty, headers, aligns, false, Truncation{}, "", cs).Render(assignedNavFixture(), &b); err != nil {
+	if err := table(label, empty, headers, aligns, "", false, Truncation{}, "", cs).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	return b.String()
@@ -73,10 +73,10 @@ func TestTable_escapesAHeaderAndNeverPanicsOnShortProps(t *testing.T) {
 	if got := renderTable(t, "T", "", "A\nB", "start,start", "x", "y", "z"); strings.Count(got, "<tr>") != 2 {
 		t.Errorf("a ragged cell list drew %d rows, want the header and one whole row", strings.Count(got, "<tr>"))
 	}
-	if cols := tableColumnsFromProps("", ""); cols != nil {
+	if cols := tableColumnsFromProps("", "", ""); cols != nil {
 		t.Errorf("no headers = %v, want nil", cols)
 	}
-	if cols := tableColumnsFromProps("A\nB", "end"); cols[0].Align != domain.TableAlignEnd || cols[1].Align == domain.TableAlignEnd {
+	if cols := tableColumnsFromProps("A\nB", "end", ""); cols[0].Align != domain.TableAlignEnd || cols[1].Align == domain.TableAlignEnd {
 		t.Errorf("a short alignment list = %+v", cols)
 	}
 }
@@ -86,17 +86,32 @@ func TestTable_escapesAHeaderAndNeverPanicsOnShortProps(t *testing.T) {
 func TestTableSaysWhatACutListWasCutFrom(t *testing.T) {
 	var b strings.Builder
 	cell := templ.Raw("<span>a</span>")
-	if err := table("Contracts", "", "Contract", "start", false, truncationFromProp("100/340"), "", []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+	if err := table("Contracts", "", "Contract", "start", "", false, truncationFromProp("100/340"), "", []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(b.String(), "Showing the first 100 of 340") {
 		t.Errorf("a cut list does not say what it was cut from: %s", b.String())
 	}
 	b.Reset()
-	if err := table("Contracts", "", "Contract", "start", false, truncationFromProp(""), "", []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
+	if err := table("Contracts", "", "Contract", "start", "", false, truncationFromProp(""), "", []templ.Component{cell}).Render(assignedNavFixture(), &b); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "Showing the first") {
 		t.Errorf("a list the bound did not cut says it was: %s", b.String())
+	}
+}
+
+// TestTable_aHiddenHeaderKeepsItsWordsForAScreenReader: `hide_header:` draws nothing for the eye and still names the column.
+func TestTable_aHiddenHeaderKeepsItsWordsForAScreenReader(t *testing.T) {
+	var b bytes.Buffer
+	if err := table("Tasks", "", "Complete\nTask", "start,start", "0", false, Truncation{}, "", []templ.Component{cellText("x"), cellText("y")}).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	html := b.String()
+	if !strings.Contains(html, `<span class="sr-only">Complete</span>`) {
+		t.Errorf("the hidden header is not drawn for assistive technology only: %s", html)
+	}
+	if strings.Contains(html, `>Task</span>`) || !strings.Contains(html, ">Task</th>") {
+		t.Errorf("a column that is not hidden lost its visible header: %s", html)
 	}
 }

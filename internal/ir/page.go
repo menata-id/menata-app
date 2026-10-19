@@ -111,7 +111,10 @@ type RecordTransition struct {
 	Field  string
 	Done   string
 	Reopen string
-	Allows func(target string) (allowed, known bool)
+	// Complete is whether the record stands at the Machine's `completion:` value now: the state a Toggle draws, and so which of
+	// Done and Reopen pressing it writes.
+	Complete bool
+	Allows   func(target string) (allowed, known bool)
 	// Edges are the Machine's declared transitions by id, each with whether this viewer may take it from where this
 	// record is now: what a Button naming its edge (`binding: {write: transition, transition: trn_x}`) moves, on any
 	// status Field of the Machine.
@@ -544,6 +547,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition && n.Binding.All {
 		return lowerTransitionAll(n, r, path, record)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition && NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentToggle) {
+		return lowerToggle(n, path, record, writes)
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition {
 		return lowerTransitionButton(n, path, record, writes)
@@ -1738,6 +1744,73 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	props["name"] = t.Field
 	props["value"] = target
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// toggleStateProps are the properties a Toggle's lowering derives from the Machine and the record; an author writes none.
+var toggleStateProps = []string{"checked", formActionProp, "name", "value", buttonBecomesProp}
+
+// lowerToggle turns a `Toggle` bound with `write: transition` into the completion circle of one record: drawn finished when the
+// record stands at the Machine's `completion:` value, and pressing it sends `PATCH` of the status Field to the *other* side --
+// the Reopen value for a finished record, the Done value for an open one -- so the one declaration serves both directions
+// and a page never names a status, a Field or a route. Like the transition Button it asks nothing (it is undone by
+// pressing it again), takes the record's name only for assistive technology (`from: {describes: title}`), and is not drawn
+// for a record or a viewer the move is not allowed on.
+func lowerToggle(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	from := n.From
+	n.From = nil
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	for prop := range from {
+		if prop != buttonDescribesProp {
+			return nil, fmt.Errorf("%s: a Toggle takes only from: {%s: <role>}, the record's own name for assistive technology; %q is not an input it reads from a record", path, buttonDescribesProp, prop)
+		}
+	}
+	switch {
+	case record == nil:
+		return nil, fmt.Errorf("%s: a Toggle acts on a record, so it is valid only inside a record template (a Table's cell:, or the item of a Collection bound with rows: %s)", path, domain.PageRowsRecords)
+	case n.Binding.Dataset != "" || n.Binding.Transition != "" || n.Binding.All:
+		return nil, fmt.Errorf("%s: a Toggle writes the Machine's completion on the record it sits in, so its binding is write: %s alone", path, domain.PageWriteTransition)
+	case len(from) == 0:
+		return nil, fmt.Errorf("%s: a Toggle is named for the record it completes, so it takes from: {%s: <role>} (an icon-only control with no name is a circle a screen reader cannot find)", path, buttonDescribesProp)
+	}
+	for _, p := range toggleStateProps {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: %s is derived from the Machine's `completion:` and the record, never typed", path, p)
+		}
+	}
+	if writes == nil || writes.Transition == nil || writes.Transition.Allows == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no transition for this record", path)
+	}
+	t := writes.Transition
+	if t.Done == "" || t.Reopen == "" {
+		return nil, fmt.Errorf("%s: a Toggle needs the Machine to declare a `completion:`, and this one declares none", path)
+	}
+	target := t.Done
+	if t.Complete {
+		target = t.Reopen
+	}
+	allowed, known := t.Allows(target)
+	if !known {
+		return nil, fmt.Errorf("%s: the Machine's status Field has no option %q to write", path, target)
+	}
+	if !allowed {
+		return nil, nil
+	}
+	filled, err := fillFrom(domain.PageNode{Props: n.Props, From: from}, record, path)
+	if err != nil {
+		return nil, err
+	}
+	props := make(map[string]string, len(n.Props)+5)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props[buttonDescribesProp] = filled[buttonDescribesProp]
+	props["checked"] = strconv.FormatBool(t.Complete)
+	props[formActionProp] = t.Route
+	props["name"] = t.Field
+	props["value"] = target
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentToggle), Props: props}}, nil
 }
 
 // lowerEdgeButton is a transition Button that names its declared edge (`transition: trn_contract_activate`): it moves the

@@ -736,3 +736,47 @@ func TestValidateButtonAPatchMayAsk(t *testing.T) {
 		t.Errorf("a transition that asks was refused: %v", issues)
 	}
 }
+
+// TestToggleNamesItsRecordAndCarriesItsWrite: a circle has no text, so `describes` is required and may not be blank, and the four
+// derived inputs travel together -- a Toggle with no route, Field or value is a control wired to nothing.
+func TestToggleNamesItsRecordAndCarriesItsWrite(t *testing.T) {
+	ok := map[string]string{"describes": "Scout", "checked": "false", "action": "/machines/m/records/r", "name": "fld_status", "value": "done"}
+	if issues := ValidateComponentUse(domain.ComponentToggle, ok); len(issues) != 0 {
+		t.Fatalf("a whole Toggle was refused: %v", issues)
+	}
+	for name, edit := range map[string]func(m map[string]string){
+		"no name":          func(m map[string]string) { delete(m, "describes") },
+		"a blank name":     func(m map[string]string) { m["describes"] = "  " },
+		"no state":         func(m map[string]string) { delete(m, "checked") },
+		"a state of maybe": func(m map[string]string) { m["checked"] = "maybe" },
+		"no route":         func(m map[string]string) { delete(m, "action") },
+		"no field":         func(m map[string]string) { delete(m, "name") },
+		"no value":         func(m map[string]string) { delete(m, "value") },
+		"a class":          func(m map[string]string) { m["class"] = "x" },
+		"an hx attribute":  func(m map[string]string) { m["hx-post"] = "/x" },
+	} {
+		in := map[string]string{}
+		for k, v := range ok {
+			in[k] = v
+		}
+		edit(in)
+		if issues := ValidateComponentUse(domain.ComponentToggle, in); len(issues) == 0 {
+			t.Errorf("%s: a Toggle use passed validation", name)
+		}
+	}
+}
+
+// TestATableHidesOnlyColumnsItHas: `hidden` is the places of header cells drawn for assistive technology only.
+func TestATableHidesOnlyColumnsItHas(t *testing.T) {
+	use := func(hidden string) []string {
+		return ValidateComponentUse(domain.ComponentTable, map[string]string{"label": "T", "headers": "A\nB", "aligns": "start,start", "hidden": hidden})
+	}
+	if issues := use("0"); len(issues) != 0 {
+		t.Errorf("a hidden first column was refused: %v", issues)
+	}
+	for _, bad := range []string{"2", "-1", "x"} {
+		if issues := use(bad); len(issues) == 0 {
+			t.Errorf("hidden %q passed for a two-column Table", bad)
+		}
+	}
+}

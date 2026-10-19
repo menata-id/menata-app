@@ -944,16 +944,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					hx-swap="innerHTML"
 				>
 					<input type="hidden" name={ c.Complete.Field } value={ c.Complete.Next }/>
-					<button
-						type="submit"
-						aria-pressed={ fmt.Sprint(done) }
-						aria-label={ completeLabel(done, title) }
-						class={ "grid size-5 place-items-center rounded-full border-2", touchTargetClass(), onFillClass(ctx), templ.KV(markGoodBorder()+" "+markGoodFill(), done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !done) }
-					>
-						if done {
-							@icon("check", "size-3")
-						}
-					</button>
+					@completionCircle(completeLabel(done, title), done)
 				</form>
 			}
 			if canEdit {

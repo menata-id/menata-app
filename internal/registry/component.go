@@ -68,6 +68,44 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentFilterSelect:     {Contract: filterSelectContract, Validate: validateFilterSelect},
 	domain.ComponentActionBar:        {Contract: actionBarContract, Validate: validateActionBar},
 	domain.ComponentStepper:          {Contract: stepperContract, Validate: validateStepper},
+	domain.ComponentToggle:           {Contract: toggleContract, Validate: validateToggle},
+}
+
+// toggleContract is a record's completion circle (mockup PM01 and PM08): open (a ring) or finished (a filled circle with a
+// check), and pressing it writes the Machine's own `completion:` Field the other way. It is a Component rather than a
+// `Button` variant because what it says is a state, not an action: a screen reader hears "pressed" or "not pressed" against
+// a name, and sighted people read the ring and the fill.
+//
+// **Every input but `describes` is derived.** `checked` is whether the record stands at the Machine's completion value,
+// and `action`, `name` and `value` are the PATCH route, the status Field and the value to write -- the *other* side of
+// where the record is -- so a page declares `component: Toggle, from: {describes: title}` and names no status, Field or
+// route (001 #3, #8). `describes` is required for the reason Avatar's `label` is: a bare circle has no name.
+var toggleContract = domain.ComponentContract{
+	Type:   domain.ComponentToggle,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "describes", Kind: "string", Required: true},
+		{Name: "checked", Kind: "bool", Required: true},
+		{Name: "action", Kind: "string", Required: true},
+		{Name: "name", Kind: "string", Required: true},
+		{Name: "value", Kind: "string", Required: true},
+	},
+	Actions:       []string{"transition"},
+	Accessibility: "a real <button> with aria-pressed carrying the state; its accessible name says what pressing it does and names the record (`describes`), so no two circles down a list share a bare name; the ring and the filled check differ in lightness and shape as well as colour",
+	Renderer:      "toggle",
+}
+
+// validateToggle checks a use against the declared inputs and the two rules that are not presence: `checked` is a boolean
+// word, and `describes` is not blank (a name of spaces is a circle a screen reader cannot find).
+func validateToggle(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(toggleContract, inputs, "Toggle")
+	if v, ok := inputs["checked"]; ok && v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Toggle checked %q is not true or false", v))
+	}
+	if v, ok := inputs["describes"]; ok && v != "" && strings.TrimSpace(v) == "" {
+		issues = append(issues, "Toggle describes is blank -- the circle would carry no name")
+	}
+	return issues
 }
 
 // stepperContract is a record's place in its lifecycle. `label` names it ("Contract status"); `steps` is one
@@ -205,6 +243,16 @@ func filterQueryIssues(name, p string) []string {
 	return issues
 }
 
+func nonEmptyTokens(s string) []string {
+	var out []string
+	for _, t := range strings.Split(s, ",") {
+		if strings.TrimSpace(t) != "" {
+			out = append(out, strings.TrimSpace(t))
+		}
+	}
+	return out
+}
+
 func nonEmptyLines(s string) []string {
 	var out []string
 	for _, l := range strings.Split(s, "\n") {
@@ -231,6 +279,9 @@ var tableContract = domain.ComponentContract{
 		{Name: "empty", Kind: "string"},
 		{Name: "headers", Kind: "string", Required: true},
 		{Name: "aligns", Kind: "string"},
+		// hidden is lowered from the columns' `hide_header: true`: the places (0-based, comma-joined) whose header words are kept
+		// for assistive technology and not drawn. Never written.
+		{Name: "hidden", Kind: "string"},
 		// truncated is lowered from `complete: true` when the Dataset's bound cut the list: "100", or "100/340" when the
 		// count it was cut from is known. Never written.
 		{Name: "truncated", Kind: "string"},
@@ -268,6 +319,11 @@ func validateTable(inputs map[string]string) []string {
 		if strings.TrimSpace(h) == "" && i < len(headers)-1 {
 			issues = append(issues, "Table has a blank header")
 			break
+		}
+	}
+	for _, h := range nonEmptyTokens(inputs["hidden"]) {
+		if i, err := strconv.Atoi(h); err != nil || i < 0 || i >= len(headers) {
+			issues = append(issues, fmt.Sprintf("Table hidden %q is not the place of one of its %d columns", h, len(headers)))
 		}
 	}
 	if a := inputs["aligns"]; a != "" {
@@ -997,7 +1053,7 @@ var statusBadgeContract = domain.ComponentContract{
 // what made it a requirement.
 var avatarContract = domain.ComponentContract{
 	Type:   domain.ComponentAvatar,
-	Status: domain.ComponentStatusExperimental,
+	Status: domain.ComponentStatusStable,
 	Inputs: []domain.ComponentInput{
 		{Name: "initials", Kind: "string", Required: true},
 		// Required, and this is the accessibility clause as an input rather than as prose. An avatar with no

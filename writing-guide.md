@@ -1369,7 +1369,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `Progress` | stable | Declared by an installed page (Dashboard) |
 | `StatusBadge` | stable | Declared by five installed pages (Calendar, Dashboard, both document lists, My Tasks) |
 | `Tag` | stable | Declared by installed pages (Board Settings, Calendar, My Tasks) |
-| `Avatar` | experimental | No installed `page:` declares one yet: the bespoke screens draw it, the contract was registered over four measured sites |
+| `Avatar` | stable | Declared by installed pages (Project Management's Table: the assignee, `from: {initials: "person:initials", label: person}`) |
 | `Callout` | stable | Declared by the runtime's own page for the template library (a template that cannot be installed here, and why) |
 | `Diff` | stable | Declared by the runtime's own page for replacing a Workspace file (what applying the reviewed draft would change) |
 | `Disclosure` | stable | Declared by the runtime's own page for Groups ("+ New group"); Members still draws it in Go ("+ Invite member") |
@@ -1378,6 +1378,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `NavList` | stable | Declared by the runtime's own page for Groups, installed in every Workspace |
 | `SearchBox` | stable | Declared by the runtime's own page for Members, installed in every Workspace |
 | `Stepper` | stable | Declared by installed pages (Dokter Kecil's contract and payment plan pages) |
+| `Toggle` | stable | Declared by installed pages (Project Management's Table: the completion circle) |
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
@@ -1861,6 +1862,42 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   Dataset's bound cut has no total row.
 - **`related: rel_x`** shows the first record a Dataset's Relation found for the row (named by its title, else its first
   Field of its own words, never an id) and its status in its tone.
+- **`cell:`** (2026-10-19, mockup PM08) makes a column's cell a **template drawn once per record**, the way a Collection's item is,
+  instead of one value the column names. Anything a record template may hold goes in it -- a Tag per label with `each: tags`, an
+  Avatar, a StatusBadge toned by a derived role, the completion `Toggle` -- under the same grammar (`from:`, `each:`, `when:`), so
+  there is no second vocabulary for cells. A column shows exactly one of `from:`, `field:`, `related:` or `cell:`.
+  **`empty:`** (beside `cell:`) is what the cell says when its template draws nothing for a record (no label, no date, nobody
+  assigned: "—", "no list"); several nodes (three labels) lie in a row. **`hide_header: true`** keeps the header's words for a screen
+  reader and draws none of them (the circle's column). Not on a Dimension's rows.
+
+  ```yaml
+  - component: Table                       # a Task Table: circle, title, list, labels, due date, assignee
+    label: Tasks
+    framed: true
+    binding: { dataset: ds_task_table, rows: records }
+    columns:
+      - header: Complete
+        hide_header: true
+        cell: { component: Toggle, from: { describes: title }, binding: { write: transition } }
+      - { header: Task, from: title, href: record }
+      - header: Label
+        empty: "—"
+        cell: { component: Tag, each: tags, from: { label: title, color: color } }
+      - header: Due
+        empty: "—"
+        cell: { component: StatusBadge, from: { label: "date:label", tone: "date:tone" } }
+      - header: Assignee
+        empty: "—"
+        cell: { component: Avatar, size: compact, presence: present, from: { initials: "person:initials", label: person } }
+  ```
+
+- **`component: Toggle`** is a record's completion circle: a ring while open, a filled check once finished, `aria-pressed` for the
+  state. It takes only `from: {describes: <role>}` (the record's name, its accessible name) and `binding: {write: transition}`;
+  which Field it writes and the value are the Machine's `completion:`, written the *other* way from where the record stands, so one
+  declaration serves both directions. It is not drawn for a record or a viewer the move is not allowed on, and needs a Machine that
+  declares `completion:`. A checklist row and a board card draw the same circle.
+- **`person:initials`** is a derived role (beside `date:label`, `group:label`): the initials of the record's `person`, empty when
+  nobody is named, and a node that reads an empty derived role is not drawn -- so an unassigned task draws no circle of "?".
 - **`under: fld_x`** beside `field:` draws a second line in the cell, smaller: another Field of the same record
   (`{header: Instalment, field: fld_term_title, under: fld_contract_ref}` -- K02a's "Dimas Prayoga — Week 2" over
   "CTR/K/031"). Nothing in it leaves the cell as it was. **`from: "row:number"`** shows the row's place, 1 first (K01d's

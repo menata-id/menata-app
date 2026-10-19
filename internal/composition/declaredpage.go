@@ -313,6 +313,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		fillCreatedAndLink(item, src, r)
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
+		fillDerivedPerson(item)
 		edit, del := recordEditForm(src, r, viewer), recordDeleteAction(src, r, viewer)
 		move, transition := recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated), recordTransition(src, r, viewer)
 		// What the routes would refuse for a reason outside the record itself is not offered either: a record frozen by
@@ -505,6 +506,18 @@ func fillDerivedGroup(item map[string]string, src *domain.Machine, r *data.Recor
 	item[domain.PageGroupLabelRole] = value
 }
 
+// fillDerivedPerson puts the initials of the person a record's `person` role names under `person:initials`, the circle an
+// Avatar draws. "" when the record names nobody (or nobody the Workspace can name), which leaves a node reading it undrawn: a
+// "?" in a circle for an unassigned task would say someone is assigned.
+func fillDerivedPerson(item map[string]string) {
+	name := strings.TrimSpace(item[string(domain.CardFieldRolePerson)])
+	if name == "" {
+		item[domain.PagePersonInitialsRole] = ""
+		return
+	}
+	item[domain.PagePersonInitialsRole] = Initials(name)
+}
+
 // recordRelations is what the Projection resolves a reference through for the listed records: the display name of
 // every person they name in a `person` Field, and the title of every record they name in a `container` Field.
 //
@@ -648,7 +661,7 @@ func recordMove(src *domain.Machine, r *data.Record, viewer domain.Actor, hasPre
 // the others: the patch route runs every one of these checks again.
 func recordTransition(src *domain.Machine, r *data.Record, viewer domain.Actor) ir.RecordTransition {
 	field := src.CardFieldFor(domain.CardFieldRoleStatus)
-	t := ir.RecordTransition{Route: RecordRoute(src.ID, r.ID), Field: field, Reopen: src.ReopenValue()}
+	t := ir.RecordTransition{Route: RecordRoute(src.ID, r.ID), Field: field, Reopen: src.ReopenValue(), Complete: IsComplete(src, r)}
 	if src.Completion != nil {
 		t.Done = src.Completion.Done
 	}

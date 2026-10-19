@@ -482,6 +482,58 @@ navigation:
                         describes: title
                       binding:
                         write: transition
+  # The Table, the Board's second arrangement of the same tasks (Case 19 PM08): one flat list, a row per Task -- the completion
+  # circle, the title, the List it sits in, its labels, its date in the tone the Machine derives, and who holds it. Every cell is
+  # a template over the Machine's own declarations (a column's `cell:`), so the page names no Field, status, route or colour. It is
+  # not a menu entry (`in_menu: false`): it is reached from the Board's view switch, as the mockup draws it.
+  - id: nav_task_table
+    label: Table
+    route: /pages/nav_task_table
+    priority: 5
+    in_menu: false
+    icon: board
+    description: The same tasks as the board, in one flat list.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Tasks
+          empty: No tasks yet.
+          framed: true
+          binding: { dataset: ds_task_table, rows: records }
+          columns:
+            - header: Complete
+              hide_header: true
+              cell:
+                component: Toggle
+                from: { describes: title }
+                binding: { write: transition }
+            - { header: Task, from: title, href: record }
+            - header: List
+              empty: no list
+              cell:
+                component: StatusBadge
+                tone: neutral
+                from: { label: "group:label" }
+            - header: Label
+              empty: "—"
+              cell:
+                component: Tag
+                each: tags
+                from: { label: title, color: color }
+            - header: Due
+              empty: "—"
+              cell:
+                component: StatusBadge
+                from: { label: "date:label", tone: "date:tone" }
+            - header: Assignee
+              empty: "—"
+              cell:
+                component: Avatar
+                size: compact
+                presence: present
+                from: { initials: "person:initials", label: person }
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

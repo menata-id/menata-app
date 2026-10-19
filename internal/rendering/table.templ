@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"strconv"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -11,6 +12,8 @@ import (
 type TableColumn struct {
 	Header string
 	Align  domain.TableAlign
+	// Hidden keeps Header for assistive technology and draws none of it (`hide_header:` on a declared column).
+	Hidden bool
 }
 
 // tableAlignClass is the edge a column's text sits on, for a header cell and for each body cell of that column.
@@ -39,7 +42,13 @@ templ dataTable(label string, columns []TableColumn) {
 			<thead>
 				<tr>
 					for _, c := range columns {
-						<th scope="col" class={ tableHeadCellClassesFor(ctx, c.Align) }>{ c.Header }</th>
+						<th scope="col" class={ tableHeadCellClassesFor(ctx, c.Align) }>
+							if c.Hidden {
+								<span class="sr-only">{ c.Header }</span>
+							} else {
+								{ c.Header }
+							}
+						</th>
 					}
 				</tr>
 			</thead>
@@ -65,8 +74,8 @@ func recordTableColumns(fields []domain.Field) []TableColumn {
 // header, both produced by lowering from the page's `columns:`; the cells are row-major, so cell i belongs to column
 // i mod the number of headers and to row i div that number. A table with no cells and an `empty` text says that instead
 // of drawing a header over nothing.
-templ table(label, empty, headers, aligns string, framed bool, truncated Truncation, footer string, cells []templ.Component) {
-	{{ cols := tableColumnsFromProps(headers, aligns) }}
+templ table(label, empty, headers, aligns, hidden string, framed bool, truncated Truncation, footer string, cells []templ.Component) {
+	{{ cols := tableColumnsFromProps(headers, aligns, hidden) }}
 	if len(cells) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if framed {
@@ -108,7 +117,7 @@ templ tableBody(label string, cols []TableColumn, cells []templ.Component, foote
 // tableColumnsFromProps reads the two lowered properties back into columns. A missing or short alignment list is the
 // start edge, never a panic: ir.Validate and the contract's validator refuse a tree whose counts disagree, and this is
 // the second line of defence for one that reached the renderer anyway.
-func tableColumnsFromProps(headers, aligns string) []TableColumn {
+func tableColumnsFromProps(headers, aligns, hidden string) []TableColumn {
 	if headers == "" {
 		return nil
 	}
@@ -119,6 +128,11 @@ func tableColumnsFromProps(headers, aligns string) []TableColumn {
 		out[i].Header = h
 		if i < len(as) && domain.TableAlign(as[i]) == domain.TableAlignEnd {
 			out[i].Align = domain.TableAlignEnd
+		}
+	}
+	for _, h := range strings.Split(hidden, ",") {
+		if i, err := strconv.Atoi(strings.TrimSpace(h)); err == nil && i >= 0 && i < len(out) {
+			out[i].Hidden = true
 		}
 	}
 	return out

@@ -1,0 +1,77 @@
+case: 19
+title: Project Management -- the task Table (PM08)
+actors:
+  - { name: nia, role: "" }
+steps:
+  - id: todo
+    as: nia
+    create: { machine: mch_list, values: { fld_name: To Do } }
+    expect: ok
+  - id: done-list
+    as: nia
+    create: { machine: mch_list, values: { fld_name: Done } }
+    expect: ok
+  - id: scout
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Scout rooftop location, fld_list: $todo, fld_assignee: $nia, fld_due_date: "2026-10-03" } }
+    expect: ok
+  - id: signed
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Sign location contract, fld_list: $done-list, fld_status: done, fld_assignee: $nia, fld_due_date: "2026-10-02" } }
+    expect: ok
+  - id: loose
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Update crew contact sheet } }
+    expect: ok
+  - id: location
+    as: nia
+    create: { machine: mch_label, values: { fld_name: Location, fld_color: blue } }
+    expect: ok
+  - id: labelled
+    as: nia
+    create: { machine: mch_card_label, values: { fld_task: $scout, fld_label: $location } }
+    expect: ok
+
+  # One flat list: a row per task, each a link, with the list it is in, its labels, its date and who holds it.
+  - id: the-table-lists-every-task
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - Scout rooftop location
+        - Sign location contract
+        - Update crew contact sheet
+        - To Do
+        - Done
+        - Location
+        - 03 Oct
+  # A task with no list, no label, no date and nobody says so in its own cells, and draws no empty pill or circle of initials.
+  - id: a-bare-task-says-what-it-lacks
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - no list
+  # The completion circle is a control of its own: named for what it does to this task, pressed for a finished one.
+  - id: the-circle-says-what-it-does
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - Mark “Scout rooftop location” complete
+        - Mark “Sign location contract” not complete
+        - aria-pressed="true"
+        - aria-pressed="false"
+  # Not an editing grid: no Edit, no Delete, no row to add a record in.
+  - id: the-table-is-for-reading
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      hides:
+        - ">Delete<"
+        - ">Edit<"
+        - ">Add<"
