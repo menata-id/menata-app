@@ -799,8 +799,23 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						if n.From["describes"] == "" {
 							t.Errorf("%s: a transition Button repeats down a list, so it names its record with from: {describes: <role>} -- otherwise a screen reader hears the same bare label once per row", where)
 						}
+						// A transition asks only when it cannot be taken back: nothing leads out of the status it reaches. One that can be
+						// undone by its opposite asks nothing -- a question there is noise a person learns to click through.
 						if _, asks := n.Props["confirm"]; asks {
-							t.Errorf("%s: a transition is undone by its opposite and asks nothing", where)
+							edge, found := domain.Transition{}, false
+							for _, e := range item.machine.Transitions {
+								if e.ID == n.Binding.Transition {
+									edge, found = e, true
+								}
+							}
+							if !found {
+								t.Errorf("%s: a transition that asks names its edge (transition: trn_x), so the gate can see whether it can be undone", where)
+							}
+							for _, e := range item.machine.Transitions {
+								if found && e.Field == edge.Field && e.From == edge.To {
+									t.Errorf("%s: a transition to %q asks, though %s leads out of it -- it is undone by its opposite and asks nothing", where, edge.To, e.ID)
+								}
+							}
 						}
 						// A Button naming its edge (`transition: trn_x`) moves that edge's own Field: the edge must be one the
 						// Machine declares for the edit action, re-derived here and not from metadata's own check.

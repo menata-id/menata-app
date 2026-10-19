@@ -16,7 +16,7 @@ import (
 // What it cannot see: a floating panel whose surface or shadow arrives from a Go function (the app shell's `sheetPanel`
 // does, and is the native Popover API with its own bottom sheet on a phone, a different thing), and an `absolute` panel
 // with no shadow. The board card's quick edit and a lane's "Add a card" expand in place (no `absolute` surface, no shadow)
-// and are not popovers. The sanity check requires popover.templ to hold exactly one such tag.
+// and are not popovers. The sanity check requires popover.templ to hold exactly two such tags (a menu's panel and a dialog's).
 func TestNoHandWrittenPopover(t *testing.T) {
 	open := regexp.MustCompile(`(?i)<[a-z][a-z0-9]*[\s>]`)
 	own := 0
@@ -42,7 +42,7 @@ func TestNoHandWrittenPopover(t *testing.T) {
 			t.Errorf("%s: a hand-written floating panel (%.90q) -- a panel under a trigger reads @popover(label, title, trigger, align, density) { ... }", name, strings.Join(strings.Fields(tag), " "))
 		}
 	}
-	if own != 1 {
-		t.Fatalf("popover.templ holds %d floating panel tags, want exactly 1 -- the scan is measuring something other than the component", own)
+	if own != 2 {
+		t.Fatalf("popover.templ holds %d floating panel tags, want exactly 2 (the menu's panel and the dialog's) -- the scan is measuring something other than the component", own)
 	}
 }

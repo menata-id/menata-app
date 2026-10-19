@@ -1686,9 +1686,10 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	if becomes == "" {
 		return nil, fmt.Errorf("%s: a transition Button names the status it moves to in %s: -- a status option, %s or %s", path, buttonBecomesProp, domain.PageTransitionDone, domain.PageTransitionReopen)
 	}
-	for _, p := range []string{"name", "value", "confirm"} {
+	// `confirm:` is the author's question, for a move that cannot be taken back (a contract cancelled: no edge leads out of it).
+	for _, p := range []string{"name", "value"} {
 		if _, typed := n.Props[p]; typed {
-			return nil, fmt.Errorf("%s: a transition Button sends a request and asks nothing, and its Field and value come from the Machine and %s:, so it takes no %s", path, buttonBecomesProp, p)
+			return nil, fmt.Errorf("%s: a transition Button's Field and value come from the Machine and %s:, so it takes no %s", path, buttonBecomesProp, p)
 		}
 	}
 	if writes == nil || writes.Transition == nil || writes.Transition.Allows == nil {
@@ -1740,7 +1741,7 @@ func lowerEdgeButton(n domain.PageNode, path string, record map[string]string, w
 	if _, written := n.Props[buttonBecomesProp]; written {
 		return nil, fmt.Errorf("%s: a Button that names its transition takes no %s: -- the edge says where it goes", path, buttonBecomesProp)
 	}
-	for _, p := range []string{"name", "value", "confirm"} {
+	for _, p := range []string{"name", "value"} {
 		if _, typed := n.Props[p]; typed {
 			return nil, fmt.Errorf("%s: a transition Button's Field and value are its edge's, so it takes no %s", path, p)
 		}

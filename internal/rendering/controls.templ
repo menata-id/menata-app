@@ -208,7 +208,7 @@ templ requestButton(label string, variant domain.ButtonVariant, name, value, act
 	} else if method == domain.ButtonMethodPost {
 		<button type="button" hx-post={ action } hx-swap="none" if confirm != "" { hx-confirm={ confirm } } if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else if method == domain.ButtonMethodPatch {
-		<button type="button" hx-patch={ action } hx-swap="none" hx-vals={ requestVals(name, value) } if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
+		<button type="button" hx-patch={ action } hx-swap="none" hx-vals={ requestVals(name, value) } if confirm != "" { hx-confirm={ confirm } } if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else {
 		@button(label, variant, name, value)
 	}
@@ -242,9 +242,18 @@ templ form(submit, action, method string, multipart bool, carries, then string) 
 		}
 		@stackLayout(domain.GapDefault) {
 			{ children... }
-			<div>
-				@button(submit, domain.ButtonPrimary, "", "")
-			</div>
+			// In a dialog (a Popover's body) the row holds Cancel beside the submit and is pinned under the scrolling body, so neither is ever
+			// out of sight; elsewhere it is the submit alone.
+			if withinPopover(ctx) {
+				<div class={ "sticky -bottom-4 -mx-4 -mb-4 flex justify-end border-t px-4 py-3", layoutGap(ctx, domain.GapDefault), borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised) }>
+					@popoverClose("Cancel", "Cancel")
+					@button(submit, domain.ButtonPrimary, "", "")
+				</div>
+			} else {
+				<div>
+					@button(submit, domain.ButtonPrimary, "", "")
+				</div>
+			}
 		}
 	</form>
 }

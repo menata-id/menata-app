@@ -188,7 +188,6 @@ func TestValidateButton(t *testing.T) {
 		"unknown verb":         {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "put", "confirm": "Sure?"},
 		"move that asks":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "confirm": "Sure?"},
 		"foreign route":        {"label": "x", "variant": "secondary", "action": "/elsewhere", "method": "delete", "confirm": "Sure?"},
-		"patch that asks":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f", "value": "v", "confirm": "Sure?"},
 		"patch no pair":        {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch"},
 		"patch name only":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f"},
 		"post with a pair":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "name": "f", "value": "v"},
@@ -727,5 +726,13 @@ func TestAPDFButtonIsValidWithNoRouteAndNothingElse(t *testing.T) {
 		if issues := buttonRequestIssues(map[string]string{"method": "pdf", in: "x"}); len(issues) == 0 {
 			t.Errorf("a pdf Button carrying %s was accepted", in)
 		}
+	}
+}
+
+// A status transition may ask before it moves (a move nothing leads back from); the question is the author's sentence.
+func TestValidateButtonAPatchMayAsk(t *testing.T) {
+	in := map[string]string{"label": "Cancel contract", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f", "value": "v", "confirm": "Cancel this contract?"}
+	if issues := ValidateComponentUse(domain.ComponentButton, in); len(issues) != 0 {
+		t.Errorf("a transition that asks was refused: %v", issues)
 	}
 }

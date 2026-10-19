@@ -382,6 +382,7 @@ var handWrittenRawButtons = map[string]struct {
 	"documentsubmit.templ":     {4, "'+ Add approver' (`hx-get`, the link look) and the step's ▲ ▼ ✕ icon buttons, each a hyperscript `_=` that moves or removes its row"},
 	"machine.templ":            {1, "the completion circle: an `aria-pressed` toggle drawn as a glyph"},
 	"newapplication.templ":     {2, "two 'Discard' text actions, grey at rest and red on hover -- the same resting ink and hover as workspacemembers' Revoke (groups' is red at rest)"},
+	"popover.templ":            {1, "the close mark and a Form's Cancel in a dialog: one button carrying `data-popover-close`, the hook the shell's script finds (a script hook, 007 §12.3 `actions`, unbuilt)"},
 	"reviewdocument.templ":     {1, "'Clear': the link look with a `sig-modal-clear` hook class a script finds"},
 	"signatureplacement.templ": {2, "the draggable signature marker (`sig-marker`, its own shape) and 'Re-centre': the link look"},
 }

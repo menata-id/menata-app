@@ -38,7 +38,7 @@ status_categories:
 transitions:
   - { id: trn_contract_activate, name: Activate, field: fld_status, from: Draft, to: Active, action: edit, roles: [production_manager] }
   - { id: trn_contract_close, name: Close, field: fld_status, from: Active, to: Closed, action: edit, roles: [production_manager] }
-  - { id: trn_contract_cancel, name: Cancel, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager] }
+  - { id: trn_contract_cancel, name: Cancel contract, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager] }
 
 # A contract closes only once every instalment is paid: the page does not offer Close before.
 constraints:

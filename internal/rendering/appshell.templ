@@ -184,6 +184,17 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					if (!form) { return; }
 					form.querySelectorAll("input[data-money][name]").forEach(function (el) { e.detail.parameters[el.name] = moneyPlain(el); });
 				});
+				// A dialog (a Popover that holds a form) is closed on purpose: its Cancel and its close mark carry data-popover-close, and Escape
+				// closes whatever is open. A tap outside never does, since that would throw away what was typed in a half-filled form.
+				document.addEventListener("click", function (e) {
+					var b = e.target.closest ? e.target.closest("[data-popover-close]") : null;
+					var d = b ? b.closest("details") : null;
+					if (d) { d.open = false; }
+				});
+				document.addEventListener("keydown", function (e) {
+					if (e.key !== "Escape") { return; }
+					document.querySelectorAll("details[data-popover][open]").forEach(function (d) { d.open = false; });
+				});
 				// A form the browser holds back for a required control left empty sends nothing, so no response says why: the
 				// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.
 				document.addEventListener("htmx:validation:halted", function (e) {

@@ -6,34 +6,91 @@ import (
 	"menata.app/internal/domain"
 )
 
-// popover is the registered renderer for `domain.ComponentPopover`: a native `<details>` whose panel opens under its
-// trigger and floats over the page. Opening and closing is the browser's (the contract's `toggle`).
+// popover is the registered renderer for `domain.ComponentPopover`: a native `<details>` whose panel floats over the page.
+// Opening is the browser's (the contract's `toggle`); closing is the browser's too (the trigger again) and the shell's script's
+// (Cancel, the close mark and Escape -- see the writing guide's "Script is the exception").
+//
+// **Two shapes, by what the body is.** A body of actions (`compact`: a record's "..." menu) is a small panel under its trigger,
+// as it has been. A body that is a form to fill in (`regular`: an Edit, a "New ...") is a **dialog**: a centred card with the page
+// dimmed behind it from `sm` up, and a sheet above the bottom bar on a phone. A dialog has a title and a close mark on top, a
+// body that scrolls, and a Form's own row of Cancel and Save pinned under it (`form`, which reads `withinPopover`), so what a
+// person must press is always in sight however long the form is. It is closed only on purpose -- Cancel, the close mark, Escape --
+// never by a tap outside it, which on a form half filled in would throw the typing away. (A phone user who opened Edit and
+// found no way out pressed the contract's own "Cancel" move instead, and the contract was cancelled, 2026-10-19.)
 //
 // It replaces the record page's "..." card-actions menu and the board header's "New <machine>" form, which drew this
 // markup twice with four differences: the trigger's look, the side the panel opens to, its padding, and the gap
 // under the trigger (4px and 8px; both are 6px now, the one visible change, 2px each). The panel is the surface
 // recipe with the popover shadow; the body is the slot, inside a wrapper that gives it the room its density names.
 templ popover(label, title string, trigger domain.PopoverTrigger, align domain.PopoverAlign, density domain.PopoverDensity) {
-	<details class="relative">
+	<details class="group relative" data-popover>
 		<summary
 			if title != "" {
 				aria-label={ title }
 			}
 			class={ popoverTriggerClasses(ctx, trigger) }
 		>{ label }</summary>
-		// The panel is `fixed`, so a table's scrolling box (a row's Edit) cannot cut it, and sits where it would have been in the
-		// flow because it names no offset: its place is that of a zero-size anchor under the trigger, flush with the side `align:` names.
-		<div class={ "absolute top-full h-0 w-0", popoverAnchorClass(align) }>
-			<div class={ "fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg" }>
-				<div class={ popoverBodyClasses(ctx, density) }>
-					{ children... }
+		if density == domain.PopoverDensityRegular {
+			// The dim behind a dialog from `sm` up: it also keeps the page from being used while the dialog is open.
+			<div class={ "fixed inset-0 z-30 hidden sm:group-open:block", inkFillClass(ctx, domain.InkStrong), "opacity-30" } aria-hidden="true"></div>
+			<div class="absolute top-full h-0 w-0">
+				<div role="dialog" aria-label={ popoverDialogName(title, label) } class={ "fixed z-40 flex flex-col", popoverDialogClasses, surfaceClasses(ctx), "shadow-lg" }>
+					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), "px-4 pt-3" }>
+						<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ popoverDialogName(title, label) }</span>
+						@popoverClose("×", "Close")
+					</div>
+					{{ ctx = withPopover(ctx) }}
+					<div class={ "min-h-0 overflow-y-auto", popoverBodyClasses(ctx, density) }>
+						{ children... }
+					</div>
 				</div>
 			</div>
-		</div>
+		} else {
+			// The panel is `fixed`, so a table's scrolling box (a row's Edit) cannot cut it, and sits where it would have been in the
+			// flow because it names no offset: its place is that of a zero-size anchor under the trigger, flush with the side `align:` names.
+			<div class={ "absolute top-full h-0 w-0", popoverAnchorClass(align) }>
+				<div class={ "fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg" }>
+					<div class={ popoverBodyClasses(ctx, density) }>
+						{ children... }
+					</div>
+				</div>
+			</div>
+		}
 	</details>
 }
 
-// popoverPhoneClasses is where the panel goes below `sm`, where a panel anchored to its trigger (right under it, one side
+// popoverClose is the one button that dismisses a popover: `data-popover-close`, which the shell's script finds. A button that
+// carries a script hook cannot be the registered Button (007 §12.3 `actions`), so it is one raw button drawn here for the close mark
+// and for a Form's Cancel; it takes the trigger's secondary look, `label` is what it shows and `name` what a screen reader hears.
+templ popoverClose(label, name string) {
+	<button type="button" data-popover-close aria-label={ name } class={ popoverTriggerClasses(ctx, domain.PopoverTriggerSecondary) }>{ label }</button>
+}
+
+// popoverDialogName is what a dialog is called: the contract's `title`, else its trigger's words.
+func popoverDialogName(title, label string) string {
+	if title != "" {
+		return title
+	}
+	return label
+}
+
+// popoverDialogClasses is where a dialog goes. Below `sm` a sheet a gutter in from each side and above the bottom bar (so the
+// trigger stays in sight); from `sm` up a card centred in the viewport (`inset-0 m-auto h-fit`), whatever the page is scrolled to.
+const popoverDialogClasses = "inset-x-4 bottom-24 top-auto max-h-96 sm:inset-0 sm:m-auto sm:h-fit sm:w-96 sm:max-h-120"
+
+type popoverContextKey struct{}
+
+// withPopover marks ctx as the inside of a dialog; withinPopover reads it. A Form inside draws its Cancel and pins its row.
+func withPopover(ctx context.Context) context.Context {
+	return context.WithValue(ctx, popoverContextKey{}, true)
+}
+
+func withinPopover(ctx context.Context) bool {
+	v, _ := ctx.Value(popoverContextKey{}).(bool)
+	return v
+}
+
+// popoverPhoneClasses is where a compact panel goes below `sm`, where a panel anchored to its trigger (right under it, one side
 // flush with it) ran off the screen -- a trigger near the left edge opened it to the left of the screen -- or was cut by
 // the scrolling table the trigger sits in. Below `sm` the panel is given offsets instead: a card a page-gutter
 // in from each side, above the bottom bar (so the trigger, which is usually in the upper part of the page, stays in sight to close it),

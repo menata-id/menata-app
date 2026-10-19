@@ -169,7 +169,12 @@ navigation:
                       binding: { write: transition, transition: trn_contract_activate }
                     - component: Button
                       variant: secondary
+                      confirm: Close this contract? A closed contract cannot be reopened.
                       binding: { write: transition, transition: trn_contract_close }
+                    - component: Button
+                      variant: secondary
+                      confirm: Cancel this contract? A cancelled contract cannot be reopened.
+                      binding: { write: transition, transition: trn_contract_cancel }
                     - component: Button
                       label: Delete
                       variant: danger

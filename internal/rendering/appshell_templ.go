@@ -231,7 +231,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"></div></template><script>\n\t\t\t\tfunction notify(msg) {\n\t\t\t\t\tvar box = document.getElementById(\"htmx-error\");\n\t\t\t\t\tif (!box) {\n\t\t\t\t\t\tbox = document.getElementById(\"htmx-error-template\").content.firstElementChild.cloneNode(true);\n\t\t\t\t\t\tbox.id = \"htmx-error\";\n\t\t\t\t\t\tbox.addEventListener(\"click\", function () { box.hidden = true; });\n\t\t\t\t\t\tdocument.body.appendChild(box);\n\t\t\t\t\t}\n\t\t\t\t\tbox.textContent = msg;\n\t\t\t\t\tbox.hidden = false;\n\t\t\t\t\tclearTimeout(box._t);\n\t\t\t\t\tbox._t = setTimeout(function () { box.hidden = true; }, 8000);\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"htmx:responseError\", function (e) {\n\t\t\t\t\tvar xhr = e.detail.xhr;\n\t\t\t\t\tnotify(xhr.status >= 500\n\t\t\t\t\t\t? \"Something went wrong on our side. Please try again.\"\n\t\t\t\t\t\t: (xhr.responseText || \"\").trim().slice(0, 300) || \"That request was refused.\");\n\t\t\t\t});\n\t\t\t\t// Money is typed with the Workspace's marks: thousands are grouped as the digits are typed, the decimals stop at two, a\n\t\t\t\t// control left with digits is padded to two decimals, and the request carries the plain decimal (\"1234567.50\") whatever\n\t\t\t\t// the marks are. The value the server draws is already that plain decimal, which this reads once and writes in the marks.\n\t\t\t\tfunction moneyParts(el, fromServer) {\n\t\t\t\t\tvar v = el.value, d = el.dataset.decimal, mark = fromServer ? \".\" : d;\n\t\t\t\t\tvar neg = v.trim().charAt(0) === \"-\", i = v.indexOf(mark);\n\t\t\t\t\treturn {\n\t\t\t\t\t\tneg: neg,\n\t\t\t\t\t\twhole: (i < 0 ? v : v.slice(0, i)).replace(/\\D/g, \"\").replace(/^0+(?=\\d)/, \"\"),\n\t\t\t\t\t\tfrac: i < 0 ? null : v.slice(i + mark.length).replace(/\\D/g, \"\").slice(0, 2)\n\t\t\t\t\t};\n\t\t\t\t}\n\t\t\t\tfunction moneyText(el, p, pad) {\n\t\t\t\t\tvar frac = p.frac;\n\t\t\t\t\tif (pad && (p.whole || frac)) { frac = ((frac || \"\") + \"00\").slice(0, 2); }\n\t\t\t\t\tvar whole = (p.whole || (frac !== null ? \"0\" : \"\")).replace(/\\B(?=(\\d{3})+(?!\\d))/g, el.dataset.thousands);\n\t\t\t\t\treturn (p.neg && (whole || frac) ? \"-\" : \"\") + whole + (frac !== null ? el.dataset.decimal + frac : \"\");\n\t\t\t\t}\n\t\t\t\tfunction moneyPlain(el) {\n\t\t\t\t\tvar p = moneyParts(el, false);\n\t\t\t\t\tif (!p.whole && !p.frac) { return \"\"; }\n\t\t\t\t\treturn (p.neg ? \"-\" : \"\") + (p.whole || \"0\") + (p.frac ? \".\" + p.frac : \"\");\n\t\t\t\t}\n\t\t\t\tfunction moneyReady(root) {\n\t\t\t\t\t(root || document).querySelectorAll(\"input[data-money]:not([data-ready])\").forEach(function (el) {\n\t\t\t\t\t\tel.dataset.ready = \"1\";\n\t\t\t\t\t\tif (el.value !== \"\") { el.value = moneyText(el, moneyParts(el, true), true); }\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"DOMContentLoaded\", function () { moneyReady(); });\n\t\t\t\tdocument.addEventListener(\"htmx:load\", function (e) { moneyReady(e.target); });\n\t\t\t\tdocument.addEventListener(\"input\", function (e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tif (!el.matches || !el.matches(\"input[data-money]\")) { return; }\n\t\t\t\t\tvar before = el.value.slice(0, el.selectionStart || 0);\n\t\t\t\t\tvar left = (before.match(/\\d/g) || []).length, atEnd = el.selectionStart === el.value.length;\n\t\t\t\t\tel.value = moneyText(el, moneyParts(el, false), false);\n\t\t\t\t\tvar at = el.value.length, seen = 0;\n\t\t\t\t\tif (!atEnd) {\n\t\t\t\t\t\tat = 0;\n\t\t\t\t\t\twhile (at < el.value.length && seen < left) { if (/\\d/.test(el.value.charAt(at))) { seen++; } at++; }\n\t\t\t\t\t}\n\t\t\t\t\tel.setSelectionRange(at, at);\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener(\"focusout\", function (e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tif (el.matches && el.matches(\"input[data-money]\") && el.value !== \"\") { el.value = moneyText(el, moneyParts(el, false), true); }\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener(\"htmx:configRequest\", function (e) {\n\t\t\t\t\tvar form = e.detail.elt && e.detail.elt.querySelectorAll ? e.detail.elt : null;\n\t\t\t\t\tif (!form) { return; }\n\t\t\t\t\tform.querySelectorAll(\"input[data-money][name]\").forEach(function (el) { e.detail.parameters[el.name] = moneyPlain(el); });\n\t\t\t\t});\n\t\t\t\t// A form the browser holds back for a required control left empty sends nothing, so no response says why: the\n\t\t\t\t// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.\n\t\t\t\tdocument.addEventListener(\"htmx:validation:halted\", function (e) {\n\t\t\t\t\tvar form = e.target;\n\t\t\t\t\tvar bad = form.querySelectorAll(\":invalid\");\n\t\t\t\t\tvar left = bad.length, el = bad[0];\n\t\t\t\t\tnotify(left > 1 ? left + \" required fields are still empty. Fill them in, then save.\" : \"A required field is still empty. Fill it in, then save.\");\n\t\t\t\t\tif (el && el.scrollIntoView) { el.scrollIntoView({ block: \"center\" }); }\n\t\t\t\t});\n\t\t\t</script></head>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"></div></template><script>\n\t\t\t\tfunction notify(msg) {\n\t\t\t\t\tvar box = document.getElementById(\"htmx-error\");\n\t\t\t\t\tif (!box) {\n\t\t\t\t\t\tbox = document.getElementById(\"htmx-error-template\").content.firstElementChild.cloneNode(true);\n\t\t\t\t\t\tbox.id = \"htmx-error\";\n\t\t\t\t\t\tbox.addEventListener(\"click\", function () { box.hidden = true; });\n\t\t\t\t\t\tdocument.body.appendChild(box);\n\t\t\t\t\t}\n\t\t\t\t\tbox.textContent = msg;\n\t\t\t\t\tbox.hidden = false;\n\t\t\t\t\tclearTimeout(box._t);\n\t\t\t\t\tbox._t = setTimeout(function () { box.hidden = true; }, 8000);\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"htmx:responseError\", function (e) {\n\t\t\t\t\tvar xhr = e.detail.xhr;\n\t\t\t\t\tnotify(xhr.status >= 500\n\t\t\t\t\t\t? \"Something went wrong on our side. Please try again.\"\n\t\t\t\t\t\t: (xhr.responseText || \"\").trim().slice(0, 300) || \"That request was refused.\");\n\t\t\t\t});\n\t\t\t\t// Money is typed with the Workspace's marks: thousands are grouped as the digits are typed, the decimals stop at two, a\n\t\t\t\t// control left with digits is padded to two decimals, and the request carries the plain decimal (\"1234567.50\") whatever\n\t\t\t\t// the marks are. The value the server draws is already that plain decimal, which this reads once and writes in the marks.\n\t\t\t\tfunction moneyParts(el, fromServer) {\n\t\t\t\t\tvar v = el.value, d = el.dataset.decimal, mark = fromServer ? \".\" : d;\n\t\t\t\t\tvar neg = v.trim().charAt(0) === \"-\", i = v.indexOf(mark);\n\t\t\t\t\treturn {\n\t\t\t\t\t\tneg: neg,\n\t\t\t\t\t\twhole: (i < 0 ? v : v.slice(0, i)).replace(/\\D/g, \"\").replace(/^0+(?=\\d)/, \"\"),\n\t\t\t\t\t\tfrac: i < 0 ? null : v.slice(i + mark.length).replace(/\\D/g, \"\").slice(0, 2)\n\t\t\t\t\t};\n\t\t\t\t}\n\t\t\t\tfunction moneyText(el, p, pad) {\n\t\t\t\t\tvar frac = p.frac;\n\t\t\t\t\tif (pad && (p.whole || frac)) { frac = ((frac || \"\") + \"00\").slice(0, 2); }\n\t\t\t\t\tvar whole = (p.whole || (frac !== null ? \"0\" : \"\")).replace(/\\B(?=(\\d{3})+(?!\\d))/g, el.dataset.thousands);\n\t\t\t\t\treturn (p.neg && (whole || frac) ? \"-\" : \"\") + whole + (frac !== null ? el.dataset.decimal + frac : \"\");\n\t\t\t\t}\n\t\t\t\tfunction moneyPlain(el) {\n\t\t\t\t\tvar p = moneyParts(el, false);\n\t\t\t\t\tif (!p.whole && !p.frac) { return \"\"; }\n\t\t\t\t\treturn (p.neg ? \"-\" : \"\") + (p.whole || \"0\") + (p.frac ? \".\" + p.frac : \"\");\n\t\t\t\t}\n\t\t\t\tfunction moneyReady(root) {\n\t\t\t\t\t(root || document).querySelectorAll(\"input[data-money]:not([data-ready])\").forEach(function (el) {\n\t\t\t\t\t\tel.dataset.ready = \"1\";\n\t\t\t\t\t\tif (el.value !== \"\") { el.value = moneyText(el, moneyParts(el, true), true); }\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"DOMContentLoaded\", function () { moneyReady(); });\n\t\t\t\tdocument.addEventListener(\"htmx:load\", function (e) { moneyReady(e.target); });\n\t\t\t\tdocument.addEventListener(\"input\", function (e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tif (!el.matches || !el.matches(\"input[data-money]\")) { return; }\n\t\t\t\t\tvar before = el.value.slice(0, el.selectionStart || 0);\n\t\t\t\t\tvar left = (before.match(/\\d/g) || []).length, atEnd = el.selectionStart === el.value.length;\n\t\t\t\t\tel.value = moneyText(el, moneyParts(el, false), false);\n\t\t\t\t\tvar at = el.value.length, seen = 0;\n\t\t\t\t\tif (!atEnd) {\n\t\t\t\t\t\tat = 0;\n\t\t\t\t\t\twhile (at < el.value.length && seen < left) { if (/\\d/.test(el.value.charAt(at))) { seen++; } at++; }\n\t\t\t\t\t}\n\t\t\t\t\tel.setSelectionRange(at, at);\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener(\"focusout\", function (e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tif (el.matches && el.matches(\"input[data-money]\") && el.value !== \"\") { el.value = moneyText(el, moneyParts(el, false), true); }\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener(\"htmx:configRequest\", function (e) {\n\t\t\t\t\tvar form = e.detail.elt && e.detail.elt.querySelectorAll ? e.detail.elt : null;\n\t\t\t\t\tif (!form) { return; }\n\t\t\t\t\tform.querySelectorAll(\"input[data-money][name]\").forEach(function (el) { e.detail.parameters[el.name] = moneyPlain(el); });\n\t\t\t\t});\n\t\t\t\t// A dialog (a Popover that holds a form) is closed on purpose: its Cancel and its close mark carry data-popover-close, and Escape\n\t\t\t\t// closes whatever is open. A tap outside never does, since that would throw away what was typed in a half-filled form.\n\t\t\t\tdocument.addEventListener(\"click\", function (e) {\n\t\t\t\t\tvar b = e.target.closest ? e.target.closest(\"[data-popover-close]\") : null;\n\t\t\t\t\tvar d = b ? b.closest(\"details\") : null;\n\t\t\t\t\tif (d) { d.open = false; }\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener(\"keydown\", function (e) {\n\t\t\t\t\tif (e.key !== \"Escape\") { return; }\n\t\t\t\t\tdocument.querySelectorAll(\"details[data-popover][open]\").forEach(function (d) { d.open = false; });\n\t\t\t\t});\n\t\t\t\t// A form the browser holds back for a required control left empty sends nothing, so no response says why: the\n\t\t\t\t// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.\n\t\t\t\tdocument.addEventListener(\"htmx:validation:halted\", function (e) {\n\t\t\t\t\tvar form = e.target;\n\t\t\t\t\tvar bad = form.querySelectorAll(\":invalid\");\n\t\t\t\t\tvar left = bad.length, el = bad[0];\n\t\t\t\t\tnotify(left > 1 ? left + \" required fields are still empty. Fill them in, then save.\" : \"A required field is still empty. Fill it in, then save.\");\n\t\t\t\t\tif (el && el.scrollIntoView) { el.scrollIntoView({ block: \"center\" }); }\n\t\t\t\t});\n\t\t\t</script></head>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -247,7 +247,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfHeadersAttr(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 198, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 209, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -376,7 +376,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 241, Col: 282}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 252, Col: 282}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -411,7 +411,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(currentApp.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 242, Col: 184}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 253, Col: 184}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -460,7 +460,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 255, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 266, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -853,7 +853,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 447, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 458, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
@@ -899,7 +899,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			var templ_7745c5c3_Var44 templ.SafeURL
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 453, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 464, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -935,7 +935,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 459, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 470, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 			if templ_7745c5c3_Err != nil {
@@ -1006,7 +1006,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 					var templ_7745c5c3_Var51 templ.SafeURL
 					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 475, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 486, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 					if templ_7745c5c3_Err != nil {
@@ -1042,7 +1042,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 					var templ_7745c5c3_Var53 string
 					templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 481, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 492, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 					if templ_7745c5c3_Err != nil {
@@ -1073,7 +1073,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			var templ_7745c5c3_Var55 templ.SafeURL
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(hub.Route))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 488, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 499, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1103,7 +1103,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(hub.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 492, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 503, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -1248,7 +1248,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			var templ_7745c5c3_Var65 templ.SafeURL
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 534, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 545, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1296,7 +1296,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			var templ_7745c5c3_Var67 string
 			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 544, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 555, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 			if templ_7745c5c3_Err != nil {
@@ -1465,7 +1465,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var76 string
 			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 592, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 603, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 			if templ_7745c5c3_Err != nil {
@@ -1574,7 +1574,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var85 string
 			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_home"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 599, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 610, Col: 114}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 			if templ_7745c5c3_Err != nil {
@@ -1609,7 +1609,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			var templ_7745c5c3_Var88 string
 			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 600, Col: 116}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 611, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 			if templ_7745c5c3_Err != nil {
@@ -1662,7 +1662,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var92 templ.SafeURL
 				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(hub.Route))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 607, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 618, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 				if templ_7745c5c3_Err != nil {
@@ -1762,7 +1762,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var100 string
 				templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(hub.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 612, Col: 98}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 623, Col: 98}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 				if templ_7745c5c3_Err != nil {
@@ -1842,7 +1842,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var106 templ.SafeURL
 				templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(launcherAppHomeRoute(ctx, other)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 622, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 633, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 				if templ_7745c5c3_Err != nil {
@@ -1952,7 +1952,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var114 string
 				templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.JoinStringErrs(other.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 632, Col: 177}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 643, Col: 177}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var114))
 				if templ_7745c5c3_Err != nil {
@@ -1988,7 +1988,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 					var templ_7745c5c3_Var117 string
 					templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(other.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 634, Col: 122}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 645, Col: 122}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 					if templ_7745c5c3_Err != nil {
@@ -2073,7 +2073,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				var templ_7745c5c3_Var123 templ.SafeURL
 				templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(switchWorkspaceHref))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 644, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 655, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 				if templ_7745c5c3_Err != nil {
@@ -2187,7 +2187,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 		var templ_7745c5c3_Var128 string
 		templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 684, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 695, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var128))
 		if templ_7745c5c3_Err != nil {
@@ -2264,7 +2264,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 			var templ_7745c5c3_Var134 string
 			templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinStringErrs(personInitials(workspaceName, ""))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 690, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 701, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
 			if templ_7745c5c3_Err != nil {
@@ -2321,7 +2321,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 			var templ_7745c5c3_Var139 string
 			templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 693, Col: 154}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 704, Col: 154}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 			if templ_7745c5c3_Err != nil {
@@ -2357,7 +2357,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var142 string
 				templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.JoinStringErrs(displayRole(viewer.WorkspaceRole))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 695, Col: 125}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 706, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var142))
 				if templ_7745c5c3_Err != nil {
@@ -2407,7 +2407,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var146 templ.SafeURL
 				templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_workspace_settings")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 706, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 717, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var146))
 				if templ_7745c5c3_Err != nil {
@@ -2463,7 +2463,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var150 string
 				templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_workspace_settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 710, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 721, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var150))
 				if templ_7745c5c3_Err != nil {
@@ -2491,7 +2491,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var152 templ.SafeURL
 				templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(p.Route))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 717, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 728, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 				if templ_7745c5c3_Err != nil {
@@ -2547,7 +2547,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var156 string
 				templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(p.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 721, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 732, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var156))
 				if templ_7745c5c3_Err != nil {
@@ -2637,7 +2637,7 @@ func workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref stri
 				var templ_7745c5c3_Var162 templ.SafeURL
 				templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(switchWorkspaceHref))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 749, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 760, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
 				if templ_7745c5c3_Err != nil {
@@ -2793,7 +2793,7 @@ func sheetPanel(id string, aboveBar bool, desktop string) templ.Component {
 		var templ_7745c5c3_Var168 string
 		templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 815, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 826, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var168)
 		if templ_7745c5c3_Err != nil {
@@ -2828,7 +2828,7 @@ func sheetPanel(id string, aboveBar bool, desktop string) templ.Component {
 		var templ_7745c5c3_Var171 string
 		templ_7745c5c3_Var171, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 823, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 834, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var171)
 		if templ_7745c5c3_Err != nil {
@@ -3090,7 +3090,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 		var templ_7745c5c3_Var185 string
 		templ_7745c5c3_Var185, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Initials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 919, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 930, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var185))
 		if templ_7745c5c3_Err != nil {
@@ -3165,7 +3165,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					var templ_7745c5c3_Var191 string
 					templ_7745c5c3_Var191, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 928, Col: 153}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 939, Col: 153}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var191))
 					if templ_7745c5c3_Err != nil {
@@ -3202,7 +3202,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					var templ_7745c5c3_Var194 string
 					templ_7745c5c3_Var194, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Email)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 931, Col: 116}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 942, Col: 116}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var194))
 					if templ_7745c5c3_Err != nil {
@@ -3485,7 +3485,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			var templ_7745c5c3_Var214 string
 			templ_7745c5c3_Var214, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 983, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 994, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var214))
 			if templ_7745c5c3_Err != nil {
@@ -3520,7 +3520,7 @@ func AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID stri
 			var templ_7745c5c3_Var217 string
 			templ_7745c5c3_Var217, templ_7745c5c3_Err = templ.JoinStringErrs(displayRole(c.Role))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 984, Col: 120}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 995, Col: 120}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var217))
 			if templ_7745c5c3_Err != nil {
@@ -3668,7 +3668,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 			var templ_7745c5c3_Var225 templ.SafeURL
 			templ_7745c5c3_Var225, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_home")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1032, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1043, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var225))
 			if templ_7745c5c3_Err != nil {
@@ -3738,7 +3738,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 			var templ_7745c5c3_Var231 string
 			templ_7745c5c3_Var231, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1034, Col: 141}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1045, Col: 141}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var231))
 			if templ_7745c5c3_Err != nil {
@@ -3815,7 +3815,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				var templ_7745c5c3_Var237 templ.SafeURL
 				templ_7745c5c3_Var237, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_workspace_settings")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1048, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1059, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var237))
 				if templ_7745c5c3_Err != nil {
@@ -3871,7 +3871,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				var templ_7745c5c3_Var241 string
 				templ_7745c5c3_Var241, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_workspace_settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1053, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1064, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var241))
 				if templ_7745c5c3_Err != nil {
@@ -3991,7 +3991,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				var templ_7745c5c3_Var251 templ.SafeURL
 				templ_7745c5c3_Var251, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(switchWorkspaceHref))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1079, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1090, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var251))
 				if templ_7745c5c3_Err != nil {
@@ -4066,7 +4066,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 		var templ_7745c5c3_Var255 templ.SafeURL
 		templ_7745c5c3_Var255, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(launcherAppHomeRoute(ctx, app)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1090, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1101, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var255))
 		if templ_7745c5c3_Err != nil {
@@ -4144,7 +4144,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 		var templ_7745c5c3_Var261 string
 		templ_7745c5c3_Var261, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1095, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1106, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var261))
 		if templ_7745c5c3_Err != nil {
@@ -4180,7 +4180,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 			var templ_7745c5c3_Var264 string
 			templ_7745c5c3_Var264, templ_7745c5c3_Err = templ.JoinStringErrs(app.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1097, Col: 105}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1108, Col: 105}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var264))
 			if templ_7745c5c3_Err != nil {
@@ -4284,7 +4284,7 @@ func activityEntryRow(a ActivityEntry) templ.Component {
 		var templ_7745c5c3_Var267 string
 		templ_7745c5c3_Var267, templ_7745c5c3_Err = templ.JoinStringErrs(a.Summary)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1136, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1147, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var267))
 		if templ_7745c5c3_Err != nil {
@@ -4325,7 +4325,7 @@ func activityEntryRow(a ActivityEntry) templ.Component {
 		var templ_7745c5c3_Var270 string
 		templ_7745c5c3_Var270, templ_7745c5c3_Err = templ.JoinStringErrs(a.When)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1140, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1151, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var270))
 		if templ_7745c5c3_Err != nil {
@@ -4381,7 +4381,7 @@ func sectionHeaderRow(title, linkHref, linkLabel string) templ.Component {
 			var templ_7745c5c3_Var273 templ.SafeURL
 			templ_7745c5c3_Var273, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(linkHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1147, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1158, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var273))
 			if templ_7745c5c3_Err != nil {
@@ -4407,7 +4407,7 @@ func sectionHeaderRow(title, linkHref, linkLabel string) templ.Component {
 			var templ_7745c5c3_Var275 string
 			templ_7745c5c3_Var275, templ_7745c5c3_Err = templ.JoinStringErrs(linkLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1147, Col: 144}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1158, Col: 144}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var275))
 			if templ_7745c5c3_Err != nil {

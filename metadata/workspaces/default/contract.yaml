@@ -53,8 +53,8 @@ status_categories:
 transitions:
   - { id: trn_contract_activate, name: Activate, field: fld_status, from: Draft, to: Active, action: edit, roles: [production_manager, admin], sets: { fld_activated_on: today } }
   - { id: trn_contract_close, name: Close, field: fld_status, from: Active, to: Closed, action: edit, roles: [production_manager, admin] }
-  - { id: trn_contract_cancel_draft, name: Cancel, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager, admin] }
-  - { id: trn_contract_cancel, name: Cancel, field: fld_status, from: Active, to: Cancelled, action: edit, roles: [production_manager, admin] }
+  - { id: trn_contract_cancel_draft, name: Cancel contract, field: fld_status, from: Draft, to: Cancelled, action: edit, roles: [production_manager, admin] }
+  - { id: trn_contract_cancel, name: Cancel contract, field: fld_status, from: Active, to: Cancelled, action: edit, roles: [production_manager, admin] }
 
 # A contract is closed only once every instalment is paid.
 constraints:

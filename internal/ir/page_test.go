@@ -1083,7 +1083,6 @@ func TestLower_refusesATransitionButtonThatCouldNotBeBuiltHonestly(t *testing.T)
 		"a dataset of its own": {"done", func(n *domain.PageNode) { n.Children[0].Binding.Dataset = "ds_b" }, ts, "no dataset"},
 		"no becomes":           {"", func(n *domain.PageNode) { delete(n.Children[0].Props, "becomes") }, ts, "becomes"},
 		"not an option":        {"blocked", func(n *domain.PageNode) {}, ts, "not an option"},
-		"a confirm":            {"done", func(n *domain.PageNode) { n.Children[0].Props["confirm"] = "Sure?" }, ts, "confirm"},
 		"typed name":           {"done", func(n *domain.PageNode) { n.Children[0].Props["name"] = "fld_x" }, ts, "name"},
 		"typed value":          {"done", func(n *domain.PageNode) { n.Children[0].Props["value"] = "done" }, ts, "value"},
 		"typed method":         {"done", func(n *domain.PageNode) { n.Children[0].Props["method"] = "patch" }, ts, "method"},
@@ -1829,5 +1828,33 @@ func TestLower_aFormThatReadsADocumentDrawsItsReaderItsNotesAndItsRows(t *testin
 	tree, _ = Lower(node, Resolver{Form: func(domain.PageBinding) (FormSpec, error) { return spec, nil }})
 	if len(tree.Children) != 1 {
 		t.Errorf("without a reader the form stands alone, got %d nodes", len(tree.Children))
+	}
+}
+
+// A transition Button may carry the author's question -- for a move nothing leads back from -- and the question reaches the Button.
+func TestLower_aTransitionButtonMayAskBeforeAMoveThatCannotBeTakenBack(t *testing.T) {
+	root, res := transitionInTemplate("done", []RecordTransition{transitionTo("/r1", "todo"), transitionTo("/r2", "todo")})
+	button := &root.Children[0].Children[0]
+	if button.Props == nil {
+		button.Props = map[string]string{}
+	}
+	button.Props["confirm"] = "Cancel this contract? It cannot be reopened."
+	tree, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	var walk func(UINode)
+	walk = func(n UINode) {
+		if n.Type == string(domain.ComponentButton) && n.Props["confirm"] == "Cancel this contract? It cannot be reopened." {
+			found = true
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(tree)
+	if !found {
+		t.Errorf("the question did not reach the Button: %+v", tree)
 	}
 }

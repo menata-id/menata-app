@@ -289,14 +289,17 @@ navigation:
                       binding: { write: transition, transition: trn_contract_activate }
                     - component: Button
                       variant: secondary
+                      confirm: Close this contract? A closed contract cannot be reopened.
                       from: { describes: title }
                       binding: { write: transition, transition: trn_contract_close }
                     - component: Button
                       variant: secondary
+                      confirm: Cancel this draft contract? A cancelled contract cannot be reopened.
                       from: { describes: title }
                       binding: { write: transition, transition: trn_contract_cancel_draft }
                     - component: Button
                       variant: secondary
+                      confirm: Cancel this contract? A cancelled contract cannot be reopened.
                       from: { describes: title }
                       binding: { write: transition, transition: trn_contract_cancel }
                     - component: Popover

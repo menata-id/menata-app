@@ -813,9 +813,7 @@ func buttonRequestIssues(inputs map[string]string) []string {
 			issues = append(issues, "a Button that sends a move asks nothing, so it takes no `confirm`")
 		}
 	case domain.ButtonMethodPatch:
-		if confirm != "" {
-			issues = append(issues, "a Button that sends a status transition asks nothing, so it takes no `confirm`")
-		}
+		// `confirm` is optional: a transition that cannot be taken back (nothing leads out of the status it reaches) asks first.
 		if inputs["name"] == "" {
 			issues = append(issues, "a Button that sends a status transition carries the Field it sets and the value as its name/value pair")
 		}
