@@ -1588,6 +1588,11 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 		if item.Completion == nil {
 			return []string{fmt.Sprintf("%s: page: a Toggle completes a record, so machine %q declares a `completion:`", where, item.ID)}
 		}
+		// The circle is drawn checked from `completion:`'s Field and writes the Field of the `status` role. Two Fields would show
+		// one record's state and change another's, so the declaration is refused (the `when:` form asks the same).
+		if status := item.CardFieldFor(domain.CardFieldRoleStatus); status != item.Completion.Field {
+			return []string{fmt.Sprintf("%s: page: a Toggle reads whether a record is finished from machine %q's completion Field %s and writes its `status` Field %q; they must be one Field", where, item.ID, item.Completion.Field, status)}
+		}
 		var issues []string
 		for _, becomes := range []string{domain.PageTransitionDone, domain.PageTransitionReopen} {
 			issues = append(issues, transitionTargetIssues(item, becomes, where)...)

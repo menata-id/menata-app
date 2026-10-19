@@ -50,3 +50,28 @@ func TestCompletionCircle_isOneControlWhereverItIsDrawn(t *testing.T) {
 		t.Errorf("the Toggle does not draw the shared circle:\n%s\nvs\n%s", renderToggle(t, "Scout", true), circle.String())
 	}
 }
+
+// TestToggle_aRecordWithNoNameStillHasAnAccessibleName: a record whose title is blank must not make the circle `Mark “” complete` -- a
+// name with nothing in it. It says what pressing does and leaves the record out.
+func TestToggle_aRecordWithNoNameStillHasAnAccessibleName(t *testing.T) {
+	for _, describes := range []string{"", "   "} {
+		if got := renderToggle(t, describes, false); strings.Contains(got, "“") || !strings.Contains(got, `aria-label="Mark complete"`) {
+			t.Errorf("describes %q: %s", describes, got)
+		}
+		if got := renderToggle(t, describes, true); !strings.Contains(got, `aria-label="Mark not complete"`) {
+			t.Errorf("describes %q, finished: %s", describes, got)
+		}
+	}
+}
+
+// TestPersonInitials_isRuneSafe: the rendering copy of composition.Initials reads characters, not bytes.
+func TestPersonInitials_isRuneSafe(t *testing.T) {
+	for name, want := range map[string]string{"Édith Piaf": "ÉP", "李雷 韩": "李韩", "ñandú": "Ñ"} {
+		if got := personInitials(name, ""); got != want {
+			t.Errorf("personInitials(%q) = %q, want %q", name, got, want)
+		}
+	}
+	if got := personInitials("", "élan.vital@x.id"); got != "ÉV" {
+		t.Errorf("from an email: %q", got)
+	}
+}

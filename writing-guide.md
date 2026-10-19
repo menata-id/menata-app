@@ -1895,7 +1895,11 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   state. It takes only `from: {describes: <role>}` (the record's name, its accessible name) and `binding: {write: transition}`;
   which Field it writes and the value are the Machine's `completion:`, written the *other* way from where the record stands, so one
   declaration serves both directions. It is not drawn for a record or a viewer the move is not allowed on, and needs a Machine that
-  declares `completion:`. A checklist row and a board card draw the same circle.
+  declares `completion:` **whose Field is the Machine's `status` Field** (the circle reads its state from one and writes the other, so
+  two Fields are refused at load). A record with no name is announced as "Mark complete" rather than with an empty pair of marks.
+  A checklist row and a board card draw the same circle. **The AI assistant has no slot for a Table's `cell:`, `empty:`,
+  `hide_header:` or the Toggle** -- its `page:` is a fixed set of shapes (`UnwritableByTheAssistant`'s `page` entry names that), so
+  these are written by hand until the assistant grows page vocabulary.
 - **`person:initials`** is a derived role (beside `date:label`, `group:label`): the initials of the record's `person`, empty when
   nobody is named, and a node that reads an empty derived role is not drawn -- so an unassigned task draws no circle of "?".
 - **`under: fld_x`** beside `field:` draws a second line in the cell, smaller: another Field of the same record

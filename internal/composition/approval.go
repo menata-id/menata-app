@@ -485,6 +485,14 @@ func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Recor
 	return approvers
 }
 
+// firstRune is the first character of s ("" for an empty string).
+func firstRune(s string) string {
+	for _, r := range s {
+		return string(r)
+	}
+	return ""
+}
+
 // Initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)
 // -- the first letter of up to the first two words of name.
 func Initials(name string) string {
@@ -492,9 +500,10 @@ func Initials(name string) string {
 	if len(fields) == 0 {
 		return "?"
 	}
-	out := strings.ToUpper(fields[0][:1])
+	// A character, not a byte: a name outside ASCII must not become half a UTF-8 sequence.
+	out := strings.ToUpper(firstRune(fields[0]))
 	if len(fields) > 1 {
-		out += strings.ToUpper(fields[1][:1])
+		out += strings.ToUpper(firstRune(fields[1]))
 	}
 	return out
 }

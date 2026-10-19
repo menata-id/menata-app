@@ -12,16 +12,17 @@ import (
 // hand-written copies of one class expression (a board card's and a checklist's), and a Toggle would have been a third.
 //
 // It reads every `<button>` opening tag in internal/rendering (comments stripped, the scanner `buttonOpenTags` reads a `>` inside a
-// quoted attribute or a templ expression as part of the tag) and fails on one that is `size-5`, `rounded-full` and `border-2`
-// and carries `aria-pressed` outside controls.templ. **What it cannot see, stated:** a circle drawn from a `<span>` or an `<a>`, one
-// whose size arrives from a Go function, and a differently sized circle (`size-6`); the floor below counts the one it does see, so it
-// cannot pass by measuring nothing.
+// quoted attribute or a templ expression as part of the tag) and fails on one that is `rounded-full`, `border-2` and a small size
+// outside controls.templ -- a ringed circle of any size from `size-4` to `size-7`, whether or not it says `aria-pressed` (a copy that
+// dropped the attribute, or grew a size, is the same circle). **What it cannot see, stated:** a circle drawn from a `<span>` or an
+// `<a>`, and one whose size arrives from a Go function; the floor below counts the one it does see, so it cannot pass by measuring
+// nothing.
 func TestNoHandWrittenCompletionCircle(t *testing.T) {
 	seen := 0
 	for _, name := range sortedFileNames(renderingTemplSources(t)) {
 		for _, tag := range buttonOpenTags(renderingTemplSources(t)[name]) {
 			flat := strings.Join(strings.Fields(tag), " ")
-			if !strings.Contains(flat, "aria-pressed") || !hasToken(flat, "size-5") || !hasToken(flat, "rounded-full") || !hasToken(flat, "border-2") {
+			if !isCircleSized(flat) || !hasToken(flat, "rounded-full") || !hasToken(flat, "border-2") {
 				continue
 			}
 			seen++
@@ -42,6 +43,16 @@ func hasToken(tag, tok string) bool {
 			if strings.Contains(tag, sep+tok+end) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// isCircleSized reports whether tag carries a `size-4` .. `size-7` utility: the sizes a completion circle has been or might be drawn in.
+func isCircleSized(tag string) bool {
+	for _, n := range []string{"size-4", "size-5", "size-6", "size-7"} {
+		if hasToken(tag, n) {
+			return true
 		}
 	}
 	return false

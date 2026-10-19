@@ -21,6 +21,15 @@ type RoleApplication struct {
 	Roles []string
 }
 
+// firstRune is the first character of s: initials are characters, not bytes (a name outside ASCII must not become half a
+// UTF-8 sequence).
+func firstRune(s string) string {
+	for _, r := range s {
+		return string(r)
+	}
+	return ""
+}
+
 // personInitials is the avatar glyph for a member row: built from the person's real name when the
 // runtime knows one, and from their email's local part when it does not (an invitation that has
 // not been accepted has no name yet, by design -- only its owner ever states it).
@@ -43,9 +52,9 @@ func personInitials(name, email string) string {
 	case len(parts) == 0:
 		return "?"
 	case len(parts) == 1:
-		return strings.ToUpper(parts[0][:1])
+		return strings.ToUpper(firstRune(parts[0]))
 	default:
-		return strings.ToUpper(parts[0][:1] + parts[1][:1])
+		return strings.ToUpper(firstRune(parts[0]) + firstRune(parts[1]))
 	}
 }
 

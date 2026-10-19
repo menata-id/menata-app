@@ -1012,12 +1012,17 @@ func cardPatchURL(m *domain.Machine, c RecordCard) string {
 	return "/machines/" + m.ID + "/records/" + c.Record.ID
 }
 
-// completeLabel is the circle's accessible name: what pressing it does, naming the card.
+// completeLabel is the circle's accessible name: what pressing it does, naming the record. A record with no name (a blank title) is
+// left out of it rather than quoted as an empty pair of marks -- a name with nothing in it is what the control exists to prevent.
 func completeLabel(done bool, title string) string {
+	state := "complete"
 	if done {
-		return "Mark \u201c" + title + "\u201d not complete"
+		state = "not complete"
 	}
-	return "Mark \u201c" + title + "\u201d complete"
+	if strings.TrimSpace(title) == "" {
+		return "Mark " + state
+	}
+	return "Mark \u201c" + title + "\u201d " + state
 }
 
 // cardTitleFieldID is the Field a composer's input fills: the Machine's `title` card role, or its first

@@ -118,3 +118,19 @@ func TestACellTemplateIsHeldToTheSameRulesAsAnyRecordTemplate(t *testing.T) {
 		}
 	}
 }
+
+// TestAToggleWritesTheFieldItReadsItsStateFrom: the circle is drawn checked from the Machine's `completion:` Field and writes the Field of
+// its `status` role, so a Machine whose two differ would show one record's state and change another's. The declaration is refused, as the
+// `when:` form of the same question already is.
+func TestAToggleWritesTheFieldItReadsItsStateFrom(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Fields: []domain.Field{
+		{ID: "fld_phase", Type: domain.FieldTypeStatus, Options: []string{"open", "review", "done"}},
+		{ID: "fld_done", Type: domain.FieldTypeStatus, Options: []string{"open", "done"}},
+	}, CardFields: []domain.CardField{{Field: "fld_phase", Role: domain.CardFieldRoleStatus}},
+		Completion: &domain.Completion{Field: "fld_done", Done: "done"}}
+	toggle := domain.PageNode{Kind: "component", Type: "Toggle", From: map[string]string{"describes": "status"}, Binding: &domain.PageBinding{Write: domain.PageWriteTransition}}
+	got := strings.Join(transitionBindingIssues(toggle, m, "w"), "\n")
+	if !strings.Contains(got, "fld_done") || !strings.Contains(got, "fld_phase") {
+		t.Errorf("a Toggle whose completion Field is not its status Field: %q, want an issue naming both", got)
+	}
+}
