@@ -334,8 +334,25 @@ func validateView(m *domain.Machine, v domain.View, fieldsByID map[string]domain
 
 	switch v.EffectiveType() {
 	case domain.ViewBoard:
-		if _, ok := fieldsByID[v.GroupBy]; !ok {
+		group, ok := fieldsByID[v.GroupBy]
+		if !ok {
 			issues = append(issues, fmt.Sprintf("machine %q: view %q is a board, so group_by %q must be a field of this machine", m.ID, v.ID, v.GroupBy))
+		}
+		if (len(v.ColumnActions) > 0 || v.AddColumn != nil) && ok && !group.IsReference() {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q: column_actions and add_column are for a board whose columns are records of another Machine, and group_by %q is not a relation", m.ID, v.ID, v.GroupBy))
+		}
+		seenAction := map[domain.ColumnAction]bool{}
+		for _, a := range v.ColumnActions {
+			switch {
+			case !domain.KnownColumnActions[a]:
+				issues = append(issues, fmt.Sprintf("machine %q: view %q: column action %q is not rename, move or delete", m.ID, v.ID, a))
+			case seenAction[a]:
+				issues = append(issues, fmt.Sprintf("machine %q: view %q: column action %q is declared twice", m.ID, v.ID, a))
+			}
+			seenAction[a] = true
+		}
+		if a := v.AddColumn; a != nil && (strings.TrimSpace(a.To) == "" || strings.TrimSpace(a.Label) == "" || strings.ContainsAny(a.Label+a.Note, "\r\n")) {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q: add_column names `to:` (a navigation item) and a one-line `label:`, and a one-line `note:` when it has one", m.ID, v.ID))
 		}
 	case domain.ViewCards:
 		if len(m.CardFields) == 0 {

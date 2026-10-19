@@ -172,3 +172,50 @@ func TestAViewGroupsWordsAndNamesAreChecked(t *testing.T) {
 		}
 	}
 }
+
+func TestABoardsColumnMenuAndAddTileAreChecked(t *testing.T) {
+	board := func(mutate func(v *domain.View)) *domain.Machine {
+		v := domain.View{ID: "vw_b", Name: "Board", Type: domain.ViewBoard, GroupBy: "fld_list",
+			ColumnActions: []domain.ColumnAction{domain.ColumnRename, domain.ColumnMove, domain.ColumnDelete},
+			AddColumn:     &domain.AddColumn{To: "nav_lists", Label: "Add list", Note: "Lists are shared."}}
+		if mutate != nil {
+			mutate(&v)
+		}
+		return &domain.Machine{ID: "mch_task", Fields: []domain.Field{
+			{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"a"}}}, Views: []domain.View{v}}
+	}
+	check := func(m *domain.Machine) string {
+		fields := map[string]domain.Field{}
+		for _, f := range m.Fields {
+			fields[f.ID] = f
+		}
+		return strings.Join(validateView(m, m.Views[0], fields, map[string]bool{}), "\n")
+	}
+	if got := check(board(nil)); got != "" {
+		t.Fatalf("a whole board: %s", got)
+	}
+	for name, tc := range map[string]struct {
+		mutate func(v *domain.View)
+		want   string
+	}{
+		"an action nobody knows":                         {func(v *domain.View) { v.ColumnActions = append(v.ColumnActions, "archive") }, "is not rename, move or delete"},
+		"an action twice":                                {func(v *domain.View) { v.ColumnActions = append(v.ColumnActions, domain.ColumnMove) }, "declared twice"},
+		"a tile that leads nowhere":                      {func(v *domain.View) { v.AddColumn.To = "" }, "names `to:`"},
+		"a label of two lines":                           {func(v *domain.View) { v.AddColumn.Label = "Add\nlist" }, "one-line"},
+		"columns that are not another Machine's records": {func(v *domain.View) { v.GroupBy = "fld_status" }, "is not a relation"},
+	} {
+		if got := check(board(tc.mutate)); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to say %q", name, got, tc.want)
+		}
+	}
+	app := domain.Application{ID: "app_x", Machines: []string{"mch_task"}, AllNavigation: []domain.NavigationItem{{ID: "nav_lists"}}}
+	byID := map[string]*domain.Machine{"mch_task": board(nil)}
+	if got := validateBoardAddColumns([]domain.Application{app}, byID); len(got) != 0 {
+		t.Errorf("a tile leading to a declared item: %v", got)
+	}
+	app.AllNavigation = nil
+	if got := strings.Join(validateBoardAddColumns([]domain.Application{app}, byID), "\n"); !strings.Contains(got, `add_column.to "nav_lists" is not a navigation item`) {
+		t.Errorf("a tile leading to an item nobody declared: %q", got)
+	}
+}

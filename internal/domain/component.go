@@ -543,10 +543,13 @@ type PopoverTrigger string
 const (
 	PopoverTriggerSecondary PopoverTrigger = "secondary"
 	PopoverTriggerFilled    PopoverTrigger = "filled"
+	// PopoverTriggerQuiet is a three-dot mark with no outline: the menu of a thing that is already a surface of its own (a board column's
+	// "List actions"), which a bordered button would shout over. It names its menu with `title:`, since it shows no words.
+	PopoverTriggerQuiet PopoverTrigger = "quiet"
 )
 
 // KnownPopoverTriggers is the closed set.
-var KnownPopoverTriggers = map[PopoverTrigger]bool{PopoverTriggerSecondary: true, PopoverTriggerFilled: true}
+var KnownPopoverTriggers = map[PopoverTrigger]bool{PopoverTriggerSecondary: true, PopoverTriggerFilled: true, PopoverTriggerQuiet: true}
 
 // PopoverAlign is the side of its trigger a Popover's panel lines up with: `start` opens toward the right from the
 // trigger's left edge, `end` toward the left from its right edge.

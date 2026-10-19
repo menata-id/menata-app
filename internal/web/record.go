@@ -460,6 +460,12 @@ func fromDeclaredPage(req *http.Request) bool {
 	return err == nil && strings.HasPrefix(current.Path, "/pages/")
 }
 
+// answersWithRefresh says a write to machine's record was sent from a screen that is not machine's own page -- a declared page, or another
+// Machine's board whose column menu writes the List -- so the answer is a refresh of that screen rather than markup for a body it does not have.
+func answersWithRefresh(req *http.Request, machine *domain.Machine) bool {
+	return fromDeclaredPage(req) || (req.Header.Get("HX-Current-URL") != "" && !onMachinePage(req, machine))
+}
+
 // onMachinePage says whether the person who sent this fragment request is looking at the Machine's own page
 // (HX-Current-URL), the only place the Machine body it would answer with can be swapped in. A write from
 // another screen -- a task's circle on My Tasks -- is answered with an HX-Refresh instead, so that screen
@@ -978,9 +984,9 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 			w.Header().Set("HX-Redirect", back)
 			return
 		}
-		if fromDeclaredPage(req) {
-			// A delete Button on a declared page has no row to remove: the page re-reads and draws the list
-			// without the record, the way the create and patch routes answer the same page.
+		if answersWithRefresh(req, machine) {
+			// A delete Button on a declared page, or on another Machine's screen (a board's column menu), has no row to remove:
+			// the screen re-reads and draws without the record, the way the create and patch routes answer the same screen.
 			w.Header().Set("HX-Refresh", "true")
 			return
 		}
@@ -1029,7 +1035,7 @@ func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 				return
 			}
 		}
-		if fromDeclaredPage(req) {
+		if answersWithRefresh(req, machine) {
 			w.Header().Set("HX-Refresh", "true")
 		}
 	}

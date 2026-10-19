@@ -588,6 +588,38 @@ rename the screen in the Application's `navigation:`, not in Go. A card shows wh
 to get the avatar. A Machine that declares `type: table` beside the board gets the segmented Board/Table
 switcher; the switcher's look changed for **every** Machine with more than one View.
 
+**A board speaks of its records by the Machine's own name (2026-10-19, slice 3, mockup PM01).** "3 tasks", "Add task", "Task title" and "Tasks with
+no list land here." are the Machine's `name:` lower-cased with an s -- nothing is typed; a name that does not take an s says "entrys", so give the Machine
+one that does. The column for records with no list is drawn as the board's leftover: dashed, on the page's ground, with no composer and no menu. Columns
+are 162px wide, so seven fit a 1180px page. A board that is one screen of a **view group** makes a task started from "New task" or from a column's
+composer belong to the project that is showing (the group's scope value is a hidden input / the form's starting value).
+
+**A column menu and an "add list" tile are declared on the View, for a board whose columns are records of another Machine** (a List):
+
+```yaml
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_list                 # a relation: each column is one record of mch_list
+    column_actions: [rename, move, delete]   # the "..." menu of a column; each is the List Machine's own generic record route
+    add_column:                        # the dashed tile at the end of the board, for the place lists are made
+      to: nav_board_settings           # a navigation item (never a route) of an Application that installs this Machine
+      label: Add list
+      note: Lists are shared by every project in this workspace. Opens Board settings, where they are renamed, reordered and removed.
+```
+
+`rename` writes the List's label Field (the `edit` Permission), `move` moves it one place earlier or later in its Machine's order -- which *is* the order of
+the columns -- (`edit`; the first column has no "Move left", the last no "Move right"), `delete` removes it after "Delete this list? This cannot be undone."
+(`delete`). Each is offered only where the List Machine's own Permissions let the viewer, and the routes answer a write sent from the board with a refresh.
+The loader refuses `column_actions`/`add_column` on a board whose `group_by` is not a relation, an action it does not know, and an `add_column.to` that is not
+a navigation item of the Application. **The AI assistant has no slot for either key** (`registry.Capabilities` says why: a generated board groups by a status
+Field's options, which are not records).
+
+**Moving a card from the keyboard (2026-10-19, mockup PM01b):** Space on a focused card lifts it, the arrow keys choose the list and the place, Space drops it and
+Esc puts it back; the board's status line says where it is going. It ends in the very PATCH a drop sends, so there is one contract. It is part of the board's
+drag script in `machine.templ` (see "Script is the exception").
+
 **Moving a card needs nothing declared.** Anyone who may edit a record can drag its card to another column or
 place in the same one, or use the pencil's *Move to list* / *Position*; both write the `group_by` Field and the
 card's order (`sort_order`). Nothing can be moved into the automatic "Other" column — it has no value to write.
@@ -1433,7 +1465,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
-| `Popover` | stable | Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go. **The panel is `position: fixed` (2026-10-19)** so the scrolling box of a table (a row's Edit) cannot cut it; it sits where it would have been, under the trigger and flush with the side `align:` names, and below `sm` (a phone) it gets offsets of its own: a gutter in from each side, above the bottom bar, scrolling inside when it is tall. It does not follow the trigger if the page is scrolled while it is open. **Two shapes by `density` (2026-10-19):** `compact` (a menu of actions) is a small panel under its trigger; `regular` (a form to fill in: an Edit, a "New ...") is a **dialog** -- a centred card with the page dimmed behind it from `sm` up, a sheet above the bottom bar on a phone, a title and a close mark on top, a scrolling body, and the Form's own **Cancel and submit pinned under it** so they are always in sight. It closes only on purpose (Cancel, the close mark, Escape) and never by a tap outside it, which would throw a half-filled form away |
+| `Popover` | stable | `trigger: quiet` (2026-10-19) is a three-dot mark with no outline, for the menu of a thing that is already a surface (a board column's "List actions"; it names the menu with `title:`). Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go. **The panel is `position: fixed` (2026-10-19)** so the scrolling box of a table (a row's Edit) cannot cut it; it sits where it would have been, under the trigger and flush with the side `align:` names, and below `sm` (a phone) it gets offsets of its own: a gutter in from each side, above the bottom bar, scrolling inside when it is tall. It does not follow the trigger if the page is scrolled while it is open. **Two shapes by `density` (2026-10-19):** `compact` (a menu of actions) is a small panel under its trigger; `regular` (a form to fill in: an Edit, a "New ...") is a **dialog** -- a centred card with the page dimmed behind it from `sm` up, a sheet above the bottom bar on a phone, a title and a close mark on top, a scrolling body, and the Form's own **Cancel and submit pinned under it** so they are always in sight. It closes only on purpose (Cancel, the close mark, Escape) and never by a tap outside it, which would throw a half-filled form away |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -3077,7 +3109,7 @@ is added to this list in the same change, or it is not allowed.**
 | The shell: the held-back form notice | Says "N required fields are still empty" and scrolls to the first one when the browser holds a form back | A held-back form sends no request, so no response can say why | Reads `:invalid`; changes no value |
 | **The shell: closing a dialog** (2026-10-19) | **A dialog (a Popover that holds a form) closes on its Cancel, its close mark (`data-popover-close`) and on Escape** | A `<details>` cannot be closed by a button inside it, nor by a key, without script | Closes only `details[data-popover]`; never on a tap outside (a half-filled form would lose its typing); changes no value |
 | **The shell: the money control** (2026-10-18) | **Groups the thousands of a money control as it is typed, stops at two decimals, pads to two decimals when the control is left, and sends the plain decimal** | A `number` control cannot show marks at all, and a `text` control cannot group digits as they are typed without script. The server only ever sees the plain decimal, so it cannot do this for the person typing | **Forms only, and only a `data-money` control** (a money Field of a Form). It reads the Workspace's marks from the control's `data-thousands`/`data-decimal` (the server wrote them from `number_format:`); it names no mark itself. It changes nothing but that control's text, and replaces the value in the request with the plain decimal. Without script the control is a text control holding the plain decimal, and the server accepts it as it always did. Display is never done by script: every table, total, metric and page is written by the server |
-| `leaveguard`, `signatureplacement`, `reviewdocument`, `machine.templ` (board drag, quick edit) | Their own screens' interaction (a "leave this page?" guard, placing a signature on a PDF, dragging a card) | Pointer and focus behaviour | Each in its own template, none reads a Workspace's data |
+| `leaveguard`, `signatureplacement`, `reviewdocument`, `machine.templ` (board drag, **keyboard move**, quick edit) | Their own screens' interaction (a "leave this page?" guard, placing a signature on a PDF, dragging a card -- or lifting it with Space, moving it with the arrows, dropping it with Space and cancelling with Esc, reporting in the board's status line) | Pointer and focus behaviour; a gesture has no declarative form | Each in its own template, none reads a Workspace's data; the move ends in the same PATCH a drop sends |
 
 What this means for an author: you write `type: money` and `number_format:`, never a script. If a screen needs behaviour that none of the
 rows above gives, say so as a gap; do not work around it with a property that smuggles a handler in.

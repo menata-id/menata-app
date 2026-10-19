@@ -116,6 +116,8 @@ var Capabilities = []Capability{
 	key("viewDoc", "name", "identity", "experience", true, ""),
 	key("viewDoc", "type", "presentation", "experience", true, ""),
 	key("viewDoc", "group_by", "presentation", "experience", true, ""),
+	key("viewDoc", "column_actions", "presentation", "experience", false, "a board column's rename/move/delete menu over a relation-grouped board; a generated board groups by a status Field's options, which are not records"),
+	key("viewDoc", "add_column", "presentation", "experience", false, "a board's \"add list\" tile leading to a navigation item; a generated board has no record-backed columns to add"),
 	key("cardFieldDoc", "field", "presentation", "experience", true, ""),
 	key("cardFieldDoc", "role", "presentation", "experience", true, ""),
 	key("completionDoc", "field", "behaviour", "behavior", true, ""),

@@ -46,6 +46,13 @@ navigation:
     icon: board
     view_group: vg_tasks
     summary: counts
+  # Where a board's lists are renamed, reordered and removed: the Board's "Add list" tile leads here, named through navigation.
+  - id: nav_board_settings
+    label: Lists & labels
+    route: /machines/mch_list
+    priority: 5
+    icon: settings
+    description: The lists a board groups by.
   - id: nav_task_table
     label: Table
     route: /pages/nav_task_table

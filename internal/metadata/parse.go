@@ -279,6 +279,13 @@ type viewDoc struct {
 	Name    string `yaml:"name"`
 	Type    string `yaml:"type"`
 	GroupBy string `yaml:"group_by"`
+	// ColumnActions and AddColumn are a board's column menu and its "add a column" tile (domain.View).
+	ColumnActions []string `yaml:"column_actions"`
+	AddColumn     *struct {
+		To    string `yaml:"to"`
+		Label string `yaml:"label"`
+		Note  string `yaml:"note"`
+	} `yaml:"add_column"`
 }
 
 // cardFieldDoc is the YAML serialization of a domain.CardField (007 §7.6 Projection pilot).
@@ -908,12 +915,19 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	for _, vd := range doc.Views {
-		m.Views = append(m.Views, domain.View{
+		v := domain.View{
 			ID:      vd.ID,
 			Name:    vd.Name,
 			Type:    domain.ViewKind(vd.Type),
 			GroupBy: vd.GroupBy,
-		})
+		}
+		for _, a := range vd.ColumnActions {
+			v.ColumnActions = append(v.ColumnActions, domain.ColumnAction(a))
+		}
+		if a := vd.AddColumn; a != nil {
+			v.AddColumn = &domain.AddColumn{To: a.To, Label: a.Label, Note: a.Note}
+		}
+		m.Views = append(m.Views, v)
 	}
 
 	// Phase 4 (005-runtime-lifecycle.md): the inferences a Machine carries however it was built. Kept as

@@ -1,0 +1,122 @@
+package rendering
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"menata.app/internal/authorization"
+	"menata.app/internal/domain"
+	"menata.app/internal/experience"
+)
+
+// boardColumn is one lane of a board: its name and count, the menu of what can be done to the lane itself, its cards and the composer that
+// adds one. The lane for records that name no group (`Hint` is only ever set on it) is drawn as the board's own leftover -- dashed, on the
+// page's ground, with nothing to add to it and nothing to do to it: no record stands behind it.
+templ boardColumn(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor, byRecord map[string]RecordCard, targets []MoveTarget, preset *ViewPreset) {
+	{{ other := col.Hint != "" }}
+	<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-40.5 shrink-0 flex-col", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border p-2", columnSurface(ctx, other) }>
+		<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
+			<h3 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), columnTitleInk(ctx, other) }>{ col.Label }</h3>
+			<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 " + textClass(ctx, domain.RoleLabel) + " " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
+			if col.Machine != nil && len(v.ColumnActions) > 0 {
+				@columnMenu(v, col, place, actor)
+			}
+		</header>
+		if col.Hint != "" {
+			// A caption in the lane's ground: `secondary` ink is 4.35:1 on the sunken lane (the 2026-10-13 rule), so the hint reads `body`.
+			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkBody) }>{ col.Hint }</p>
+		}
+		<div data-cards class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
+			for i, r := range col.Records {
+				@boardCard(m, byRecord[r.ID], actor, CardMove{Group: groupWord(m, v), Field: v.GroupBy, Targets: targets, Current: columnValue(m, v, col), Position: i + 1})
+			}
+		</div>
+		if !other {
+			@cardComposer(m, v, col, preset)
+		}
+	</div>
+}
+
+// columnSurface is a lane's ground: the sunken well of a real column, the page's own ground under a dashed outline for the leftover one. Chosen
+// in Go so two Theme readers never share a class expression.
+func columnSurface(ctx context.Context, other bool) string {
+	if other {
+		return "border-dashed " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundBase)
+	}
+	return borderClass(ctx, domain.BorderSurface) + " " + backgroundClass(ctx, domain.BackgroundSunken)
+}
+
+// columnTitleInk is a lane's name: strong body ink, secondary for the leftover lane that is not a thing anyone made.
+func columnTitleInk(ctx context.Context, other bool) string {
+	if other {
+		return inkClass(ctx, domain.InkSecondary)
+	}
+	return inkClass(ctx, domain.InkBody)
+}
+
+// groupWord is what a sentence calls the Field a board groups by ("list"), from the Field's own name.
+func groupWord(m *domain.Machine, v domain.View) string {
+	if f, ok := m.FieldByID(v.GroupBy); ok {
+		return strings.ToLower(f.Name)
+	}
+	return ""
+}
+
+// columnMenu is a lane's "List actions" menu: rename it, move it a place either way, delete it -- each only where the lane's own Machine lets this
+// viewer (the same Permissions the routes enforce), and each a write through that Machine's generic record routes, never a route of the board's.
+// A menu with nothing the viewer may do is not drawn. The routes answer a request from another screen with HX-Refresh, so the board redraws itself.
+templ columnMenu(v domain.View, col experience.Column, place columnPlace, actor domain.Actor) {
+	{{ canEdit := authorization.AllowsAction(col.Machine, domain.ActionEdit, col.Values, actor) }}
+	{{ canDelete := authorization.AllowsAction(col.Machine, domain.ActionDelete, col.Values, actor) }}
+	{{ rename, move, remove := v.HasColumnAction(domain.ColumnRename) && canEdit, v.HasColumnAction(domain.ColumnMove) && canEdit, v.HasColumnAction(domain.ColumnDelete) && canDelete }}
+	if rename || move || remove {
+		<span class="ml-auto">
+			@popover("", "List actions for "+col.Label, domain.PopoverTriggerQuiet, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
+				@stackLayout(domain.GapTight) {
+					if rename {
+						<form class={ "flex flex-col", layoutGap(ctx, domain.GapTight) } hx-patch={ columnRoute(col, "") } hx-swap="none">
+							<input type="text" name={ col.Machine.LabelField() } value={ col.Label } required aria-label={ "Name of " + col.Label } class={ fieldClasses(ctx) + " w-full" }/>
+							@button("Rename", domain.ButtonSecondary, "", "")
+						</form>
+					}
+					if move && !place.First {
+						@requestButton("Move left", domain.ButtonSecondary, "", "", columnRoute(col, "/move?direction="+domain.MoveUp), domain.ButtonMethodPost, "", col.Label)
+					}
+					if move && !place.Last {
+						@requestButton("Move right", domain.ButtonSecondary, "", "", columnRoute(col, "/move?direction="+domain.MoveDown), domain.ButtonMethodPost, "", col.Label)
+					}
+					if remove {
+						@requestButton("Delete", domain.ButtonSecondary, "", "", columnRoute(col, ""), domain.ButtonMethodDelete, "Delete this "+columnWord(v, col)+"? This cannot be undone.", col.Label)
+					}
+				}
+			}
+		</span>
+	}
+}
+
+// columnRoute is the generic record route of the lane's own record, with suffix (`/move?direction=up`) after it.
+func columnRoute(col experience.Column, suffix string) string {
+	return "/machines/" + col.Machine.ID + "/records/" + col.ID + suffix
+}
+
+// columnWord is what a lane's record is called in the question before deleting it: the Machine's own name ("list").
+func columnWord(v domain.View, col experience.Column) string {
+	return strings.ToLower(strings.TrimSpace(col.Machine.Name))
+}
+
+// addColumnTile is the dashed tile at the end of a board that leads to where lanes are made. It is a link to a navigation item, never a typed
+// route, with the words the View declared about what that place is for.
+templ addColumnTile(a domain.AddColumn) {
+	<div role="group" aria-label={ a.Label } class={ "flex w-37 shrink-0 flex-col", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed p-2", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundBase) }>
+		<a href={ templ.URL(routeByID(ctx, a.To)) } class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody), inkHoverClass(ctx, domain.InkStrong) }>
+			@icon("plus", "size-3.5")
+			{ a.Label }
+		</a>
+		if a.Note != "" {
+			@staticText(domain.StaticNote, a.Note)
+		}
+	</div>
+}
+
+

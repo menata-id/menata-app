@@ -22,6 +22,28 @@ type ViewHeader struct {
 	Tabs []SegmentTab
 	// Scope is nil for a group with no scope.
 	Scope *ViewScopeMenu
+	// Preset is the Field a new record of the group starts with and the value it starts at -- the chosen scope, so a task made while one
+	// project is showing is that project's. Nil with no choice.
+	Preset *ViewPreset
+}
+
+// ViewPreset is one Field's starting value for a record made from a screen of a view group.
+type ViewPreset struct{ Field, Value string }
+
+// presetValue is the starting value a preset gives the Field, nil when it gives none (a form's field then starts blank).
+func presetValue(p *ViewPreset, field string) any {
+	if p == nil || p.Field != field || p.Value == "" {
+		return nil
+	}
+	return p.Value
+}
+
+// headerPreset is a screen's header's preset, nil when it draws no group header.
+func headerPreset(h *ViewHeader) *ViewPreset {
+	if h == nil {
+		return nil
+	}
+	return h.Preset
 }
 
 // ViewScopeMenu is the "Switch project" control: its words and one link per choice, "all" first.
@@ -132,7 +154,7 @@ func viewHeader(h ViewHeader) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(h.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 39, Col: 130}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 61, Col: 130}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {

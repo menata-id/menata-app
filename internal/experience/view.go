@@ -3,6 +3,7 @@ package experience
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -18,6 +19,10 @@ type Column struct {
 	// because it is the column nobody declared and so the one a reader asks about.
 	Hint    string
 	Records []*data.Record
+	// Machine and Values are the column's own record -- a List -- when the column is one: the Machine it belongs to and what it holds, so a
+	// menu can ask that Machine's Permissions about it. Nil and empty for a status Option and for the synthetic "Other" column.
+	Machine *domain.Machine
+	Values  map[string]any
 }
 
 // GroupRecords partitions records into ordered Columns keyed by the value of v.GroupBy -- the
@@ -71,7 +76,7 @@ func otherHint(m *domain.Machine, v domain.View) string {
 	if !ok {
 		return ""
 	}
-	return "Cards with no " + strings.ToLower(f.Name) + " land here."
+	return capitalised(Plural(m.Name)) + " with no " + strings.ToLower(f.Name) + " land here."
 }
 
 // PlaceBefore answers "where does a card go": given the 1-based position a person asked for inside the
@@ -94,4 +99,24 @@ func PlaceBefore(v domain.View, records []*data.Record, movedID, groupValue stri
 		return ""
 	}
 	return inGroup[position-1].ID
+}
+
+// Plural is a Machine's name said of several, lower-cased and with an s -- a rule of the language the words are in. The Machine's own name is
+// the only word the runtime has for what a board arranges, so a board says "3 tasks" and "Add task" without anyone typing them; a name that
+// does not take an s says "entrys" and is a reason to give the Machine one that does. Empty for a Machine with no name.
+func Plural(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return "records"
+	}
+	return name + "s"
+}
+
+func capitalised(s string) string {
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return s
+	}
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }

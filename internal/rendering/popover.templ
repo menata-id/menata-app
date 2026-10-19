@@ -29,7 +29,13 @@ templ popover(label, title string, trigger domain.PopoverTrigger, align domain.P
 				aria-label={ title }
 			}
 			class={ popoverTriggerClasses(ctx, trigger) }
-		>{ label }</summary>
+		>
+			if trigger == domain.PopoverTriggerQuiet {
+				@icon("more", "size-4")
+			} else {
+				{ label }
+			}
+		</summary>
 		if density == domain.PopoverDensityRegular {
 			// The dim behind a dialog from `sm` up: it also keeps the page from being used while the dialog is open.
 			<div class={ "fixed inset-0 z-30 hidden sm:group-open:block", inkFillClass(ctx, domain.InkStrong), "opacity-30" } aria-hidden="true"></div>
@@ -101,6 +107,9 @@ const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 m
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
 		return "cursor-pointer list-none " + radiusClass(ctx, domain.RadiusControl) + " " + inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + onFillClass(ctx) + " " + inkFillHoverClass(ctx)
+	}
+	if trigger == domain.PopoverTriggerQuiet {
+		return "grid size-5.5 cursor-pointer list-none place-items-center " + radiusClass(ctx, domain.RadiusControl) + " " + inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " " + touchTargetClass()
 	}
 	return buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none"
 }

@@ -118,6 +118,7 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 		words := scope.Overall
 		if chosen != nil {
 			words = scope.Chosen
+			h.Preset = &rendering.ViewPreset{Field: scope.Field, Value: chosen.ID}
 			h.Title = DisplayString(chosen.Values[scopeMachine.LabelField()])
 		}
 		parts = append(parts, domain.FillCount(words, scopeCount))

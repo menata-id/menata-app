@@ -75,13 +75,13 @@ func renderBoard(t *testing.T) string {
 func TestBoardScreen_rendersColumnsCardsAndSummary(t *testing.T) {
 	got := renderBoard(t)
 	for _, want := range []string{
-		"3 cards · grouped by List",
-		"Cards with no list land here.",
+		"3 tasks · grouped by List",
+		"Tasks with no list land here.",
 		`aria-label="Backlog"`, `aria-label="Shooting"`, `aria-label="Other"`,
 		`href="/machines/mch_task/records/rec_1"`,
 		"Write the script", "12 Oct",
 		`aria-label="Silvia Rini"`, ">SR<",
-		"New task", "Add a card",
+		"New task", "Add task",
 		`name="fld_list" value="lst_a"`,
 		`href="?view=vw_task_table"`,
 	} {
@@ -285,5 +285,56 @@ func TestBoardSummary_countsCompleteOnlyWhereACompletionIsDeclared(t *testing.T)
 	m.Completion = &domain.Completion{Field: "fld_status", Done: "done"}
 	if got := boardSummary(m, v, 3, cards); !strings.HasSuffix(got, "grouped by List · 2 complete") {
 		t.Errorf("summary = %q, want it to end \"grouped by List · 2 complete\"", got)
+	}
+}
+
+// A board whose columns are records of another Machine offers each its menu (rename, move either way, delete) only where that Machine's
+// Permissions let the viewer, through that Machine's own routes; the first column cannot move earlier and the last cannot move later; the
+// lane for tasks with no list has no menu and no composer and is dashed; and the board ends in a tile that names where lists are made.
+func TestBoardScreen_columnMenuAddTileAndTheLeftoverLane(t *testing.T) {
+	m, v := boardMachine()
+	v.ColumnActions = []domain.ColumnAction{domain.ColumnRename, domain.ColumnMove, domain.ColumnDelete}
+	v.AddColumn = &domain.AddColumn{To: "nav_lists", Label: "Add list", Note: "Lists are shared."}
+	list := &domain.Machine{ID: "mch_list", Name: "List", Fields: []domain.Field{{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText}},
+		CardFields: []domain.CardField{{Field: "fld_name", Role: domain.CardFieldRoleTitle}}}
+	records, cards, columns := boardFixture()
+	columns[0].Machine, columns[0].Values = list, map[string]any{}
+	columns[1].Machine, columns[1].Values = list, map[string]any{}
+	app := domain.Application{ID: "app_x", AllNavigation: []domain.NavigationItem{{ID: "nav_lists", Route: "/machines/mch_list"}}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Applications: []domain.Application{app}}, "WS", false)
+	render := func(actor domain.Actor) string {
+		var buf bytes.Buffer
+		if err := MachineBody(m, v, records, nil, nil, columns, cards, actor, time.Now(), nil).Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	got := render(domain.Actor{ID: "usr_ana"})
+	for _, want := range []string{
+		`aria-label="List actions for Backlog"`, `aria-label="List actions for Shooting"`,
+		`hx-delete="/machines/mch_list/records/lst_a"`, `hx-confirm="Delete this list? This cannot be undone."`,
+		`hx-post="/machines/mch_list/records/lst_a/move?direction=down"`, `hx-post="/machines/mch_list/records/lst_b/move?direction=up"`,
+		`hx-patch="/machines/mch_list/records/lst_a"`,
+		`href="/machines/mch_list"`, "Add list", "Lists are shared.",
+		"border-dashed", "Tasks with no list land here.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("board is missing %q", want)
+		}
+	}
+	for _, absent := range []string{"List actions for Other", "/records/lst_a/move?direction=up", "/records/lst_b/move?direction=down"} {
+		if strings.Contains(got, absent) {
+			t.Errorf("board draws %q", absent)
+		}
+	}
+	// Add task: one composer per real list, none under the leftover lane.
+	if n := strings.Count(got, "Add task"); n != 2 {
+		t.Errorf("%d composers, want one under each of the two lists and none under the leftover lane", n)
+	}
+
+	// Permissions of the List Machine apply: a viewer who may not edit or delete it sees no menu.
+	list.Permissions = []domain.Permission{{Action: domain.ActionEdit, ActorField: "fld_owner"}, {Action: domain.ActionDelete, ActorField: "fld_owner"}}
+	if out := render(domain.Actor{ID: "usr_ana", WorkspaceRole: "member"}); strings.Contains(out, "List actions for") {
+		t.Errorf("a viewer who may neither edit nor delete a list is offered its menu")
 	}
 }

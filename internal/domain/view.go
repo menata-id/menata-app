@@ -184,6 +184,43 @@ type View struct {
 	// GroupBy is a Field ID on the same Machine; meaningful only for ViewBoard, where its values
 	// become the board's columns.
 	GroupBy string
+	// ColumnActions are what a board's column menu offers for the column's own record when the board groups by a relation (a List):
+	// each is one of KnownColumnActions, done through that Machine's generic record routes and offered only where its Permissions let
+	// the viewer. Empty draws no menu. Meaningful only for ViewBoard with a relation group_by (metadata.validateView).
+	ColumnActions []ColumnAction
+	// AddColumn is the board's tile at the end of its columns, for a place that is not the board where columns are made: it leads to a
+	// navigation item and says why. Nil draws no tile. Meaningful only for ViewBoard with a relation group_by.
+	AddColumn *AddColumn
+}
+
+// HasColumnAction reports whether the View declares action in its column menu.
+func (v View) HasColumnAction(a ColumnAction) bool {
+	for _, c := range v.ColumnActions {
+		if c == a {
+			return true
+		}
+	}
+	return false
+}
+
+// ColumnAction is one thing a board's column menu can do to the column's record.
+type ColumnAction string
+
+const (
+	// ColumnRename changes the record's label Field (an edit); ColumnMove moves it one place earlier or later in its Machine's order,
+	// which is the order of the columns (an edit); ColumnDelete removes it (a delete, after a question).
+	ColumnRename ColumnAction = "rename"
+	ColumnMove   ColumnAction = "move"
+	ColumnDelete ColumnAction = "delete"
+)
+
+// KnownColumnActions is the closed set.
+var KnownColumnActions = map[ColumnAction]bool{ColumnRename: true, ColumnMove: true, ColumnDelete: true}
+
+// AddColumn is the words and destination of a board's "add a column" tile: Label names it, Note says what the place is for, and To is the
+// id of a navigation item of an Application that installs the Machine (never a typed route, 001 #3).
+type AddColumn struct {
+	To, Label, Note string
 }
 
 // EffectiveType returns v's Type, defaulting to ViewTable for the zero value -- so a Machine that

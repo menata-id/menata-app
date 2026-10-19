@@ -196,3 +196,59 @@ steps:
         - Wrap party
       hides:
         - Update crew contact sheet
+
+  # --- The Board (slice 3, mockup PM01) -----------------------------------------------------------------------------------------
+  # A board speaks of the Machine it arranges -- tasks, not cards -- in the Machine's own name, and the lane for records that sit in
+  # no list says so in the same words.
+  - id: the-board-says-task-not-card
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task
+      shows:
+        - Add task
+        - Task title
+        - Tasks with no list land here.
+      hides:
+        - Add a card
+        - Card title
+        - Cards with no
+  # Each list has a menu of what can be done to the list itself -- rename it, move it a place either way, delete it -- written through the
+  # List Machine's own record routes, and offered only for a list that is one (the lane for "no list" is not a record).
+  - id: each-list-has-its-actions
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task
+      shows:
+        - aria-label="List actions for To Do"
+        - Rename
+        - Move left
+        - Move right
+        - hx-delete="/machines/mch_list/records/$todo"
+        - hx-confirm="Delete this list? This cannot be undone."
+        - hx-post="/machines/mch_list/records/$todo/move?direction=down"
+        - hx-post="/machines/mch_list/records/$done-list/move?direction=up"
+      hides:
+        - List actions for Other
+        - /machines/mch_list/records/$todo/move?direction=up
+        - /machines/mch_list/records/$done-list/move?direction=down
+  # A list is added where lists are managed: a tile at the end of the board names that place (through navigation, never a typed route).
+  - id: the-board-leads-to-where-lists-are-added
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task
+      shows:
+        - Add list
+        - href="/machines/mch_list"
+        - Lists are shared by every project in this workspace.
+  # "New task" and a lane's own composer put a new task in the project that is showing.
+  - id: a-new-task-is-of-the-chosen-project
+    as: nia
+    expect: ok
+    view:
+      path: /machines/mch_task?project=$first-season
+      shows:
+        - <option value="$first-season" selected
+        - name="fld_project" value="$first-season"

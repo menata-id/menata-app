@@ -763,7 +763,7 @@ func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine, v domain.V
 	labelFieldID := listMachine.LabelField()
 	columns := make([]experience.Column, 0, len(records))
 	for _, r := range records {
-		columns = append(columns, experience.Column{ID: r.ID, Label: DisplayString(r.Values[labelFieldID])})
+		columns = append(columns, experience.Column{ID: r.ID, Label: DisplayString(r.Values[labelFieldID]), Machine: listMachine, Values: r.Values})
 	}
 	return columns, nil
 }

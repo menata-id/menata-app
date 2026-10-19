@@ -32,7 +32,7 @@ kept in a private companion repository.
 **Applications built on the runtime**
 - **Document Approval**: submission wizard, drafts and revisions, sequential or parallel approval, saved approval
   flows per document type, SLA tracking, an approval inbox, signature placement and signing onto the PDF.
-- **Project Management**: boards with lists and labels, a table of tasks (completion circle, list, labels, due date, assignee), a calendar, one header over all three (the project's name, task counts, switch between Board, Table and Calendar, and a Switch project menu that narrows them), My Tasks, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders.
+- **Project Management**: boards with lists and labels (each list has a menu to rename, move or delete it, and an Add list tile; cards can be moved from the keyboard), a table of tasks (completion circle, list, labels, due date, assignee), a calendar, one header over all three (the project's name, task counts, switch between Board, Table and Calendar, and a Switch project menu that narrows them), My Tasks, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders.
 
 **AI Metadata Assistant**
 - Describe an application in plain words; review, edit and install the generated metadata into a Workspace.

@@ -260,6 +260,13 @@ views:
     name: Board
     type: board
     group_by: fld_list
+    # What the column menu offers for a list (rename it, move it a place either way, delete it) -- written through mch_list's own record
+    # routes and only where its permissions let the viewer -- and the tile at the end of the board for the place lists are made.
+    column_actions: [rename, move, delete]
+    add_column:
+      to: nav_board_settings
+      label: Add list
+      note: Lists are shared by every project in this workspace. Opens Board settings, where they are renamed, reordered and removed.
   - id: vw_task_table
     name: Table
     type: table

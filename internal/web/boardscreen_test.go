@@ -311,3 +311,61 @@ func TestTaskDetailMovePanelMovesTheCardThroughTheBoardView(t *testing.T) {
 		t.Errorf("A moved to position 2 of Shooting: %s, want CAD", got)
 	}
 }
+
+// A board's column menu writes through the List Machine's own generic record routes, sent from the Task board (a Machine page that is not
+// the List's own): the move and the delete answer with HX-Refresh, since the request's swap target is nothing and the board is what must
+// redraw -- and a delete from the List's own page still answers with the empty body that removes the row.
+func TestBoardColumnMenuWritesThroughTheListMachinesRoutes(t *testing.T) {
+	h, cookie, ctx, store, _, _, _ := routerSetupFor(t, "boardcolumnmenu", "default")
+	mk := func(name string) string {
+		r, err := store.CreateRecord(ctx, "mch_list", map[string]any{"fld_name": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	first, second, third := mk("First"), mk("Second"), mk("Third")
+	order := func() string {
+		rs, err := store.ListRecords(ctx, "mch_list")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var s []string
+		for _, r := range rs {
+			s = append(s, r.Values["fld_name"].(string))
+		}
+		return strings.Join(s, ",")
+	}
+	session := &http.Cookie{Name: authorization.SessionCookieName, Value: cookie}
+	tok := csrfTokenFor(t, h, "/machines/mch_list/records")
+	send := func(method, path, from string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", "http://x"+from)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(session)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := send(http.MethodPost, "/machines/mch_list/records/"+third+"/move?direction=up", "/machines/mch_task")
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
+		t.Errorf("a move from the board = %d, HX-Refresh %q, want 200 and true", rec.Code, rec.Header().Get("HX-Refresh"))
+	}
+	if got := order(); got != "First,Third,Second" {
+		t.Errorf("Third moved up: %s, want First,Third,Second", got)
+	}
+	rec = send(http.MethodDelete, "/machines/mch_list/records/"+first, "/machines/mch_task")
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
+		t.Errorf("a delete from the board = %d, HX-Refresh %q, want 200 and true", rec.Code, rec.Header().Get("HX-Refresh"))
+	}
+	if got := order(); got != "Third,Second" {
+		t.Errorf("First deleted: %s, want Third,Second", got)
+	}
+	rec = send(http.MethodDelete, "/machines/mch_list/records/"+second, "/machines/mch_list")
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "" {
+		t.Errorf("a delete from the List's own page = %d, HX-Refresh %q, want 200 and none (the row is swapped away)", rec.Code, rec.Header().Get("HX-Refresh"))
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
@@ -661,7 +662,7 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 	if header != nil {
 		// One arrangement of a view group: the group's header, with this screen's own "New <machine>" as its action.
 		@viewHeader(*header) {
-			@newCardPopover(m, relations, groups)
+			@newCardPopover(m, relations, groups, header.Preset)
 		}
 	} else {
 		@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
@@ -671,11 +672,15 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 			</div>
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 				@viewSwitcher(m, v)
-				@newCardPopover(m, relations, groups)
+				@newCardPopover(m, relations, groups, nil)
 			}
 		}
 	}
-	@boardLayout(m, v, records, boardColumns, cards, actor)
+	// The line the keyboard move reports in: a Callout the script writes into and unhides while a card is lifted.
+	<div data-board-status class="hidden">
+		@callout(" ", domain.ToneGood)
+	</div>
+	@boardLayout(m, v, records, boardColumns, cards, actor, headerPreset(header))
 	@boardDragScript()
 }
 
@@ -697,6 +702,14 @@ templ boardDragScript() {
 					c.classList.remove("ring-2", "ring-emerald-600");
 				});
 				if (slot) { slot.remove(); slot = null; }
+			}
+			// The ring on the list a card is going to and the bar where it will land: one drawing for the mouse and the keyboard.
+			function markSlot(col, cards, idx) {
+				clear();
+				col.classList.add("ring-2", "ring-emerald-600");
+				slot = document.createElement("div");
+				slot.className = "h-1 rounded-full bg-emerald-600";
+				col.querySelector("[data-cards]").insertBefore(slot, cards[idx] || null);
 			}
 			function placeIn(col, y) {
 				var cards = Array.prototype.filter.call(col.querySelectorAll("[data-card]"), function (c) { return c !== dragged; });
@@ -727,12 +740,8 @@ templ boardDragScript() {
 				if (!col) return;
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "move";
-				clear();
-				col.classList.add("ring-2", "ring-emerald-600");
 				var p = placeIn(col, e.clientY);
-				slot = document.createElement("div");
-				slot.className = "h-1 rounded-full bg-emerald-600";
-				col.querySelector("[data-cards]").insertBefore(slot, p.cards[p.idx] || null);
+				markSlot(col, p.cards, p.idx);
 			});
 			document.addEventListener("drop", function (e) {
 				if (!dragged) return;
@@ -749,6 +758,68 @@ templ boardDragScript() {
 				dragged = null;
 				clear();
 			});
+			// The same move from the keyboard (mockup PM01b): Space on a focused card lifts it, the arrows choose the list and the place, Space
+			// drops it and Esc puts it back. It ends in the very PATCH a drop sends, and tells the viewer where it is going in the board's status line.
+			var lifted = null;
+			function status(text) {
+				var s = document.querySelector("[data-board-status]");
+				if (!s) return;
+				s.querySelector("p").textContent = text || " ";
+				s.classList.toggle("hidden", text === "");
+			}
+			function titleOf(card) {
+				var a = card.querySelector("a[href]");
+				return a ? a.textContent.trim() : "";
+			}
+			function columns() {
+				return Array.prototype.filter.call(document.querySelectorAll("[data-board-column]"), function (c) { return c.dataset.value; });
+			}
+			function show() {
+				var col = lifted.col, cards = Array.prototype.filter.call(col.querySelectorAll("[data-card]"), function (c) { return c !== lifted.card; });
+				markSlot(col, cards, lifted.idx);
+				status("Moving \u201c" + titleOf(lifted.card) + "\u201d from " + lifted.from + " to " + col.getAttribute("aria-label") + ", place " + (lifted.idx + 1) + " of " + (cards.length + 1) + ". Arrow keys move it, Space drops it, Esc cancels.");
+			}
+			function drop() {
+				var card = lifted.card, values = { position: lifted.idx + 1 };
+				values[lifted.col.dataset.field] = lifted.col.dataset.value;
+				cancel(false);
+				htmx.ajax("PATCH", card.dataset.url, { source: card, target: "#machine-body", swap: "innerHTML", values: values });
+			}
+			function cancel(refocus) {
+				var card = lifted && lifted.card;
+				lifted = null;
+				clear();
+				status("");
+				if (refocus && card && card.isConnected) { var a = card.querySelector("a[href]"); if (a) a.focus(); }
+			}
+			document.addEventListener("keydown", function (e) {
+				var card = e.target.closest && e.target.closest("[data-card]");
+				if (!lifted) {
+					if (e.key !== " " || !card || card.getAttribute("draggable") === null || e.target.closest("details") || !e.target.matches("a[href]")) return;
+					var col = card.closest("[data-board-column]");
+					if (!col || !col.dataset.value) return;
+					e.preventDefault();
+					var cards = Array.prototype.filter.call(col.querySelectorAll("[data-card]"), function (c) { return c !== card; });
+					var before = Array.prototype.indexOf.call(col.querySelectorAll("[data-card]"), card);
+					lifted = { card: card, col: col, idx: Math.min(before, cards.length), from: col.getAttribute("aria-label") };
+					show();
+					return;
+				}
+				if (e.key === "Escape") { e.preventDefault(); cancel(true); return; }
+				if (e.key === " " || e.key === "Enter") { e.preventDefault(); drop(); return; }
+				var cols = columns(), at = cols.indexOf(lifted.col);
+				var inCol = Array.prototype.filter.call(lifted.col.querySelectorAll("[data-card]"), function (c) { return c !== lifted.card; }).length;
+				if (e.key === "ArrowUp") lifted.idx = Math.max(0, lifted.idx - 1);
+				else if (e.key === "ArrowDown") lifted.idx = Math.min(inCol, lifted.idx + 1);
+				else if (e.key === "ArrowLeft" && at > 0) { lifted.col = cols[at - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll("[data-card]").length); }
+				else if (e.key === "ArrowRight" && at < cols.length - 1) { lifted.col = cols[at + 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll("[data-card]").length); }
+				else return;
+				e.preventDefault();
+				show();
+			});
+			document.addEventListener("focusout", function (e) {
+				if (lifted && e.target === lifted.card.querySelector("a[href]") && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel(false);
+			});
 		})();
 	</script>
 }
@@ -756,7 +827,7 @@ templ boardDragScript() {
 // boardSummary is "11 cards · grouped by List · 2 complete". The last clause is drawn only for a Machine that
 // declares a completion (domain.Machine.Completion), so a Machine with no such idea says nothing about it.
 func boardSummary(m *domain.Machine, v domain.View, count int, cards []RecordCard) string {
-	s := fmt.Sprintf("%d cards", count)
+	s := fmt.Sprintf("%d %s", count, experience.Plural(m.Name))
 	if f, ok := m.FieldByID(v.GroupBy); ok {
 		s += " · grouped by " + f.Name
 	}
@@ -788,36 +859,45 @@ func machineHeading(ctx context.Context, m *domain.Machine) string {
 // boardLayout groups records into columns by the selected View's own group_by and draws each as a
 // fixed-width column of cards (007 §12.2 -- Collection + Group Dimension, one column per group). Each
 // column ends in a composer that creates a record already placed in that group.
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, preset *ViewPreset) {
 	{{ byRecord := cardsByRecord(cards) }}
 	{{ columns := experience.GroupRecords(m, v, records, boardColumns) }}
 	{{ targets := MoveTargets(m, v, columns) }}
+	{{ first, last := columnEnds(columns) }}
 	<div class={ "flex items-start", layoutGap(ctx, domain.GapTight), "overflow-x-auto pb-2" }>
-		for _, col := range columns {
-			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-47.5 shrink-0 flex-col", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
-				<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
-					<h3 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkBody) }>{ col.Label }</h3>
-					<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 " + textClass(ctx, domain.RoleLabel) + " " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
-				</header>
-				if col.Hint != "" {
-					// A caption in the lane's sunken surface: `secondary` ink measures 4.35:1 there (the 2026-10-13 rule), so the hint
-					// reads `body` rather than going through the caption kind.
-					<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkBody) }>{ col.Hint }</p>
-				}
-				<div data-cards class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
-					for i, r := range col.Records {
-						@boardCard(m, byRecord[r.ID], actor, CardMove{Field: v.GroupBy, Targets: targets, Current: columnValue(m, v, col), Position: i + 1})
-					}
-				</div>
-				@cardComposer(m, v, col)
-			</div>
+		for i, col := range columns {
+			@boardColumn(m, v, col, columnPlace{First: i == first, Last: i == last}, actor, byRecord, targets, preset)
+		}
+		if v.AddColumn != nil && hasNavItem(ctx, v.AddColumn.To) {
+			@addColumnTile(*v.AddColumn)
 		}
 	</div>
+}
+
+// columnPlace says where a column that is a record sits among the board's: the first cannot move earlier and the last cannot move later.
+type columnPlace struct{ First, Last bool }
+
+// columnEnds is the index of the first and the last column that is a record of another Machine (a List), -1 when none is: the lane for
+// records that name no list is not one, and neither is a status Option.
+func columnEnds(columns []experience.Column) (first, last int) {
+	first, last = -1, -1
+	for i, c := range columns {
+		if c.Machine == nil {
+			continue
+		}
+		if first < 0 {
+			first = i
+		}
+		last = i
+	}
+	return first, last
 }
 
 // CardMove is what a card needs to offer moving itself: the Field a move writes (the View's group_by), where
 // it can go, where it is, and its place there. A zero value offers no move.
 type CardMove struct {
+	// Group is what the Field is called in a sentence ("list"): the View's group_by Field's own name, lower-cased.
+	Group    string
 	Field    string
 	Targets  []MoveTarget
 	Current  string
@@ -960,7 +1040,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						@icon("pencil", "size-3.5")
 					</summary>
 					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label="Card title" class={ fieldClasses(ctx) + " w-full" }/>
+						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label={ capitalWord(machineNoun(m)) + " title" } class={ fieldClasses(ctx) + " w-full" }/>
 						<span class="flex gap-1.5">
 							@button("Save", domain.ButtonPrimary, "", "")
 							<button type="button" class={ buttonClasses(ctx, domain.ButtonSecondary) } onclick="this.closest('details').open=false">Cancel</button>
@@ -969,7 +1049,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					if mv.Field != "" && len(mv.Targets) > 0 {
 						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
 							<label class={ formLabelClasses(ctx) }>
-								Move to list
+								Move to { cardMoveGroup(mv) }
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
 										<option value={ t.Value } selected?={ t.Value == mv.Current }>{ t.Label }</option>
@@ -1014,6 +1094,14 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 	</div>
 }
 
+// cardMoveGroup is the word the Move panel names the Field with, "list" when a card was handed no name for it.
+func cardMoveGroup(mv CardMove) string {
+	if mv.Group == "" {
+		return "list"
+	}
+	return mv.Group
+}
+
 // cardPatchURL is the route a card's own writes go through.
 func cardPatchURL(m *domain.Machine, c RecordCard) string {
 	return "/machines/" + m.ID + "/records/" + c.Record.ID
@@ -1032,6 +1120,21 @@ func completeLabel(done bool, title string) string {
 	return "Mark \u201c" + title + "\u201d " + state
 }
 
+// machineNoun is what a board calls one of the records it arranges: the Machine's own name, lower-cased ("task").
+func machineNoun(m *domain.Machine) string {
+	return strings.ToLower(strings.TrimSpace(m.Name))
+}
+
+// capitalWord upper-cases the first letter of s ("task" -> "Task").
+func capitalWord(s string) string {
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return s
+	}
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
 // cardTitleFieldID is the Field a composer's input fills: the Machine's `title` card role, or its first
 // Field when it declares no projection.
 func cardTitleFieldID(m *domain.Machine) string {
@@ -1041,9 +1144,12 @@ func cardTitleFieldID(m *domain.Machine) string {
 // cardComposer is a column's "Add a card": a title and, hidden, the group value that places the new record
 // in this column. It posts to the same create route the generic form does, so every default, permission and
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
-templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
+templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, preset *ViewPreset) {
 	<details class="group">
-		<summary class={ "cursor-pointer list-none", radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>Add a card</summary>
+		<summary class={ "flex cursor-pointer list-none items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>
+			@icon("plus", "size-3.5")
+			Add { machineNoun(m) }
+		</summary>
 		<form
 			class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
@@ -1052,14 +1158,17 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 			hx-encoding="multipart/form-data"
 		>
 			<input type="hidden" name={ v.GroupBy } value={ col.ID }/>
-			<input type="text" name={ cardTitleFieldID(m) } required placeholder="Card title" aria-label="Card title" class={ fieldClasses(ctx) + " w-full" }/>
+			if preset != nil && preset.Field != v.GroupBy && preset.Value != "" {
+				<input type="hidden" name={ preset.Field } value={ preset.Value }/>
+			}
+			<input type="text" name={ cardTitleFieldID(m) } required placeholder={ capitalWord(machineNoun(m)) + " title" } aria-label={ capitalWord(machineNoun(m)) + " title" } class={ fieldClasses(ctx) + " w-full" }/>
 			@button("Add", domain.ButtonPrimary, "", "")
 		</form>
 	</details>
 }
 
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
-templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
+templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions, preset *ViewPreset) {
 	@popover("New "+strings.ToLower(m.Name), "", domain.PopoverTriggerFilled, domain.PopoverAlignEnd, domain.PopoverDensityRegular) {
 	<form
 		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }
@@ -1072,7 +1181,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 			if f.Compute == nil && f.Numbering == nil && f.Type != domain.FieldTypeFile {
 				<label class={ formLabelClasses(ctx) }>
 					{ f.Name }
-					@fieldInput(f, nil, relations, groups)
+					@fieldInput(f, presetValue(preset, f.ID), relations, groups)
 				</label>
 			}
 		}
