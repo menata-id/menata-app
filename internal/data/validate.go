@@ -40,7 +40,12 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 		v, present := values[f.ID]
 		empty := !present || v == nil || v == ""
 
-		if empty && (f.Required || requiredNow(f, values)) {
+		// A required text of only spaces is as missing as an empty one -- the browser's own `required` passes it.
+		blank := empty
+		if text, isText := v.(string); isText && strings.TrimSpace(text) == "" {
+			blank = true
+		}
+		if blank && (f.Required || requiredNow(f, values)) {
 			issues = append(issues, fmt.Sprintf("field %q is required", f.ID))
 			continue
 		}

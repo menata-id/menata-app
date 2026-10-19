@@ -60,6 +60,7 @@ var Capabilities = []Capability{
 	key("machineDoc", "permissions", "authorization", "behavior", true, ""),
 	key("machineDoc", "transitions", "behaviour", "behavior", true, ""),
 	key("machineDoc", "completion", "behaviour", "behavior", true, ""),
+	key("machineDoc", "plural", "presentation", "experience", false, "the word a board says of several records; a generated Machine has no board, and without it a board says \"items\""),
 	key("machineDoc", "card_fields", "presentation", "experience", true, ""),
 	key("machineDoc", "views", "presentation", "experience", true, ""),
 	key("machineDoc", "constraints", "behaviour", "behavior", false, "block-if rules relate two Machines; the assistant has no related-record vocabulary yet"),

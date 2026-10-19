@@ -17,10 +17,10 @@ templ boardColumn(m *domain.Machine, v domain.View, col experience.Column, place
 	{{ other := col.Hint != "" }}
 	<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-40.5 shrink-0 flex-col", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border p-2", columnSurface(ctx, other) }>
 		<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
-			<h3 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), columnTitleInk(ctx, other) }>{ col.Label }</h3>
+			<h3 class={ "m-0 min-w-0 break-words", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), columnTitleInk(ctx, other) }>{ col.Label }</h3>
 			<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundRaised) + " px-1.5 " + textClass(ctx, domain.RoleLabel) + " " + inkClass(ctx, domain.InkSecondary) }>{ fmt.Sprint(len(col.Records)) }</span>
 			if col.Machine != nil && len(v.ColumnActions) > 0 {
-				@columnMenu(v, col, place, actor)
+				@columnMenu(m, v, col, place, actor)
 			}
 		</header>
 		if col.Hint != "" {
@@ -66,17 +66,17 @@ func groupWord(m *domain.Machine, v domain.View) string {
 // columnMenu is a lane's "List actions" menu: rename it, move it a place either way, delete it -- each only where the lane's own Machine lets this
 // viewer (the same Permissions the routes enforce), and each a write through that Machine's generic record routes, never a route of the board's.
 // A menu with nothing the viewer may do is not drawn. The routes answer a request from another screen with HX-Refresh, so the board redraws itself.
-templ columnMenu(v domain.View, col experience.Column, place columnPlace, actor domain.Actor) {
-	{{ canEdit := authorization.AllowsAction(col.Machine, domain.ActionEdit, col.Values, actor) }}
-	{{ canDelete := authorization.AllowsAction(col.Machine, domain.ActionDelete, col.Values, actor) }}
+templ columnMenu(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor) {
+	{{ canEdit := columnCan(col, domain.ActionEdit, actor) }}
+	{{ canDelete := columnCan(col, domain.ActionDelete, actor) }}
 	{{ rename, move, remove := v.HasColumnAction(domain.ColumnRename) && canEdit, v.HasColumnAction(domain.ColumnMove) && canEdit, v.HasColumnAction(domain.ColumnDelete) && canDelete }}
 	if rename || move || remove {
-		<span class="ml-auto">
+		<span class="ml-auto" hx-headers={ refreshAnswerHeaders() }>
 			@popover("", "List actions for "+col.Label, domain.PopoverTriggerQuiet, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
 				@stackLayout(domain.GapTight) {
 					if rename {
 						<form class={ "flex flex-col", layoutGap(ctx, domain.GapTight) } hx-patch={ columnRoute(col, "") } hx-swap="none">
-							<input type="text" name={ col.Machine.LabelField() } value={ col.Label } required aria-label={ "Name of " + col.Label } class={ fieldClasses(ctx) + " w-full" }/>
+							<input type="text" name={ col.Machine.LabelField() } value={ col.Label } required pattern=".*\S.*" aria-label={ "Name of " + col.Label } class={ fieldClasses(ctx) + " w-full" }/>
 							@button("Rename", domain.ButtonSecondary, "", "")
 						</form>
 					}
@@ -87,7 +87,7 @@ templ columnMenu(v domain.View, col experience.Column, place columnPlace, actor 
 						@requestButton("Move right", domain.ButtonSecondary, "", "", columnRoute(col, "/move?direction="+domain.MoveDown), domain.ButtonMethodPost, "", col.Label)
 					}
 					if remove {
-						@requestButton("Delete", domain.ButtonSecondary, "", "", columnRoute(col, ""), domain.ButtonMethodDelete, "Delete this "+columnWord(v, col)+"? This cannot be undone.", col.Label)
+						@requestButton("Delete", domain.ButtonSecondary, "", "", columnRoute(col, ""), domain.ButtonMethodDelete, deleteQuestion(m, v, col), col.Label)
 					}
 				}
 			}
@@ -95,9 +95,44 @@ templ columnMenu(v domain.View, col experience.Column, place columnPlace, actor 
 	}
 }
 
+// columnCan is whether the viewer may take action on the lane's own record: the answer the page's reads resolved the way the routes do
+// (experience.Column.Can), or -- where none was asked, as in a test -- the Machine's own Permissions.
+func columnCan(col experience.Column, action string, actor domain.Actor) bool {
+	if can, asked := col.Can[action]; asked {
+		return can
+	}
+	return authorization.AllowsAction(col.Machine, action, col.Values, actor)
+}
+
+// refreshAnswerHeaders is the JSON htmx merges into every request the column menu sends: it asks the record routes to answer with a refresh of the
+// board, which has no row of the List's to remove or reorder.
+func refreshAnswerHeaders() string {
+	return `{"` + domain.RefreshAnswerHeader + `":"true"}`
+}
+
 // columnRoute is the generic record route of the lane's own record, with suffix (`/move?direction=up`) after it.
 func columnRoute(col experience.Column, suffix string) string {
 	return "/machines/" + col.Machine.ID + "/records/" + col.ID + suffix
+}
+
+// deleteQuestion is what the browser asks before a lane's record is deleted, said from what the lane holds and what the board's own relation
+// does when its parent goes: where the Machine's relation refuses the delete while it is in use (`on_parent_delete: restrict`) the question says
+// so, and otherwise it says where the lane's records go -- the leftover lane, which is what a record with no group is drawn in.
+func deleteQuestion(m *domain.Machine, v domain.View, col experience.Column) string {
+	word, held := columnWord(v, col), strings.ToLower(experience.Plural(m))
+	q := "Delete this " + word + "?"
+	switch f, _ := m.FieldByID(v.GroupBy); {
+	case len(col.Records) == 0:
+	case f.OnParentDelete == domain.ParentDeleteRestrict:
+		q += " It can only be deleted while no " + held + " are in it."
+	default:
+		if len(col.Records) == 1 {
+			q += fmt.Sprintf(" Its 1 %s moves to %s.", machineNoun(m), experience.OtherLabel)
+		} else {
+			q += fmt.Sprintf(" Its %d %s move to %s.", len(col.Records), held, experience.OtherLabel)
+		}
+	}
+	return q + " This cannot be undone."
 }
 
 // columnWord is what a lane's record is called in the question before deleting it: the Machine's own name ("list").

@@ -32,6 +32,24 @@ func TestValidateRecord_valid(t *testing.T) {
 	}
 }
 
+// A required text that is only spaces is as missing as an empty one: a list renamed to "   " would be a column with no name, and the
+// browser's own `required` passes it.
+func TestValidateRecord_requiredTextOfOnlySpacesIsMissing(t *testing.T) {
+	for _, blank := range []string{"   ", "\t", " \n "} {
+		err := ValidateRecord(testMachine(), map[string]any{"fld_title": blank, "fld_status": "todo"})
+		if err == nil || !strings.Contains(err.Error(), "fld_title") {
+			t.Errorf("title %q: error = %v, want fld_title required", blank, err)
+		}
+	}
+	// Not required, a blank value is left alone, and a status never gets to be blank by this rule.
+	if err := ValidateRecord(testMachine(), map[string]any{"fld_title": "x", "fld_status": "todo", "fld_priority": 3}); err != nil {
+		t.Errorf("valid record: %v", err)
+	}
+	if err := ValidateRecord(testMachine(), map[string]any{"fld_title": "x", "fld_status": " "}); err == nil {
+		t.Error("a status of one space was accepted")
+	}
+}
+
 func TestValidateRecord_missingRequired(t *testing.T) {
 	err := ValidateRecord(testMachine(), map[string]any{
 		"fld_status": "todo",

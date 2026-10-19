@@ -241,6 +241,9 @@ datasets:
 # it -- a finished card shows its date green with a check, never overdue -- and it is what the hover
 # circle on a card will write. Nothing else in the runtime knew which option was terminal: the Dashboard
 # still compares against a literal "done" in internal/composition/pages.go (P3).
+# plural: the word a board says of several tasks ("3 tasks"); declared, because adding an s to a Machine's name is wrong for
+# "Category" and "Status", so a Machine that declares none is spoken of as "items".
+plural: tasks
 completion: { field: fld_status, done: done }
 
 # card_tags: the chips a board card shows above its title -- the mch_card_label records pointing at it

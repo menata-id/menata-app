@@ -460,10 +460,11 @@ func fromDeclaredPage(req *http.Request) bool {
 	return err == nil && strings.HasPrefix(current.Path, "/pages/")
 }
 
-// answersWithRefresh says a write to machine's record was sent from a screen that is not machine's own page -- a declared page, or another
-// Machine's board whose column menu writes the List -- so the answer is a refresh of that screen rather than markup for a body it does not have.
-func answersWithRefresh(req *http.Request, machine *domain.Machine) bool {
-	return fromDeclaredPage(req) || (req.Header.Get("HX-Current-URL") != "" && !onMachinePage(req, machine))
+// answersWithRefresh says a delete or a move is answered with a refresh of the screen it was sent from rather than markup for a body that screen
+// does not have: it came from a declared page, or the screen asked (`domain.RefreshAnswerHeader`, which another Machine's board puts on its
+// column menu). Asking is explicit, so a caller that relied on the empty body -- an attachment's remove button, a row on another screen -- keeps it.
+func answersWithRefresh(req *http.Request) bool {
+	return fromDeclaredPage(req) || (req.Header.Get(domain.RefreshAnswerHeader) == "true" && req.Header.Get("HX-Current-URL") != "")
 }
 
 // onMachinePage says whether the person who sent this fragment request is looking at the Machine's own page
@@ -984,7 +985,7 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 			w.Header().Set("HX-Redirect", back)
 			return
 		}
-		if answersWithRefresh(req, machine) {
+		if answersWithRefresh(req) {
 			// A delete Button on a declared page, or on another Machine's screen (a board's column menu), has no row to remove:
 			// the screen re-reads and draws without the record, the way the create and patch routes answer the same screen.
 			w.Header().Set("HX-Refresh", "true")
@@ -1035,7 +1036,7 @@ func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 				return
 			}
 		}
-		if answersWithRefresh(req, machine) {
+		if answersWithRefresh(req) {
 			w.Header().Set("HX-Refresh", "true")
 		}
 	}

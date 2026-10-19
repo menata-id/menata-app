@@ -17,7 +17,7 @@ func boardMachine() (*domain.Machine, domain.View) {
 	v := domain.View{ID: "vw_task_board", Name: "Board", Type: domain.ViewBoard, GroupBy: "fld_list"}
 	m := &domain.Machine{
 		ID:   "mch_task",
-		Name: "Task",
+		Name: "Task", Plural: "tasks",
 		Fields: []domain.Field{
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson},
@@ -312,9 +312,10 @@ func TestBoardScreen_columnMenuAddTileAndTheLeftoverLane(t *testing.T) {
 	got := render(domain.Actor{ID: "usr_ana"})
 	for _, want := range []string{
 		`aria-label="List actions for Backlog"`, `aria-label="List actions for Shooting"`,
-		`hx-delete="/machines/mch_list/records/lst_a"`, `hx-confirm="Delete this list? This cannot be undone."`,
+		`hx-delete="/machines/mch_list/records/lst_a"`, `hx-confirm="Delete this list? Its 1 task moves to Other. This cannot be undone."`,
 		`hx-post="/machines/mch_list/records/lst_a/move?direction=down"`, `hx-post="/machines/mch_list/records/lst_b/move?direction=up"`,
 		`hx-patch="/machines/mch_list/records/lst_a"`,
+		`hx-headers="{&#34;` + domain.RefreshAnswerHeader + `&#34;:&#34;true&#34;}"`, `pattern=".*\S.*"`,
 		`href="/machines/mch_list"`, "Add list", "Lists are shared.",
 		"border-dashed", "Tasks with no list land here.",
 	} {
@@ -336,5 +337,113 @@ func TestBoardScreen_columnMenuAddTileAndTheLeftoverLane(t *testing.T) {
 	list.Permissions = []domain.Permission{{Action: domain.ActionEdit, ActorField: "fld_owner"}, {Action: domain.ActionDelete, ActorField: "fld_owner"}}
 	if out := render(domain.Actor{ID: "usr_ana", WorkspaceRole: "member"}); strings.Contains(out, "List actions for") {
 		t.Errorf("a viewer who may neither edit nor delete a list is offered its menu")
+	}
+}
+
+// A board says "3 tasks" from the plural its Machine declares, and a Machine that declares none is never given a made-up one:
+// "3 categorys" and "statuss" were what adding an s did to the names of boards that had said "cards" before. The word the composer
+// asks for is never empty either.
+func TestBoardScreen_pluralIsDeclaredNeverGuessed(t *testing.T) {
+	for _, c := range []struct{ name, plural, wantSummary, wantAdd string }{
+		{"Task", "tasks", "3 tasks · grouped by List", "Add task"},
+		{"Category", "categories", "3 categories · grouped by List", "Add category"},
+		{"Category", "", "3 items · grouped by List", "Add category"},
+		{"Status", "", "3 items · grouped by List", "Add status"},
+		{"", "", "3 items · grouped by List", "Add item"},
+	} {
+		m, v := boardMachine()
+		m.Name, m.Plural = c.name, c.plural
+		records, cards, columns := boardFixture()
+		var buf bytes.Buffer
+		if err := MachineBody(m, v, records, nil, nil, columns, cards, domain.Actor{ID: "usr_ana"}, time.Now(), nil).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		got := buf.String()
+		for _, want := range []string{c.wantSummary, c.wantAdd} {
+			if !strings.Contains(got, want) {
+				t.Errorf("%q/%q: board is missing %q", c.name, c.plural, want)
+			}
+		}
+		if strings.Contains(got, "categorys") || strings.Contains(got, "statuss") || strings.Contains(got, "Add </") || strings.Contains(got, "Add \n") {
+			t.Errorf("%q/%q: the board guessed a plural or left the noun empty", c.name, c.plural)
+		}
+	}
+}
+
+// The question before deleting a lane says what becomes of what is in it, from the lane's count and the board's own relation: they move to the
+// leftover lane, or -- where the relation refuses while it is in use -- the delete is only possible once it is empty.
+func TestDeleteQuestion_saysWhatBecomesOfWhatIsInTheLane(t *testing.T) {
+	m, v := boardMachine()
+	list := &domain.Machine{ID: "mch_list", Name: "List"}
+	records, _, _ := boardFixture()
+	lane := func(n int) experience.Column { return experience.Column{Machine: list, Records: records[:n]} }
+	for _, c := range []struct {
+		n    int
+		want string
+	}{
+		{0, "Delete this list? This cannot be undone."},
+		{1, "Delete this list? Its 1 task moves to Other. This cannot be undone."},
+		{2, "Delete this list? Its 2 tasks move to Other. This cannot be undone."},
+	} {
+		if got := deleteQuestion(m, v, lane(c.n)); got != c.want {
+			t.Errorf("%d held: %q, want %q", c.n, got, c.want)
+		}
+	}
+	for i := range m.Fields {
+		if m.Fields[i].ID == v.GroupBy {
+			m.Fields[i].OnParentDelete = domain.ParentDeleteRestrict
+		}
+	}
+	want := "Delete this list? It can only be deleted while no tasks are in it. This cannot be undone."
+	if got := deleteQuestion(m, v, lane(2)); got != want {
+		t.Errorf("restricted: %q, want %q", got, want)
+	}
+}
+
+// The keyboard move reports in a live region that is on the page before anything is lifted (one that appears with its text is often not read),
+// a card in the leftover lane can be lifted out of it (but not dropped back into it as if it were a list), and focus returns to the moved card
+// after the board is swapped. The script is not run here; the assertions name the pieces whose absence the review found.
+func TestBoardScreen_keyboardMoveAnnouncesLiftsFromOtherAndRefocuses(t *testing.T) {
+	got := renderBoard(t)
+	for _, want := range []string{
+		`data-board-live role="status" aria-live="polite" class="sr-only"`,
+		`data-board-status class="hidden" aria-hidden="true"`,
+		`if (!lifted.col.dataset.value) { cancel(true); return; }`,
+		`htmx:afterSettle`,
+		`e.key === "ArrowLeft" && at === -1`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("board is missing %q", want)
+		}
+	}
+	if strings.Contains(got, `if (!col || !col.dataset.value) return;
+					e.preventDefault();
+					var cards`) {
+		t.Error("a card in the leftover lane still cannot be lifted")
+	}
+}
+
+// The menu follows what the page's reads resolved the way the routes do (experience.Column.Can), not only the Machine's own Permissions: a lane
+// the routes would refuse draws no menu, and one they would allow does, whatever a Permission that reads a parent would have said here.
+func TestBoardScreen_columnMenuFollowsWhatTheRoutesResolved(t *testing.T) {
+	m, v := boardMachine()
+	v.ColumnActions = []domain.ColumnAction{domain.ColumnRename, domain.ColumnMove, domain.ColumnDelete}
+	list := &domain.Machine{ID: "mch_list", Name: "List", Fields: []domain.Field{{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText}}}
+	records, cards, columns := boardFixture()
+	for i := 0; i < 2; i++ {
+		columns[i].Machine, columns[i].Values = list, map[string]any{}
+	}
+	columns[0].Can = map[string]bool{domain.ActionEdit: false, domain.ActionDelete: false}
+	columns[1].Can = map[string]bool{domain.ActionEdit: true, domain.ActionDelete: false}
+	var buf bytes.Buffer
+	if err := MachineBody(m, v, records, nil, nil, columns, cards, domain.Actor{ID: "usr_ana"}, time.Now(), nil).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if strings.Contains(got, `aria-label="List actions for Backlog"`) {
+		t.Error("a lane the routes refuse everything on drew a menu")
+	}
+	if !strings.Contains(got, `aria-label="List actions for Shooting"`) || strings.Contains(got, `hx-delete="/machines/mch_list/records/lst_b"`) {
+		t.Error("a lane the routes let the viewer rename but not delete must draw a menu without Delete")
 	}
 }

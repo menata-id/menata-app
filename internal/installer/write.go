@@ -250,6 +250,8 @@ type FullMachineCheckDoc struct {
 	FlowTemplateStep any    `yaml:"flow_template_step"`
 	SLAField         string `yaml:"sla_field"`
 	Completion       any    `yaml:"completion"`
+	// Plural is domain.Machine.Plural (2026-10-19), added in the same change.
+	Plural string `yaml:"plural"`
 	// StatusCategories is K-15's block (domain.StatusCategories, 2026-10-15), added in the same change.
 	StatusCategories any   `yaml:"status_categories"`
 	CardTags         any   `yaml:"card_tags"`

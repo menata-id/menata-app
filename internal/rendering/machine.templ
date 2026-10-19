@@ -676,8 +676,10 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 			}
 		}
 	}
-	// The line the keyboard move reports in: a Callout the script writes into and unhides while a card is lifted.
-	<div data-board-status class="hidden">
+	// The line the keyboard move reports in. The announcement is a live region that is always on the page (one that appears with its text is
+	// often not read), invisible; what a sighted viewer reads is the Callout the script writes into and unhides while a card is lifted.
+	<p data-board-live role="status" aria-live="polite" class="sr-only"></p>
+	<div data-board-status class="hidden" aria-hidden="true">
 		@callout(" ", domain.ToneGood)
 	</div>
 	@boardLayout(m, v, records, boardColumns, cards, actor, headerPreset(header))
@@ -766,6 +768,8 @@ templ boardDragScript() {
 				if (!s) return;
 				s.querySelector("p").textContent = text || " ";
 				s.classList.toggle("hidden", text === "");
+				var live = document.querySelector("[data-board-live]");
+				if (live) live.textContent = text || "";
 			}
 			function titleOf(card) {
 				var a = card.querySelector("a[href]");
@@ -780,9 +784,17 @@ templ boardDragScript() {
 				status("Moving \u201c" + titleOf(lifted.card) + "\u201d from " + lifted.from + " to " + col.getAttribute("aria-label") + ", place " + (lifted.idx + 1) + " of " + (cards.length + 1) + ". Arrow keys move it, Space drops it, Esc cancels.");
 			}
 			function drop() {
+				// A card still in the leftover lane has no list to be dropped on: dropping it there is putting it back.
+				if (!lifted.col.dataset.value) { cancel(true); return; }
 				var card = lifted.card, values = { position: lifted.idx + 1 };
 				values[lifted.col.dataset.field] = lifted.col.dataset.value;
 				cancel(false);
+				// The swap replaces the board, and the card that had focus with it: put focus back on the moved card once the new one is there.
+				document.body.addEventListener("htmx:afterSettle", function refocus() {
+					document.body.removeEventListener("htmx:afterSettle", refocus);
+					var again = document.querySelector('[data-card][data-url="' + card.dataset.url + '"] a[href]');
+					if (again) again.focus();
+				});
 				htmx.ajax("PATCH", card.dataset.url, { source: card, target: "#machine-body", swap: "innerHTML", values: values });
 			}
 			function cancel(refocus) {
@@ -797,7 +809,7 @@ templ boardDragScript() {
 				if (!lifted) {
 					if (e.key !== " " || !card || card.getAttribute("draggable") === null || e.target.closest("details") || !e.target.matches("a[href]")) return;
 					var col = card.closest("[data-board-column]");
-					if (!col || !col.dataset.value) return;
+					if (!col) return;
 					e.preventDefault();
 					var cards = Array.prototype.filter.call(col.querySelectorAll("[data-card]"), function (c) { return c !== card; });
 					var before = Array.prototype.indexOf.call(col.querySelectorAll("[data-card]"), card);
@@ -811,6 +823,8 @@ templ boardDragScript() {
 				var inCol = Array.prototype.filter.call(lifted.col.querySelectorAll("[data-card]"), function (c) { return c !== lifted.card; }).length;
 				if (e.key === "ArrowUp") lifted.idx = Math.max(0, lifted.idx - 1);
 				else if (e.key === "ArrowDown") lifted.idx = Math.min(inCol, lifted.idx + 1);
+				else if (e.key === "ArrowLeft" && at === -1 && cols.length) { lifted.col = cols[cols.length - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll("[data-card]").length); }
+				else if (e.key === "ArrowRight" && at === -1) { return; }
 				else if (e.key === "ArrowLeft" && at > 0) { lifted.col = cols[at - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll("[data-card]").length); }
 				else if (e.key === "ArrowRight" && at < cols.length - 1) { lifted.col = cols[at + 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll("[data-card]").length); }
 				else return;
@@ -827,7 +841,7 @@ templ boardDragScript() {
 // boardSummary is "11 cards · grouped by List · 2 complete". The last clause is drawn only for a Machine that
 // declares a completion (domain.Machine.Completion), so a Machine with no such idea says nothing about it.
 func boardSummary(m *domain.Machine, v domain.View, count int, cards []RecordCard) string {
-	s := fmt.Sprintf("%d %s", count, experience.Plural(m.Name))
+	s := fmt.Sprintf("%d %s", count, experience.Plural(m))
 	if f, ok := m.FieldByID(v.GroupBy); ok {
 		s += " · grouped by " + f.Name
 	}
@@ -1122,7 +1136,10 @@ func completeLabel(done bool, title string) string {
 
 // machineNoun is what a board calls one of the records it arranges: the Machine's own name, lower-cased ("task").
 func machineNoun(m *domain.Machine) string {
-	return strings.ToLower(strings.TrimSpace(m.Name))
+	if n := strings.ToLower(strings.TrimSpace(m.Name)); n != "" {
+		return n
+	}
+	return "item"
 }
 
 // capitalWord upper-cases the first letter of s ("task" -> "Task").

@@ -1003,6 +1003,10 @@ type Machine struct {
 	// than per-View because the record detail page renders it too, and a detail page selects no
 	// View.
 	SLAField string
+	// Plural is the name of several of this Machine's records ("tasks"), the word a board says of them: "3 tasks". It is
+	// declared and never guessed -- adding an s to a name says "categorys" and "statuss" -- so a Machine that declares none
+	// is spoken of as "items". Empty means none.
+	Plural string
 	// Completion declares which Field/value means a record is finished -- see Completion's own doc
 	// comment. Nil means this Machine declares no notion of "done", so nothing renders as complete.
 	Completion *Completion

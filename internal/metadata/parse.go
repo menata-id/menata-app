@@ -47,6 +47,8 @@ type machineDoc struct {
 	// Machine-level display: how these records look wherever they appear, read on screens that
 	// select no View at all (the detail page, composition's bespoke cards).
 	SLAField string `yaml:"sla_field"`
+	// Plural -- see domain.Machine.Plural.
+	Plural string `yaml:"plural"`
 	// Completion -- see domain.Completion.
 	Completion *completionDoc `yaml:"completion"`
 	// StatusCategories -- see domain.StatusCategories.
@@ -893,6 +895,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 
 	m.SLAField = doc.SLAField
+	m.Plural = strings.TrimSpace(doc.Plural)
 	if doc.CardTags != nil {
 		m.CardTags = &domain.CardTags{Machine: doc.CardTags.Machine, Via: doc.CardTags.Via, Tag: doc.CardTags.Tag}
 	}

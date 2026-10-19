@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/domain"
 )
 
 // The board's own writes and its sibling View, through the real router against the real default
@@ -338,8 +339,11 @@ func TestBoardColumnMenuWritesThroughTheListMachinesRoutes(t *testing.T) {
 	}
 	session := &http.Cookie{Name: authorization.SessionCookieName, Value: cookie}
 	tok := csrfTokenFor(t, h, "/machines/mch_list/records")
-	send := func(method, path, from string) *httptest.ResponseRecorder {
+	send := func(method, path, from string, asked bool) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, nil)
+		if asked {
+			req.Header.Set(domain.RefreshAnswerHeader, "true")
+		}
 		req.Header.Set("X-CSRF-Token", tok.value)
 		req.Header.Set("HX-Request", "true")
 		req.Header.Set("HX-Current-URL", "http://x"+from)
@@ -350,22 +354,29 @@ func TestBoardColumnMenuWritesThroughTheListMachinesRoutes(t *testing.T) {
 		return rec
 	}
 
-	rec := send(http.MethodPost, "/machines/mch_list/records/"+third+"/move?direction=up", "/machines/mch_task")
+	rec := send(http.MethodPost, "/machines/mch_list/records/"+third+"/move?direction=up", "/machines/mch_task", true)
 	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
 		t.Errorf("a move from the board = %d, HX-Refresh %q, want 200 and true", rec.Code, rec.Header().Get("HX-Refresh"))
 	}
 	if got := order(); got != "First,Third,Second" {
 		t.Errorf("Third moved up: %s, want First,Third,Second", got)
 	}
-	rec = send(http.MethodDelete, "/machines/mch_list/records/"+first, "/machines/mch_task")
+	rec = send(http.MethodDelete, "/machines/mch_list/records/"+first, "/machines/mch_task", true)
 	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
 		t.Errorf("a delete from the board = %d, HX-Refresh %q, want 200 and true", rec.Code, rec.Header().Get("HX-Refresh"))
 	}
 	if got := order(); got != "Third,Second" {
 		t.Errorf("First deleted: %s, want Third,Second", got)
 	}
-	rec = send(http.MethodDelete, "/machines/mch_list/records/"+second, "/machines/mch_list")
+	rec = send(http.MethodDelete, "/machines/mch_list/records/"+second, "/machines/mch_list", false)
 	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "" {
 		t.Errorf("a delete from the List's own page = %d, HX-Refresh %q, want 200 and none (the row is swapped away)", rec.Code, rec.Header().Get("HX-Refresh"))
+	}
+	// Another screen that did not ask (an attachment's remove button inside a task page, a row on an Application route) keeps the old answer:
+	// an empty body its own `hx-target` removes, not a reload that loses scroll and open panels.
+	other := mk("Fourth")
+	rec = send(http.MethodDelete, "/machines/mch_list/records/"+other, "/machines/mch_task", false)
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "" {
+		t.Errorf("a delete from another screen that did not ask = %d, HX-Refresh %q, want 200 and none", rec.Code, rec.Header().Get("HX-Refresh"))
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -241,6 +242,9 @@ func Validate(m *domain.Machine) error {
 		} else if f.Type != domain.FieldTypeDate {
 			issues = append(issues, fmt.Sprintf("machine %q: sla_field %q must be a date field, got %q", m.ID, m.SLAField, f.Type))
 		}
+	}
+	if m.Plural != "" && (strings.ContainsAny(m.Plural, "\n\r") || utf8.RuneCountInString(m.Plural) > maxPluralRunes) {
+		issues = append(issues, fmt.Sprintf("machine %q: plural %q is a word or two on one line, at most %d characters", m.ID, m.Plural, maxPluralRunes))
 	}
 	if m.Completion != nil {
 		f, ok := fieldsByID[m.Completion.Field]
@@ -1363,6 +1367,9 @@ func contains(options []string, v string) bool {
 // Application and a duplicate could not arise; now app.yaml lists files once and every Application
 // selects from the result, so listing the same file twice -- or two files declaring the same id --
 // would silently give half the runtime one object and half the other.
+// maxPluralRunes bounds a Machine's `plural:` -- a word or two, not a sentence a board would put in its summary.
+const maxPluralRunes = 40
+
 func validateMachineIDsAreUnique(machines []*domain.Machine) error {
 	seen := make(map[string]bool, len(machines))
 	var issues []string

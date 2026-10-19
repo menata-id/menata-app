@@ -882,6 +882,20 @@ func TestValidate_completion(t *testing.T) {
 	}
 }
 
+// A Machine's plural is a word or two on one line: it is said in a board's summary, and a paragraph there is a Machine written wrong.
+func TestValidate_plural(t *testing.T) {
+	ok := validMachine()
+	ok.Plural = "tasks"
+	if err := Validate(ok); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+	for name, plural := range map[string]string{"two lines": "tasks\nand more", "too long": strings.Repeat("x", maxPluralRunes+1)} {
+		m := validMachine()
+		m.Plural = plural
+		t.Run(name, func(t *testing.T) { assertIssue(t, m, "plural") })
+	}
+}
+
 func cardTagsMachines() (card, join, tag *domain.Machine) {
 	card = &domain.Machine{ID: "mch_task", Name: "Task",
 		Fields:   []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}},

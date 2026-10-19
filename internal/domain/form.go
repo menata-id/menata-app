@@ -93,6 +93,11 @@ const (
 	FormMethodPatch = "patch"
 )
 
+// RefreshAnswerHeader is the request header a screen's controls carry (`hx-headers` on the element that holds them) to ask the record routes
+// for a refresh of that screen as the answer to a delete or a move -- a board's column menu writes another Machine's record, and the board
+// has no row to remove. A caller that does not send it keeps the answer it always had (an empty body its own `hx-target` acts on).
+const RefreshAnswerHeader = "X-Answer-With-Refresh"
+
 // ButtonMethodDelete is the verb a `Button` bound with `write: delete` sends. Derived, never written, like a Form's.
 const ButtonMethodDelete = "delete"
 

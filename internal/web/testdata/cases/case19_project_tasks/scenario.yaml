@@ -226,13 +226,23 @@ steps:
         - Move left
         - Move right
         - hx-delete="/machines/mch_list/records/$todo"
-        - hx-confirm="Delete this list? This cannot be undone."
+        - hx-confirm="Delete this list? Its 1 task moves to Other. This cannot be undone."
         - hx-post="/machines/mch_list/records/$todo/move?direction=down"
         - hx-post="/machines/mch_list/records/$done-list/move?direction=up"
       hides:
         - List actions for Other
         - /machines/mch_list/records/$todo/move?direction=up
         - /machines/mch_list/records/$done-list/move?direction=down
+  # A list renamed to spaces would be a lane with no name: the Data Plane refuses it as it refuses an empty one.
+  - id: a-list-cannot-be-renamed-to-spaces
+    as: nia
+    expect: refused
+    update: { ref: todo, values: { fld_name: "   " } }
+  # A list's name is the one required word of it, so a real rename still goes through.
+  - id: a-list-can-be-renamed
+    as: nia
+    expect: ok
+    update: { ref: todo, values: { fld_name: Next up } }
   # A list is added where lists are managed: a tile at the end of the board names that place (through navigation, never a typed route).
   - id: the-board-leads-to-where-lists-are-added
     as: nia

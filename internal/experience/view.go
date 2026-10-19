@@ -23,6 +23,10 @@ type Column struct {
 	// menu can ask that Machine's Permissions about it. Nil and empty for a status Option and for the synthetic "Other" column.
 	Machine *domain.Machine
 	Values  map[string]any
+	// Can is what the viewer may do to the column's own record, by Action, as the routes decide it -- resolving the records a Permission reads
+	// through a relation, which a renderer cannot fetch. An Action absent from it was not asked, and the caller falls back to the Machine's own
+	// Permissions (authorization.AllowsAction), which is the same answer wherever no Permission looks at a parent.
+	Can map[string]bool
 }
 
 // GroupRecords partitions records into ordered Columns keyed by the value of v.GroupBy -- the
@@ -60,7 +64,7 @@ func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, colu
 		idx, known := index[value]
 		if !known {
 			if otherIndex == -1 {
-				columns = append(columns, Column{Label: "Other", Hint: otherHint(m, v)})
+				columns = append(columns, Column{Label: OtherLabel, Hint: otherHint(m, v)})
 				otherIndex = len(columns) - 1
 			}
 			idx = otherIndex
@@ -70,13 +74,16 @@ func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, colu
 	return columns
 }
 
+// OtherLabel is the name of the synthetic column that holds the records whose group Field is empty or names nothing.
+const OtherLabel = "Other"
+
 // otherHint says what lands in the synthetic "Other" column, in the words the View's own group Field uses.
 func otherHint(m *domain.Machine, v domain.View) string {
 	f, ok := m.FieldByID(v.GroupBy)
 	if !ok {
 		return ""
 	}
-	return capitalised(Plural(m.Name)) + " with no " + strings.ToLower(f.Name) + " land here."
+	return capitalised(Plural(m)) + " with no " + strings.ToLower(f.Name) + " land here."
 }
 
 // PlaceBefore answers "where does a card go": given the 1-based position a person asked for inside the
@@ -101,15 +108,14 @@ func PlaceBefore(v domain.View, records []*data.Record, movedID, groupValue stri
 	return inGroup[position-1].ID
 }
 
-// Plural is a Machine's name said of several, lower-cased and with an s -- a rule of the language the words are in. The Machine's own name is
-// the only word the runtime has for what a board arranges, so a board says "3 tasks" and "Add task" without anyone typing them; a name that
-// does not take an s says "entrys" and is a reason to give the Machine one that does. Empty for a Machine with no name.
-func Plural(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	if name == "" {
-		return "records"
+// Plural is what a board calls several of a Machine's records: the plural the Machine declares (`plural:`), lower-cased. The runtime does not
+// make one up -- adding an s says "categorys" and "statuss", and a language it has no rule for says worse -- so a Machine that declares none is
+// "items", which is never wrong and never empty.
+func Plural(m *domain.Machine) string {
+	if p := strings.ToLower(strings.TrimSpace(m.Plural)); p != "" {
+		return p
 	}
-	return name + "s"
+	return "items"
 }
 
 func capitalised(s string) string {

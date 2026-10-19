@@ -133,6 +133,7 @@ func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 		actor := currentActor(req, store, cfg)
+		p.boardColumns = columnAbilities(req.Context(), store, p.boardColumns, actor)
 		workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
 		if err != nil {
 			serverError(w, err)
@@ -152,7 +153,24 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		serverError(w, err)
 		return
 	}
+	p.boardColumns = columnAbilities(req.Context(), store, p.boardColumns, actor)
 	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, time.Now(), p.header))
+}
+
+// columnAbilities asks, for each column that is a record of another Machine (a List), what this viewer may do to it -- the question the routes
+// answer when the menu's buttons are pressed (`allowsActionResolvingParents`), so a menu never offers what the route would refuse, nor hides what
+// it would allow. A Permission that reads a parent record is the case a renderer cannot decide; everywhere else this is `AllowsAction` again.
+func columnAbilities(ctx context.Context, store *data.Store, columns []experience.Column, actor domain.Actor) []experience.Column {
+	for i, col := range columns {
+		if col.Machine == nil {
+			continue
+		}
+		columns[i].Can = map[string]bool{}
+		for _, action := range []string{domain.ActionEdit, domain.ActionDelete} {
+			columns[i].Can[action] = allowsActionResolvingParents(ctx, store, col.Machine, action, col.Values, actor)
+		}
+	}
+	return columns
 }
 
 // machineViewReads is everything one arrangement of a Machine's records needs to render. Both the

@@ -610,8 +610,11 @@ views:
 ```
 
 `rename` writes the List's label Field (the `edit` Permission), `move` moves it one place earlier or later in its Machine's order -- which *is* the order of
-the columns -- (`edit`; the first column has no "Move left", the last no "Move right"), `delete` removes it after "Delete this list? This cannot be undone."
-(`delete`). Each is offered only where the List Machine's own Permissions let the viewer, and the routes answer a write sent from the board with a refresh.
+the columns -- (`edit`; the first column has no "Move left", the last no "Move right"), `delete` removes it after a question that says what becomes of what is in the list ("Delete this list? Its 3 tasks move to Other. This cannot be undone."; where
+the board's relation declares `on_parent_delete: restrict`: "It can only be deleted while no tasks are in it."). Each is offered only where the List Machine's own
+Permissions let the viewer -- resolved the way the routes resolve them, parents included -- and the menu asks the record routes to answer with a refresh
+(`X-Answer-With-Refresh`, put on the menu by `hx-headers`); every other caller keeps the empty answer its own `hx-target` acts on. A refusal's reason is the
+shell's one notice. A name of only spaces is refused by the Data Plane like an empty one (a required text), and a long one wraps in its column.
 The loader refuses `column_actions`/`add_column` on a board whose `group_by` is not a relation, an action it does not know, and an `add_column.to` that is not
 a navigation item of the Application. **The AI assistant has no slot for either key** (`registry.Capabilities` says why: a generated board groups by a status
 Field's options, which are not records).
@@ -2906,6 +2909,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 |---|---|---|
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
+| `plural` | text, a word or two on one line (at most 40 characters) | What a board says of several of this Machine's records: `plural: tasks` -> "3 tasks", "Its 3 tasks move to Other". **Declared, never guessed** (an `s` makes "categorys"); a Machine that declares none is spoken of as "items". Singular is the Machine's name, lower-cased |
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`). A Machine that is a *child* of another (a relation to it) and declares this plus a `title` card field is drawn on the parent's detail page as a **checklist** — "2 of 4", a completion circle per item, an add-item input — rather than a table (`mch_checklist_item`); declare nothing else |
 | `status_categories` | `{field: fld_*, values: {<option>: start\|active\|attention\|done\|stopped}}` | `field` must be a `status` field; each key one of its options; each value one of the five categories. Every state a `transitions:` edge on that Field starts or ends in must be categorised, and where `completion:` is declared on the same Field its `done` option is the one marked `done`. Every status badge takes its tone from it (the list, a page's Table, the record's own page); the process map will read it too. Categories are business words, not colours |
 | `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file\|comment\|container}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
