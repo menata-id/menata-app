@@ -36,6 +36,7 @@ view_groups:
       all: All projects
       chosen: "one of {n} projects in this workspace"
       overall: "{n} projects in this workspace"
+      more: "Showing the first {n} projects"
 
 navigation:
   - id: nav_board

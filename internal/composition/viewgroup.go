@@ -2,6 +2,7 @@ package composition
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -44,6 +45,8 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 	}
 	var scopeRecords []*data.Record
 	var chosen *data.Record
+	var scopeCount int
+	var cut, pastCut bool
 	scope := group.Scope
 	var scopeMachine *domain.Machine
 	if scope != nil {
@@ -55,11 +58,28 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 		if err != nil {
 			return nil, params, err
 		}
-		scopeRecords = records
+		scopeRecords, scopeCount = records, len(records)
+		// A list cut at its Dataset's `limit:` is counted whole, and a choice past the cut is looked up on its own: the menu is a
+		// window onto the records, not the set of them, so a project beyond it is neither uncounted nor "stale".
+		if ds, ok := l.Dataset(scope.Dataset); ok && ds.Limit > 0 && len(records) >= ds.Limit {
+			cut = true
+			n, err := l.CountSelected(ctx, scope.Dataset, expression.Context{Today: now.Format("2006-01-02")})
+			if err != nil {
+				return nil, params, err
+			}
+			scopeCount = max(n, len(records))
+		}
 		if id := out[scope.Parameter]; id != "" {
 			for _, r := range scopeRecords {
 				if r.ID == id {
 					chosen = r
+				}
+			}
+			if chosen == nil && cut {
+				if r, err := l.Record(ctx, scope.Machine, id); err == nil && r != nil {
+					chosen, pastCut = r, true
+				} else if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
+					return nil, params, err
 				}
 			}
 			if chosen == nil {
@@ -100,7 +120,7 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 			words = scope.Chosen
 			h.Title = DisplayString(chosen.Values[scopeMachine.LabelField()])
 		}
-		parts = append(parts, domain.FillCount(words, len(scopeRecords)))
+		parts = append(parts, domain.FillCount(words, scopeCount))
 	}
 	h.Summary = strings.Join(parts, " · ")
 
@@ -112,6 +132,12 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 		label := scopeMachine.LabelField()
 		for _, r := range scopeRecords {
 			menu.Items = append(menu.Items, rendering.ViewScopeItem{Label: DisplayString(r.Values[label]), Href: item.Route + "?" + url.Values{scope.Parameter: {r.ID}}.Encode(), Current: chosen != nil && chosen.ID == r.ID})
+		}
+		if cut && scope.More != "" {
+			menu.More = domain.FillCount(scope.More, len(scopeRecords))
+		}
+		if pastCut {
+			menu.Items = append(menu.Items, rendering.ViewScopeItem{Label: DisplayString(chosen.Values[label]), Href: item.Route + "?" + url.Values{scope.Parameter: {chosen.ID}}.Encode(), Current: true})
 		}
 		h.Scope = menu
 	}

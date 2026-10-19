@@ -140,6 +140,10 @@ var Capabilities = []Capability{
 	key("fieldDoc", "categories", "presentation", "experience", false, "a second status Field's tones (2026-10-17, Dokter Kecil's payment status); the assistant writes the Machine's status_categories: and gains this slot with the edit/delete rules"),
 	key("fieldDoc", "set_once", "behaviour", "behavior", false, editRuleReason),
 	key("fieldDoc", "on_parent_delete", "behaviour", "behavior", false, editRuleReason),
+	// applicationDoc (an Application's own file): a page's arrangement is declared, not generated -- the assistant writes no `page:` either.
+	key("applicationDoc", "view_groups", "presentation", "experience", false, "screens that are arrangements of one Machine's records sharing a header, a switch and a scope; like `page:` (UnwritableByTheAssistant) it is authored, and a generated Application has no Board, Table or Calendar of one Machine to group"),
+	key("navItemDoc", "view_group", "presentation", "experience", false, "makes a screen one arrangement of an Application's view group; authored with the group"),
+	key("navItemDoc", "summary", "presentation", "experience", false, "words a view group's header with its counts; authored with the group"),
 
 	// Proposed rows (a key a case corpus wishes for and no loader reads) are none today: both corpora, Cases 1, 2, 17 and
 	// Cases 4, 5, 6, 14 and Case 9, are fully built (2026-10-16). A new wish arrives as a row here naming its cases, which the

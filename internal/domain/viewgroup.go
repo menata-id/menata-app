@@ -66,6 +66,9 @@ type ViewScope struct {
 	// Switch and All are the words of the control and of its "no choice" entry; Chosen and Overall are the summary's closing
 	// phrase with a project picked ("one of {n} projects in this workspace") and without ("{n} projects in this workspace").
 	Switch, All, Chosen, Overall string
+	// More is the note under a menu cut at the Dataset's `limit:` ("Showing the first {n} projects"); empty draws none. The summary still
+	// counts every record, and a record past the cut is a real choice, so a cut list is said to be one rather than mistaken for all of them.
+	More string
 }
 
 // ViewGroupByID finds a group of an Application by id.

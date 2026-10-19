@@ -1280,6 +1280,7 @@ view_groups:
       all: All projects
       chosen: "one of {n} projects in this workspace"
       overall: "{n} projects in this workspace"
+      more: "Showing the first {n} projects"   # optional: said under a menu cut at the Dataset's `limit:`
 navigation:
   - { id: nav_board, route: /machines/mch_task, view_group: vg_tasks, summary: counts, ... }
   - { id: nav_task_table, view_group: vg_tasks, summary: counts, in_menu: false, page: ... }
@@ -1288,10 +1289,15 @@ navigation:
 The header reads the runtime's own numbers -- the figures come from the aggregate Dataset (the whole set, so a list's `limit:` never
 understates them), the project count from the scope's Dataset -- and no screen writes a count or a name. A request with **no** scope
 parameter shows every record (tasks that name no project stay visible) and the title is the screen's own heading; with one, the title is
-that record's name and every screen shows only its records. **The scope is carried by declaration, not by luck**: every records Dataset a
-`page:` of the group reads over the group's Machine, and the two Measures the summary counts, must carry
-`{field: fld_project, op: equals, value: $parameters.project, optional: true}` -- the loader refuses a group where one does not, so choosing
-a project cannot change one screen and leave another unfiltered. The Board reads the same declaration. A parameter naming no record of the
+that record's name and every screen shows only its records. **The scope is carried by declaration, not by luck**: every Dataset a
+`page:` of the group reads over the group's Machine -- a records Dataset's `where:`, and **each counted Measure's `where:` of an aggregate one** -- and
+the two Measures the summary counts, must carry
+`{field: fld_project, op: equals, value: $parameters.project, optional: true}` **at the top level (`all:`), never inside `any:`** (there it would widen the
+result: "done anywhere OR in this project", and the count would disagree with the rows); the loader refuses a group where one does not, so choosing
+a project cannot change one screen and leave another unfiltered. The scope's own Dataset is read by the header with **no viewer and no request
+parameter**, so the loader also refuses one that is `viewer_scoped`, filters on `$current_user`, `$week` or a non-optional `$parameters.*` (it would be a 500
+on every screen of the group, found by the first request). A scope list cut at its Dataset's `limit:` is said to be cut (`scope.more`), is still counted
+whole, and a project past the cut is a real choice, not a stale one. The Board reads the same declaration. A parameter naming no record of the
 scope is dropped (the screens show everything), not turned into an empty filter. Links between the group's screens (the switch, and a
 `to:` link on a page, week links included) keep the choice; any other link does not. A Workspace with no project has no pill and no
 sentence about projects. **The AI assistant has no slot for `view_groups`** (it writes no `page:` either; `UnwritableByTheAssistant`'s

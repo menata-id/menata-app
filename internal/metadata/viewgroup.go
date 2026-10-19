@@ -37,6 +37,7 @@ type viewGroupDoc struct {
 		All       string `yaml:"all"`
 		Chosen    string `yaml:"chosen"`
 		Overall   string `yaml:"overall"`
+		More      string `yaml:"more"`
 	} `yaml:"scope"`
 }
 
@@ -47,7 +48,7 @@ func (d viewGroupDoc) toDomain() domain.ViewGroup {
 		Words:   domain.ViewWords{TotalOne: d.Summary.Total.One, TotalOther: d.Summary.Total.Other, Complete: d.Summary.Complete, Grouped: d.Summary.Grouped},
 	}
 	if s := d.Scope; s != nil {
-		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, Overall: s.Overall}
+		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, Overall: s.Overall, More: s.More}
 	}
 	return g
 }
@@ -104,6 +105,8 @@ func validateViewGroupShape(doc applicationDoc) []string {
 				issues = append(issues, fmt.Sprintf("%s: scope.parameter %q is a lower-case word the runtime does not own", where, s.Parameter))
 			case s.Switch == "" || s.All == "" || !strings.Contains(s.Chosen, domain.ViewCountToken) || !strings.Contains(s.Overall, domain.ViewCountToken):
 				issues = append(issues, fmt.Sprintf("%s: scope words: switch and all are said, chosen and overall each carry %s", where, domain.ViewCountToken))
+			case s.More != "" && !strings.Contains(s.More, domain.ViewCountToken):
+				issues = append(issues, fmt.Sprintf("%s: scope.more carries %s, or the number of projects listed is never shown", where, domain.ViewCountToken))
 			}
 		}
 	}
@@ -157,6 +160,11 @@ func validateViewGroups(applications []domain.Application, byID map[string]*doma
 				if sds, ok := datasets[g.Scope.Dataset]; !ok || sds.Source != g.Scope.Machine || sds.Select != domain.SelectRecords {
 					issues = append(issues, fmt.Sprintf("%s: scope.dataset %q is a records Dataset of machine %q", where, g.Scope.Dataset, g.Scope.Machine))
 				}
+				if sds, ok := datasets[g.Scope.Dataset]; ok {
+					if why := headerResolvable(sds); why != "" {
+						issues = append(issues, fmt.Sprintf("%s: scope.dataset %q %s, and the header reads it with no viewer and no request parameters, so every screen of the group would fail", where, sds.ID, why))
+					}
+				}
 				if fld, found := m.FieldByID(g.Scope.Field); found {
 					f = fld
 				}
@@ -176,17 +184,34 @@ func validateViewGroups(applications []domain.Application, byID map[string]*doma
 				}
 				for _, id := range boundDatasets(*item.Page) {
 					ds, ok := datasets[id]
-					if !ok || ds.Source != g.Machine || ds.Select != domain.SelectRecords {
+					if !ok || ds.Source != g.Machine {
 						continue
 					}
-					if !carriesScope(ds, *g.Scope) {
-						issues = append(issues, fmt.Sprintf("%s: navigation item %q reads dataset %q, which does not take the group's scope -- add `{field: %s, op: equals, value: $parameters.%s, optional: true}` to its where:", where, item.ID, id, g.Scope.Field, g.Scope.Parameter))
+					if !carriesScopeEverywhere(ds, *g.Scope) {
+						issues = append(issues, fmt.Sprintf("%s: navigation item %q reads dataset %q, which does not take the group's scope -- add `{field: %s, op: equals, value: $parameters.%s, optional: true}` to its where: (to each measure's where: for an aggregate Dataset), at the top level and not inside any:", where, item.ID, id, g.Scope.Field, g.Scope.Parameter))
 					}
 				}
 			}
 		}
 	}
 	return issues
+}
+
+// headerResolvable says why a Dataset the header reads on its own cannot be selected from nothing but the date, or "" when it can:
+// ViewHeaderFor asks for the scope Dataset with no viewer and no request parameters, so a Dataset that needs either would be a 500
+// on every screen of the group (and on every create, which draws the same header again) -- found only by the first request.
+func headerResolvable(ds domain.Dataset) string {
+	if ds.ViewerScoped {
+		return "is viewer_scoped"
+	}
+	for _, c := range ds.Where.Comparisons() {
+		switch {
+		case c.Optional:
+		case c.Value == expression.SentinelCurrentUser || strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) || strings.HasPrefix(c.Value, expression.SentinelWeek):
+			return fmt.Sprintf("filters on %s", c.Value)
+		}
+	}
+	return ""
 }
 
 func hasMeasure(ds domain.Dataset, id string) bool {
@@ -199,27 +224,17 @@ func hasMeasure(ds domain.Dataset, id string) bool {
 }
 
 // carriesScope says a Dataset narrows itself by the group's scope: a records Dataset has the optional comparison in its where:,
-// an aggregate one in the where: of each Measure the summary reads (measures).
+// an aggregate one in the where: of each Measure the summary reads (measures). The comparison must be one of the conjunction
+// (`all:`): inside `any:` it would widen the result ("done anywhere OR in this project") and the count would disagree with the rows.
 func carriesScope(ds domain.Dataset, s domain.ViewScope, measures ...string) bool {
-	has := func(p *expression.Predicate) bool {
-		if p == nil {
-			return false
-		}
-		for _, c := range p.Comparisons() {
-			if c.Field == s.Field && c.Op == expression.OpEquals && c.Value == expression.SentinelParameterPrefix+s.Parameter && c.Optional {
-				return true
-			}
-		}
-		return false
-	}
 	if ds.Select == domain.SelectRecords {
-		return has(ds.Where)
+		return scopeInConjunction(ds.Where, s)
 	}
 	for _, id := range measures {
 		found := false
 		for _, ms := range ds.Measures {
 			if ms.ID == id {
-				found = has(ms.Where)
+				found = scopeInConjunction(ms.Where, s)
 			}
 		}
 		if !found {
@@ -227,4 +242,31 @@ func carriesScope(ds domain.Dataset, s domain.ViewScope, measures ...string) boo
 		}
 	}
 	return len(measures) > 0
+}
+
+// carriesScopeEverywhere is carriesScope for a Dataset a page reads whole: a records Dataset's where:, and for an aggregate one
+// every Measure counted from records (a percentage is derived from two others, which carry it themselves).
+func carriesScopeEverywhere(ds domain.Dataset, s domain.ViewScope) bool {
+	if ds.Select == domain.SelectRecords {
+		return carriesScope(ds, s)
+	}
+	var ids []string
+	for _, ms := range ds.Measures {
+		if ms.Numerator == "" && ms.Denominator == "" {
+			ids = append(ids, ms.ID)
+		}
+	}
+	return carriesScope(ds, s, ids...)
+}
+
+func scopeInConjunction(p *expression.Predicate, s domain.ViewScope) bool {
+	if p == nil {
+		return false
+	}
+	for _, c := range p.All {
+		if c.Field == s.Field && c.Op == expression.OpEquals && c.Value == expression.SentinelParameterPrefix+s.Parameter && c.Optional {
+			return true
+		}
+	}
+	return false
 }

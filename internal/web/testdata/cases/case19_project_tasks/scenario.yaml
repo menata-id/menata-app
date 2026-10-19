@@ -160,3 +160,39 @@ steps:
         - Calendar
         - href="/pages/nav_calendar?project=$first-season&amp;week=1"
         - /machines/mch_task?project=$first-season
+  # A scope list is cut at its Dataset's limit (3 here, 200 in a real install): the menu says it shows only the first, the summary
+  # still counts every project, and a project past the cut is a real choice -- not a stale one dropped to "all".
+  - id: third-season
+    as: nia
+    create: { machine: mch_project, values: { fld_name: Season 3, fld_status: active } }
+    expect: ok
+  - id: fourth-season
+    as: nia
+    create: { machine: mch_project, values: { fld_name: Season 4, fld_status: active } }
+    expect: ok
+  - id: past-the-cut
+    as: nia
+    create: { machine: mch_task, values: { fld_title: Wrap party, fld_project: $fourth-season } }
+    expect: ok
+  - id: a-cut-menu-says-so-and-counts-them-all
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - 4 projects in this workspace
+        - Showing the first 3 projects
+        - project=$third-season
+      hides:
+        - project=$fourth-season
+  - id: a-project-past-the-cut-is-still-a-choice
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table?project=$fourth-season
+      shows:
+        - Season 4
+        - one of 4 projects in this workspace
+        - Wrap party
+      hides:
+        - Update crew contact sheet

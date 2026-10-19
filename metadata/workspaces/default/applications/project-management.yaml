@@ -50,6 +50,7 @@ view_groups:
       all: All projects
       chosen: "one of {n} projects in this workspace"
       overall: "{n} projects in this workspace"
+      more: "Showing the first {n} projects"
 
 navigation:
   # Board leads, matching the Case 19 mockup (PM01..PM06): Board / My Tasks / Dashboard / Calendar,

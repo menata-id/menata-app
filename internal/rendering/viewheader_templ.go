@@ -28,6 +28,8 @@ type ViewHeader struct {
 type ViewScopeMenu struct {
 	Label string
 	Items []ViewScopeItem
+	// More is the line under the choices of a list that was cut, empty for a list that was not.
+	More string
 }
 
 // ViewScopeItem is one choice of the scope menu.
@@ -105,7 +107,7 @@ func viewHeader(h ViewHeader) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				var templ_7745c5c3_Var6 = []any{"m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis)}
+				var templ_7745c5c3_Var6 = []any{"m-0 min-w-0 break-words", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -130,7 +132,7 @@ func viewHeader(h ViewHeader) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(h.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 37, Col: 110}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 39, Col: 130}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -245,6 +247,16 @@ func scopeMenu(m ViewScopeMenu) templ.Component {
 			ctx = templ.InitializeContext(ctx)
 			for _, it := range m.Items {
 				templ_7745c5c3_Err = menuLink(it.Label, it.Href, it.Current).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if m.More != "" {
+				templ_7745c5c3_Err = staticText(domain.StaticCaption, m.More).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

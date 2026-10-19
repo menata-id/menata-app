@@ -81,6 +81,37 @@ func TestAViewGroupIsRefusedForEachWayItCouldBeDishonest(t *testing.T) {
 		"a scope dataset of another machine": {func(a *domain.Application, _ map[string]*domain.Machine, _ map[string]domain.Dataset) {
 			a.ViewGroups[0].Scope.Dataset = "ds_table"
 		}, "is a records Dataset of machine"},
+		"a page that reads an aggregate dataset that ignores the scope": {func(a *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			ds["ds_dash"] = domain.Dataset{ID: "ds_dash", Source: "mch_task", Measures: []domain.Measure{{ID: "msr_open", Aggregate: domain.AggregateCount}}}
+			a.AllNavigation = append(a.AllNavigation, domain.NavigationItem{ID: "nav_dash", ViewGroup: "vg_tasks", Route: "/pages/nav_dash", Page: &domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+				{Kind: "component", Type: "Metric", Binding: &domain.PageBinding{Dataset: "ds_dash", Rows: domain.PageRowsTotal, Measure: "msr_open"}}}}})
+		}, `reads dataset "ds_dash", which does not take the group's scope`},
+		"a scope comparison that sits inside any:": {func(_ *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			d := ds["ds_table"]
+			d.Where = &expression.Predicate{Any: scopeCmp("fld_project").All}
+			ds["ds_table"] = d
+		}, "does not take the group's scope"},
+		"a figure whose scope sits inside any:": {func(_ *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			d := ds["ds_figures"]
+			d.Measures = []domain.Measure{d.Measures[0], {ID: "msr_done", Aggregate: domain.AggregateCount, Where: &expression.Predicate{
+				All: []expression.Comparison{{Field: "fld_status", Op: expression.OpEquals, Value: "$done"}}, Any: scopeCmp("fld_project").All}}}
+			ds["ds_figures"] = d
+		}, "takes the scope"},
+		"a scope dataset that needs a viewer": {func(_ *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			d := ds["ds_projects"]
+			d.Where = &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "$current_user"}}}
+			ds["ds_projects"] = d
+		}, "the header reads it with no viewer"},
+		"a scope dataset that needs a request parameter": {func(_ *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			d := ds["ds_projects"]
+			d.Where = &expression.Predicate{All: []expression.Comparison{{Field: "fld_name", Op: expression.OpEquals, Value: "$parameters.q"}}}
+			ds["ds_projects"] = d
+		}, "the header reads it with no viewer"},
+		"a viewer-scoped scope dataset": {func(_ *domain.Application, _ map[string]*domain.Machine, ds map[string]domain.Dataset) {
+			d := ds["ds_projects"]
+			d.ViewerScoped = true
+			ds["ds_projects"] = d
+		}, "the header reads it with no viewer"},
 		"figures that are a list": {func(a *domain.Application, _ map[string]*domain.Machine, _ map[string]domain.Dataset) {
 			a.ViewGroups[0].Figures.Dataset = "ds_table"
 		}, "is an aggregate Dataset"},
@@ -107,7 +138,8 @@ func shapeDoc() applicationDoc {
 		All       string `yaml:"all"`
 		Chosen    string `yaml:"chosen"`
 		Overall   string `yaml:"overall"`
-	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "{n} in all"}
+		More      string `yaml:"more"`
+	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "{n} in all", ""}
 	d.ViewGroups = []viewGroupDoc{g}
 	d.Navigation = []navItemDoc{{ID: "nav_a", ViewGroup: "vg_tasks", Summary: "counts"}}
 	return d
@@ -130,6 +162,7 @@ func TestAViewGroupsWordsAndNamesAreChecked(t *testing.T) {
 		"a summary that is not counts":       {func(d *applicationDoc) { d.Navigation[0].Summary = "figures" }, "the only value is counts"},
 		"a summary with no group":            {func(d *applicationDoc) { d.Navigation[0].ViewGroup = "" }, "names a view_group"},
 		"a group declared twice":             {func(d *applicationDoc) { d.ViewGroups = append(d.ViewGroups, d.ViewGroups[0]) }, "declared twice"},
+		"a cut note with no number":          {func(d *applicationDoc) { d.ViewGroups[0].Scope.More = "Showing some" }, "scope.more carries {n}"},
 		"a scope with no dataset":            {func(d *applicationDoc) { d.ViewGroups[0].Scope.Dataset = "" }, "scope.dataset"},
 	} {
 		d := shapeDoc()

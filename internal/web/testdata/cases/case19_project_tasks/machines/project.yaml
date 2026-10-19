@@ -53,7 +53,7 @@ datasets:
     sort:
       - field: fld_name
         direction: asc
-    limit: 200
+    limit: 3
     relations:
       - { id: rel_project_tasks, machine: mch_task, via: fld_project }
       - id: rel_project_open_tasks

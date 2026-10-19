@@ -20,6 +20,8 @@ type ViewHeader struct {
 type ViewScopeMenu struct {
 	Label string
 	Items []ViewScopeItem
+	// More is the line under the choices of a list that was cut, empty for a list that was not.
+	More string
 }
 
 // ViewScopeItem is one choice of the scope menu.
@@ -34,7 +36,7 @@ templ viewHeader(h ViewHeader) {
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 		<div class={ "flex min-w-0 max-w-2xl flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<h1 class={ "m-0", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ h.Title }</h1>
+				<h1 class={ "m-0 min-w-0 break-words", textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis) }>{ h.Title }</h1>
 				if h.Scope != nil {
 					@scopeMenu(*h.Scope)
 				}
@@ -58,6 +60,9 @@ templ scopeMenu(m ViewScopeMenu) {
 	@popover(m.Label, m.Label, domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
 		for _, it := range m.Items {
 			@menuLink(it.Label, it.Href, it.Current)
+		}
+		if m.More != "" {
+			@staticText(domain.StaticCaption, m.More)
 		}
 	}
 }
