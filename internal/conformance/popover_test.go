@@ -10,7 +10,7 @@ import (
 // its trigger is `@popover(label, title, trigger, align, density) { ... }`, so its panel recipe (the surface, the shadow, the
 // width and the 6px under the trigger), its trigger looks and its room follow one contract. It reads each opening tag in
 // internal/rendering (comments stripped, a `>` inside a quoted attribute or a templ expression not closing the tag, as
-// `scanTagEnd` reads it) and refuses, outside popover.templ, one that is positioned (`absolute`), reads the surface recipe
+// `scanTagEnd` reads it) and refuses, outside popover.templ, one that is positioned (`absolute`, or `fixed` as the Popover's own panel is, so a table's scrolling box cannot cut it), reads the surface recipe
 // (`surfaceClasses(`) and carries `shadow-lg`.
 //
 // What it cannot see: a floating panel whose surface or shadow arrives from a Go function (the app shell's `sheetPanel`
@@ -31,7 +31,7 @@ func TestNoHandWrittenPopover(t *testing.T) {
 			end := scanTagEnd(src, i+loc[1]-1)
 			tag := src[start:end]
 			i = end
-			panel := strings.Contains(tag, "surfaceClasses(") && strings.Contains(tag, "shadow-lg") && regexp.MustCompile(`(?:^|[\s"])absolute(?:[\s"]|$)`).MatchString(tag)
+			panel := strings.Contains(tag, "surfaceClasses(") && strings.Contains(tag, "shadow-lg") && regexp.MustCompile(`(?:^|[\s"])(?:absolute|fixed)(?:[\s"]|$)`).MatchString(tag)
 			if !panel {
 				continue
 			}

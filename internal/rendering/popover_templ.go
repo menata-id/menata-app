@@ -104,7 +104,7 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 = []any{"absolute z-10 mt-1.5 w-72", popoverPhoneClasses, popoverAlignClass(align), surfaceClasses(ctx), "shadow-lg"}
+		var templ_7745c5c3_Var6 = []any{"absolute top-full h-0 w-0", popoverAnchorClass(align)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -126,7 +126,7 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var8 = []any{popoverBodyClasses(ctx, density)}
+		var templ_7745c5c3_Var8 = []any{"fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -148,11 +148,33 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		var templ_7745c5c3_Var10 = []any{popoverBodyClasses(ctx, density)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var10).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/popover.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templ_7745c5c3_Var1.Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div></details>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div></div></details>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -162,11 +184,11 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 
 // popoverPhoneClasses is where the panel goes below `sm`, where a panel anchored to its trigger (right under it, one side
 // flush with it) ran off the screen -- a trigger near the left edge opened it to the left of the screen -- or was cut by
-// the scrolling table the trigger sits in. Below `sm` the panel is fixed to the viewport instead: a card a page-gutter
+// the scrolling table the trigger sits in. Below `sm` the panel is given offsets instead: a card a page-gutter
 // in from each side, above the bottom bar (so the trigger, which is usually in the upper part of the page, stays in sight to close it),
 // as tall as its content up to the room there is, scrolling inside when it needs more.
 // Fixed escapes the table's clipping, and one rule serves every trigger wherever it sits.
-const popoverPhoneClasses = "max-sm:fixed max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:overflow-y-auto"
+const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-x-0 max-sm:overflow-y-auto"
 
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
@@ -175,11 +197,20 @@ func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) s
 	return buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none"
 }
 
-func popoverAlignClass(align domain.PopoverAlign) string {
+// popoverAnchorClass puts the zero-size anchor at the trigger's start or end edge; popoverSideClass moves an end-aligned panel left by its
+// own width, so its right edge meets the anchor.
+func popoverAnchorClass(align domain.PopoverAlign) string {
 	if align == domain.PopoverAlignEnd {
-		return "top-full right-0"
+		return "right-0"
 	}
-	return "top-full left-0"
+	return "left-0"
+}
+
+func popoverSideClass(align domain.PopoverAlign) string {
+	if align == domain.PopoverAlignEnd {
+		return "-translate-x-full"
+	}
+	return ""
 }
 
 func popoverBodyClasses(ctx context.Context, density domain.PopoverDensity) string {

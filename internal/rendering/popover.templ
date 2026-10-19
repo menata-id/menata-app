@@ -21,9 +21,13 @@ templ popover(label, title string, trigger domain.PopoverTrigger, align domain.P
 			}
 			class={ popoverTriggerClasses(ctx, trigger) }
 		>{ label }</summary>
-		<div class={ "absolute z-10 mt-1.5 w-72", popoverPhoneClasses, popoverAlignClass(align), surfaceClasses(ctx), "shadow-lg" }>
-			<div class={ popoverBodyClasses(ctx, density) }>
-				{ children... }
+		// The panel is `fixed`, so a table's scrolling box (a row's Edit) cannot cut it, and sits where it would have been in the
+		// flow because it names no offset: its place is that of a zero-size anchor under the trigger, flush with the side `align:` names.
+		<div class={ "absolute top-full h-0 w-0", popoverAnchorClass(align) }>
+			<div class={ "fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg" }>
+				<div class={ popoverBodyClasses(ctx, density) }>
+					{ children... }
+				</div>
 			</div>
 		</div>
 	</details>
@@ -31,11 +35,11 @@ templ popover(label, title string, trigger domain.PopoverTrigger, align domain.P
 
 // popoverPhoneClasses is where the panel goes below `sm`, where a panel anchored to its trigger (right under it, one side
 // flush with it) ran off the screen -- a trigger near the left edge opened it to the left of the screen -- or was cut by
-// the scrolling table the trigger sits in. Below `sm` the panel is fixed to the viewport instead: a card a page-gutter
+// the scrolling table the trigger sits in. Below `sm` the panel is given offsets instead: a card a page-gutter
 // in from each side, above the bottom bar (so the trigger, which is usually in the upper part of the page, stays in sight to close it),
 // as tall as its content up to the room there is, scrolling inside when it needs more.
 // Fixed escapes the table's clipping, and one rule serves every trigger wherever it sits.
-const popoverPhoneClasses = "max-sm:fixed max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:overflow-y-auto"
+const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-x-0 max-sm:overflow-y-auto"
 
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
@@ -44,11 +48,20 @@ func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) s
 	return buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none"
 }
 
-func popoverAlignClass(align domain.PopoverAlign) string {
+// popoverAnchorClass puts the zero-size anchor at the trigger's start or end edge; popoverSideClass moves an end-aligned panel left by its
+// own width, so its right edge meets the anchor.
+func popoverAnchorClass(align domain.PopoverAlign) string {
 	if align == domain.PopoverAlignEnd {
-		return "top-full right-0"
+		return "right-0"
 	}
-	return "top-full left-0"
+	return "left-0"
+}
+
+func popoverSideClass(align domain.PopoverAlign) string {
+	if align == domain.PopoverAlignEnd {
+		return "-translate-x-full"
+	}
+	return ""
 }
 
 func popoverBodyClasses(ctx context.Context, density domain.PopoverDensity) string {
