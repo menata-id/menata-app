@@ -627,7 +627,7 @@ link (the one parameter a link sets, from a closed set). `component: SegmentedCo
 request's; the other parameters, the project among them, stay in each link). A grouped Collection takes `binding: {group: date, fill: weeks}` to draw
 whole Monday-to-Sunday weeks around the window (the added days are quiet, show their date alone -- they were not asked what is due -- take no drop, and are not drawn on a phone) and `moves: true` to make each card the viewer may
 edit draggable to another day -- a drop, or Space then the arrows then Space on its title, writes the record's own date Field through the generic patch
-route (a named script exception, below; after a keyboard move the page reloads and the moved card has focus again). A date Field holds a day, `YYYY-MM-DD`: the Data Plane refuses any other value on a create, an update or a drag, and a record whose stored date is no day of the window (a value from before that check) is left out of the days and counted in one notice under the grid, which also says when the Dataset's `limit:` cut the window and from which day cards may be missing. Its heading template reads `bucket:label`, or the parts `bucket:day` ("Mon"), `bucket:date` ("05 Oct"),
+route (a named script exception, below; after a keyboard move the page reloads and the moved card has focus again). A date Field holds a day, `YYYY-MM-DD`: the Data Plane refuses any other value on a create, an update or a drag (an update judges only a date it *changes*: a record that already holds a value from before the rule can still have its other Fields edited, and the date cleared or corrected), and a record whose stored date is no day of the window (a value from before that check) is left out of the days and counted in one notice under the grid, which also says when the Dataset's `limit:` cut the window and from which day cards may be missing. Its heading template reads `bucket:label`, or the parts `bucket:day` ("Mon"), `bucket:date` ("05 Oct"),
 `bucket:number` ("5"). A `static: link` may be `variant: quiet` (the secondary ink, picked for a finished record with `when:`) or, as a button, carry
 `icon: chevron-left|chevron-right` in place of its words (the words stay its accessible name). The properties lowering alone produces -- a section's
 `outside`, `dropField`, `dropValue` and a stack's `move` -- are never written.
@@ -1331,7 +1331,9 @@ view_groups:
       switch: Switch project
       all: All projects
       chosen: "one of {n} projects in this workspace"
+      chosen_one: "the only project in this workspace"   # optional: said for a count of one; absent, `chosen` serves one too
       overall: "{n} projects in this workspace"
+      overall_one: "{n} project in this workspace"       # optional, likewise (2026-10-20: "1 projects" was the review's finding)
       more: "Showing the first {n} projects"   # optional: said under a menu cut at the Dataset's `limit:`
       new: New project                         # optional: the form that makes one more (2026-10-19), for a viewer who may create the scope Machine
 navigation:
@@ -2019,7 +2021,7 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
 - **A Dataset may sort by the related record's column** (2026-10-19): `sort: [{field: fld_list, by: sort_order}]` orders the tasks by their
   List's own position, which no id order can say (the Table lists in the board's order); `field:` must be a reference Field and `by:` one of the
   record columns a plain sort may name (`sort_order`, `created_at`, `updated_at`). Add `{field: fld_list, by: created_at}` after it so lists
-  with the same position keep the order they were made in, as the board's columns do. A record whose reference names nothing sorts last.
+  with the same position keep the order they were made in, as the board's columns do. A record whose reference names nothing -- or names a record of another Workspace -- sorts last, ascending or descending (`NULLS LAST`). **Every declared `sort:` ends on the record's id** (2026-10-20), so rows that tie on every key come back in one order and a `limit:` cuts in the same place each time.
 - **`under: fld_x`** beside `field:` draws a second line in the cell, smaller: another Field of the same record
   (`{header: Instalment, field: fld_term_title, under: fld_contract_ref}` -- K02a's "Dimas Prayoga — Week 2" over
   "CTR/K/031"). Nothing in it leaves the cell as it was. **`from: "row:number"`** shows the row's place, 1 first (K01d's

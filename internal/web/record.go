@@ -879,7 +879,14 @@ func withinBounds(w http.ResponseWriter, req *http.Request, store *data.Store, m
 // passesWriteGuards runs the three checks every write has to clear: the record's own shape, the
 // existence of anything it points at, and the Machine's declared Constraints.
 func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Store, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any) bool {
-	if !validRecord(w, req, store, machine, values) {
+	// An update judges what changes: the record as stored tells a date it already held from one being written now.
+	var stored map[string]any
+	if id != "" {
+		if rec, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
+			stored = rec.Values
+		}
+	}
+	if !validRecordAgainst(w, req, store, machine, values, stored) {
 		return false
 	}
 	if !notFrozen(w, req, store, machine, id, values) || !withinBounds(w, req, store, machine, id, values) || !isBalanced(w, req, store, machine, id, values) {

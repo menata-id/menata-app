@@ -38,6 +38,15 @@ func presetValue(p *ViewPreset, field string) any {
 	return p.Value
 }
 
+// createValue is what a create form's control starts at: the screen's preset for the Field when it has one (the project being shown),
+// else the Field's declared default -- the value the route would give it anyway, now visible before it is sent.
+func createValue(p *ViewPreset, f domain.Field) any {
+	if v := presetValue(p, f.ID); v != nil {
+		return v
+	}
+	return f.Default
+}
+
 // headerPreset is a screen's header's preset, nil when it draws no group header.
 func headerPreset(h *ViewHeader) *ViewPreset {
 	if h == nil {
@@ -165,7 +174,7 @@ func viewHeader(h ViewHeader) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(h.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 72, Col: 130}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/viewheader.templ`, Line: 81, Col: 130}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {

@@ -83,3 +83,29 @@ func TestViewHeader_theScopeMenuOffersToCreateOne(t *testing.T) {
 		t.Errorf("a scope that declares no `new:` offers no form:\n%s", none)
 	}
 }
+
+// A create form asks for what the Machine requires and says so in the control itself, so a bare submit is stopped by the browser
+// instead of answered with a raw 422 (the review of slice 5: "New project" with only a name).
+func TestCreateForm_marksRequiredFieldsAndStartsAStatusAtItsDefault(t *testing.T) {
+	m := &domain.Machine{ID: "mch_project", Name: "Project", Fields: []domain.Field{
+		{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText, Required: true},
+		{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Required: true, Options: []string{"planning", "active", "done"}, Default: "planning"},
+		{ID: "fld_note", Name: "Note", Type: domain.FieldTypeText},
+	}}
+	var b bytes.Buffer
+	if err := createForm(m, nil, nil, nil, "Create", false).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{`name="fld_name" required`, `name="fld_status" required`, `<option value="planning" selected>`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the create form lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, `name="fld_note" required`) {
+		t.Errorf("an optional Field is marked required:\n%s", out)
+	}
+	if strings.Contains(out, `<option value=""></option>`) && strings.Index(out, `name="fld_status"`) < strings.Index(out, `<option value=""></option>`) && strings.Index(out, `<option value=""></option>`) < strings.Index(out, `<option value="planning"`) {
+		t.Errorf("a required status that has a default offers a blank choice first:\n%s", out)
+	}
+}

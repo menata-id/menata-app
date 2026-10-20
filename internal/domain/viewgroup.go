@@ -66,12 +66,27 @@ type ViewScope struct {
 	// Switch and All are the words of the control and of its "no choice" entry; Chosen and Overall are the summary's closing
 	// phrase with a project picked ("one of {n} projects in this workspace") and without ("{n} projects in this workspace").
 	Switch, All, Chosen, Overall string
+	// ChosenOne and OverallOne are the same two phrases for a count of exactly one ("1 project in this workspace"); each is optional and,
+	// absent, the plural wording serves one too -- the rule a PageCount's One follows.
+	ChosenOne, OverallOne string
 	// More is the note under a menu cut at the Dataset's `limit:` ("Showing the first {n} projects"); empty draws none. The summary still
 	// counts every record, and a record past the cut is a real choice, so a cut list is said to be one rather than mistaken for all of them.
 	More string
 	// New, when set, offers the viewer who may create a record of Machine to make one from the menu itself ("New project"): its words are the
 	// form's trigger. Without it a Workspace with no project at all has no way to make the first from these screens.
 	New string
+}
+
+// Phrase is the closing phrase of a group's summary for a count n, with a project picked or not, in the number's own wording.
+func (s ViewScope) Phrase(chosen bool, n int) string {
+	words, one := s.Overall, s.OverallOne
+	if chosen {
+		words, one = s.Chosen, s.ChosenOne
+	}
+	if n == 1 && one != "" {
+		words = one
+	}
+	return FillCount(words, n)
 }
 
 // ViewGroupByID finds a group of an Application by id.

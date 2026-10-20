@@ -14,6 +14,13 @@ fields:
     name: Owner
     type: person
 
+# Only a lead makes a project: a viewer who opens the Switch menu is offered the choices and no "New project" (the form is drawn for
+# those the route would let create, never as a button that ends in a refusal).
+permissions:
+  - id: prm_create_project
+    action: create
+    roles: [lead]
+
 constraints:
   - id: cst_project_done_no_open_tasks
     on: fld_status

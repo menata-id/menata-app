@@ -116,13 +116,11 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 	}
 	// A Workspace with no project has nothing to switch between and no sentence to say about them.
 	if scope != nil && len(scopeRecords) > 0 {
-		words := scope.Overall
 		if chosen != nil {
-			words = scope.Chosen
 			h.Preset = &rendering.ViewPreset{Field: scope.Field, Value: chosen.ID}
 			h.Title = DisplayString(chosen.Values[scopeMachine.LabelField()])
 		}
-		parts = append(parts, domain.FillCount(words, scopeCount))
+		parts = append(parts, scope.Phrase(chosen != nil, scopeCount))
 	}
 	h.Summary = strings.Join(parts, " · ")
 

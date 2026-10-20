@@ -454,7 +454,7 @@ func sortKeysFor(m *domain.Machine, keys []domain.SortKey) ([]data.SortKey, erro
 				return nil, fmt.Errorf("composition: sort by %q needs %q to be a reference Field of machine %s", k.By, k.Field, m.ID)
 			}
 			column = "(SELECT related." + related + " FROM records related WHERE related.id = records.data->>'" + k.Field + "' AND related.workspace_id = records.workspace_id)"
-			out = append(out, data.SortKey{Column: column, Descending: k.Descending()})
+			out = append(out, data.SortKey{Column: column, Descending: k.Descending(), NullsLast: true})
 			continue
 		}
 		if !isColumn {

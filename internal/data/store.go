@@ -242,6 +242,9 @@ type SortKey struct {
 	// data->>'fld_x' expression built from a validated Field id. Never user input.
 	Column     string
 	Descending bool
+	// NullsLast puts a row whose column is NULL after every other, in either direction: PostgreSQL's own default sorts them first when
+	// descending. A sort by a related record's column asks for it, since a reference that names nothing is last whichever way the list runs.
+	NullsLast bool
 }
 
 // ListRecordsSelect returns records of machineID in this Store's Workspace, ordered and bounded as
@@ -299,9 +302,14 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 			if k.Descending {
 				direction = "DESC"
 			}
+			if k.NullsLast {
+				direction += " NULLS LAST"
+			}
 			parts = append(parts, k.Column+" "+direction)
 		}
-		orderBy = strings.Join(parts, ", ")
+		// Ending on the id gives rows that tie on every key one order, so the same rows come back in the same order and a `limit:` cuts at the
+		// same place on every request.
+		orderBy = strings.Join(append(parts, "id ASC"), ", ")
 	}
 
 	// #nosec G201 -- orderBy is assembled from validated identifiers only (a closed set of column

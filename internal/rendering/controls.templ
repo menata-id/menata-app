@@ -473,27 +473,30 @@ templ editInput(m *domain.Machine, f domain.Field, r *data.Record, relations Rel
 		<input type="hidden" name={ f.ID } value={ figureInputValue(r.Values[f.ID]) }/>
 		<span title={ why }>{ valueText(ctx, f, r.Values[f.ID]) }</span>
 	} else {
-		@fieldInput(f, r.Values[f.ID], relations, groups)
+		@fieldInput(f, r.Values[f.ID], relations, groups, f.Required)
 	}
 }
 
 // fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
 // current (nil for a blank create-form field). relations supplies <select> options for any
 // reference field (Relation or Person, per domain.Field.IsReference); unused for every other
-// type.
-templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
+// type. required marks the control so the browser stops a submit the server would refuse (`required: true` on the Field); a required status
+// that already holds a value offers no blank choice, since the blank is the one thing it may not be.
+templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions, required bool) {
 	switch {
 		case f.Compute != nil:
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) } title="Calculated automatically when saved">{ computedDisplay(current) }</span>
 		case f.Type == domain.FieldTypeStatus:
-			<select name={ f.ID } class={ fieldClasses(ctx) + " w-full" }>
-				<option value=""></option>
+			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
+				if !required || toString(current) == "" {
+					<option value=""></option>
+				}
 				for _, opt := range f.Options {
 					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
 				}
 			</select>
 		case f.IsReference():
-			<select name={ f.ID } class={ fieldClasses(ctx) + " w-full" }>
+			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
 				for _, opt := range relations[f.RelatedMachine] {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
@@ -503,7 +506,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		// the IsReference() one above precisely because IsReference() is false for it: a Group has
 		// no target Machine to key relations by, so the options arrive in their own list.
 		case f.Type == domain.FieldTypeGroup:
-			<select name={ f.ID } class={ fieldClasses(ctx) + " w-full" }>
+			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
 				for _, opt := range groups {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
@@ -512,11 +515,11 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		case f.Type == domain.FieldTypeBoolean:
 			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class={ "size-4", controlAccentClass(ctx) }/>
 		case f.Type == domain.FieldTypeDate:
-			<input type="date" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="date" name={ f.ID } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type.IsNumeric():
-			<input type="number" step="any" name={ f.ID } value={ figureInputValue(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="number" step="any" name={ f.ID } required?={ required } value={ figureInputValue(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type == domain.FieldTypeLongText:
-			<textarea name={ f.ID } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
+			<textarea name={ f.ID } required?={ required } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
@@ -527,7 +530,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 				<input type="file" name={ f.ID } class={ "w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }/>
 			}
 		default:
-			<input type="text" name={ f.ID } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="text" name={ f.ID } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
 	}
 }
 

@@ -29,16 +29,18 @@ type viewGroupDoc struct {
 		Grouped  string `yaml:"grouped"`
 	} `yaml:"summary"`
 	Scope *struct {
-		Machine   string `yaml:"machine"`
-		Field     string `yaml:"field"`
-		Dataset   string `yaml:"dataset"`
-		Parameter string `yaml:"parameter"`
-		Switch    string `yaml:"switch"`
-		All       string `yaml:"all"`
-		Chosen    string `yaml:"chosen"`
-		Overall   string `yaml:"overall"`
-		More      string `yaml:"more"`
-		New       string `yaml:"new"`
+		Machine    string `yaml:"machine"`
+		Field      string `yaml:"field"`
+		Dataset    string `yaml:"dataset"`
+		Parameter  string `yaml:"parameter"`
+		Switch     string `yaml:"switch"`
+		All        string `yaml:"all"`
+		Chosen     string `yaml:"chosen"`
+		ChosenOne  string `yaml:"chosen_one"`
+		Overall    string `yaml:"overall"`
+		OverallOne string `yaml:"overall_one"`
+		More       string `yaml:"more"`
+		New        string `yaml:"new"`
 	} `yaml:"scope"`
 }
 
@@ -49,7 +51,7 @@ func (d viewGroupDoc) toDomain() domain.ViewGroup {
 		Words:   domain.ViewWords{TotalOne: d.Summary.Total.One, TotalOther: d.Summary.Total.Other, Complete: d.Summary.Complete, Grouped: d.Summary.Grouped},
 	}
 	if s := d.Scope; s != nil {
-		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, Overall: s.Overall, More: s.More, New: s.New}
+		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, ChosenOne: s.ChosenOne, Overall: s.Overall, OverallOne: s.OverallOne, More: s.More, New: s.New}
 	}
 	return g
 }

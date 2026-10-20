@@ -197,10 +197,22 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					var d = b ? b.closest("details") : null;
 					if (d) { d.open = false; }
 				});
+				// Escape closes the innermost open one: a dialog opened from inside a menu is dismissed and the menu stays under it, so a person who
+				// pressed it to leave the form is not also thrown out of the menu.
 				document.addEventListener("keydown", function (e) {
 					if (e.key !== "Escape") { return; }
-					document.querySelectorAll("details[data-popover][open]").forEach(function (d) { d.open = false; });
+					document.querySelectorAll("details[data-popover][open]").forEach(function (d) {
+						if (!d.querySelector("details[data-popover][open]")) { d.open = false; }
+					});
 				});
+				// A dialog that has opened takes the focus into its first control, so typing starts at once and a keyboard user is not left on
+				// the trigger behind it. (`toggle` does not bubble, hence the capture.)
+				document.addEventListener("toggle", function (e) {
+					var d = e.target;
+					if (!d.matches || !d.matches("details[data-popover][open]") || !d.querySelector("[role=dialog]")) { return; }
+					var first = d.querySelector("[role=dialog] input:not([type=hidden]), [role=dialog] select, [role=dialog] textarea");
+					if (first) { first.focus(); }
+				}, true);
 				// A form the browser holds back for a required control left empty sends nothing, so no response says why: the
 				// bubble shows on one control, perhaps off screen. Say it once, and bring that control into view.
 				document.addEventListener("htmx:validation:halted", function (e) {

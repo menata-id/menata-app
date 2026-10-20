@@ -130,17 +130,19 @@ func shapeDoc() applicationDoc {
 	g.Figures.Dataset, g.Figures.Total, g.Figures.Complete = "ds", "a", "b"
 	g.Summary.Total.One, g.Summary.Total.Other, g.Summary.Complete, g.Summary.Grouped = "{n} task", "{n} tasks", "{n} done", "by {field}"
 	g.Scope = &struct {
-		Machine   string `yaml:"machine"`
-		Field     string `yaml:"field"`
-		Dataset   string `yaml:"dataset"`
-		Parameter string `yaml:"parameter"`
-		Switch    string `yaml:"switch"`
-		All       string `yaml:"all"`
-		Chosen    string `yaml:"chosen"`
-		Overall   string `yaml:"overall"`
-		More      string `yaml:"more"`
-		New       string `yaml:"new"`
-	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "{n} in all", "", ""}
+		Machine    string `yaml:"machine"`
+		Field      string `yaml:"field"`
+		Dataset    string `yaml:"dataset"`
+		Parameter  string `yaml:"parameter"`
+		Switch     string `yaml:"switch"`
+		All        string `yaml:"all"`
+		Chosen     string `yaml:"chosen"`
+		ChosenOne  string `yaml:"chosen_one"`
+		Overall    string `yaml:"overall"`
+		OverallOne string `yaml:"overall_one"`
+		More       string `yaml:"more"`
+		New        string `yaml:"new"`
+	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "", "{n} in all", "", "", ""}
 	d.ViewGroups = []viewGroupDoc{g}
 	d.Navigation = []navItemDoc{{ID: "nav_a", ViewGroup: "vg_tasks", Summary: "counts"}}
 	return d

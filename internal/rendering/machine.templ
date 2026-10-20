@@ -772,6 +772,9 @@ templ boardDragScript() {
 				if (!dragged) return;
 				var col = e.target.closest("[data-board-column]");
 				if (!col) return;
+				// The lane for records with no list is not a place a card can be put: no ring, no slot, no count going up, and the sentence of the
+				// list the card was last over is not left saying where it is going. Without preventDefault the browser shows the drop as refused.
+				if (!col.dataset.value) { clear(); status(""); return; }
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "move";
 				var p = placeIn(col, e.clientY);
@@ -1245,7 +1248,7 @@ templ createForm(m *domain.Machine, relations RelationOptions, groups GroupOptio
 			if f.Compute == nil && f.Numbering == nil && f.Type != domain.FieldTypeFile {
 				<label class={ formLabelClasses(ctx) }>
 					{ f.Name }
-					@fieldInput(f, presetValue(preset, f.ID), relations, groups)
+					@fieldInput(f, createValue(preset, f), relations, groups, f.Required)
 				</label>
 			}
 		}
@@ -1265,7 +1268,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 		>
 			for _, f := range m.Fields {
 				<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle" }>
-					@fieldInput(f, nil, relations, groups)
+					@fieldInput(f, f.Default, relations, groups, f.Required)
 				</td>
 			}
 			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle whitespace-nowrap" }>

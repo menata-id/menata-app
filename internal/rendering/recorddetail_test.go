@@ -167,7 +167,7 @@ func TestRecordDetail_LongTextKeepsItsLineBreaks(t *testing.T) {
 func TestFieldInput_LongTextIsATextareaPrefilledWithItsValue(t *testing.T) {
 	var buf bytes.Buffer
 	f := domain.Field{ID: "fld_description", Type: domain.FieldTypeLongText}
-	if err := fieldInput(f, "a\nb", nil, nil).Render(context.Background(), &buf); err != nil {
+	if err := fieldInput(f, "a\nb", nil, nil, false).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()

@@ -162,7 +162,13 @@ func redirectTo(w http.ResponseWriter, req *http.Request, url string) {
 // validRecord runs the two checks every create has to clear: the record's own shape, and the
 // existence of whatever it points at.
 func validRecord(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, values map[string]any) bool {
-	if err := data.ValidateRecord(machine, values); err != nil {
+	return validRecordAgainst(w, req, store, machine, values, nil)
+}
+
+// validRecordAgainst is validRecord for a write to a record already stored (stored is its values; nil for a create): a date it already
+// holds is not judged again (data.ValidateRecordAgainst).
+func validRecordAgainst(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, values, stored map[string]any) bool {
+	if err := data.ValidateRecordAgainst(machine, values, stored); err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}

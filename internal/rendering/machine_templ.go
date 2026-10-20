@@ -2206,7 +2206,7 @@ func boardDragScript() templ.Component {
 			templ_7745c5c3_Var101 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<script>\n\t\t(function () {\n\t\t\tif (window.menataBoardDrag) return;\n\t\t\twindow.menataBoardDrag = true;\n\t\t\tvar dragged = null, slot = null, gap = null, counted = null;\n\t\t\tfunction clear() {\n\t\t\t\tdocument.querySelectorAll(\"[data-board-column].ring-2\").forEach(function (c) {\n\t\t\t\t\tc.classList.remove(\"ring-2\", \"ring-emerald-600\");\n\t\t\t\t});\n\t\t\t\tif (slot) { slot.remove(); slot = null; }\n\t\t\t\t// A list's count that was saying \"1 \\u2192 2\" says what it holds again.\n\t\t\t\tif (counted) { counted.node.textContent = counted.was; counted = null; }\n\t\t\t}\n\t\t\tfunction countOf(col) { return col.querySelector(\"[data-board-count]\"); }\n\t\t\t// What a mouse drag adds to the ring and the slot (mockup PM01b): the list the card is over says its count going up.\n\t\t\tfunction countGoing(col) {\n\t\t\t\tvar node = countOf(col);\n\t\t\t\tif (!node || (counted && counted.node === node)) return;\n\t\t\t\tif (counted) counted.node.textContent = counted.was;\n\t\t\t\tvar from = dragged && dragged.closest(\"[data-board-column]\");\n\t\t\t\tif (from === col) { counted = null; return; }\n\t\t\t\tvar n = parseInt(node.textContent, 10);\n\t\t\t\tif (isNaN(n)) return;\n\t\t\t\tcounted = { node: node, was: node.textContent };\n\t\t\t\tnode.textContent = n + \" \\u2192 \" + (n + 1);\n\t\t\t}\n\t\t\t// The ring on the list a card is going to and the bar where it will land: one drawing for the mouse and the keyboard.\n\t\t\tfunction markSlot(col, cards, idx) {\n\t\t\t\tclear();\n\t\t\t\tcol.classList.add(\"ring-2\", \"ring-emerald-600\");\n\t\t\t\tslot = document.createElement(\"div\");\n\t\t\t\tslot.className = \"h-1 rounded-full bg-emerald-600\";\n\t\t\t\tcol.querySelector(\"[data-cards]\").insertBefore(slot, cards[idx] || null);\n\t\t\t}\n\t\t\tfunction placeIn(col, y) {\n\t\t\t\tvar cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== dragged; });\n\t\t\t\tvar idx = cards.length;\n\t\t\t\tfor (var i = 0; i < cards.length; i++) {\n\t\t\t\t\tvar r = cards[i].getBoundingClientRect();\n\t\t\t\t\tif (y < r.top + r.height / 2) { idx = i; break; }\n\t\t\t\t}\n\t\t\t\treturn { cards: cards, idx: idx };\n\t\t\t}\n\t\t\t// A text field inside a draggable card cannot have its text selected with the mouse (the card\n\t\t\t// takes the gesture), so the card stops being draggable while the pointer is in its edit panel.\n\t\t\tdocument.addEventListener(\"pointerdown\", function (e) {\n\t\t\t\tvar c = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (c && c.getAttribute(\"draggable\") !== null) c.draggable = !e.target.closest(\"details\");\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragstart\", function (e) {\n\t\t\t\tvar c = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (!c) return;\n\t\t\t\tdragged = c;\n\t\t\t\te.dataTransfer.effectAllowed = \"move\";\n\t\t\t\te.dataTransfer.setData(\"text/plain\", c.dataset.url);\n\t\t\t\t// The card in the hand tilts and casts a shadow: the browser draws a picture of the element, so the picture is of a copy that does.\n\t\t\t\tvar ghost = c.cloneNode(true);\n\t\t\t\tghost.classList.add(\"rotate-2\", \"shadow-lg\");\n\t\t\t\tghost.style.width = c.getBoundingClientRect().width + \"px\";\n\t\t\t\tghost.style.position = \"absolute\";\n\t\t\t\tghost.style.top = \"-1000px\";\n\t\t\t\tdocument.body.appendChild(ghost);\n\t\t\t\te.dataTransfer.setDragImage(ghost, 16, 16);\n\t\t\t\tsetTimeout(function () { ghost.remove(); }, 0);\n\t\t\t\t// The place it came from collapses to a gap that says so.\n\t\t\t\tsetTimeout(function () {\n\t\t\t\t\tc.classList.add(\"hidden\");\n\t\t\t\t\tgap = document.createElement(\"div\");\n\t\t\t\t\tgap.setAttribute(\"aria-hidden\", \"true\");\n\t\t\t\t\tgap.className = \"rounded-md border border-dashed px-2 py-6 text-center text-xs\";\n\t\t\t\t\tgap.textContent = \"moving\\u2026\";\n\t\t\t\t\tc.parentNode.insertBefore(gap, c);\n\t\t\t\t}, 0);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragover\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar col = e.target.closest(\"[data-board-column]\");\n\t\t\t\tif (!col) return;\n\t\t\t\te.preventDefault();\n\t\t\t\te.dataTransfer.dropEffect = \"move\";\n\t\t\t\tvar p = placeIn(col, e.clientY);\n\t\t\t\tmarkSlot(col, p.cards, p.idx);\n\t\t\t\tcountGoing(col);\n\t\t\t\tif (col.dataset.value) status(\"Moving \\u201c\" + titleOf(dragged) + \"\\u201d from \" + dragged.closest(\"[data-board-column]\").getAttribute(\"aria-label\") + \" to \" + col.getAttribute(\"aria-label\") + \", \" + (p.idx === 0 ? \"as the first card\" : \"place \" + (p.idx + 1) + \" of \" + (p.cards.length + 1)) + \". Release to drop, Esc cancels.\");\n\t\t\t});\n\t\t\tdocument.addEventListener(\"drop\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar col = e.target.closest(\"[data-board-column]\");\n\t\t\t\tif (!col || !col.dataset.value) return;\n\t\t\t\te.preventDefault();\n\t\t\t\tvar card = dragged, values = { position: placeIn(col, e.clientY).idx + 1 };\n\t\t\t\tvalues[col.dataset.field] = col.dataset.value;\n\t\t\t\tclear();\n\t\t\t\thtmx.ajax(\"PATCH\", card.dataset.url, { source: card, target: \"#machine-body\", swap: \"innerHTML\", values: values });\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragend\", function () {\n\t\t\t\tif (dragged) dragged.classList.remove(\"hidden\");\n\t\t\t\tif (gap) { gap.remove(); gap = null; }\n\t\t\t\tdragged = null;\n\t\t\t\tclear();\n\t\t\t\tstatus(\"\");\n\t\t\t});\n\t\t\t// The same move from the keyboard (mockup PM01b): Space on a focused card lifts it, the arrows choose the list and the place, Space\n\t\t\t// drops it and Esc puts it back. It ends in the very PATCH a drop sends, and tells the viewer where it is going in the board's status line.\n\t\t\tvar lifted = null;\n\t\t\tfunction status(text) {\n\t\t\t\tvar s = document.querySelector(\"[data-board-status]\");\n\t\t\t\tif (!s) return;\n\t\t\t\ts.querySelector(\"p\").textContent = text || \" \";\n\t\t\t\ts.classList.toggle(\"hidden\", text === \"\");\n\t\t\t\tvar live = document.querySelector(\"[data-board-live]\");\n\t\t\t\tif (live) live.textContent = text || \"\";\n\t\t\t}\n\t\t\tfunction titleOf(card) {\n\t\t\t\tvar a = card.querySelector(\"a[href]\");\n\t\t\t\treturn a ? a.textContent.trim() : \"\";\n\t\t\t}\n\t\t\tfunction columns() {\n\t\t\t\treturn Array.prototype.filter.call(document.querySelectorAll(\"[data-board-column]\"), function (c) { return c.dataset.value; });\n\t\t\t}\n\t\t\tfunction show() {\n\t\t\t\tvar col = lifted.col, cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== lifted.card; });\n\t\t\t\tmarkSlot(col, cards, lifted.idx);\n\t\t\t\tstatus(\"Moving \\u201c\" + titleOf(lifted.card) + \"\\u201d from \" + lifted.from + \" to \" + col.getAttribute(\"aria-label\") + \", place \" + (lifted.idx + 1) + \" of \" + (cards.length + 1) + \". Arrow keys move it, Space drops it, Esc cancels.\");\n\t\t\t}\n\t\t\tfunction drop() {\n\t\t\t\t// A card still in the leftover lane has no list to be dropped on: dropping it there is putting it back.\n\t\t\t\tif (!lifted.col.dataset.value) { cancel(true); return; }\n\t\t\t\tvar card = lifted.card, values = { position: lifted.idx + 1 };\n\t\t\t\tvalues[lifted.col.dataset.field] = lifted.col.dataset.value;\n\t\t\t\tcancel(false);\n\t\t\t\t// The swap replaces the board, and the card that had focus with it: put focus back on the moved card once the new one is there.\n\t\t\t\tdocument.body.addEventListener(\"htmx:afterSettle\", function refocus() {\n\t\t\t\t\tdocument.body.removeEventListener(\"htmx:afterSettle\", refocus);\n\t\t\t\t\tvar again = document.querySelector('[data-card][data-url=\"' + card.dataset.url + '\"] a[href]');\n\t\t\t\t\tif (again) again.focus();\n\t\t\t\t});\n\t\t\t\thtmx.ajax(\"PATCH\", card.dataset.url, { source: card, target: \"#machine-body\", swap: \"innerHTML\", values: values });\n\t\t\t}\n\t\t\tfunction cancel(refocus) {\n\t\t\t\tvar card = lifted && lifted.card;\n\t\t\t\tlifted = null;\n\t\t\t\tclear();\n\t\t\t\tstatus(\"\");\n\t\t\t\tif (refocus && card && card.isConnected) { var a = card.querySelector(\"a[href]\"); if (a) a.focus(); }\n\t\t\t}\n\t\t\tdocument.addEventListener(\"keydown\", function (e) {\n\t\t\t\tvar card = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (!lifted) {\n\t\t\t\t\tif (e.key !== \" \" || !card || card.getAttribute(\"draggable\") === null || e.target.closest(\"details\") || !e.target.matches(\"a[href]\")) return;\n\t\t\t\t\tvar col = card.closest(\"[data-board-column]\");\n\t\t\t\t\tif (!col) return;\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tvar cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== card; });\n\t\t\t\t\tvar before = Array.prototype.indexOf.call(col.querySelectorAll(\"[data-card]\"), card);\n\t\t\t\t\tlifted = { card: card, col: col, idx: Math.min(before, cards.length), from: col.getAttribute(\"aria-label\") };\n\t\t\t\t\tshow();\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tif (e.key === \"Escape\") { e.preventDefault(); cancel(true); return; }\n\t\t\t\tif (e.key === \" \" || e.key === \"Enter\") { e.preventDefault(); drop(); return; }\n\t\t\t\tvar cols = columns(), at = cols.indexOf(lifted.col);\n\t\t\t\tvar inCol = Array.prototype.filter.call(lifted.col.querySelectorAll(\"[data-card]\"), function (c) { return c !== lifted.card; }).length;\n\t\t\t\tif (e.key === \"ArrowUp\") lifted.idx = Math.max(0, lifted.idx - 1);\n\t\t\t\telse if (e.key === \"ArrowDown\") lifted.idx = Math.min(inCol, lifted.idx + 1);\n\t\t\t\telse if (e.key === \"ArrowLeft\" && at === -1 && cols.length) { lifted.col = cols[cols.length - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse if (e.key === \"ArrowRight\" && at === -1) { return; }\n\t\t\t\telse if (e.key === \"ArrowLeft\" && at > 0) { lifted.col = cols[at - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse if (e.key === \"ArrowRight\" && at < cols.length - 1) { lifted.col = cols[at + 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse return;\n\t\t\t\te.preventDefault();\n\t\t\t\tshow();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"focusout\", function (e) {\n\t\t\t\tif (lifted && e.target === lifted.card.querySelector(\"a[href]\") && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel(false);\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<script>\n\t\t(function () {\n\t\t\tif (window.menataBoardDrag) return;\n\t\t\twindow.menataBoardDrag = true;\n\t\t\tvar dragged = null, slot = null, gap = null, counted = null;\n\t\t\tfunction clear() {\n\t\t\t\tdocument.querySelectorAll(\"[data-board-column].ring-2\").forEach(function (c) {\n\t\t\t\t\tc.classList.remove(\"ring-2\", \"ring-emerald-600\");\n\t\t\t\t});\n\t\t\t\tif (slot) { slot.remove(); slot = null; }\n\t\t\t\t// A list's count that was saying \"1 \\u2192 2\" says what it holds again.\n\t\t\t\tif (counted) { counted.node.textContent = counted.was; counted = null; }\n\t\t\t}\n\t\t\tfunction countOf(col) { return col.querySelector(\"[data-board-count]\"); }\n\t\t\t// What a mouse drag adds to the ring and the slot (mockup PM01b): the list the card is over says its count going up.\n\t\t\tfunction countGoing(col) {\n\t\t\t\tvar node = countOf(col);\n\t\t\t\tif (!node || (counted && counted.node === node)) return;\n\t\t\t\tif (counted) counted.node.textContent = counted.was;\n\t\t\t\tvar from = dragged && dragged.closest(\"[data-board-column]\");\n\t\t\t\tif (from === col) { counted = null; return; }\n\t\t\t\tvar n = parseInt(node.textContent, 10);\n\t\t\t\tif (isNaN(n)) return;\n\t\t\t\tcounted = { node: node, was: node.textContent };\n\t\t\t\tnode.textContent = n + \" \\u2192 \" + (n + 1);\n\t\t\t}\n\t\t\t// The ring on the list a card is going to and the bar where it will land: one drawing for the mouse and the keyboard.\n\t\t\tfunction markSlot(col, cards, idx) {\n\t\t\t\tclear();\n\t\t\t\tcol.classList.add(\"ring-2\", \"ring-emerald-600\");\n\t\t\t\tslot = document.createElement(\"div\");\n\t\t\t\tslot.className = \"h-1 rounded-full bg-emerald-600\";\n\t\t\t\tcol.querySelector(\"[data-cards]\").insertBefore(slot, cards[idx] || null);\n\t\t\t}\n\t\t\tfunction placeIn(col, y) {\n\t\t\t\tvar cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== dragged; });\n\t\t\t\tvar idx = cards.length;\n\t\t\t\tfor (var i = 0; i < cards.length; i++) {\n\t\t\t\t\tvar r = cards[i].getBoundingClientRect();\n\t\t\t\t\tif (y < r.top + r.height / 2) { idx = i; break; }\n\t\t\t\t}\n\t\t\t\treturn { cards: cards, idx: idx };\n\t\t\t}\n\t\t\t// A text field inside a draggable card cannot have its text selected with the mouse (the card\n\t\t\t// takes the gesture), so the card stops being draggable while the pointer is in its edit panel.\n\t\t\tdocument.addEventListener(\"pointerdown\", function (e) {\n\t\t\t\tvar c = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (c && c.getAttribute(\"draggable\") !== null) c.draggable = !e.target.closest(\"details\");\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragstart\", function (e) {\n\t\t\t\tvar c = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (!c) return;\n\t\t\t\tdragged = c;\n\t\t\t\te.dataTransfer.effectAllowed = \"move\";\n\t\t\t\te.dataTransfer.setData(\"text/plain\", c.dataset.url);\n\t\t\t\t// The card in the hand tilts and casts a shadow: the browser draws a picture of the element, so the picture is of a copy that does.\n\t\t\t\tvar ghost = c.cloneNode(true);\n\t\t\t\tghost.classList.add(\"rotate-2\", \"shadow-lg\");\n\t\t\t\tghost.style.width = c.getBoundingClientRect().width + \"px\";\n\t\t\t\tghost.style.position = \"absolute\";\n\t\t\t\tghost.style.top = \"-1000px\";\n\t\t\t\tdocument.body.appendChild(ghost);\n\t\t\t\te.dataTransfer.setDragImage(ghost, 16, 16);\n\t\t\t\tsetTimeout(function () { ghost.remove(); }, 0);\n\t\t\t\t// The place it came from collapses to a gap that says so.\n\t\t\t\tsetTimeout(function () {\n\t\t\t\t\tc.classList.add(\"hidden\");\n\t\t\t\t\tgap = document.createElement(\"div\");\n\t\t\t\t\tgap.setAttribute(\"aria-hidden\", \"true\");\n\t\t\t\t\tgap.className = \"rounded-md border border-dashed px-2 py-6 text-center text-xs\";\n\t\t\t\t\tgap.textContent = \"moving\\u2026\";\n\t\t\t\t\tc.parentNode.insertBefore(gap, c);\n\t\t\t\t}, 0);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragover\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar col = e.target.closest(\"[data-board-column]\");\n\t\t\t\tif (!col) return;\n\t\t\t\t// The lane for records with no list is not a place a card can be put: no ring, no slot, no count going up, and the sentence of the\n\t\t\t\t// list the card was last over is not left saying where it is going. Without preventDefault the browser shows the drop as refused.\n\t\t\t\tif (!col.dataset.value) { clear(); status(\"\"); return; }\n\t\t\t\te.preventDefault();\n\t\t\t\te.dataTransfer.dropEffect = \"move\";\n\t\t\t\tvar p = placeIn(col, e.clientY);\n\t\t\t\tmarkSlot(col, p.cards, p.idx);\n\t\t\t\tcountGoing(col);\n\t\t\t\tif (col.dataset.value) status(\"Moving \\u201c\" + titleOf(dragged) + \"\\u201d from \" + dragged.closest(\"[data-board-column]\").getAttribute(\"aria-label\") + \" to \" + col.getAttribute(\"aria-label\") + \", \" + (p.idx === 0 ? \"as the first card\" : \"place \" + (p.idx + 1) + \" of \" + (p.cards.length + 1)) + \". Release to drop, Esc cancels.\");\n\t\t\t});\n\t\t\tdocument.addEventListener(\"drop\", function (e) {\n\t\t\t\tif (!dragged) return;\n\t\t\t\tvar col = e.target.closest(\"[data-board-column]\");\n\t\t\t\tif (!col || !col.dataset.value) return;\n\t\t\t\te.preventDefault();\n\t\t\t\tvar card = dragged, values = { position: placeIn(col, e.clientY).idx + 1 };\n\t\t\t\tvalues[col.dataset.field] = col.dataset.value;\n\t\t\t\tclear();\n\t\t\t\thtmx.ajax(\"PATCH\", card.dataset.url, { source: card, target: \"#machine-body\", swap: \"innerHTML\", values: values });\n\t\t\t});\n\t\t\tdocument.addEventListener(\"dragend\", function () {\n\t\t\t\tif (dragged) dragged.classList.remove(\"hidden\");\n\t\t\t\tif (gap) { gap.remove(); gap = null; }\n\t\t\t\tdragged = null;\n\t\t\t\tclear();\n\t\t\t\tstatus(\"\");\n\t\t\t});\n\t\t\t// The same move from the keyboard (mockup PM01b): Space on a focused card lifts it, the arrows choose the list and the place, Space\n\t\t\t// drops it and Esc puts it back. It ends in the very PATCH a drop sends, and tells the viewer where it is going in the board's status line.\n\t\t\tvar lifted = null;\n\t\t\tfunction status(text) {\n\t\t\t\tvar s = document.querySelector(\"[data-board-status]\");\n\t\t\t\tif (!s) return;\n\t\t\t\ts.querySelector(\"p\").textContent = text || \" \";\n\t\t\t\ts.classList.toggle(\"hidden\", text === \"\");\n\t\t\t\tvar live = document.querySelector(\"[data-board-live]\");\n\t\t\t\tif (live) live.textContent = text || \"\";\n\t\t\t}\n\t\t\tfunction titleOf(card) {\n\t\t\t\tvar a = card.querySelector(\"a[href]\");\n\t\t\t\treturn a ? a.textContent.trim() : \"\";\n\t\t\t}\n\t\t\tfunction columns() {\n\t\t\t\treturn Array.prototype.filter.call(document.querySelectorAll(\"[data-board-column]\"), function (c) { return c.dataset.value; });\n\t\t\t}\n\t\t\tfunction show() {\n\t\t\t\tvar col = lifted.col, cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== lifted.card; });\n\t\t\t\tmarkSlot(col, cards, lifted.idx);\n\t\t\t\tstatus(\"Moving \\u201c\" + titleOf(lifted.card) + \"\\u201d from \" + lifted.from + \" to \" + col.getAttribute(\"aria-label\") + \", place \" + (lifted.idx + 1) + \" of \" + (cards.length + 1) + \". Arrow keys move it, Space drops it, Esc cancels.\");\n\t\t\t}\n\t\t\tfunction drop() {\n\t\t\t\t// A card still in the leftover lane has no list to be dropped on: dropping it there is putting it back.\n\t\t\t\tif (!lifted.col.dataset.value) { cancel(true); return; }\n\t\t\t\tvar card = lifted.card, values = { position: lifted.idx + 1 };\n\t\t\t\tvalues[lifted.col.dataset.field] = lifted.col.dataset.value;\n\t\t\t\tcancel(false);\n\t\t\t\t// The swap replaces the board, and the card that had focus with it: put focus back on the moved card once the new one is there.\n\t\t\t\tdocument.body.addEventListener(\"htmx:afterSettle\", function refocus() {\n\t\t\t\t\tdocument.body.removeEventListener(\"htmx:afterSettle\", refocus);\n\t\t\t\t\tvar again = document.querySelector('[data-card][data-url=\"' + card.dataset.url + '\"] a[href]');\n\t\t\t\t\tif (again) again.focus();\n\t\t\t\t});\n\t\t\t\thtmx.ajax(\"PATCH\", card.dataset.url, { source: card, target: \"#machine-body\", swap: \"innerHTML\", values: values });\n\t\t\t}\n\t\t\tfunction cancel(refocus) {\n\t\t\t\tvar card = lifted && lifted.card;\n\t\t\t\tlifted = null;\n\t\t\t\tclear();\n\t\t\t\tstatus(\"\");\n\t\t\t\tif (refocus && card && card.isConnected) { var a = card.querySelector(\"a[href]\"); if (a) a.focus(); }\n\t\t\t}\n\t\t\tdocument.addEventListener(\"keydown\", function (e) {\n\t\t\t\tvar card = e.target.closest && e.target.closest(\"[data-card]\");\n\t\t\t\tif (!lifted) {\n\t\t\t\t\tif (e.key !== \" \" || !card || card.getAttribute(\"draggable\") === null || e.target.closest(\"details\") || !e.target.matches(\"a[href]\")) return;\n\t\t\t\t\tvar col = card.closest(\"[data-board-column]\");\n\t\t\t\t\tif (!col) return;\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tvar cards = Array.prototype.filter.call(col.querySelectorAll(\"[data-card]\"), function (c) { return c !== card; });\n\t\t\t\t\tvar before = Array.prototype.indexOf.call(col.querySelectorAll(\"[data-card]\"), card);\n\t\t\t\t\tlifted = { card: card, col: col, idx: Math.min(before, cards.length), from: col.getAttribute(\"aria-label\") };\n\t\t\t\t\tshow();\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tif (e.key === \"Escape\") { e.preventDefault(); cancel(true); return; }\n\t\t\t\tif (e.key === \" \" || e.key === \"Enter\") { e.preventDefault(); drop(); return; }\n\t\t\t\tvar cols = columns(), at = cols.indexOf(lifted.col);\n\t\t\t\tvar inCol = Array.prototype.filter.call(lifted.col.querySelectorAll(\"[data-card]\"), function (c) { return c !== lifted.card; }).length;\n\t\t\t\tif (e.key === \"ArrowUp\") lifted.idx = Math.max(0, lifted.idx - 1);\n\t\t\t\telse if (e.key === \"ArrowDown\") lifted.idx = Math.min(inCol, lifted.idx + 1);\n\t\t\t\telse if (e.key === \"ArrowLeft\" && at === -1 && cols.length) { lifted.col = cols[cols.length - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse if (e.key === \"ArrowRight\" && at === -1) { return; }\n\t\t\t\telse if (e.key === \"ArrowLeft\" && at > 0) { lifted.col = cols[at - 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse if (e.key === \"ArrowRight\" && at < cols.length - 1) { lifted.col = cols[at + 1]; lifted.idx = Math.min(lifted.idx, lifted.col.querySelectorAll(\"[data-card]\").length); }\n\t\t\t\telse return;\n\t\t\t\te.preventDefault();\n\t\t\t\tshow();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"focusout\", function (e) {\n\t\t\t\tif (lifted && e.target === lifted.card.querySelector(\"a[href]\") && !(e.relatedTarget && lifted.card.contains(e.relatedTarget))) cancel(false);\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2496,7 +2496,7 @@ func tagChip(label string, color domain.TagColor) templ.Component {
 		var templ_7745c5c3_Var110 string
 		templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1042, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1045, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var110))
 		if templ_7745c5c3_Err != nil {
@@ -2556,7 +2556,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 		var templ_7745c5c3_Var113 string
 		templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardPatchURL(m, c))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1062, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1065, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 		if templ_7745c5c3_Err != nil {
@@ -2645,7 +2645,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var118 string
 			templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardPatchURL(m, c))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1079, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1082, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var118)
 			if templ_7745c5c3_Err != nil {
@@ -2658,7 +2658,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var119 string
 			templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Complete.Field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1083, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1086, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 			if templ_7745c5c3_Err != nil {
@@ -2671,7 +2671,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var120 string
 			templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Complete.Next)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1083, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1086, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var120)
 			if templ_7745c5c3_Err != nil {
@@ -2725,7 +2725,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var124 string
 			templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.ResolveAttributeValue("Edit " + title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1089, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1092, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var124)
 			if templ_7745c5c3_Err != nil {
@@ -2759,7 +2759,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var126 string
 			templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardPatchURL(m, c))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1092, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1095, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var126)
 			if templ_7745c5c3_Err != nil {
@@ -2781,7 +2781,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var128 string
 			templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardTitleFieldID(m))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1093, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1096, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 			if templ_7745c5c3_Err != nil {
@@ -2794,7 +2794,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var129 string
 			templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.ResolveAttributeValue(title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1093, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1096, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var129)
 			if templ_7745c5c3_Err != nil {
@@ -2807,7 +2807,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			var templ_7745c5c3_Var130 string
 			templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.ResolveAttributeValue(capitalWord(machineNoun(m)) + " title")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1093, Col: 130}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1096, Col: 130}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var130)
 			if templ_7745c5c3_Err != nil {
@@ -2882,7 +2882,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 				var templ_7745c5c3_Var136 string
 				templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardPatchURL(m, c))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1100, Col: 137}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1103, Col: 137}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var136)
 				if templ_7745c5c3_Err != nil {
@@ -2917,7 +2917,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 				var templ_7745c5c3_Var139 string
 				templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(cardMoveGroup(mv))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1102, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1105, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 				if templ_7745c5c3_Err != nil {
@@ -2939,7 +2939,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 				var templ_7745c5c3_Var141 string
 				templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.ResolveAttributeValue(mv.Field)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1103, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1106, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var141)
 				if templ_7745c5c3_Err != nil {
@@ -2970,7 +2970,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 					var templ_7745c5c3_Var143 string
 					templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.ResolveAttributeValue(t.Value)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1105, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1108, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var143)
 					if templ_7745c5c3_Err != nil {
@@ -2993,7 +2993,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 					var templ_7745c5c3_Var144 string
 					templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(t.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1105, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1108, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var144))
 					if templ_7745c5c3_Err != nil {
@@ -3042,7 +3042,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 				var templ_7745c5c3_Var148 string
 				templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(mv.Position))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1111, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1114, Col: 84}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var148)
 				if templ_7745c5c3_Err != nil {
@@ -3091,7 +3091,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 		var templ_7745c5c3_Var151 templ.SafeURL
 		templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1119, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1122, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
 		if templ_7745c5c3_Err != nil {
@@ -3117,7 +3117,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 		var templ_7745c5c3_Var153 string
 		templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1122, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1125, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 		if templ_7745c5c3_Err != nil {
@@ -3188,7 +3188,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 				var templ_7745c5c3_Var158 string
 				templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(c.Date.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1134, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1137, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
 				if templ_7745c5c3_Err != nil {
@@ -3337,7 +3337,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var162 string
 		templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(machineNoun(m))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1204, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1207, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
 		if templ_7745c5c3_Err != nil {
@@ -3372,7 +3372,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var165 string
 		templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records", m.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1208, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1211, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var165)
 		if templ_7745c5c3_Err != nil {
@@ -3385,7 +3385,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var166 string
 		templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.ResolveAttributeValue(v.GroupBy)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1213, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1216, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var166)
 		if templ_7745c5c3_Err != nil {
@@ -3398,7 +3398,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var167 string
 		templ_7745c5c3_Var167, templ_7745c5c3_Err = templ.ResolveAttributeValue(col.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1213, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1216, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var167)
 		if templ_7745c5c3_Err != nil {
@@ -3416,7 +3416,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 			var templ_7745c5c3_Var168 string
 			templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.ResolveAttributeValue(preset.Field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1215, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1218, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var168)
 			if templ_7745c5c3_Err != nil {
@@ -3429,7 +3429,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 			var templ_7745c5c3_Var169 string
 			templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.ResolveAttributeValue(preset.Value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1215, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1218, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var169)
 			if templ_7745c5c3_Err != nil {
@@ -3452,7 +3452,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var171 string
 		templ_7745c5c3_Var171, templ_7745c5c3_Err = templ.ResolveAttributeValue(cardTitleFieldID(m))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1217, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1220, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var171)
 		if templ_7745c5c3_Err != nil {
@@ -3465,7 +3465,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var172 string
 		templ_7745c5c3_Var172, templ_7745c5c3_Err = templ.ResolveAttributeValue(capitalWord(machineNoun(m)) + " title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1217, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1220, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var172)
 		if templ_7745c5c3_Err != nil {
@@ -3478,7 +3478,7 @@ func cardComposer(m *domain.Machine, v domain.View, col experience.Column, prese
 		var templ_7745c5c3_Var173 string
 		templ_7745c5c3_Var173, templ_7745c5c3_Err = templ.ResolveAttributeValue(capitalWord(machineNoun(m)) + " title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1217, Col: 166}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1220, Col: 166}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var173)
 		if templ_7745c5c3_Err != nil {
@@ -3609,7 +3609,7 @@ func createForm(m *domain.Machine, relations RelationOptions, groups GroupOption
 		var templ_7745c5c3_Var180 string
 		templ_7745c5c3_Var180, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records", m.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1235, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1238, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var180)
 		if templ_7745c5c3_Err != nil {
@@ -3661,13 +3661,13 @@ func createForm(m *domain.Machine, relations RelationOptions, groups GroupOption
 				var templ_7745c5c3_Var183 string
 				templ_7745c5c3_Var183, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1247, Col: 13}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1250, Col: 13}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var183))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = fieldInput(f, presetValue(preset, f.ID), relations, groups).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = fieldInput(f, createValue(preset, f), relations, groups, f.Required).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -3719,7 +3719,7 @@ func createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOpt
 		var templ_7745c5c3_Var185 string
 		templ_7745c5c3_Var185, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records", m.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1261, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1264, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var185)
 		if templ_7745c5c3_Err != nil {
@@ -3752,7 +3752,7 @@ func createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOpt
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = fieldInput(f, nil, relations, groups).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = fieldInput(f, f.Default, relations, groups, f.Required).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -3835,7 +3835,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 		var templ_7745c5c3_Var191 string
 		templ_7745c5c3_Var191, templ_7745c5c3_Err = templ.ResolveAttributeValue("record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1291, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1294, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var191)
 		if templ_7745c5c3_Err != nil {
@@ -3894,7 +3894,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				var templ_7745c5c3_Var196 templ.SafeURL
 				templ_7745c5c3_Var196, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1295, Col: 182}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1298, Col: 182}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var196))
 				if templ_7745c5c3_Err != nil {
@@ -3907,7 +3907,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				var templ_7745c5c3_Var197 string
 				templ_7745c5c3_Var197, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(ctx, f, r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1295, Col: 220}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1298, Col: 220}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var197))
 				if templ_7745c5c3_Err != nil {
@@ -3931,7 +3931,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				var templ_7745c5c3_Var198 string
 				templ_7745c5c3_Var198, templ_7745c5c3_Err = templ.JoinStringErrs(RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1301, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1304, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var198))
 				if templ_7745c5c3_Err != nil {
@@ -3941,7 +3941,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				var templ_7745c5c3_Var199 string
 				templ_7745c5c3_Var199, templ_7745c5c3_Err = templ.JoinStringErrs(GroupLabel(groups, toString(r.Values[f.ID])))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1303, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1306, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var199))
 				if templ_7745c5c3_Err != nil {
@@ -3956,7 +3956,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 				var templ_7745c5c3_Var200 string
 				templ_7745c5c3_Var200, templ_7745c5c3_Err = templ.JoinStringErrs(valueText(ctx, f, r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1307, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1310, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var200))
 				if templ_7745c5c3_Err != nil {
@@ -4016,7 +4016,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 			var templ_7745c5c3_Var205 string
 			templ_7745c5c3_Var205, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1316, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1319, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var205)
 			if templ_7745c5c3_Err != nil {
@@ -4029,7 +4029,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 			var templ_7745c5c3_Var206 string
 			templ_7745c5c3_Var206, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1317, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1320, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var206)
 			if templ_7745c5c3_Err != nil {
@@ -4067,7 +4067,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 			var templ_7745c5c3_Var209 string
 			templ_7745c5c3_Var209, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1326, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1329, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var209)
 			if templ_7745c5c3_Err != nil {
@@ -4080,7 +4080,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 			var templ_7745c5c3_Var210 string
 			templ_7745c5c3_Var210, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1327, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1330, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var210)
 			if templ_7745c5c3_Err != nil {
@@ -4132,7 +4132,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 		var templ_7745c5c3_Var212 string
 		templ_7745c5c3_Var212, templ_7745c5c3_Err = templ.ResolveAttributeValue("record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1342, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1345, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var212)
 		if templ_7745c5c3_Err != nil {
@@ -4145,7 +4145,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 		var templ_7745c5c3_Var213 string
 		templ_7745c5c3_Var213, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1344, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1347, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var213)
 		if templ_7745c5c3_Err != nil {
@@ -4158,7 +4158,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 		var templ_7745c5c3_Var214 string
 		templ_7745c5c3_Var214, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1345, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1348, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var214)
 		if templ_7745c5c3_Err != nil {
@@ -4269,7 +4269,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 		var templ_7745c5c3_Var223 string
 		templ_7745c5c3_Var223, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1359, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1362, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var223)
 		if templ_7745c5c3_Err != nil {
@@ -4282,7 +4282,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 		var templ_7745c5c3_Var224 string
 		templ_7745c5c3_Var224, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1360, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1363, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var224)
 		if templ_7745c5c3_Err != nil {
@@ -4429,7 +4429,7 @@ func projectedFieldValue(p ProjectedField) templ.Component {
 		var templ_7745c5c3_Var228 string
 		templ_7745c5c3_Var228, templ_7745c5c3_Err = templ.JoinStringErrs(p.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1456, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1459, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var228))
 		if templ_7745c5c3_Err != nil {
@@ -4470,7 +4470,7 @@ func projectedFieldValue(p ProjectedField) templ.Component {
 			var templ_7745c5c3_Var231 string
 			templ_7745c5c3_Var231, templ_7745c5c3_Err = templ.JoinStringErrs(p.Display)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1460, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 1463, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var231))
 			if templ_7745c5c3_Err != nil {

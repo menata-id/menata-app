@@ -30,6 +30,15 @@ func presetValue(p *ViewPreset, field string) any {
 	return p.Value
 }
 
+// createValue is what a create form's control starts at: the screen's preset for the Field when it has one (the project being shown),
+// else the Field's declared default -- the value the route would give it anyway, now visible before it is sent.
+func createValue(p *ViewPreset, f domain.Field) any {
+	if v := presetValue(p, f.ID); v != nil {
+		return v
+	}
+	return f.Default
+}
+
 // headerPreset is a screen's header's preset, nil when it draws no group header.
 func headerPreset(h *ViewHeader) *ViewPreset {
 	if h == nil {

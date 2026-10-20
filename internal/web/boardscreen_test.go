@@ -380,3 +380,22 @@ func TestBoardColumnMenuWritesThroughTheListMachinesRoutes(t *testing.T) {
 		t.Errorf("a delete from another screen that did not ask = %d, HX-Refresh %q, want 200 and none", rec.Code, rec.Header().Get("HX-Refresh"))
 	}
 }
+
+// A record that already holds a day the date rule would refuse can still have its other Fields edited: only a date being changed is judged,
+// so the record is not stuck behind a 422 with no way out (the review of slice 5).
+func TestEditingOtherFieldsOfARecordWithALegacyDateStillWorks(t *testing.T) {
+	h, cookie, ctx, store, _, _, _ := routerSetupFor(t, "legacydate", "default")
+	card, err := store.CreateRecord(ctx, "mch_task", map[string]any{"fld_title": "Old", "fld_status": "todo", "fld_due_date": "2027-01-05x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec := patchCard(t, h, cookie, card.ID, map[string]string{"fld_title": "Renamed"}, true); rec.Code != http.StatusOK {
+		t.Fatalf("renaming a record with a legacy date = %d, want 200\n%s", rec.Code, rec.Body.String())
+	}
+	if rec := patchCard(t, h, cookie, card.ID, map[string]string{"fld_due_date": "2027-01-06x"}, true); rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("changing the date to another bad value = %d, want 422", rec.Code)
+	}
+	if rec := patchCard(t, h, cookie, card.ID, map[string]string{"fld_due_date": "2027-01-06"}, true); rec.Code != http.StatusOK {
+		t.Errorf("fixing the date = %d, want 200", rec.Code)
+	}
+}

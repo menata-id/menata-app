@@ -184,3 +184,46 @@ func TestValidateRecord_dateField(t *testing.T) {
 		t.Errorf("an empty date is no date, not a bad one: %v", err)
 	}
 }
+
+// A date Field holds a day, YYYY-MM-DD, and nothing else: not a datetime, not trailing text, not a month-first reading, not a day that does
+// not exist. (The rule had no test in this package; a case scenario was its only witness.)
+func TestValidateRecord_aDateIsADay(t *testing.T) {
+	m := &domain.Machine{ID: "mch_d", Fields: []domain.Field{{ID: "fld_due", Type: domain.FieldTypeDate}}}
+	for _, good := range []string{"2026-10-20", "2024-02-29", "0001-01-01"} {
+		if err := ValidateRecord(m, map[string]any{"fld_due": good}); err != nil {
+			t.Errorf("%q refused: %v", good, err)
+		}
+	}
+	for _, bad := range []any{"2027-01-05x", "2026-02-30", "2026-2-3", "10/20/2026", "2026-10-20T10:00:00Z", " 2026-10-20", 20261020, true} {
+		if err := ValidateRecord(m, map[string]any{"fld_due": bad}); err == nil || !strings.Contains(err.Error(), "not a date") {
+			t.Errorf("%v accepted or misworded: %v", bad, err)
+		}
+	}
+	if err := ValidateRecord(m, map[string]any{"fld_due": ""}); err != nil {
+		t.Errorf("an empty optional date is no date, not a bad one: %v", err)
+	}
+}
+
+// A record that already holds a day the rule would now refuse (stored before the rule, or by an import) can still have its OTHER Fields
+// edited: only a date that is being changed is judged. Clearing it or writing a good day is always possible, so it has a way out; changing
+// it to another bad value does not.
+func TestValidateRecordAgainst_aStoredLegacyDateIsNotAnUnfixableRefusal(t *testing.T) {
+	m := &domain.Machine{ID: "mch_d", Fields: []domain.Field{
+		{ID: "fld_title", Type: domain.FieldTypeText, Required: true}, {ID: "fld_due", Type: domain.FieldTypeDate}}}
+	stored := map[string]any{"fld_title": "A", "fld_due": "2027-01-05x"}
+	if err := ValidateRecordAgainst(m, map[string]any{"fld_title": "B", "fld_due": "2027-01-05x"}, stored); err != nil {
+		t.Errorf("renaming a record that holds a legacy date: %v", err)
+	}
+	if err := ValidateRecordAgainst(m, map[string]any{"fld_title": "B", "fld_due": "2027-01-06x"}, stored); err == nil {
+		t.Error("changing it to another bad value was accepted")
+	}
+	if err := ValidateRecordAgainst(m, map[string]any{"fld_title": "B", "fld_due": "2027-01-06"}, stored); err != nil {
+		t.Errorf("fixing it: %v", err)
+	}
+	if err := ValidateRecordAgainst(m, map[string]any{"fld_title": "B", "fld_due": ""}, stored); err != nil {
+		t.Errorf("clearing it: %v", err)
+	}
+	if err := ValidateRecord(m, map[string]any{"fld_title": "B", "fld_due": "2027-01-05x"}); err == nil {
+		t.Error("a create with no stored record accepted a bad date")
+	}
+}

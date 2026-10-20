@@ -1,7 +1,8 @@
 case: 19
 title: Project Management -- the task Table (PM08)
 actors:
-  - { name: nia, role: "" }
+  - { name: nia, role: lead }
+  - { name: vic, role: viewer }
 steps:
   - id: todo
     as: nia
@@ -403,6 +404,27 @@ steps:
     view:
       path: /pages/nav_task_table
       shows:
+        - New project
+        - hx-post="/machines/mch_project/records"
+  # The form says what it asks for: the name and the status are required in the controls themselves, and a status that has a default
+  # starts at it, so a bare submit is stopped by the browser rather than answered with a raw refusal.
+  - id: the-new-project-form-marks-what-it-requires
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - name="fld_name" required
+        - name="fld_status" required
+  # Someone who may not create a project is offered the choices and no way to make one -- the form is not drawn at all.
+  - id: a-viewer-is-not-offered-a-new-project
+    as: vic
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - Switch project
+      hides:
         - New project
         - hx-post="/machines/mch_project/records"
   - id: a-project-made-from-the-menu

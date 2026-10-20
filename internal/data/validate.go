@@ -24,6 +24,13 @@ func (e *RecordValidationError) Error() string {
 // physical storage carrying values the Domain Plane doesn't recognize
 // (005-runtime-lifecycle.md "Security Ordering" / Phase 3 discipline applied to data writes).
 func ValidateRecord(m *domain.Machine, values map[string]any) error {
+	return ValidateRecordAgainst(m, values, nil)
+}
+
+// ValidateRecordAgainst is ValidateRecord for a write to a record that is already stored: a date the record already holds, written back
+// unchanged, is not judged again. A day stored before the date rule (or by an import) would otherwise refuse every edit of the record's
+// other Fields with a message nobody could act on; only a date being changed has to be a day. nil stored is a create.
+func ValidateRecordAgainst(m *domain.Machine, values, stored map[string]any) error {
 	var issues []string
 
 	fieldsByID := make(map[string]domain.Field, len(m.Fields))
@@ -67,6 +74,9 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 				issues = append(issues, fmt.Sprintf("field %q: value %v is not a number", f.ID, v))
 			}
 		case domain.FieldTypeDate:
+			if old, held := stored[f.ID]; held && old == v {
+				continue
+			}
 			// A day, YYYY-MM-DD: what the date control sends and what every window, bucket and sort reads. Anything else stored
 			// would belong to no day of a calendar and could not be told apart from a typo.
 			if s, ok := v.(string); !ok {
