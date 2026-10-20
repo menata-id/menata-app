@@ -63,7 +63,7 @@ navigation:
   - id: nav_board
     label: Board
     route: /machines/mch_task
-    priority: 1
+    priority: 2
     icon: board
     description: Tasks grouped by List.
     view_group: vg_tasks
@@ -76,8 +76,7 @@ navigation:
   - id: nav_my_tasks
     label: My Tasks
     route: /pages/nav_my_tasks
-    priority: 2
-    home_card: true
+    priority: 3
     icon: check-square
     description: Everything assigned to you, from every board in this workspace. Press Mark done to finish a task without opening it.
     page:
@@ -292,7 +291,8 @@ navigation:
   - id: nav_dashboard
     label: Dashboard
     route: /pages/nav_dashboard
-    priority: 3
+    priority: 1
+    home_card: true
     icon: dashboard
     description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
     page:

@@ -1922,8 +1922,8 @@ func TestDeclaredCalendarCardIsACircleATitleAndWhoHoldsIt(t *testing.T) {
 	if strings.Contains(body, ">Mark done<") || strings.Contains(body, ">Reopen<") {
 		t.Error("a card still carries a Mark done / Reopen text button")
 	}
-	// The title: accent while open, quiet once finished.
-	if !strings.Contains(body, `href="`+route(open)+`" class="text-accent`) || !strings.Contains(body, `href="`+route(finished)+`" class="text-ink-secondary`) {
+	// The title: strong ink while open (a plain link), quiet once finished.
+	if !strings.Contains(body, `href="`+route(open)+`" class="text-ink-strong`) || !strings.Contains(body, `href="`+route(finished)+`" class="text-ink-secondary`) {
 		t.Error("the open title is not in the link's ink, or the finished title is not in the quiet ink")
 	}
 	// Both cards are draggable by whoever may edit them: the patch route and the day they are dropped on are on the page.

@@ -56,13 +56,13 @@ view_groups:
       new: New project              # the form that makes one more project, in the menu and, with none yet, as the pill itself
 
 navigation:
-  # Board leads, matching the Case 19 mockup (PM01..PM06): Board / My Tasks / Dashboard / Calendar,
+  # Dashboard leads and is the Application's home (home_card), then Board / My Tasks / Calendar (Case 19 menu order, owner 2026-10-20),
   # then the rest behind "More" (rendering.appMenuTabLimit). mch_task's default view is vw_task_board;
   # until 2026-10-11 only `default`'s copy declared this item, so every other install had no Board in its menu.
   - id: nav_board
     label: Board
     route: /machines/mch_task
-    priority: 1
+    priority: 2
     icon: board
     description: Tasks grouped by List.
     view_group: vg_tasks
@@ -75,8 +75,7 @@ navigation:
   - id: nav_my_tasks
     label: My Tasks
     route: /pages/nav_my_tasks
-    priority: 2
-    home_card: true
+    priority: 3
     icon: check-square
     description: Everything assigned to you, from every board in this workspace. Press Mark done to finish a task without opening it.
     page:
@@ -291,7 +290,8 @@ navigation:
   - id: nav_dashboard
     label: Dashboard
     route: /pages/nav_dashboard
-    priority: 3
+    priority: 1
+    home_card: true
     icon: dashboard
     description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
     page:
