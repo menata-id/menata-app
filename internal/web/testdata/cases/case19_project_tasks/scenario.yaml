@@ -395,3 +395,24 @@ steps:
       shows:
         - href="/machines/mch_task/records/$wrap-up" class="text-ink-secondary hover:text-ink-strong"
         - href="/machines/mch_task/records/$rehearsal" class="text-accent hover:text-accent-hover"
+  # The shared header's Switch project menu can make a project: its form is in the menu under the choices, posts to the Project machine's own
+  # create route, and the project it makes is then one of the choices.
+  - id: the-switch-menu-offers-a-new-project
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - New project
+        - hx-post="/machines/mch_project/records"
+  - id: a-project-made-from-the-menu
+    as: nia
+    expect: ok
+    create: { machine: mch_project, values: { fld_name: Season 3, fld_status: planning } }
+  - id: the-new-project-is-a-choice
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - Season 3

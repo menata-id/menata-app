@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
+
+	"menata.app/internal/domain"
 )
 
 func renderHeader(t *testing.T, h ViewHeader, action string) string {
@@ -54,5 +56,30 @@ func TestMenuLink_marksTheCurrentChoice(t *testing.T) {
 	_ = menuLink("B", "/b", false).Render(assignedNavFixture(), &other)
 	if !strings.Contains(cur.String(), `aria-current="true"`) || strings.Contains(other.String(), "aria-current") {
 		t.Errorf("current %s / other %s", cur.String(), other.String())
+	}
+}
+
+// A scope that declares `new:` offers to make one more of what it switches between: the "New project" form is in the menu, below the choices, and posts to the
+// scope Machine's own create route. A Workspace with no project yet has nothing to switch between and is offered the form alone, as the pill itself.
+func TestViewHeader_theScopeMenuOffersToCreateOne(t *testing.T) {
+	m := &domain.Machine{ID: "mch_project", Name: "Project", Fields: []domain.Field{{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText, Required: true}}}
+	create := &ScopeCreate{Label: "New project", Machine: m}
+	with := renderHeader(t, ViewHeader{Title: "Tasks", Tabs: []SegmentTab{{Label: "Board", Current: true}, {Label: "Table"}},
+		Scope: &ViewScopeMenu{Label: "Switch project", Items: []ViewScopeItem{{Label: "All projects", Href: "/x", Current: true}, {Label: "Season 1", Href: "/x?project=p1"}}, Create: create}}, "")
+	for _, want := range []string{"Switch project", ">All projects</a>", "New project", `hx-post="/machines/mch_project/records"`, `name="fld_name"`} {
+		if !strings.Contains(with, want) {
+			t.Errorf("the menu lacks %q:\n%s", want, with)
+		}
+	}
+	if strings.Index(with, ">Season 1</a>") > strings.Index(with, "New project") {
+		t.Errorf("the form belongs below the choices:\n%s", with)
+	}
+	alone := renderHeader(t, ViewHeader{Title: "Tasks", Tabs: []SegmentTab{{Label: "Board", Current: true}, {Label: "Table"}}, Scope: &ViewScopeMenu{Label: "Switch project", Create: create}}, "")
+	if !strings.Contains(alone, "New project") || strings.Contains(alone, "Switch project") || strings.Contains(alone, "All projects") {
+		t.Errorf("with no project the pill is the form alone:\n%s", alone)
+	}
+	none := renderHeader(t, ViewHeader{Title: "Tasks", Tabs: []SegmentTab{{Label: "Board", Current: true}, {Label: "Table"}}, Scope: &ViewScopeMenu{Label: "Switch project", Items: []ViewScopeItem{{Label: "All projects", Href: "/x", Current: true}}}}, "")
+	if strings.Contains(none, "New project") || strings.Contains(none, "hx-post") {
+		t.Errorf("a scope that declares no `new:` offers no form:\n%s", none)
 	}
 }

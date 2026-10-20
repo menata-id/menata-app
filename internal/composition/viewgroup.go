@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -34,7 +35,7 @@ func ViewGroupItem(app domain.Application, machineID, navID string) (domain.Navi
 //
 // Every number is counted, never typed: the totals from the group's aggregate Dataset (the whole set, scoped by the same
 // parameter the screens carry), the scope's size from its Machine. One read of the scope's Dataset serves the menu, the title and the count.
-func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item domain.NavigationItem, group domain.ViewGroup, params map[string]string, now time.Time) (*rendering.ViewHeader, map[string]string, error) {
+func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item domain.NavigationItem, group domain.ViewGroup, viewer domain.Actor, params map[string]string, now time.Time) (*rendering.ViewHeader, map[string]string, error) {
 	m := l.Machine(group.Machine)
 	if m == nil {
 		return nil, params, nil
@@ -128,8 +129,25 @@ func ViewHeaderFor(ctx context.Context, l *Loader, app domain.Application, item 
 	for _, it := range app.ViewGroupItems(group.ID) {
 		h.Tabs = append(h.Tabs, rendering.SegmentTab{Label: it.Label, Href: carryScope(group, out, it.Route), Current: it.ID == item.ID})
 	}
+	// The form that makes one more of what the menu switches between: offered only to a viewer who may create it, and the only thing a
+	// Workspace with none yet has to show.
+	var create *rendering.ScopeCreate
+	if scope != nil && scope.New != "" && authorization.AllowsAction(scopeMachine, domain.ActionCreate, nil, viewer) {
+		relations, err := l.RelationOptions(ctx, scopeMachine)
+		if err != nil {
+			return nil, params, err
+		}
+		groups, err := l.GroupOptions(ctx, scopeMachine)
+		if err != nil {
+			return nil, params, err
+		}
+		create = &rendering.ScopeCreate{Label: scope.New, Machine: scopeMachine, Relations: relations, Groups: groups}
+	}
+	if scope != nil && len(scopeRecords) == 0 && create != nil {
+		h.Scope = &rendering.ViewScopeMenu{Label: scope.Switch, Create: create}
+	}
 	if scope != nil && len(scopeRecords) > 0 {
-		menu := &rendering.ViewScopeMenu{Label: scope.Switch, Items: []rendering.ViewScopeItem{{Label: scope.All, Href: item.Route, Current: chosen == nil}}}
+		menu := &rendering.ViewScopeMenu{Label: scope.Switch, Create: create, Items: []rendering.ViewScopeItem{{Label: scope.All, Href: item.Route, Current: chosen == nil}}}
 		label := scopeMachine.LabelField()
 		for _, r := range scopeRecords {
 			menu.Items = append(menu.Items, rendering.ViewScopeItem{Label: DisplayString(r.Values[label]), Href: item.Route + "?" + url.Values{scope.Parameter: {r.ID}}.Encode(), Current: chosen != nil && chosen.ID == r.ID})

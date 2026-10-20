@@ -1223,11 +1223,22 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, pres
 // newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
 templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions, preset *ViewPreset) {
 	@popover("New "+strings.ToLower(m.Name), "", domain.PopoverTriggerFilled, domain.PopoverAlignEnd, domain.PopoverDensityRegular) {
+		@createForm(m, relations, groups, preset, "Create", true)
+	}
+}
+
+// createForm is a Machine's create form -- a control for every Field it can be given -- posted to the Machine's own create route. It swaps
+// nothing in: from a screen that is not the Machine's own the route answers with a refresh, so the new record is simply there.
+templ createForm(m *domain.Machine, relations RelationOptions, groups GroupOptions, preset *ViewPreset, submit string, onThisMachinesPage bool) {
 	<form
 		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }
 		hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
-		hx-target="#machine-body"
-		hx-swap="innerHTML"
+		if onThisMachinesPage {
+			hx-target="#machine-body"
+			hx-swap="innerHTML"
+		} else {
+			hx-swap="none"
+		}
 		hx-encoding="multipart/form-data"
 	>
 		for _, f := range m.Fields {
@@ -1238,9 +1249,8 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 				</label>
 			}
 		}
-		@button("Create", domain.ButtonPrimary, "", "")
+		@button(submit, domain.ButtonPrimary, "", "")
 	</form>
-	}
 }
 
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't

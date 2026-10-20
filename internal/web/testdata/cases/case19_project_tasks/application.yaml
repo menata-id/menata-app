@@ -37,6 +37,7 @@ view_groups:
       chosen: "one of {n} projects in this workspace"
       overall: "{n} projects in this workspace"
       more: "Showing the first {n} projects"
+      new: New project              # the form that makes one more project, in the menu and, with none yet, as the pill itself
 
 navigation:
   - id: nav_board

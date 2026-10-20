@@ -1333,10 +1333,18 @@ view_groups:
       chosen: "one of {n} projects in this workspace"
       overall: "{n} projects in this workspace"
       more: "Showing the first {n} projects"   # optional: said under a menu cut at the Dataset's `limit:`
+      new: New project                         # optional: the form that makes one more (2026-10-19), for a viewer who may create the scope Machine
 navigation:
   - { id: nav_board, route: /machines/mch_task, view_group: vg_tasks, summary: counts, ... }
   - { id: nav_task_table, view_group: vg_tasks, summary: counts, in_menu: false, page: ... }
 ```
+
+**`scope.new:` (2026-10-19)** puts a "New project" form under the choices in the menu: every Field the scope Machine can be given, posted to
+its own create route, which answers a form sent from another screen with a refresh, so the new project is then one of the choices. It is drawn only for a
+viewer who may create the Machine, and a Workspace with **no project yet** shows it alone as the pill (otherwise nothing on these screens could make the
+first). The mockups draw only "Switch project"; making one was asked for by the owner (2026-10-20). The same shape for a settings page is a **Popover over a
+`Form`** (`component: Popover` with `density: regular`, its child `component: Form` with `fields:` and `binding: {dataset, write: create}`): Board settings
+has "New list" and "New label" beside their headings, as mockup PM06 draws "+ New list" and "+ New label".
 
 The header reads the runtime's own numbers -- the figures come from the aggregate Dataset (the whole set, so a list's `limit:` never
 understates them), the project count from the scope's Dataset -- and no screen writes a count or a name. A request with **no** scope

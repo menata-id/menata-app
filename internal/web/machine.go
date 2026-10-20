@@ -127,12 +127,12 @@ func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		p, err := readMachineView(req, machines, machine, store, v)
+		actor := currentActor(req, store, cfg)
+		p, err := readMachineView(req, machines, machine, store, actor, v)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		actor := currentActor(req, store, cfg)
 		p.boardColumns = columnAbilities(req.Context(), store, p.boardColumns, actor)
 		workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
 		if err != nil {
@@ -148,7 +148,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 	if !ok {
 		return
 	}
-	p, err := readMachineView(req, machines, machine, store, v)
+	p, err := readMachineView(req, machines, machine, store, actor, v)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -187,7 +187,7 @@ type machineViewReads struct {
 	header *rendering.ViewHeader
 }
 
-func readMachineView(req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, v domain.View) (machineViewReads, error) {
+func readMachineView(req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, actor domain.Actor, v domain.View) (machineViewReads, error) {
 	ld := composition.NewLoader(store, machines)
 	records, err := ld.ListRecords(req.Context(), machine.ID)
 	if err != nil {
@@ -199,7 +199,7 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 	if app, ok := rendering.CurrentApplication(req.Context()); ok {
 		if item, group, ok := composition.ViewGroupItem(app, machine.ID, ""); ok {
 			var params map[string]string
-			if header, params, err = composition.ViewHeaderFor(req.Context(), ld, app, item, group, scopeParams(req, group), time.Now()); err != nil {
+			if header, params, err = composition.ViewHeaderFor(req.Context(), ld, app, item, group, actor, scopeParams(req, group), time.Now()); err != nil {
 				return machineViewReads{}, err
 			}
 			records = composition.ScopeRecords(group, params, records)

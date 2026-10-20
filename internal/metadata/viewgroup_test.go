@@ -139,7 +139,8 @@ func shapeDoc() applicationDoc {
 		Chosen    string `yaml:"chosen"`
 		Overall   string `yaml:"overall"`
 		More      string `yaml:"more"`
-	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "{n} in all", ""}
+		New       string `yaml:"new"`
+	}{"mch_project", "fld_project", "ds_p", "project", "Switch", "All", "one of {n}", "{n} in all", "", ""}
 	d.ViewGroups = []viewGroupDoc{g}
 	d.Navigation = []navItemDoc{{ID: "nav_a", ViewGroup: "vg_tasks", Summary: "counts"}}
 	return d

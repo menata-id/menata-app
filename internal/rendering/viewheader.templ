@@ -44,6 +44,17 @@ type ViewScopeMenu struct {
 	Items []ViewScopeItem
 	// More is the line under the choices of a list that was cut, empty for a list that was not.
 	More string
+	// Create, when set, is the form that makes one more of what the menu switches between, in the menu under the choices -- or, when there
+	// are no choices yet, the only thing the pill is.
+	Create *ScopeCreate
+}
+
+// ScopeCreate is the "New project" form of a scope menu: the Machine it creates a record of, and what its Fields' controls offer.
+type ScopeCreate struct {
+	Label     string
+	Machine   *domain.Machine
+	Relations RelationOptions
+	Groups    GroupOptions
 }
 
 // ViewScopeItem is one choice of the scope menu.
@@ -79,12 +90,29 @@ templ viewHeader(h ViewHeader) {
 // scopeMenu is the control that picks which record of a larger set the screens are about: a Popover of links, each the screen's own
 // route with the scope parameter, the viewer's choice marked.
 templ scopeMenu(m ViewScopeMenu) {
-	@popover(m.Label, m.Label, domain.PopoverTriggerPill, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
-		for _, it := range m.Items {
-			@menuLink(it.Label, it.Href, it.Current)
+	if len(m.Items) == 0 && m.Create != nil {
+		@scopeCreate(*m.Create, domain.PopoverTriggerPill)
+	} else {
+		@popover(m.Label, m.Label, domain.PopoverTriggerPill, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
+			for _, it := range m.Items {
+				@menuLink(it.Label, it.Href, it.Current)
+			}
+			if m.More != "" {
+				@staticText(domain.StaticCaption, m.More)
+			}
+			if m.Create != nil {
+				<div class={ "border-t pt-1.5", borderClass(ctx, domain.BorderDivider) }>
+					@scopeCreate(*m.Create, domain.PopoverTriggerSecondary)
+				</div>
+			}
 		}
-		if m.More != "" {
-			@staticText(domain.StaticCaption, m.More)
-		}
+	}
+}
+
+// scopeCreate is the dialog that makes one more record of the scope's Machine: every Field it can be given, posted to the Machine's own
+// create route, which answers a form sent from another screen by refreshing it (the new choice is then in the menu).
+templ scopeCreate(c ScopeCreate, trigger domain.PopoverTrigger) {
+	@popover(c.Label, c.Label, trigger, domain.PopoverAlignStart, domain.PopoverDensityRegular) {
+		@createForm(c.Machine, c.Relations, c.Groups, nil, "Create", false)
 	}
 }

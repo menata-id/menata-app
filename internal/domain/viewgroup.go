@@ -69,6 +69,9 @@ type ViewScope struct {
 	// More is the note under a menu cut at the Dataset's `limit:` ("Showing the first {n} projects"); empty draws none. The summary still
 	// counts every record, and a record past the cut is a real choice, so a cut list is said to be one rather than mistaken for all of them.
 	More string
+	// New, when set, offers the viewer who may create a record of Machine to make one from the menu itself ("New project"): its words are the
+	// form's trigger. Without it a Workspace with no project at all has no way to make the first from these screens.
+	New string
 }
 
 // ViewGroupByID finds a group of an Application by id.

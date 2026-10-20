@@ -38,6 +38,7 @@ type viewGroupDoc struct {
 		Chosen    string `yaml:"chosen"`
 		Overall   string `yaml:"overall"`
 		More      string `yaml:"more"`
+		New       string `yaml:"new"`
 	} `yaml:"scope"`
 }
 
@@ -48,7 +49,7 @@ func (d viewGroupDoc) toDomain() domain.ViewGroup {
 		Words:   domain.ViewWords{TotalOne: d.Summary.Total.One, TotalOther: d.Summary.Total.Other, Complete: d.Summary.Complete, Grouped: d.Summary.Grouped},
 	}
 	if s := d.Scope; s != nil {
-		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, Overall: s.Overall, More: s.More}
+		g.Scope = &domain.ViewScope{Machine: s.Machine, Field: s.Field, Dataset: s.Dataset, Parameter: s.Parameter, Switch: s.Switch, All: s.All, Chosen: s.Chosen, Overall: s.Overall, More: s.More, New: s.New}
 	}
 	return g
 }

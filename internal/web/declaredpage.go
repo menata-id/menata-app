@@ -71,7 +71,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store
 			actor := currentActor(req, store, cfg)
 			targets := linkTargetsFor(rendering.CurrentWorkspace(ctx), app, actor, cfg)
 			loader := composition.NewLoader(store, machinesFor(ctx)).WithFiles(files).WithPDF(printer.Available()).WithReader(aiassist.Available(reader))
-			header, carry, params, err := viewGroupOf(ctx, loader, app, item, params)
+			header, carry, params, err := viewGroupOf(ctx, loader, app, item, actor, params)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -96,12 +96,12 @@ func showDeclaredPage(store *data.Store, cfg config.Config, files *storage.Store
 // viewGroupOf is what a screen of a view group adds to its page: the group's header, the carrying of its scope choice onto the links
 // between its screens, and the parameters the page is read with (a scope value naming no record is dropped). A screen of no group
 // has none of the three and keeps the parameters it came with.
-func viewGroupOf(ctx context.Context, loader *composition.Loader, app domain.Application, item domain.NavigationItem, params map[string]string) (*rendering.ViewHeader, func(navID, href string) string, map[string]string, error) {
+func viewGroupOf(ctx context.Context, loader *composition.Loader, app domain.Application, item domain.NavigationItem, viewer domain.Actor, params map[string]string) (*rendering.ViewHeader, func(navID, href string) string, map[string]string, error) {
 	group, ok := app.ViewGroupByID(item.ViewGroup)
 	if !ok {
 		return nil, nil, params, nil
 	}
-	header, params, err := composition.ViewHeaderFor(ctx, loader, app, item, group, params, time.Now())
+	header, params, err := composition.ViewHeaderFor(ctx, loader, app, item, group, viewer, params, time.Now())
 	return header, composition.ViewCarry(app, group, params), params, err
 }
 
