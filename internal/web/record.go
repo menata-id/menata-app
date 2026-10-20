@@ -428,6 +428,26 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 // fromDeclaredPage says the request was sent from a `page:` screen (`/pages/<nav id>`), which draws its own
 // records and has no Machine row to swap an answer into. Narrower than fromAnotherPage on purpose: the three
 // hand-written delete sites keep answering an empty body.
+// listRouteInScope is the Machine's own list with the scope its record belonged to chosen, when the Machine's screens share a view group
+// that has a scope (`vg_tasks`: the project a task is in): the way back from a record's page is the board of that project, not the board
+// of every one. A record that is in none, or a Machine whose group has no scope, goes back to the plain list.
+func listRouteInScope(ctx context.Context, machine *domain.Machine, record *data.Record) string {
+	route := domain.MachineListRoute(machine.ID)
+	app, ok := rendering.CurrentWorkspace(ctx).ApplicationForMachine(machine.ID)
+	if !ok {
+		return route
+	}
+	for _, g := range app.ViewGroups {
+		if g.Machine != machine.ID || g.Scope == nil {
+			continue
+		}
+		if v, _ := record.Values[g.Scope.Field].(string); v != "" {
+			return route + "?" + url.Values{g.Scope.Parameter: {v}}.Encode()
+		}
+	}
+	return route
+}
+
 // recordPageBack is where a delete sent from a record's own page (`/pages/<nav>/<id>`, `record_of:`) goes once that record
 // is gone: the screen the page's Application names with `back_to:`, else the Machine's own list. Not a record page of
 // this record -- another record's, a list page, another screen -- is not its business (ok false).
@@ -977,13 +997,20 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		id := chi.URLParam(req, "id")
 		actor := currentActor(req, store, cfg)
+		// Read before the delete: the way back names the scope the record belonged to, and nothing is left to read it from after.
+		back := "/machines/" + machine.ID
+		if isDetailContext(req) {
+			if existing, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
+				back = listRouteInScope(req.Context(), machine, existing)
+			}
+		}
 		if !deleteLocked(w, req, store, machine, id, actor) {
 			return
 		}
 		if isDetailContext(req) {
 			// The record is gone; nothing left on this page to show. Send the visitor back to
-			// the Machine's own list/board.
-			w.Header().Set("HX-Redirect", "/machines/"+machine.ID)
+			// the Machine's own list/board, in the scope (the project) the record belonged to.
+			w.Header().Set("HX-Redirect", back)
 			return
 		}
 		if back, ok := recordPageBack(req, machine, id); ok {

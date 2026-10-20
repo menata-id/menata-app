@@ -2141,3 +2141,57 @@ func TestAViewerConditionShowsALinkOnlyToAnAdmin(t *testing.T) {
 		t.Error("the rest of the page was hidden from the member too")
 	}
 }
+
+// Deleting a task from its own page returns to the board of the project it belonged to, not to the board of every project: the view
+// group's scope (`vg_tasks`) names the Field that holds the project and the parameter the board reads it from, so the way back is read
+// from that declaration. A task with no project returns to the plain board.
+func TestDeletingATaskFromItsPageReturnsToItsProjectsBoard(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "deletebackscope", "default")
+	var task, project *domain.Machine
+	for _, m := range ws.Machines {
+		switch m.ID {
+		case "mch_task":
+			task = m
+		case "mch_project":
+			project = m
+		}
+	}
+	if task == nil || project == nil {
+		t.Fatal("default installs no mch_task / mch_project")
+	}
+	proj, err := store.CreateRecord(ctx, project.ID, map[string]any{"fld_name": "Back-probe", "fld_status": project.Fields[1].Options[0]})
+	if err != nil {
+		t.Skipf("cannot make a project here: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, project.ID, proj.ID) })
+	mk := func(title string, values map[string]any) *data.Record {
+		values["fld_title"] = title
+		values["fld_status"] = task.ReopenValue()
+		rec, err := store.CreateRecord(ctx, task.ID, values)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+		return rec
+	}
+	scoped, loose := mk("Back-probe-scoped", map[string]any{"fld_project": proj.ID}), mk("Back-probe-loose", map[string]any{})
+	del := func(id string) string {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodDelete, "/machines/"+task.ID+"/records/"+id, nil)
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Target", "record-detail")
+		req.Header.Set("HX-Current-URL", "http://x/machines/"+task.ID+"/records/"+id)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Header().Get("HX-Redirect")
+	}
+	if got, want := del(scoped.ID), "/machines/"+task.ID+"?project="+proj.ID; got != want {
+		t.Errorf("a task of a project went back to %q, want %q", got, want)
+	}
+	if got, want := del(loose.ID), "/machines/"+task.ID; got != want {
+		t.Errorf("a task with no project went back to %q, want %q", got, want)
+	}
+}
