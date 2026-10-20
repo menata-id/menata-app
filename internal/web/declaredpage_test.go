@@ -2195,3 +2195,77 @@ func TestDeletingATaskFromItsPageReturnsToItsProjectsBoard(t *testing.T) {
 		t.Errorf("a task with no project went back to %q, want %q", got, want)
 	}
 }
+
+// A record's page remembers the screen it was opened from: arriving from a list screen of its Machine (the board, the table, the
+// calendar, whatever project or week they showed) puts that address on the page as `back`, the back link and a delete both return
+// to it, and an address that is not one of this Workspace's screens (another site, a protocol-relative one, the record itself) is ignored.
+func TestARecordPageReturnsToTheScreenItWasOpenedFrom(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "recordback", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil {
+		t.Fatal("default installs no mch_task")
+	}
+	mk := func(title string) *data.Record {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{"fld_title": title, "fld_status": task.ReopenValue()})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+		return rec
+	}
+	rec := mk("Origin-probe")
+	page := "/machines/" + task.ID + "/records/" + rec.ID
+	get := func(target, referer string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		if referer != "" {
+			req.Header.Set("Referer", referer)
+		}
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		return w
+	}
+	from := "/pages/nav_task_table?project=prj_x"
+	opened := get(page, "http://example.com"+from)
+	if opened.Code != http.StatusSeeOther || opened.Header().Get("Location") != page+"?back="+url.QueryEscape(from) {
+		t.Fatalf("opening a record from the table answered %d, Location %q", opened.Code, opened.Header().Get("Location"))
+	}
+	for _, bad := range []string{"http://example.com//evil.example/a", "http://example.com/machines/" + task.ID + "/records/" + rec.ID, "http://example.com/settings/files", ""} {
+		if w := get(page, bad); w.Code != http.StatusOK {
+			t.Errorf("a Referer of %q was taken for an origin: %d", bad, w.Code)
+		}
+	}
+	if body := get(page+"?back="+url.QueryEscape(from), "").Body.String(); !strings.Contains(body, `href="`+from+`"`) {
+		t.Error("the page does not link back to the screen it was opened from")
+	}
+	if body := get(page+"?back="+url.QueryEscape("//evil.example/x"), "").Body.String(); strings.Contains(body, "evil.example") {
+		t.Error("an address that is not a screen of this Workspace was linked")
+	}
+	del := func(current string) string {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodDelete, page, nil)
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Target", "record-detail")
+		req.Header.Set("HX-Current-URL", current)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		return w.Header().Get("HX-Redirect")
+	}
+	gone := mk("Origin-probe-2")
+	page = "/machines/" + task.ID + "/records/" + gone.ID
+	if got := del("http://example.com" + page + "?back=" + url.QueryEscape("//evil.example/x")); got != "/machines/"+task.ID {
+		t.Errorf("a delete followed a foreign address: %q", got)
+	}
+	page = "/machines/" + task.ID + "/records/" + mk("Origin-probe-3").ID
+	if got := del("http://example.com" + page + "?back=" + url.QueryEscape(from)); got != from {
+		t.Errorf("a delete went to %q, want the screen it was opened from, %q", got, from)
+	}
+}

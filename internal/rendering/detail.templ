@@ -43,6 +43,9 @@ type RecordExtras struct {
 	// comments (a `comment` card role). It also makes the feed a section on its own, with or without an
 	// activity log.
 	Comments *CommentComposer
+	// Back is the screen the page was opened from (a board, table or calendar, with its project), already checked by the handler; the back
+	// link returns there. Empty when the page was reached any other way, and the link is the Machine's own list.
+	Back string
 }
 
 // CommentComposer is what the comment box writes: the child Machine's create route, the Field naming the
@@ -137,9 +140,9 @@ templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 	if (action.IsDocument(m) || action.IsStep(m)) && hasNavItem(ctx, "nav_approval_inbox") {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_approval_inbox") }</a>
 	} else if extras.Move != nil {
-		@recordBreadcrumb(m, *extras.Move)
+		@recordBreadcrumb(m, *extras.Move, extras.Back)
 	} else {
-		<a href={ templ.URL("/machines/" + m.ID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { m.Name }</a>
+		<a href={ templ.URL(backOr(extras.Back, "/machines/"+m.ID)) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { m.Name }</a>
 	}
 }
 
@@ -147,12 +150,20 @@ templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 // board View the card sits on, then the list it is in. Both halves are what recordMove already resolved (the
 // board View and the current list's title), so the breadcrumb and the Move panel cannot disagree about where
 // the card is.
-templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
+templ recordBreadcrumb(m *domain.Machine, mv RecordMove, back string) {
 	<nav aria-label="Breadcrumb" class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) }>
-		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ machineHeading(ctx, m) }</a>
+		<a href={ templ.URL(backOr(back, fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID))) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ machineHeading(ctx, m) }</a>
 		<span aria-hidden="true">/</span>
 		<span aria-current="page">{ mv.CurrentLabel() }</span>
 	</nav>
+}
+
+// backOr is the screen the page was opened from when it has one, else the fallback.
+func backOr(back, fallback string) string {
+	if back != "" {
+		return back
+	}
+	return fallback
 }
 
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one

@@ -176,6 +176,13 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 		actor := currentActor(req, store, cfg)
 
 		if req.Header.Get("HX-Request") != "true" {
+			// Arriving from a list screen of this Workspace, the page keeps that address in its own (`back`), so it can return there.
+			if _, has := backOf(req); !has {
+				if from, ok := openedFrom(req); ok {
+					http.Redirect(w, req, req.URL.Path+"?"+url.Values{backParam: {from}}.Encode(), http.StatusSeeOther)
+					return
+				}
+			}
 			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
 				serverError(w, err)
@@ -187,6 +194,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				serverError(w, err)
 				return
 			}
+			extras.Back, _ = backOf(req)
 			workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
 			if err != nil {
 				serverError(w, err)
@@ -207,6 +215,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				serverError(w, err)
 				return
 			}
+			extras.Back, _ = backOf(req)
 			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, extras, time.Now()))
 			return
 		}
@@ -1000,7 +1009,9 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		// Read before the delete: the way back names the scope the record belonged to, and nothing is left to read it from after.
 		back := "/machines/" + machine.ID
 		if isDetailContext(req) {
-			if existing, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
+			if from, ok := backOf(req); ok {
+				back = from
+			} else if existing, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
 				back = listRouteInScope(req.Context(), machine, existing)
 			}
 		}
