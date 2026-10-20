@@ -27,7 +27,7 @@ func renderPopover(t *testing.T, ctx context.Context, label, title string, tr do
 // strings are what the first rendered at 376acf0 (captured before the migration) with the one deliberate change: the
 // panel opens 6px under its trigger, where it was 4px and 8px. The body now sits in a wrapper that carries the room.
 func TestPopover_reproducesThePreMigrationMarkup(t *testing.T) {
-	const wantMenu = `<details class="group relative" data-popover><summary aria-label="Card actions" class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border-surface bg-bg-raised px-4 font-sans text-sm text-ink-body hover:bg-hover-wash cursor-pointer list-none">⋯</summary>   <div class="absolute top-full h-0 w-0 left-0"><div class="fixed z-10 mt-1.5 w-72  max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-x-0 max-sm:overflow-y-auto rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="flex flex-col gap-1 p-2">ROWS</div></div></div></details>`
+	const wantMenu = `<details class="group relative" data-popover><summary aria-label="Card actions" class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border-surface bg-bg-raised px-4 font-sans text-sm text-ink-body hover:bg-hover-wash cursor-pointer list-none">⋯</summary>   <div class="absolute top-full h-0 w-0 left-0"><div class="fixed z-10 mt-1.5 w-72  max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-none max-sm:overflow-y-auto rounded-lg border border-border-surface bg-bg-raised shadow-lg"><div class="flex flex-col gap-1 p-2">ROWS</div></div></div></details>`
 	if got := renderPopover(t, context.Background(), "⋯", "Card actions", domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact, "ROWS"); got != wantMenu {
 		t.Errorf("menu:\n got %s\nwant %s", got, wantMenu)
 	}
@@ -101,10 +101,15 @@ func TestFormLabelClasses_followTheTheme(t *testing.T) {
 func TestPopover_isFixedToTheViewportOnAPhone(t *testing.T) {
 	for _, al := range []domain.PopoverAlign{domain.PopoverAlignStart, domain.PopoverAlignEnd} {
 		got := renderPopover(t, context.Background(), "...", "Actions", domain.PopoverTriggerSecondary, al, domain.PopoverDensityCompact, "ROWS")
-		for _, want := range []string{`class="fixed `, "max-sm:inset-x-4", "max-sm:bottom-24", "max-sm:translate-x-0", "max-sm:overflow-y-auto", "max-sm:max-h-96"} {
+		for _, want := range []string{`class="fixed `, "max-sm:inset-x-4", "max-sm:bottom-24", "max-sm:translate-none", "max-sm:overflow-y-auto", "max-sm:max-h-96"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("align %s: the panel does not carry %q: %s", al, want, got)
 			}
+		}
+		// Any translate (even a zero one) makes the panel the containing block of a fixed dialog opened from inside it, and cuts that
+		// dialog to the menu's box (New project in the Switch project menu, on a phone, 2026-10-20).
+		if strings.Contains(got, "max-sm:translate-x-") {
+			t.Errorf("align %s: the panel carries a translate below sm, which cuts a dialog nested in it: %s", al, got)
 		}
 	}
 }

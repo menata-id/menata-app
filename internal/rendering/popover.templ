@@ -104,8 +104,10 @@ func withinPopover(ctx context.Context) bool {
 // the scrolling table the trigger sits in. Below `sm` the panel is given offsets instead: a card a page-gutter
 // in from each side, above the bottom bar (so the trigger, which is usually in the upper part of the page, stays in sight to close it),
 // as tall as its content up to the room there is, scrolling inside when it needs more.
-// Fixed escapes the table's clipping, and one rule serves every trigger wherever it sits.
-const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-x-0 max-sm:overflow-y-auto"
+// Fixed escapes the table's clipping, and one rule serves every trigger wherever it sits. The panel takes no translate at all, not a zero one: any
+// translate value makes the panel the containing block of a `fixed` descendant, which cut a dialog opened from inside a menu (the
+// Switch project menu's New project) to the menu's own box on a phone.
+const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 max-sm:z-40 max-sm:mt-0 max-sm:w-auto max-sm:max-h-96 max-sm:translate-none max-sm:overflow-y-auto"
 
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
