@@ -8,6 +8,7 @@ import (
 	"github.com/a-h/templ"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/ir"
 )
 
 func renderHeader(t *testing.T, h ViewHeader, action string) string {
@@ -107,5 +108,85 @@ func TestCreateForm_marksRequiredFieldsAndStartsAStatusAtItsDefault(t *testing.T
 	}
 	if strings.Contains(out, `<option value=""></option>`) && strings.Index(out, `name="fld_status"`) < strings.Index(out, `<option value=""></option>`) && strings.Index(out, `<option value=""></option>`) < strings.Index(out, `<option value="planning"`) {
 		t.Errorf("a required status that has a default offers a blank choice first:\n%s", out)
+	}
+}
+
+// A link may read in the page's strong ink instead of the accent's (`variant: plain`): what a list of records is read for, the way the
+// mockups draw a Table's first column; it takes the accent on hover so it still says it is a link.
+func TestUINode_aPlainLinkReadsInTheStrongInk(t *testing.T) {
+	var b bytes.Buffer
+	n := ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticLink), Props: map[string]string{"href": "/x", "text": "Task", "variant": string(domain.LinkPlain)}}
+	if err := uiNode(n).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `href="/x"`) || !strings.Contains(out, "text-ink-strong") || strings.Contains(out, "text-accent") && !strings.Contains(out, "hover:text-accent") {
+		t.Errorf("a plain link: %s", out)
+	}
+	if strings.Contains(out, "bg-") {
+		t.Errorf("a plain link is drawn as a button: %s", out)
+	}
+}
+
+// A panel may be compact (`density: compact`): the small card a calendar day and a board column hold -- the tile's edge and radius, the raised fill, 10px and
+// 8px of room and the meta size for its words -- instead of the 20px panel. The board's card draws the same recipe (compactCardClasses), so the two
+// cannot drift apart.
+func TestPanelLayout_aCompactPanelIsTheBoardsCard(t *testing.T) {
+	compact := ir.UINode{Kind: ir.NodeLayout, Type: string(domain.LayoutPanel), Props: map[string]string{"density": string(domain.PanelCompact)},
+		Children: []ir.UINode{{Kind: ir.NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": "Day 1"}}}}
+	regular := compact
+	regular.Props = nil
+	var c, r bytes.Buffer
+	if err := uiNode(compact).Render(assignedNavFixture(), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := uiNode(regular).Render(assignedNavFixture(), &r); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(c.String(), "px-2.5 py-2") || strings.Contains(c.String(), "p-5") {
+		t.Errorf("a compact panel: %s", c.String())
+	}
+	if !strings.Contains(r.String(), "p-5") || strings.Contains(r.String(), "px-2.5 py-2") {
+		t.Errorf("a regular panel moved: %s", r.String())
+	}
+	if !strings.Contains(compactCardClasses(assignedNavFixture()), "px-2.5 py-2") {
+		t.Error("the shared card recipe lost its room")
+	}
+	if issues := ir.Validate(compact); len(issues) != 0 {
+		t.Errorf("density: compact is a declared property of a panel: %v", issues)
+	}
+	bad := compact
+	bad.Props = map[string]string{"density": "huge"}
+	if issues := ir.Validate(bad); len(issues) == 0 {
+		t.Error("density: huge was accepted")
+	}
+}
+
+// A row may keep its children on one line (`wrap: nowrap`): a circle beside a title that wraps within its own column instead of the title dropping
+// under the circle -- a calendar card, as the mockup draws it. A row wraps unless it says so.
+func TestRowLayout_noWrapKeepsTheCircleBesideItsTitle(t *testing.T) {
+	row := ir.UINode{Kind: ir.NodeLayout, Type: string(domain.LayoutRow), Props: map[string]string{"wrap": string(domain.RowNoWrap)},
+		Children: []ir.UINode{{Kind: ir.NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": "x"}}}}
+	plain := row
+	plain.Props = nil
+	var a, b bytes.Buffer
+	if err := uiNode(row).Render(assignedNavFixture(), &a); err != nil {
+		t.Fatal(err)
+	}
+	if err := uiNode(plain).Render(assignedNavFixture(), &b); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(a.String(), "flex-nowrap") || strings.Contains(a.String(), "flex-wrap") {
+		t.Errorf("a no-wrap row: %s", a.String())
+	}
+	if !strings.Contains(b.String(), "flex-wrap") || strings.Contains(b.String(), "flex-nowrap") {
+		t.Errorf("a row that says nothing stopped wrapping: %s", b.String())
+	}
+	if issues := ir.Validate(row); len(issues) != 0 {
+		t.Errorf("wrap: nowrap is a declared property of a row: %v", issues)
+	}
+	row.Props = map[string]string{"wrap": "sideways"}
+	if issues := ir.Validate(row); len(issues) == 0 {
+		t.Error("wrap: sideways was accepted")
 	}
 }

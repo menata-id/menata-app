@@ -465,7 +465,7 @@ templ reviewSignatureLegend() {
 // record. That read is why detail.templ sat in the projection ratchet; moving the bar here (where
 // the values arrive already resolved) is what lets that entry go.
 templ reviewDecisionBar(v ReviewView) {
-	@panelLayout() {
+	@panelLayout(domain.PanelRegular) {
 		@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 			<span class={ "flex items-center", layoutGap(ctx, domain.GapTight) }>
 				@staticText(domain.StaticOverline, "SLA")

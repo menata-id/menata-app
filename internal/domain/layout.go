@@ -86,6 +86,18 @@ const (
 	LayoutSection LayoutKind = "section"
 )
 
+// PanelDensity is how much room a panel gives its content, a closed set: `regular` is the 20px surface a screen's sections sit in, `compact` the small
+// card a calendar day and a board column hold (the tile's edge, a raised fill, 10px by 8px, the meta size for its words).
+type PanelDensity string
+
+const (
+	PanelRegular PanelDensity = "regular"
+	PanelCompact PanelDensity = "compact"
+)
+
+// KnownPanelDensities is the closed set.
+var KnownPanelDensities = map[PanelDensity]bool{PanelRegular: true, PanelCompact: true}
+
 // ColumnsAlign is how a columns layout aligns its children on the cross axis **once it is a row**. Below the
 // breakpoint it is a stack and alignment does not apply.
 //
@@ -126,6 +138,18 @@ var KnownRowAligns = map[RowAlign]bool{
 	RowAlignStretch: true,
 	RowAlignCenter:  true,
 }
+
+// RowWrap is whether a row lets its children drop to a new line when they do not fit. A row wraps unless it says `nowrap`, which keeps a small control
+// (a completion circle) beside text that then wraps within its own column -- a calendar card's circle and title.
+type RowWrap string
+
+const (
+	RowWrapWrap RowWrap = "wrap"
+	RowNoWrap   RowWrap = "nowrap"
+)
+
+// KnownRowWraps is the closed set.
+var KnownRowWraps = map[RowWrap]bool{RowWrapWrap: true, RowNoWrap: true}
 
 // RowJustify is a row's main-axis distribution, as a closed set. Two members: flow from the start, or push the
 // children apart. Six of the 24 migrated sites do the second.

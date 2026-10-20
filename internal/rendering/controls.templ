@@ -160,6 +160,11 @@ templ quietLink(href, text string) {
 	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) }>{ text }</a>
 }
 
+// plainLink is `variant: plain`: the link in the strong ink, the accent only when it is pointed at.
+templ plainLink(href, text string) {
+	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkStrong), accentHoverClass(ctx) }>{ text }</a>
+}
+
 // button is the registered renderer for `domain.ComponentButton`: a real `<button type="submit">` with a
 // label and, optionally, the native name/value pair it posts. **Its signature is the contract's teeth** -- four
 // strings and a closed variant, no `any` to parse and no attribute map to pass `hx-*` through, which is what

@@ -951,10 +951,25 @@ func controlHeightCompact() string { return "h-8 pointer-coarse:h-11" }
 //
 // **Measured 2026-10-06: it has one live caller.** The twelve sites above were rewritten into other shapes since
 // (the Case 19 restyles), so the panel/section padding difference is one site wide today.
-templ panelLayout() {
-	<section class={ surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
+templ panelLayout(density domain.PanelDensity) {
+	<section class={ panelClasses(ctx, density) }>
 		{ children... }
 	</section>
+}
+
+// panelClasses is a panel's surface: the 20px section box, or (`density: compact`) the small card with the meta size for its words.
+func panelClasses(ctx context.Context, density domain.PanelDensity) string {
+	if density == domain.PanelCompact {
+		return compactCardClasses(ctx) + " " + textClass(ctx, domain.RoleMeta)
+	}
+	return surfaceClasses(ctx) + " " + paddingClass(ctx, domain.PaddingPanel)
+}
+
+// compactCardClasses is the small card a board column and a calendar day hold (mockups PM01, PM05): the tile's edge and radius, a raised fill and
+// 10px by 8px of room. The board's card and a `layout: panel` with `density: compact` both read it, so the two are one recipe, not two literals
+// that agree today.
+func compactCardClasses(ctx context.Context) string {
+	return tileClasses(ctx) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " px-2.5 py-2"
 }
 
 // sectionLayout is §12.2's `section`: a bordered, padded surface that stacks its children -- the shape 17
@@ -1332,6 +1347,14 @@ templ rowLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify
 	</div>
 }
 
+// rowNoWrapLayout is a row whose children stay on one line (`wrap: nowrap`): the same classes with `flex-nowrap` for `flex-wrap`, and `min-w-0` children
+// so a title beside a circle wraps within its own column.
+templ rowNoWrapLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) {
+	<div class={ strings.Replace(rowClasses(ctx, gap, align, justify), "flex-wrap", "flex-nowrap", 1), "[&>*]:min-w-0" }>
+		{ children... }
+	</div>
+}
+
 // rowClasses is the join described above rowAlign: `flex flex-wrap`, then each axis that is not its default,
 // then the gap -- the order all 24 call sites already wrote.
 func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
@@ -1464,7 +1487,7 @@ templ uiLayout(n ir.UINode) {
 				}
 			}
 		case domain.LayoutPanel:
-			@panelLayout() {
+			@panelLayout(domain.PanelDensity(n.Props["density"])) {
 				@uiChildren(n)
 			}
 		case domain.LayoutSection:
@@ -1486,8 +1509,14 @@ templ uiLayout(n ir.UINode) {
 				@uiChildren(n)
 			}
 		case domain.LayoutRow:
-			@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
-				@uiChildren(n)
+			if domain.RowWrap(n.Props["wrap"]) == domain.RowNoWrap {
+				@rowNoWrapLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
+					@uiChildren(n)
+				}
+			} else {
+				@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
+					@uiChildren(n)
+				}
 			}
 		case domain.LayoutGrid:
 			@gridLayout(domain.Gap(n.Props["gap"]), gridColsFromProp(n.Props["mobile"]), gridColsFromProp(n.Props["columns"])) {
@@ -1533,6 +1562,8 @@ templ uiNodeBody(n ir.UINode) {
 				case domain.StaticLink:
 					if v := domain.ButtonVariant(n.Props["variant"]); v == domain.LinkQuiet && n.Props["href"] != "" {
 						@quietLink(n.Props["href"], n.Props["text"])
+					} else if v == domain.LinkPlain && n.Props["href"] != "" {
+						@plainLink(n.Props["href"], n.Props["text"])
 					} else if v != "" && n.Props["icon"] != "" && n.Props["href"] != "" {
 						@iconLinkButton(n.Props["text"], n.Props["href"], n.Props["icon"], v)
 					} else if v != "" && n.Props["href"] != "" {

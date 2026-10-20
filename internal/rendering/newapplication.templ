@@ -276,7 +276,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
-			@panelLayout() {
+			@panelLayout(domain.PanelRegular) {
 				if change.Kind == aiassist.KindUpdateApplication {
 					@updatePlan(plan)
 				} else {

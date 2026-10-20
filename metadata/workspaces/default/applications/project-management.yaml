@@ -472,6 +472,7 @@ navigation:
                 layout: row
                 children:
                   - static: link
+                    variant: plain
                     from: { text: title, href: record }
                     when: { role: status, is_not: $done }
                   - static: link
@@ -615,6 +616,7 @@ navigation:
                     - static: subheading
                       from: { text: "bucket:date" }
                 - layout: panel
+                  density: compact
                   children:
                     - layout: stack
                       gap: tight
@@ -628,11 +630,13 @@ navigation:
                         - layout: row
                           gap: tight
                           align: center
+                          wrap: nowrap
                           children:
                             - component: Toggle
                               from: { describes: title }
                               binding: { write: transition }
                             - static: link
+                              variant: plain
                               from: { text: title, href: record }
                               when: { role: status, is_not: $done }
                             - static: link
@@ -662,6 +666,7 @@ navigation:
                     - static: subheading
                       from: { text: "bucket:number" }
                 - layout: panel
+                  density: compact
                   children:
                     - layout: stack
                       gap: tight
@@ -675,11 +680,13 @@ navigation:
                         - layout: row
                           gap: tight
                           align: center
+                          wrap: nowrap
                           children:
                             - component: Toggle
                               from: { describes: title }
                               binding: { write: transition }
                             - static: link
+                              variant: plain
                               from: { text: title, href: record }
                               when: { role: status, is_not: $done }
                             - static: link

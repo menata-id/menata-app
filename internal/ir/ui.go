@@ -207,12 +207,12 @@ func componentHasSlot(t string) bool { return slottedComponents[t] }
 // and a reader can see the whole surface at once.
 var allowedProps = map[string][]string{
 	"layout/stack":               {"gap", "anchor", "move"},
-	"layout/row":                 {"gap", "align", "justify"},
+	"layout/row":                 {"gap", "align", "justify", "wrap"},
 	"layout/grid":                {"gap", "mobile", "columns"},
 	"layout/split":               {"gap", "side", "aside"},
 	"layout/columns":             {"gap", "align"},
 	"layout/section":             {"gap", "current", "anchor", "outside", "dropField", "dropValue"},
-	"layout/panel":               {},
+	"layout/panel":               {"density"},
 	"static/eyebrow":             {"text"},
 	"static/heading":             {"text"},
 	"static/paragraph":           {"text", "tone"},
@@ -267,9 +267,11 @@ var layoutPropValues = map[string]func(string) bool{
 	"align":           func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
 	"columns/align":   func(v string) bool { return domain.KnownColumnsAligns[domain.ColumnsAlign(v)] },
 	"justify":         func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
+	"row/wrap":        func(v string) bool { return domain.KnownRowWraps[domain.RowWrap(v)] },
 	"side":            func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
 	"aside":           func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
 	"section/current": func(v string) bool { return v == "true" },
+	"panel/density":   func(v string) bool { return domain.KnownPanelDensities[domain.PanelDensity(v)] },
 	// An anchor is a plain word: the id a `#fragment` link names, never a place for markup.
 	"anchor":  func(v string) bool { return anchorPattern.MatchString(v) },
 	"mobile":  gridColsKnown,

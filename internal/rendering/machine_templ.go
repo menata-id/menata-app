@@ -2544,7 +2544,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 		title := cardRole(c, domain.CardFieldRoleTitle)
 		done := c.Complete != nil && c.Complete.Done
 		canEdit := authorization.AllowsAction(m, domain.ActionEdit, c.Record.Values, actor)
-		var templ_7745c5c3_Var112 = []any{"group/card relative flex flex-col", layoutGap(ctx, domain.GapTight), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 " + inkClass(ctx, domain.InkStrong) + " hover:shadow-sm"}
+		var templ_7745c5c3_Var112 = []any{"group/card relative flex flex-col", layoutGap(ctx, domain.GapTight), compactCardClasses(ctx), inkClass(ctx, domain.InkStrong) + " hover:shadow-sm"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var112...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

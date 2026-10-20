@@ -55,6 +55,14 @@ steps:
         - Done
         - Location
         - 03 Oct
+  # A task is read in the strong ink, not as a column of blue links: the accent is what a link takes when it is pointed at.
+  - id: the-table-names-its-tasks-in-the-strong-ink
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - 'class="text-ink-strong hover:text-accent-hover">Scout rooftop location'
   # The Table lists in the order of the board: the lists as they are ordered there (the second list after the first, whatever their ids are), a
   # task's own place inside its list, and the tasks that sit in no list last.
   - id: the-table-lists-in-the-boards-order
@@ -326,7 +334,16 @@ steps:
         - aria-pressed="true"
         - Wrap-up
         - href="/machines/mch_task/records/$wrap-up" class="text-ink-secondary hover:text-ink-strong"
-        - href="/machines/mch_task/records/$rehearsal" class="text-accent hover:text-accent-hover"
+        - href="/machines/mch_task/records/$rehearsal" class="text-ink-strong hover:text-accent-hover"
+  # A day's card is the small card of the board, not a 20px panel: its room and the meta size are the recipe the board's own card reads.
+  - id: a-calendar-card-is-the-compact-card
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_calendar
+      shows:
+        - bg-bg-raised px-2.5 py-2
+        - flex flex-nowrap items-center gap-2
   # The month is the same tasks in a grid of whole weeks, its steps and its way back to the week in the same place, the project kept.
   - id: the-month-is-a-grid-of-whole-weeks
     as: nia
@@ -387,7 +404,7 @@ steps:
       shows:
         - aria-current="true">Week</span>
         - aria-label="Previous week"
-  # The same quiet in the Table: a finished task's title is in the quiet ink and an open one's in the link's, so the list reads at a glance.
+  # The same quiet in the Table: a finished task's title is in the quiet ink and an open one's in the strong ink, so the list reads at a glance.
   - id: a-finished-task-is-quiet-in-the-table
     as: nia
     expect: ok
@@ -395,7 +412,7 @@ steps:
       path: /pages/nav_task_table
       shows:
         - href="/machines/mch_task/records/$wrap-up" class="text-ink-secondary hover:text-ink-strong"
-        - href="/machines/mch_task/records/$rehearsal" class="text-accent hover:text-accent-hover"
+        - href="/machines/mch_task/records/$rehearsal" class="text-ink-strong hover:text-accent-hover"
   # The shared header's Switch project menu can make a project: its form is in the menu under the choices, posts to the Project machine's own
   # create route, and the project it makes is then one of the choices.
   - id: the-switch-menu-offers-a-new-project
