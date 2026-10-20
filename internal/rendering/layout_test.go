@@ -1629,3 +1629,24 @@ func TestUINodeSpanOutsideDayAndDropLabel(t *testing.T) {
 		t.Errorf("an outside day is drawn on a phone:\n%s", quiet)
 	}
 }
+
+// A paragraph may carry a tone: its words in that tone's ink, with no badge around them -- a date that is overdue in red, a finished one in green, a
+// plain one in the quiet ink. A tone that is no tone is the neutral one, as a badge's is.
+func TestUINode_aParagraphCanBeInATone(t *testing.T) {
+	render := func(props map[string]string) string {
+		var buf bytes.Buffer
+		n := ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticParagraph), Props: props}
+		if err := uiNode(n).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	for tone, want := range map[string]string{"bad": "text-tone-bad-ink", "good": "text-tone-good-ink", "nonsense": "text-tone-neutral-ink"} {
+		if got := render(map[string]string{"text": "03 Oct", "tone": tone}); !strings.Contains(got, want) || !strings.Contains(got, "03 Oct") || strings.Contains(got, "rounded-full") {
+			t.Errorf("tone %q: %s, want the words in %s and no badge", tone, got, want)
+		}
+	}
+	if got := render(map[string]string{"text": "plain"}); strings.Contains(got, "text-tone-") {
+		t.Errorf("a paragraph with no tone took one: %s", got)
+	}
+}

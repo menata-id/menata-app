@@ -444,6 +444,19 @@ func sortKeysFor(m *domain.Machine, keys []domain.SortKey) ([]data.SortKey, erro
 	out := make([]data.SortKey, 0, len(keys))
 	for _, k := range keys {
 		column, isColumn := domain.SortableColumns[k.Field]
+		if k.By != "" {
+			// The related record's own column, read for the same Workspace: a record whose reference names nothing sorts last.
+			related, ok := domain.SortableColumns[k.By]
+			if !ok || m == nil {
+				return nil, fmt.Errorf("composition: sort by %q is not a record column of the record %q points at", k.By, k.Field)
+			}
+			if f, found := m.FieldByID(k.Field); !found || !f.IsReference() {
+				return nil, fmt.Errorf("composition: sort by %q needs %q to be a reference Field of machine %s", k.By, k.Field, m.ID)
+			}
+			column = "(SELECT related." + related + " FROM records related WHERE related.id = records.data->>'" + k.Field + "' AND related.workspace_id = records.workspace_id)"
+			out = append(out, data.SortKey{Column: column, Descending: k.Descending()})
+			continue
+		}
 		if !isColumn {
 			if m == nil {
 				return nil, fmt.Errorf("composition: sort field %q needs its machine, which this Workspace does not install", k.Field)

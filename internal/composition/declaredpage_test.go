@@ -965,3 +965,51 @@ func TestDateBucketsFillWholeWeeksAndMarkTheDaysAdded(t *testing.T) {
 		t.Errorf("unfilled October = %d days, first outside=%v", len(b), b[0].Outside)
 	}
 }
+
+// A sort naming the related record's column becomes a correlated subquery scoped to the same Workspace: the lists of a board in the board's
+// order, whatever their ids are. The fragment is built from validated identifiers only.
+func TestSortKeysForOrdersByTheRelatedRecordsColumn(t *testing.T) {
+	m := &domain.Machine{ID: "mch_task", Fields: []domain.Field{{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"}}}
+	keys, err := sortKeysFor(m, []domain.SortKey{{Field: "fld_list", By: "sort_order"}, {Field: "sort_order"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	col := keys[0].Column
+	for _, want := range []string{"SELECT", "sort_order", "records", "data->>'fld_list'", "workspace_id"} {
+		if !strings.Contains(col, want) {
+			t.Errorf("column %q lacks %q", col, want)
+		}
+	}
+	if keys[1].Column != "sort_order" {
+		t.Errorf("a plain sort changed: %q", keys[1].Column)
+	}
+	if _, err := sortKeysFor(m, []domain.SortKey{{Field: "fld_list", By: "data->>'x'"}}); err == nil {
+		t.Error("a `by:` that is not a record column was built into SQL")
+	}
+}
+
+// A card is offered for moving only to someone who may edit that record: a Permission naming an actor Field lets the owner of one record move it and
+// not the next, an append-only Machine moves nothing, and a record a parent freezes is not moved.
+func TestDragPermittedIsPerRecordAndRefusesWhatTheRouteWouldRefuse(t *testing.T) {
+	m := &domain.Machine{
+		ID:          "mch_note",
+		Fields:      []domain.Field{{ID: "fld_owner", Type: domain.FieldTypePerson}},
+		Permissions: []domain.Permission{{ID: "perm_edit", Action: domain.ActionEdit, ActorField: "fld_owner"}},
+	}
+	mine := &data.Record{ID: "rec_mine", Values: map[string]any{"fld_owner": "usr_me"}}
+	theirs := &data.Record{ID: "rec_theirs", Values: map[string]any{"fld_owner": "usr_other"}}
+	viewer := domain.Actor{ID: "usr_me"}
+	if !dragPermitted(m, mine, viewer, false) {
+		t.Error("the owner of a record may move it")
+	}
+	if dragPermitted(m, theirs, viewer, false) {
+		t.Error("a viewer who may not edit another's record is offered to move it")
+	}
+	if dragPermitted(m, mine, viewer, true) {
+		t.Error("a record its parent freezes is offered to move")
+	}
+	m.AppendOnly = true
+	if dragPermitted(m, mine, viewer, false) {
+		t.Error("an append-only Machine's record is offered to move")
+	}
+}

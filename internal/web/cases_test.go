@@ -177,6 +177,8 @@ type caseView struct {
 	Path  string   `yaml:"path"`
 	Shows []string `yaml:"shows"`
 	Hides []string `yaml:"hides"`
+	// Order must appear in the answer in this order, each after the one before it: how a case holds a screen to the order it lists in.
+	Order []string `yaml:"order"`
 }
 
 // caseDelete deletes the record an earlier step created.
@@ -221,7 +223,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case01_design_request":       {Rejected: 0, Passed: 13, Steps: 13, Red: nil},
 	"case02_leave_request":        {Rejected: 0, Passed: 10, Steps: 10},
 	"case17_helpdesk":             {Rejected: 0, Passed: 15, Steps: 15},
-	"case19_project_tasks":        {Rejected: 0, Passed: 42, Steps: 42},
+	"case19_project_tasks":        {Rejected: 0, Passed: 44, Steps: 44},
 	"case04_maintenance":          {Rejected: 0, Passed: 6, Steps: 6},
 	"case05_inventory":            {Rejected: 0, Passed: 6, Steps: 6},
 	"case06_petty_cash":           {Rejected: 0, Passed: 15, Steps: 15},
@@ -764,6 +766,16 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 					fail("%s shows %q", path, subst(not))
 					ok = false
 				}
+			}
+			from := 0
+			for _, next := range s.View.Order {
+				at := strings.Index(body[from:], subst(next))
+				if at < 0 {
+					fail("%s does not show %q after the one before it", path, subst(next))
+					ok = false
+					break
+				}
+				from += at + len(subst(next))
 			}
 			if s.Count != nil {
 				if n := countRecords(t, store, wsCtx, s.Count.Machine, substAll(s.Count.Where, subst)); n != s.Count.Equals {

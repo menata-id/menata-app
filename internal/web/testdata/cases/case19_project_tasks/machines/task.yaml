@@ -142,6 +142,10 @@ datasets:
         - { field: fld_project, op: equals, value: $parameters.project, optional: true }
     sort:
       - field: fld_list
+        by: sort_order
+        direction: asc
+      - field: fld_list
+        by: created_at
         direction: asc
       - field: sort_order
         direction: asc

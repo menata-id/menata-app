@@ -635,6 +635,10 @@ route (a named script exception, below; after a keyboard move the page reloads a
 **Moving a card from the keyboard (2026-10-19, mockup PM01b):** Space on a focused card lifts it, the arrow keys choose the list and the place, Space drops it and
 Esc puts it back; the board's status line says where it is going. It ends in the very PATCH a drop sends, so there is one contract. It is part of the board's
 drag script in `machine.templ` (see "Script is the exception").
+**A mouse drag is drawn as PM01b shows it (2026-10-19):** the card under the pointer is a tilted copy with a shadow (the browser draws a picture of the
+element, so the script hands it a copy that has both), the place it came from collapses to a dashed "moving…" gap, the list it is over shows its count going
+up ("4 → 5"), is ringed, and gets the green bar where the card will land, and the board's status line says "Moving “…” from A to B, as the first card.
+Release to drop, Esc cancels." -- the same line the keyboard move writes. Nothing is moved in the page until the PATCH answers.
 
 **Moving a card needs nothing declared.** Anyone who may edit a record can drag its card to another column or
 place in the same one, or use the pencil's *Move to list* / *Position*; both write the `group_by` Field and the
@@ -1481,7 +1485,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
-| `Popover` | stable | `trigger: quiet` (2026-10-19) is a three-dot mark with no outline, for the menu of a thing that is already a surface (a board column's "List actions"; it names the menu with `title:`). Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go. **The panel is `position: fixed` (2026-10-19)** so the scrolling box of a table (a row's Edit) cannot cut it; it sits where it would have been, under the trigger and flush with the side `align:` names, and below `sm` (a phone) it gets offsets of its own: a gutter in from each side, above the bottom bar, scrolling inside when it is tall. It does not follow the trigger if the page is scrolled while it is open. **Two shapes by `density` (2026-10-19):** `compact` (a menu of actions) is a small panel under its trigger; `regular` (a form to fill in: an Edit, a "New ...") is a **dialog** -- a centred card with the page dimmed behind it from `sm` up, a sheet above the bottom bar on a phone, a title and a close mark on top, a scrolling body, and the Form's own **Cancel and submit pinned under it** so they are always in sight. It closes only on purpose (Cancel, the close mark, Escape) and never by a tap outside it, which would throw a half-filled form away |
+| `Popover` | stable | `trigger: pill` (2026-10-19) is its words in a small outlined pill with a chevron after them (the shared header's "Switch project"); `trigger: quiet` (2026-10-19) is a three-dot mark with no outline, for the menu of a thing that is already a surface (a board column's "List actions"; it names the menu with `title:`). Declared by installed pages (Dokter Kecil's Contracts: a row's Edit opens the contract's form in place); the record page's "..." menu and the board header's "New <machine>" form draw it in Go. **The panel is `position: fixed` (2026-10-19)** so the scrolling box of a table (a row's Edit) cannot cut it; it sits where it would have been, under the trigger and flush with the side `align:` names, and below `sm` (a phone) it gets offsets of its own: a gutter in from each side, above the bottom bar, scrolling inside when it is tall. It does not follow the trigger if the page is scrolled while it is open. **Two shapes by `density` (2026-10-19):** `compact` (a menu of actions) is a small panel under its trigger; `regular` (a form to fill in: an Edit, a "New ...") is a **dialog** -- a centred card with the page dimmed behind it from `sm` up, a sheet above the bottom bar on a phone, a title and a close mark on top, a scrolling body, and the Form's own **Cancel and submit pinned under it** so they are always in sight. It closes only on purpose (Cancel, the close mark, Escape) and never by a tap outside it, which would throw a half-filled form away |
 | `EmptyState` | stable | A layout's `empty:` lowers to it (My Tasks in two Workspaces); the Approval Inbox and Groups screens draw it in Go, and a `Collection`'s `empty:` stays a plain message |
 
 **`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
@@ -2001,6 +2005,13 @@ Machine by id**, so a list shows as many columns as the screen needs (a contract
   these are written by hand until the assistant grows page vocabulary.
 - **`person:initials`** is a derived role (beside `date:label`, `group:label`): the initials of the record's `person`, empty when
   nobody is named, and a node that reads an empty derived role is not drawn -- so an unassigned task draws no circle of "?".
+- **A paragraph may take a tone** (2026-10-19): `static: paragraph` with `from: {text: "date:label", tone: "date:tone"}` is the date's words in
+  that tone's ink with no badge around them (the Table's Due: an open task past its day in red, a finished one in green). A tone that
+  is none of the known ones is the neutral ink, as a badge's is.
+- **A Dataset may sort by the related record's column** (2026-10-19): `sort: [{field: fld_list, by: sort_order}]` orders the tasks by their
+  List's own position, which no id order can say (the Table lists in the board's order); `field:` must be a reference Field and `by:` one of the
+  record columns a plain sort may name (`sort_order`, `created_at`, `updated_at`). Add `{field: fld_list, by: created_at}` after it so lists
+  with the same position keep the order they were made in, as the board's columns do. A record whose reference names nothing sorts last.
 - **`under: fld_x`** beside `field:` draws a second line in the cell, smaller: another Field of the same record
   (`{header: Instalment, field: fld_term_title, under: fld_contract_ref}` -- K02a's "Dimas Prayoga — Week 2" over
   "CTR/K/031"). Nothing in it leaves the cell as it was. **`from: "row:number"`** shows the row's place, 1 first (K01d's

@@ -140,8 +140,14 @@ datasets:
     where:
       all:
         - { field: fld_project, op: equals, value: $parameters.project, optional: true }
+    # By the list's own place on the board (`by:` reads the related record's column; lists with the same position keep the order they were made in,
+    # as the board's columns do), then the task's place inside it: the order the board draws.
     sort:
       - field: fld_list
+        by: sort_order
+        direction: asc
+      - field: fld_list
+        by: created_at
         direction: asc
       - field: sort_order
         direction: asc

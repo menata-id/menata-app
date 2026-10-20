@@ -118,8 +118,8 @@ navigation:
             - header: Due
               empty: "—"
               cell:
-                component: StatusBadge
-                from: { label: "date:label", tone: "date:tone" }
+                static: paragraph
+                from: { text: "date:label", tone: "date:tone" }
             - header: Assignee
               empty: "—"
               cell:

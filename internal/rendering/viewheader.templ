@@ -79,7 +79,7 @@ templ viewHeader(h ViewHeader) {
 // scopeMenu is the control that picks which record of a larger set the screens are about: a Popover of links, each the screen's own
 // route with the scope parameter, the viewer's choice marked.
 templ scopeMenu(m ViewScopeMenu) {
-	@popover(m.Label, m.Label, domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
+	@popover(m.Label, m.Label, domain.PopoverTriggerPill, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
 		for _, it := range m.Items {
 			@menuLink(it.Label, it.Href, it.Current)
 		}

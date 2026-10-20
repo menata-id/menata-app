@@ -32,6 +32,9 @@ templ popover(label, title string, trigger domain.PopoverTrigger, align domain.P
 		>
 			if trigger == domain.PopoverTriggerQuiet {
 				@icon("more", "size-4")
+			} else if trigger == domain.PopoverTriggerPill {
+				{ label }
+				@icon("chevron-down", "size-3.5")
 			} else {
 				{ label }
 			}
@@ -107,6 +110,9 @@ const popoverPhoneClasses = "max-sm:inset-x-4 max-sm:top-auto max-sm:bottom-24 m
 func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) string {
 	if trigger == domain.PopoverTriggerFilled {
 		return "cursor-pointer list-none " + radiusClass(ctx, domain.RadiusControl) + " " + inkFillClass(ctx, domain.InkStrong) + " px-3 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + weightClass(ctx, domain.WeightEmphasis) + " " + onFillClass(ctx) + " " + inkFillHoverClass(ctx)
+	}
+	if trigger == domain.PopoverTriggerPill {
+		return "inline-flex cursor-pointer list-none items-center border px-2.5 py-1 " + layoutGap(ctx, domain.GapMicro) + " " + radiusClass(ctx, domain.RadiusPill) + " " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) + " " + hoverWashClass(ctx)
 	}
 	if trigger == domain.PopoverTriggerQuiet {
 		return "grid size-5.5 cursor-pointer list-none place-items-center " + radiusClass(ctx, domain.RadiusControl) + " " + inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " " + touchTargetClass()

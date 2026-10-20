@@ -45,8 +45,9 @@ var allowedShadows = map[string][]string{
 	"appshell.templ":  {"shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", "sm:shadow-lg"},
 	"authshell.templ": {"shadow-[0_1px_2px_rgba(15,23,42,0.04)]"},
 	"layout.templ":    {"shadow-lg"},
-	"machine.templ":   {"hover:shadow-sm", "open:shadow-md"},
-	"popover.templ":   {"shadow-lg"},
+	// shadow-lg is the artifact's popover shadow, on the copy of a card the drag script hands the browser to draw under the pointer (mockup PM01b's lifted card).
+	"machine.templ": {"hover:shadow-sm", "open:shadow-md", "shadow-lg"},
+	"popover.templ": {"shadow-lg"},
 }
 
 var (

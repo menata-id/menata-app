@@ -137,6 +137,10 @@ type SortKey struct {
 	// silent ascending sort, and an ordering that quietly does the opposite of what it says is worse
 	// than one that refuses to load. The validator sees the raw value and rejects it.
 	Direction string
+	// By, beside a reference Field, orders by that column of the **related record** instead of by the reference itself: the tasks of a board by
+	// their List's own position (`{field: fld_list, by: sort_order}`), which no id order can say. One of SortableColumns; a record whose
+	// reference names nothing sorts last.
+	By string
 }
 
 const (

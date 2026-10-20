@@ -146,3 +146,18 @@ func TestPopover_dialogBodyKnowsItIsInsideADialog(t *testing.T) {
 		t.Errorf("want the close mark and the form's Cancel (2 hooks), got %d: %s", strings.Count(got, "data-popover-close"), got)
 	}
 }
+
+// `trigger: pill` is the trigger's words in a small outlined pill with a chevron after them -- the shared header's "Switch project" -- and
+// not a button's height: it is the quieter of the two outlined looks.
+func TestPopover_pillTriggerIsWordsAndAChevronInASmallOutline(t *testing.T) {
+	got := renderPopover(t, context.Background(), "Switch project", "Switch project", domain.PopoverTriggerPill, domain.PopoverAlignStart, domain.PopoverDensityCompact, "BODY")
+	summary := got[strings.Index(got, "<summary"):strings.Index(got, "</summary>")]
+	for _, want := range []string{"Switch project", "<svg", "rounded-full", "border", "inline-flex"} {
+		if !strings.Contains(summary, want) {
+			t.Errorf("the pill trigger lacks %q:\n%s", want, summary)
+		}
+	}
+	if strings.Contains(summary, "h-9") {
+		t.Errorf("a pill is not a button's height:\n%s", summary)
+	}
+}

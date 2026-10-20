@@ -967,6 +967,13 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		if _, isField := fieldsByID[k.Field]; !isField && !isColumn {
 			issues = append(issues, fmt.Sprintf("dataset %q: sort field %q is neither a field of machine %q nor a record column (%s)", ds.ID, k.Field, m.ID, sortableColumnList()))
 		}
+		if k.By != "" {
+			if f, isField := fieldsByID[k.Field]; !isField || !f.IsReference() {
+				issues = append(issues, fmt.Sprintf("dataset %q: sort by: %q orders by a column of the related record, so field: %q must be a reference Field (a relation or a person)", ds.ID, k.By, k.Field))
+			} else if _, ok := domain.SortableColumns[k.By]; !ok {
+				issues = append(issues, fmt.Sprintf("dataset %q: sort by: %q is not a record column (%s)", ds.ID, k.By, sortableColumnList()))
+			}
+		}
 		if k.Direction != "" && !domain.KnownSortDirections[k.Direction] {
 			issues = append(issues, fmt.Sprintf("dataset %q: sort direction %q is not %q or %q", ds.ID, k.Direction, domain.SortAscending, domain.SortDescending))
 		}

@@ -248,6 +248,7 @@ func (d *predicateDoc) predicate() *expression.Predicate {
 type sortDoc struct {
 	Field     string `yaml:"field"`
 	Direction string `yaml:"direction"`
+	By        string `yaml:"by"`
 }
 
 type measureDoc struct {
@@ -836,7 +837,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			// The declared direction is carried through unreduced so validateDataset can reject an
 			// unknown one; collapsing it here would make `direction: descending` sort ascending in
 			// silence.
-			ds.Sort = append(ds.Sort, domain.SortKey{Field: sd.Field, Direction: sd.Direction})
+			ds.Sort = append(ds.Sort, domain.SortKey{Field: sd.Field, Direction: sd.Direction, By: sd.By})
 		}
 		for _, md := range dd.Measures {
 			ms := domain.Measure{

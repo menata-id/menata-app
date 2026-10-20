@@ -447,3 +447,18 @@ func TestBoardScreen_columnMenuFollowsWhatTheRoutesResolved(t *testing.T) {
 		t.Error("a lane the routes let the viewer rename but not delete must draw a menu without Delete")
 	}
 }
+
+// Dragging with the mouse draws what the mockup's PM01b shows: the lifted card tilts and casts a shadow, the place it came from collapses to
+// a "moving…" gap, the list it is over shows its count going up ("1 → 2"), and the board's status line says where it will land. Every
+// column's count is a marked node so the script can say it; the keyboard's status line and this one are the same.
+func TestBoardScreen_aMouseDragIsDrawnLikeTheMockupsLiftedCard(t *testing.T) {
+	got := renderBoard(t)
+	if !strings.Contains(got, `data-board-count`) {
+		t.Errorf("a column's count is not marked for the drag script:\n%s", got)
+	}
+	for _, want := range []string{"moving\\u2026", "setDragImage", "rotate-2", "shadow-lg", "Release to drop", "\\u2192"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the board's drag script lacks %q", want)
+		}
+	}
+}

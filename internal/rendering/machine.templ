@@ -698,12 +698,27 @@ templ boardDragScript() {
 		(function () {
 			if (window.menataBoardDrag) return;
 			window.menataBoardDrag = true;
-			var dragged = null, slot = null;
+			var dragged = null, slot = null, gap = null, counted = null;
 			function clear() {
 				document.querySelectorAll("[data-board-column].ring-2").forEach(function (c) {
 					c.classList.remove("ring-2", "ring-emerald-600");
 				});
 				if (slot) { slot.remove(); slot = null; }
+				// A list's count that was saying "1 \u2192 2" says what it holds again.
+				if (counted) { counted.node.textContent = counted.was; counted = null; }
+			}
+			function countOf(col) { return col.querySelector("[data-board-count]"); }
+			// What a mouse drag adds to the ring and the slot (mockup PM01b): the list the card is over says its count going up.
+			function countGoing(col) {
+				var node = countOf(col);
+				if (!node || (counted && counted.node === node)) return;
+				if (counted) counted.node.textContent = counted.was;
+				var from = dragged && dragged.closest("[data-board-column]");
+				if (from === col) { counted = null; return; }
+				var n = parseInt(node.textContent, 10);
+				if (isNaN(n)) return;
+				counted = { node: node, was: node.textContent };
+				node.textContent = n + " \u2192 " + (n + 1);
 			}
 			// The ring on the list a card is going to and the bar where it will land: one drawing for the mouse and the keyboard.
 			function markSlot(col, cards, idx) {
@@ -734,7 +749,24 @@ templ boardDragScript() {
 				dragged = c;
 				e.dataTransfer.effectAllowed = "move";
 				e.dataTransfer.setData("text/plain", c.dataset.url);
-				setTimeout(function () { c.classList.add("opacity-40"); }, 0);
+				// The card in the hand tilts and casts a shadow: the browser draws a picture of the element, so the picture is of a copy that does.
+				var ghost = c.cloneNode(true);
+				ghost.classList.add("rotate-2", "shadow-lg");
+				ghost.style.width = c.getBoundingClientRect().width + "px";
+				ghost.style.position = "absolute";
+				ghost.style.top = "-1000px";
+				document.body.appendChild(ghost);
+				e.dataTransfer.setDragImage(ghost, 16, 16);
+				setTimeout(function () { ghost.remove(); }, 0);
+				// The place it came from collapses to a gap that says so.
+				setTimeout(function () {
+					c.classList.add("hidden");
+					gap = document.createElement("div");
+					gap.setAttribute("aria-hidden", "true");
+					gap.className = "rounded-md border border-dashed px-2 py-6 text-center text-xs";
+					gap.textContent = "moving\u2026";
+					c.parentNode.insertBefore(gap, c);
+				}, 0);
 			});
 			document.addEventListener("dragover", function (e) {
 				if (!dragged) return;
@@ -744,6 +776,8 @@ templ boardDragScript() {
 				e.dataTransfer.dropEffect = "move";
 				var p = placeIn(col, e.clientY);
 				markSlot(col, p.cards, p.idx);
+				countGoing(col);
+				if (col.dataset.value) status("Moving \u201c" + titleOf(dragged) + "\u201d from " + dragged.closest("[data-board-column]").getAttribute("aria-label") + " to " + col.getAttribute("aria-label") + ", " + (p.idx === 0 ? "as the first card" : "place " + (p.idx + 1) + " of " + (p.cards.length + 1)) + ". Release to drop, Esc cancels.");
 			});
 			document.addEventListener("drop", function (e) {
 				if (!dragged) return;
@@ -756,9 +790,11 @@ templ boardDragScript() {
 				htmx.ajax("PATCH", card.dataset.url, { source: card, target: "#machine-body", swap: "innerHTML", values: values });
 			});
 			document.addEventListener("dragend", function () {
-				if (dragged) dragged.classList.remove("opacity-40");
+				if (dragged) dragged.classList.remove("hidden");
+				if (gap) { gap.remove(); gap = null; }
 				dragged = null;
 				clear();
+				status("");
 			});
 			// The same move from the keyboard (mockup PM01b): Space on a focused card lifts it, the arrows choose the list and the place, Space
 			// drops it and Esc puts it back. It ends in the very PATCH a drop sends, and tells the viewer where it is going in the board's status line.

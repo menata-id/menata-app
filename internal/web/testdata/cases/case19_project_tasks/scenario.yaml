@@ -54,6 +54,25 @@ steps:
         - Done
         - Location
         - 03 Oct
+  # The Table lists in the order of the board: the lists as they are ordered there (the second list after the first, whatever their ids are), a
+  # task's own place inside its list, and the tasks that sit in no list last.
+  - id: the-table-lists-in-the-boards-order
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      order:
+        - Scout rooftop location
+        - Sign location contract
+        - Update crew contact sheet
+  # A due date is plain words in the ink of its own tone -- an open task past its day in red -- not a badge around them.
+  - id: a-due-date-is-words-in-the-ink-of-its-tone
+    as: nia
+    expect: ok
+    view:
+      path: /pages/nav_task_table
+      shows:
+        - text-tone-bad-ink">03 Oct</div>
   # A task with no list, no label, no date and nobody says so in its own cells, and draws no empty pill or circle of initials.
   - id: a-bare-task-says-what-it-lacks
     as: nia

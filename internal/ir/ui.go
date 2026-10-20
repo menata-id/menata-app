@@ -215,7 +215,7 @@ var allowedProps = map[string][]string{
 	"layout/panel":               {},
 	"static/eyebrow":             {"text"},
 	"static/heading":             {"text"},
-	"static/paragraph":           {"text"},
+	"static/paragraph":           {"text", "tone"},
 	"static/overline":            {"text"},
 	"static/subheading":          {"text"},
 	"static/panel-heading":       {"text"},

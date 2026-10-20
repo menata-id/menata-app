@@ -1340,3 +1340,20 @@ func TestValidateBalanced(t *testing.T) {
 		}
 	}
 }
+
+// `sort: {field: fld_list, by: sort_order}` orders by the *related record's* column -- the lists of a board in the board's order -- so the Field is a
+// reference and `by` one of the record columns a plain sort may name; anything else is a load error, never an ordering that quietly does nothing.
+func TestValidate_sortByTheRelatedRecordsColumn(t *testing.T) {
+	machine := func(by, field string) *domain.Machine {
+		m := validMachine()
+		m.Fields = append(m.Fields, domain.Field{ID: "fld_list", Name: "List", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"})
+		m.Datasets = []domain.Dataset{{ID: "ds_all", Source: m.ID, Select: domain.SelectRecords, Limit: 10, Sort: []domain.SortKey{{Field: field, By: by}}}}
+		return m
+	}
+	if err := Validate(machine("sort_order", "fld_list")); err != nil {
+		t.Fatalf("a reference Field sorted by its record's sort_order: %v", err)
+	}
+	assertIssue(t, machine("sort_order", "fld_title"), "by:")
+	assertIssue(t, machine("sort_order", "sort_order"), "by:")
+	assertIssue(t, machine("nope", "fld_list"), "by:")
+}

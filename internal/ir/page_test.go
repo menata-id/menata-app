@@ -1956,3 +1956,23 @@ func TestLowerRefusesAPageWritingTheGridsOwnProperties(t *testing.T) {
 		}
 	}
 }
+
+// A paragraph in a record template may take its tone from a role of the record, beside its words (`from: {text: date:label, tone: date:tone}`):
+// the Table's Due cell, in the ink of the date's own tone.
+func TestLowerARecordParagraphTakesItsToneFromTheRecord(t *testing.T) {
+	n := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(domain.PageNode{Kind: "static", Type: "paragraph", From: map[string]string{"text": "date:label", "tone": "date:tone"}})}}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"date:label": "03 Oct", "date:tone": "bad"}}}, nil
+	}}
+	got, err := Lower(n, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := got.Children[0].Children[0]
+	if item.Props["tone"] != "bad" || item.Props["text"] != "03 Oct" {
+		t.Errorf("paragraph = %+v, want the date's words and tone", item.Props)
+	}
+	if issues := Validate(UINode{Kind: NodeLayout, Type: string(domain.LayoutStack), Children: []UINode{item}}); len(issues) > 0 {
+		t.Errorf("a toned paragraph was refused: %v", issues)
+	}
+}

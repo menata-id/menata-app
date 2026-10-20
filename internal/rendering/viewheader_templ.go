@@ -285,7 +285,7 @@ func scopeMenu(m ViewScopeMenu) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = popover(m.Label, m.Label, domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = popover(m.Label, m.Label, domain.PopoverTriggerPill, domain.PopoverAlignStart, domain.PopoverDensityCompact).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

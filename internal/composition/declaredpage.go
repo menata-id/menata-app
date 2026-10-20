@@ -406,7 +406,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 			set.DropField = src.CardFieldFor(domain.CardFieldRoleDate)
 			for _, r := range records {
 				// What the patch route would refuse for a reason outside the record -- a parent freezing it -- is not offered either.
-				set.Drags = append(set.Drags, ir.RecordDrag{Route: RecordRoute(src.ID, r.ID), Field: set.DropField, Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer) && !held[r.ID].frozen})
+				set.Drags = append(set.Drags, ir.RecordDrag{Route: RecordRoute(src.ID, r.ID), Field: set.DropField, Permitted: dragPermitted(src, r, viewer, held[r.ID].frozen)})
 			}
 		}
 	}
@@ -414,6 +414,12 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		set.Done, set.Reopen = src.Completion.Done, src.ReopenValue()
 	}
 	return set, nil
+}
+
+// dragPermitted is whether a card may be offered for moving to another day: the viewer may edit this record, the Machine is not append-only, and no
+// parent freezes it. Courtesy only -- the patch route asks again -- but a card offered to someone who cannot move it is a drag that ends in a refusal.
+func dragPermitted(src *domain.Machine, r *data.Record, viewer domain.Actor, frozen bool) bool {
+	return !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer) && !frozen
 }
 
 // requestRange is the grain of the window the request asks to see: month when `?range=month` says so, the week otherwise -- including for a value

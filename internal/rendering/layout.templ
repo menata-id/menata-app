@@ -1541,7 +1541,12 @@ templ uiNodeBody(n ir.UINode) {
 						@staticLink(n.Props["href"], n.Props["text"])
 					}
 				default:
-					@staticText(domain.StaticKind(n.Type), n.Props["text"])
+					if n.Props["tone"] != "" && domain.StaticKind(n.Type) == domain.StaticParagraph {
+						// Words in a tone's ink with no badge around them: a date that is overdue, one that is finished.
+						<div class={ textClass(ctx, domain.RoleBody), toneInkClass(ctx, domain.BadgeTone(n.Props["tone"])) }>{ n.Props["text"] }</div>
+					} else {
+						@staticText(domain.StaticKind(n.Type), n.Props["text"])
+					}
 			}
 		case ir.NodeComponent:
 			switch domain.ComponentType(n.Type) {
