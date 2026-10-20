@@ -365,8 +365,13 @@ navigation:
                           gap: tight
                           align: center
                           children:
-                            - static: message
+                            # The project's name opens that project's board: `pass:` puts the row's id where the Switch project
+                            # menu puts it, the scope parameter of the view group.
+                            - static: link
+                              to: nav_board
                               from: { text: title }
+                              variant: plain
+                              pass: { project: "record:id" }
                             - component: StatusBadge
                               tone: muted
                               from: { label: status }

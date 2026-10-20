@@ -2269,3 +2269,26 @@ func TestARecordPageReturnsToTheScreenItWasOpenedFrom(t *testing.T) {
 		t.Errorf("a delete went to %q, want the screen it was opened from, %q", got, from)
 	}
 }
+
+// A project's name on the Dashboard opens that project's board: the row's id goes where the Switch project menu puts it.
+func TestDashboardProjectOpensItsBoard(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "dashproject", "default")
+	var project *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_project" {
+			project = m
+		}
+	}
+	if project == nil {
+		t.Fatal("default installs no mch_project")
+	}
+	proj, err := store.CreateRecord(ctx, project.ID, map[string]any{"fld_name": "Dash-probe", "fld_status": project.Fields[1].Options[0]})
+	if err != nil {
+		t.Skipf("cannot make a project here: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, project.ID, proj.ID) })
+	body := getPage(t, h, cookie, "/pages/nav_dashboard")
+	if !regexp.MustCompile(`<a href="/machines/mch_task\?project=` + proj.ID + `"[^>]*>Dash-probe</a>`).MatchString(body) {
+		t.Error("the project's name on the Dashboard is not a link to its board")
+	}
+}
