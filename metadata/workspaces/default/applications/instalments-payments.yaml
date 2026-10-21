@@ -163,9 +163,6 @@ navigation:
               variant: secondary
               pass: { term: "record:id", fld_plan_amount: "value:fld_net" }
               when: { role: "field:fld_plans", is: "0" }
-        - static: link
-          list_of: ds_instalments_unpaid
-          text: All instalments
   # Payment plans (K02b): chips by status with their counts, a search over the plan number, and the plans by the
   # columns the board draws. Approve and Reject sit on the row for finance; confirming payment happens on the plan's page.
   - id: nav_payment_plans
