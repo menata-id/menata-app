@@ -106,9 +106,6 @@ navigation:
             - { header: Contract value, from: money, align: end }
             - { header: Payment, from: status }
           binding: { dataset: ds_contracts_table, rows: records }
-        - static: link
-          list_of: ds_contracts_table
-          text: All contracts, to add or edit one
   # Contracts (K01b): chips by type with their counts and an Overdue chip, a search over number and party, a category
   # drop-down, and the contracts by the columns the board draws. A contract opens on its own page, with its instalments.
   - id: nav_contracts
