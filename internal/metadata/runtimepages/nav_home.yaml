@@ -1,5 +1,5 @@
-# Workspace Home: the Applications the viewer can open, each with their own role and what is pending; and, for a Workspace's admins
-# only, the drafts the assistant has generated, the box that starts a new application, the library to install from, and a line
+# Workspace Home: the Applications the viewer can open, each with their own role and what is pending, and (for a Workspace's admins only)
+# the drafts the assistant has generated, as rows of the same list; and, for admins, the box that starts a new application, the library to install from, and a line
 # about managing the Workspace. Open to every member: the list is the viewer's own, and what only admins see is hidden by `when:` and
 # so is never read for anyone else.
 id: nav_home
@@ -24,41 +24,21 @@ page:
               gap: hair
               children:
                 - static: link
+                  variant: plain
                   from: { text: title, href: link }
                 - static: caption
                   from: { text: subtitle }
                 - static: caption
                   from: { text: detail }
             - component: StatusBadge
-              tone: info
               when: { role: status, is: Pending }
-              from: { label: summary }
+              from: { label: summary, tone: "status:tone" }
+            - component: StatusBadge
+              when: { role: status, is: Draft }
+              from: { label: summary, tone: "status:tone" }
             - static: caption
               when: { role: status, is: Count }
               from: { text: summary }
-    - component: Collection
-      gap: default
-      block: true
-      divided: true
-      hide_empty: true
-      when: { viewer: workspace_role, is: admin }
-      binding: { dataset: ds_runtime_draft_applications, rows: records }
-      children:
-        - layout: row
-          gap: default
-          align: center
-          justify: spread
-          children:
-            - layout: stack
-              gap: hair
-              children:
-                - static: link
-                  from: { text: title, href: link }
-                - static: caption
-                  from: { text: subtitle }
-            - component: StatusBadge
-              tone: warn
-              from: { label: status }
     - layout: section
       gap: default
       when: { viewer: workspace_role, is: admin }

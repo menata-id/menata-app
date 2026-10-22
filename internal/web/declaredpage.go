@@ -258,14 +258,13 @@ func pageViewer(actor domain.Actor, cfg config.Config) domain.Actor {
 func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]composition.RuntimeProvider {
 	previews := &filePreviews{}
 	return map[string]composition.RuntimeProvider{
-		"workspace_files":    workspaceFilesProvider(store, cfg),
-		"file_reviews":       fileReviewsProvider(store, cfg, previews),
-		"file_diffs":         fileDiffsProvider(store, cfg, previews),
-		"snapshots":          snapshotsProvider(store, cfg),
-		"templates":          templatesProvider(cfg),
-		"applications":       applicationsProvider(store, cfg),
-		"draft_applications": draftApplicationsProvider(store),
-		"current_workspace":  currentWorkspaceProvider(store),
+		"workspace_files":   workspaceFilesProvider(store, cfg),
+		"file_reviews":      fileReviewsProvider(store, cfg, previews),
+		"file_diffs":        fileDiffsProvider(store, cfg, previews),
+		"snapshots":         snapshotsProvider(store, cfg),
+		"templates":         templatesProvider(cfg),
+		"applications":      applicationsProvider(store, cfg),
+		"current_workspace": currentWorkspaceProvider(store),
 	}
 }
 

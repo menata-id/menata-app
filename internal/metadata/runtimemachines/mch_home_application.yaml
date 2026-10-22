@@ -1,6 +1,7 @@
 # The Applications the viewer can open (registry.RuntimeSources: applications): where each opens, the viewer's own role in it and
 # its pending count or summary count. It is the viewer's own list, so any member reads it. The status says which of the two the
-# summary is: Pending (an approval badge), Count (the Application's declared summary Machine) or None.
+# summary is: Pending (an approval badge), Count (the Application's declared summary Machine), Draft (an Application the assistant generated
+# that nobody has published, listed for admins only) or None.
 id: mch_home_application
 name: Application
 runtime: applications
@@ -9,9 +10,13 @@ fields:
   - { id: fld_title, name: Name, type: text, required: true }
   - { id: fld_description, name: Description, type: text }
   - { id: fld_role, name: Your role, type: text }
-  - { id: fld_status, name: Summary kind, type: status, options: [Pending, Count, None] }
+  - { id: fld_status, name: Summary kind, type: status, options: [Pending, Count, Draft, None] }
   - { id: fld_summary, name: Summary, type: text }
   - { id: fld_link, name: Opens at, type: text }
+# Which tone each kind draws in: a pending count is active (info), a draft needs attention (warn); a count or nothing is neutral.
+status_categories:
+  field: fld_status
+  values: { Pending: active, Draft: attention, Count: start, None: start }
 card_fields:
   - { field: fld_title, role: title }
   - { field: fld_description, role: subtitle }

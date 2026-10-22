@@ -837,17 +837,17 @@ func TestBuildConversationView_offersReviewOnlyForAValidatedChange(t *testing.T)
 	}
 }
 
-// draftRowsText is what the draft_applications source hands a page of the runtime's own, as the text a person would read: each
-// draft's name and where to review it.
+// draftRowsText is what Workspace Home lists as drafts, as the text a person would read: each draft's name and where to review it.
 func draftRowsText(t *testing.T, ctx context.Context, store *data.Store) string {
 	t.Helper()
-	rows, err := draftApplicationsProvider(store)(ctx, nil, domain.Actor{})
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	drafts, err := draftApplications(ctx, store, workspaceID)
 	if err != nil {
-		t.Fatalf("draftApplicationsProvider: %v", err)
+		t.Fatalf("draftApplications: %v", err)
 	}
 	var b strings.Builder
-	for _, r := range rows {
-		fmt.Fprintf(&b, "%v %v\n", r.Values["fld_title"], r.Values["fld_link"])
+	for _, d := range drafts {
+		fmt.Fprintf(&b, "%v %v\n", d.name, d.reviewRoute)
 	}
 	return b.String()
 }

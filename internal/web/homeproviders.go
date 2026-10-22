@@ -77,6 +77,20 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 				"fld_status": status, "fld_summary": summary, "fld_link": route,
 			}})
 		}
+		// A Workspace's admins also see the drafts the assistant has generated, as rows of the same list: a draft is an Application
+		// that is not published yet, and Home lists Applications. Only an admin can review one, so only an admin is offered it.
+		if viewer.WorkspaceRole == domain.WorkspaceRoleAdmin {
+			drafts, err := draftApplications(ctx, store, workspaceID)
+			if err != nil {
+				return nil, err
+			}
+			for _, d := range drafts {
+				out = append(out, &data.Record{ID: d.id, MachineID: "mch_home_application", WorkspaceID: workspaceID, Values: map[string]any{
+					"fld_id": d.id, "fld_title": d.name, "fld_description": draftApplicationNote, "fld_role": "Not published yet",
+					"fld_status": "Draft", "fld_summary": "Draft", "fld_link": d.reviewRoute,
+				}})
+			}
+		}
 		return out, nil
 	}
 }
@@ -101,34 +115,33 @@ func plural(n int) string {
 	return "s"
 }
 
-// draftApplicationsProvider is the reader of the `draft_applications` source: every assistant session of this Workspace whose
-// status is "generated" (a validated proposal exists, not yet published or discarded), resolved by latestChange, the same pure
-// decode of already-stored turns the review screen uses -- no model call. It is read only by a page for the Workspace's admins.
-func draftApplicationsProvider(store *data.Store) composition.RuntimeProvider {
-	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		sessions, err := store.ListAISessionsByStatus(ctx, workspaceID, aiassist.KindNewApplication, data.AISessionStatusGenerated)
+// draftApplicationNote is what a draft says of itself on Home.
+const draftApplicationNote = "Generated from your description. Review it before anyone else can open it."
+
+// draftApplication is one Application the assistant has generated and nobody has published: its name and where to review it.
+type draftApplication struct{ id, name, reviewRoute string }
+
+// draftApplications is every assistant session of this Workspace whose status is "generated" (a validated proposal exists, not yet
+// published or discarded), resolved by latestChange, the same pure decode of already-stored turns the review screen uses -- no model
+// call. Home reads it for a Workspace's admins only (applicationsProvider).
+func draftApplications(ctx context.Context, store *data.Store, workspaceID string) ([]draftApplication, error) {
+	sessions, err := store.ListAISessionsByStatus(ctx, workspaceID, aiassist.KindNewApplication, data.AISessionStatusGenerated)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]draftApplication, 0, len(sessions))
+	for _, s := range sessions {
+		full, err := store.GetAISession(ctx, workspaceID, s.ID)
 		if err != nil {
 			return nil, err
 		}
-		out := make([]*data.Record, 0, len(sessions))
-		for _, s := range sessions {
-			full, err := store.GetAISession(ctx, workspaceID, s.ID)
-			if err != nil {
-				return nil, err
-			}
-			change, ok, err := latestChange(full)
-			if err != nil || !ok || change.Application == nil {
-				continue
-			}
-			out = append(out, &data.Record{ID: s.ID, MachineID: "mch_draft_application", WorkspaceID: workspaceID, Values: map[string]any{
-				"fld_id": s.ID, "fld_title": change.Application.Name,
-				"fld_description": "Generated from your description. Review it before anyone else can open it.",
-				"fld_status":      "Draft", "fld_link": "/new-application/" + s.ID + "/review",
-			}})
+		change, ok, err := latestChange(full)
+		if err != nil || !ok || change.Application == nil {
+			continue
 		}
-		return out, nil
+		out = append(out, draftApplication{id: s.ID, name: change.Application.Name, reviewRoute: "/new-application/" + s.ID + "/review"})
 	}
+	return out, nil
 }
 
 // currentWorkspaceProvider is the reader of the `current_workspace` source: the Workspace the request is in, as one record. The
