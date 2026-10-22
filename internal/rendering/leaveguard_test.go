@@ -54,15 +54,18 @@ func TestLeaveGuard_drawnOnlyWhereTheShellOffersASwitch(t *testing.T) {
 }
 
 func TestLeaveGuard_everySwitchLinkIsMarkedAndNoneIsLeftUnguarded(t *testing.T) {
-	// Outside an Application the picker is offered twice (launcher, Workspace menu); inside one the mobile
-	// "More" sheet adds a third. A fixture drawing only one of the two shells would leave the other unchecked.
-	for name, out := range map[string]string{
-		"workspace screen":   renderLeaveGuardShell(t, "admin", "/switch-workspace"),
-		"application screen": renderLeaveGuardInsideAnApplication(t),
+	// Outside an Application the picker is offered once (the launcher); inside one the mobile "More" sheet adds a second. A fixture
+	// drawing only one of the two shells would leave the other unchecked.
+	for name, c := range map[string]struct {
+		out  string
+		want int
+	}{
+		"workspace screen":   {renderLeaveGuardShell(t, "admin", "/switch-workspace"), 1},
+		"application screen": {renderLeaveGuardInsideAnApplication(t), 2},
 	} {
-		anchors := regexp.MustCompile(`<a [^>]*href="/switch-workspace"[^>]*>`).FindAllString(out, -1)
-		if len(anchors) < 2 {
-			t.Fatalf("%s: expected the picker to be linked at least twice, found %d", name, len(anchors))
+		anchors := regexp.MustCompile(`<a [^>]*href="/switch-workspace"[^>]*>`).FindAllString(c.out, -1)
+		if len(anchors) < c.want {
+			t.Fatalf("%s: expected the picker to be linked at least %d time(s), found %d", name, c.want, len(anchors))
 		}
 		for _, a := range anchors {
 			if !strings.Contains(a, "data-leave-guard") {

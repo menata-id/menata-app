@@ -194,7 +194,6 @@ var handWrittenOffLadderSizes = map[string]struct {
 	why string
 }{
 	"account.templ":          {5, "a field's or button's mobile size (15px below `sm:`, `sm:text-sm` above): a control's touch size, not an item title, so DS-D13's `item` role does not apply"},
-	"appshell.templ":         {1, "the workspace monogram's 13px glyph in its 36px (`size-9`) tile; GS2's rejectedDesignExempt"},
 	"authshell.templ":        {6, "pre-auth (4x 15px, the 21px and 26px brand/heading) -- no Workspace on ctx, no Theme reaches it"},
 	"checkyouremail.templ":   {1, "pre-auth; 15px -- no Theme reaches it"},
 	"chooseworkspace.templ":  {1, "pre-auth; 15px -- no Theme reaches it"},

@@ -39,3 +39,28 @@ func TestShellBreadcrumb_HomeIsTheWorkspaceNameAlone(t *testing.T) {
 		t.Errorf("another Workspace-level screen lost its breadcrumb:\n%s", c)
 	}
 }
+
+// The Workspace's name in the shell is a link to its Home and nothing more (owner decision, 2026-10-22): no menu button, no popover.
+// "Workspace settings" and "New application" are on Home itself, and "Switch workspace" is the launcher's "All Workspaces".
+func TestShellBreadcrumb_theWorkspaceNameIsALinkNotAMenu(t *testing.T) {
+	items := []domain.NavigationItem{{ID: "nav_home", Label: "Home", Title: "Applications", Heading: "Applications", Route: "/home"}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: items}, "Test Workspace", false)
+	var buf bytes.Buffer
+	if err := appShell("Applications", "Dokter Kecil", Viewer{Initials: "AN", WorkspaceRole: "admin"}, "/switch-workspace").Render(ctx, &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	html := buf.String()
+	i := strings.Index(html, `aria-label="Breadcrumb"`)
+	crumb := html[i : i+strings.Index(html[i:], "</nav>")]
+	if !strings.Contains(crumb, `<a href="/home"`) || !strings.Contains(crumb, ">Dokter Kecil</a>") {
+		t.Errorf("the Workspace's name is not a link to Home:\n%s", crumb)
+	}
+	for _, gone := range []string{"popovertarget", "menata-workspace-menu", "<button"} {
+		if strings.Contains(crumb, gone) {
+			t.Errorf("the breadcrumb still draws a menu (%q):\n%s", gone, crumb)
+		}
+	}
+	if !strings.Contains(html, `href="/switch-workspace"`) {
+		t.Error("with the menu gone the launcher must still offer the Workspace picker")
+	}
+}

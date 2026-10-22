@@ -106,6 +106,4 @@ var rejectedDesignClasses = map[string]*regexp.Regexp{
 var rejectedDesignExempt = map[string]struct {
 	count  int
 	reason string
-}{
-	"body-compact|appshell.templ": {1, "the workspace monogram in a 36px square -- a glyph, like the artifact's brand-glyph, not running text between meta and body"},
-}
+}{}

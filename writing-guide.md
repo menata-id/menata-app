@@ -1432,8 +1432,7 @@ still comes from `title:`/`description:`, and the bindings may read any Dataset 
 figures from three Applications side by side (`default.yaml`'s Overview). Two things differ. A `to:` link on it resolves
 against the whole Workspace (its own pages, the runtime's screens and every installed Application's menu), where an
 Application's page resolves against its own menu. And **who opens it is the item's `open_to:`** (2026-10-17): absent, or
-`admin`, is Workspace admins only, as before; `member` admits any member of the Workspace, and the Workspace menu offers the page
-to exactly those who may open it. A person with no membership in the Workspace is refused either way (403, the answer a
+`admin`, is Workspace admins only, as before; `member` admits any member of the Workspace. **The shell no longer offers a Workspace page (2026-10-22):** the Workspace's name is a link to Home and the menu it used to open is gone, so a Workspace page is reached by a `to:` link from another page or by its route; nothing lists it. A person with no membership in the Workspace is refused either way (403, the answer a
 Workspace screen gives), and so is an unknown page id for anyone who is not an admin. No Application role gates a Workspace page,
 so `open_to: member` is the author's statement that what the page reads is for every member: bind it to a Dataset that is the
 viewer's own (`viewer_scoped: true`, as `default.yaml`'s My work does) or to figures you are content for every member to see; who

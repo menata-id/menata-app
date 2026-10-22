@@ -372,7 +372,7 @@ var handWrittenRawButtons = map[string]struct {
 	why string
 }{
 	"account.templ":            {2, "'Sign out of other devices' is an h-11 bordered control at the 15px touch size, which no variant has; the disabled 'Enable' is a tile"},
-	"appshell.templ":           {7, "five popover triggers and the shade (`popovertarget`: control behaviour, 007 §12.3 `actions`, unbuilt), and the Sign out menu row (a plain submit in a form)"},
+	"appshell.templ":           {6, "four popover triggers (the Workspace menu's went with the menu, 2026-10-22) and the shade (`popovertarget`: control behaviour, 007 §12.3 `actions`, unbuilt), and the Sign out menu row (a plain submit in a form)"},
 	"approvalinbox.templ":      {1, "'Revise →': the link look (accent text, 25 sites on 19 `<a>`, 4 `<button>`, a `<summary>`, a `<span>`), in a form"},
 	"attachments.templ":        {1, "an icon-only delete: `hx-delete`, `hx-target=\"closest li\"` and a glyph named by aria-label"},
 	"authshell.templ":          {2, "pre-auth (no Theme reaches it): the password reveal toggle (aria-controls, aria-pressed, onclick) and the primary submit at h-11 sm:h-9"},

@@ -338,7 +338,7 @@ type workspaceDoc struct {
 	Machines []string `yaml:"machines"`
 	// Navigation is the Workspace's own items. It stopped being a menu on 2026-09-21 (a Workspace's menu is derived from
 	// the Applications it contains), and since 2026-10-16 it is where a Workspace declares pages no Application owns: an
-	// item with a `page:` is drawn at /pages/<id> for Workspace admins and offered in the Workspace menu. The runtime still
+	// item with a `page:` is drawn at /pages/<id> for Workspace admins (and for members when it says `open_to: member`); the shell lists none since 2026-10-22, so a link from another page or its route reaches it. The runtime still
 	// reads it first when it resolves an id, so an installation that declares one wins.
 	Navigation []navItemDoc `yaml:"navigation"`
 	// Applications are file paths, resolved relative to this manifest. One file per Application:

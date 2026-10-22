@@ -2005,11 +2005,9 @@ func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 	if !strings.Contains(body, `href="/pages/nav_helpdesk_table"`) {
 		t.Error("the overview's link to the Helpdesk's table did not resolve to its route")
 	}
-	// The menu offers it to an admin, with the label the manifest declares and the route it declares.
-	if home := getPage(t, h, cookie, "/home"); !strings.Contains(home, `href="/pages/nav_workspace_overview"`) || !strings.Contains(home, "Overview") {
-		t.Error("the Workspace menu does not offer the declared page to an admin")
-	}
-	// A plain member is refused the page and is not offered it.
+	// (The Workspace's name used to open a menu that listed its declared pages; it is a link to Home now, so a declared page is
+	// reached by its route and the shell offers none -- owner decision, 2026-10-22.)
+	// A plain member is refused the page.
 	wsID, _ := data.WorkspaceScope(ctx)
 	member, err := store.CreateRecord(ctx, "mch_user", map[string]any{"fld_email": "workspacepage_member@example.com"})
 	if err != nil {
@@ -2090,11 +2088,6 @@ func TestAWorkspacePageOpenToMembersIsOpenedByAMemberAndOnlyByAMember(t *testing
 	}
 	if !strings.Contains(body, "MyWork-mine") || strings.Contains(body, "MyWork-theirs") {
 		t.Error("My work did not show the member their own ticket and only theirs")
-	}
-	if _, home := get("/home", memberCookie); !strings.Contains(home, `href="/pages/nav_workspace_my_work"`) {
-		t.Error("the Workspace menu does not offer a member the page that is open to members")
-	} else if strings.Contains(home, `href="/pages/nav_workspace_overview"`) {
-		t.Error("the Workspace menu offers a member the Overview that is admin-only")
 	}
 	if code, _ := get("/pages/nav_workspace_overview", memberCookie); code != http.StatusForbidden {
 		t.Errorf("a member opening the admin-only Overview = %d, want 403", code)
