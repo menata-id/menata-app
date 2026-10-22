@@ -277,9 +277,12 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 							@workspaceMenu(workspaceName, viewer, switchWorkspaceHref)
 							// Workspace Home names itself in its own <h1>, so repeating it here as
 							// "Dokter Kecil / Home" is the duplication board 03 leaves out -- its
-							// breadcrumb is the Workspace name alone. Every other Workspace-level
+							// breadcrumb is the Workspace name alone. It is named by its menu word (Label) and by the
+							// heading it calls itself (Title, "Applications"); the guard compared only the first, so
+							// once a screen's title and label differed it stopped matching and the breadcrumb said
+							// "Dokter Kecil / Applications" over a page headed "Applications" (seen live 2026-10-22). Every other Workspace-level
 							// screen still says which one it is.
-							if title != labelByID(ctx, "nav_home") {
+							if title != labelByID(ctx, "nav_home") && title != titleByID(ctx, "nav_home") {
 								<span class="shrink-0">/</span>
 								<span class="truncate">{ title }</span>
 							}
