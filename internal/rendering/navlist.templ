@@ -69,13 +69,14 @@ templ navList(label, variant, home, rows string) {
 // real <label>, hidden from sight and read by assistive technology. `keep` is the request's other parameters (a chip, a
 // drop-down), sent again as hidden inputs so a search narrows the filtered list rather than replacing its filter.
 templ searchField(label, query, placeholder, value, action, submit, keep string) {
-	<form method="get" role="search" if action != "" { action={ action } } class={ "flex items-center", layoutGap(ctx, domain.GapTight), templ.KV("w-full", submit != "") }>
+	<form method="get" role="search" if action != "" { action={ action } } class={ "flex items-center", layoutGap(ctx, domain.GapTight), "[&_button]:shrink-0 [&_button]:whitespace-nowrap", templ.KV("w-full", submit != "") }>
 		for _, kv := range keptParams(keep) {
 			<input type="hidden" name={ kv[0] } value={ kv[1] }/>
 		}
 		<label for={ "search-" + query } class="sr-only">{ label }</label>
 		// A box with a button beside it is a question put to the page (Workspace Home's "describe the application you need"), so the box
-		// takes the width that is left; a box alone narrows a list and keeps its fixed width.
+		// takes the width that is left, and its button keeps its own width on one line (a phone's "Start →" broke in two, measured at 390px);
+		// a box alone narrows a list and keeps its fixed width.
 		<input id={ "search-" + query } type="search" name={ query } value={ value } placeholder={ placeholder } class={ fieldClasses(ctx), templ.KV("w-full sm:w-70", submit == ""), templ.KV("min-w-0 grow", submit != "") }/>
 		if submit != "" {
 			@button(submit, domain.ButtonPrimary, "", "")

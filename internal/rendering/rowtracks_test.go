@@ -137,7 +137,10 @@ func TestSearchField_aBoxWithAButtonFillsTheWidth(t *testing.T) {
 		}
 		return buf.String()
 	}
-	if got := render("Start"); !strings.Contains(got, "min-w-0 grow") || strings.Contains(got, "sm:w-70") || !strings.Contains(got, `gap-2 w-full"`) {
+	if got := render("Start"); !strings.Contains(got, "[&amp;_button]:shrink-0 [&amp;_button]:whitespace-nowrap") {
+		t.Errorf("the button can shrink and wrap its label:\n%s", got)
+	}
+	if got := render("Start"); !strings.Contains(got, "min-w-0 grow") || strings.Contains(got, "sm:w-70") || !strings.Contains(got, ` w-full"`) {
 		t.Errorf("a box with a button does not fill the width:\n%s", got)
 	}
 	if got := render(""); !strings.Contains(got, "sm:w-70") || strings.Contains(got, "grow") {
