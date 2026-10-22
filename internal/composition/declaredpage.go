@@ -1223,7 +1223,7 @@ func AllTransitionRecords(ctx context.Context, l *Loader, viewer domain.Actor, p
 
 // bindingAction is one runtime-action Binding: what a Form for it asks, and whether this viewer may perform it. The
 // permission is courtesy (the route asks again): an admin-only action is not drawn for a member, so a page does not
-// offer what the route would refuse. The same split the Workspace menu makes: anyone who is not a plain member counts as an
+// offer what the route would refuse. The same split the launcher's Administration rows make: anyone who is not a plain member counts as an
 // admin here, because the shared admin credential has no role and is let through the gate.
 //
 // The dynamic inputs (registry.ActionInputMembers, ActionInputAppRoles) are decided here, for the record the Form sits

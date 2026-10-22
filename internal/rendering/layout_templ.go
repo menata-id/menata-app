@@ -2465,7 +2465,7 @@ func rowTrackClasses(track domain.RowTrack) string {
 	case domain.TrackFit:
 		return "shrink-0"
 	case domain.TrackField:
-		return "min-w-0 sm:w-42 sm:shrink-0"
+		return "min-w-0 sm:ml-2 sm:w-42 sm:shrink-0"
 	case domain.TrackBadge:
 		return "flex shrink-0 sm:w-30 sm:justify-end"
 	default:

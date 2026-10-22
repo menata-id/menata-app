@@ -58,7 +58,7 @@ var DeclarableIcons = map[string]bool{
 // generated, may declare one.
 var chromeOnlyIcons = []string{
 	"home", "grid", "more", "plus", "chevron-left", "chevron-right", "chevron-down", "switch", "trash",
-	// sparkle: the Workspace menu's own "New application" link (AI Metadata Assistant, Flow 2 gap
+	// sparkle: the launcher's own "New application" link (AI Metadata Assistant, Flow 2 gap
 	// study Tahap 8) -- chrome, not a declarable Application/nav icon, the same posture "switch"
 	// already has.
 	"sparkle",

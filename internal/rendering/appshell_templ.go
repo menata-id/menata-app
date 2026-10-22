@@ -113,7 +113,7 @@ type Viewer struct {
 	Email    string
 	Initials string
 	// WorkspaceRole is the viewer's role in the Workspace they are looking at ("admin"/"member"),
-	// added 2026-09-24 with the Workspace menu -- which offers a requireWorkspaceAdmin-gated
+	// added 2026-09-24 with the Workspace menu (removed 2026-10-22; the launcher offers the same) -- which offers a requireWorkspaceAdmin-gated
 	// destination and must not offer it to someone it would only ever 403.
 	//
 	// It sits on Viewer rather than arriving as a fourth appShell parameter because it is a fact

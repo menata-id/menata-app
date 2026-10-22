@@ -23,7 +23,7 @@ type shellChrome struct {
 	Email         string
 	UserInitials  string
 	// WorkspaceRole is the viewer's role in *this* Workspace ("admin"/"member"), read from the
-	// membership row resolveIdentity already loaded. appShell's Workspace menu needs it: its
+	// membership row resolveIdentity already loaded. appShell's launcher needs it: its
 	// Workspace-settings row points at a requireWorkspaceAdmin-gated route, and offering a plain
 	// member a link that only ever 403s is the same code-review finding that deleted
 	// rendering.membersHiddenFor (appshell.templ's own history). Empty for the shared admin

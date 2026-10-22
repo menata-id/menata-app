@@ -1975,7 +1975,7 @@ func TestDeclaredPageDrawsAnInstalledTable(t *testing.T) {
 }
 
 // TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember: the Workspace's own page (`navigation:` on the manifest) shows
-// figures from three Applications and a table, is offered in the Workspace menu to an admin, and answers a plain member with
+// figures from three Applications and a table, is opened by its route by an admin, and answers a plain member with
 // the refusal a Workspace screen gives, because no Application role gates it.
 func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "workspacepage", "default")
@@ -2027,9 +2027,6 @@ func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 	if strings.Contains(mrec.Body.String(), "Open tickets") {
 		t.Error("a member was shown the figures that the 403 refuses")
 	}
-	if home := getPage(t, h, memberCookie, "/home"); strings.Contains(home, `href="/pages/nav_workspace_overview"`) {
-		t.Error("the Workspace menu offers a plain member a page that answers 403")
-	}
 	// A page that is no Workspace's and no Application's is a 404, not an empty shell.
 	req := httptest.NewRequest(http.MethodGet, "/pages/nav_nothing", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
@@ -2039,7 +2036,7 @@ func TestWorkspacePageIsDrawnForAnAdminAndRefusedForAMember(t *testing.T) {
 }
 
 // TestAWorkspacePageOpenToMembersIsOpenedByAMemberAndOnlyByAMember: `open_to: member` on the Workspace's My work page admits
-// a plain member, who sees their own tickets and not another reporter's, and is offered the page in the Workspace menu; a
+// a plain member, who sees their own tickets and not another reporter's, and opens the page by its route; a
 // person with no membership in the Workspace is still refused, and the Overview, which says nothing, stays with the admins.
 func TestAWorkspacePageOpenToMembersIsOpenedByAMemberAndOnlyByAMember(t *testing.T) {
 	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "mywork", "default")

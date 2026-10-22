@@ -61,7 +61,7 @@ type Viewer struct {
 	Email    string
 	Initials string
 	// WorkspaceRole is the viewer's role in the Workspace they are looking at ("admin"/"member"),
-	// added 2026-09-24 with the Workspace menu -- which offers a requireWorkspaceAdmin-gated
+	// added 2026-09-24 with the Workspace menu (removed 2026-10-22; the launcher offers the same) -- which offers a requireWorkspaceAdmin-gated
 	// destination and must not offer it to someone it would only ever 403.
 	//
 	// It sits on Viewer rather than arriving as a fourth appShell parameter because it is a fact
@@ -932,7 +932,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				@launcherAppCard(app)
 			}
 			// Administration (AppLauncher.dc.html, Flow 2 canvas re-audit -- ROADMAP.md,
-			// 2026-09-27): the same two rows workspaceMenu already offers behind the Workspace
+			// 2026-09-27): the same two rows the removed Workspace menu offered behind the Workspace
 			// name, duplicated here because the board draws them in both dropdowns independently.
 			// Gated identically -- an admin-only destination offered to a plain member is exactly
 			// the code-review finding (2026-09-19) that emptied this launcher of Workspace-level
@@ -953,7 +953,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 						<span class={ textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary), weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
 					</span>
 				</a>
-				// METADATA CANNOT EXPRESS THIS YET, same exception workspaceMenu's own copy of
+				// METADATA CANNOT EXPRESS THIS YET, same exception the removed workspaceMenu's own copy of
 				// this link already carries (CLAUDE.md, "Deciding whether a literal is a
 				// metadata-hardcoding violation" step 2): a Workspace-level action triggered from
 				// chrome, not a menu destination any navigation list could declare. Missing

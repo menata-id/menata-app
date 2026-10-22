@@ -68,7 +68,7 @@ const WorkspaceRoleAdmin = "admin"
 // asks `!= member`, not `== admin`, because the shared admin credential holds no membership row at
 // all and its role reads as "" while still being able to open the destination. Hiding the link from
 // it would hide a link that works. Two readers rely on that exact split (workspacehome.templ's
-// "Manage members" link, appshell.templ's Workspace menu), and a bare "member" literal in both was
+// "Manage members" link, appshell.templ's launcher), and a bare "member" literal in both was
 // how the second one nearly got `== admin` instead.
 const WorkspaceRoleMember = "member"
 

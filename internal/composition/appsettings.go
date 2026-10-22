@@ -31,7 +31,7 @@ func ApplicationSettingsHub(app domain.Application, hub domain.NavigationItem, i
 		RoleCount:      len(app.Roles),
 		MembersHref:    hub.Route + "/members",
 		// Members & roles and Groups are admin destinations: hidden rather than offered-then-403, the
-		// convention appshell.templ's workspaceMenu already uses for the same two screens.
+		// convention appshell.templ's launcher uses for the same two screens.
 		ShowMembersAndGroups: showAccess && isWorkspaceAdmin,
 	}
 	for _, item := range app.AllNavigation {

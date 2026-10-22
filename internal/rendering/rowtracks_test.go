@@ -34,12 +34,12 @@ func trackedRowNode() ir.UINode {
 // in no column is drawn with no box at all (the byte-identical case every existing screen is).
 func TestRowTracks_eachStepDrawsItsOwnBox(t *testing.T) {
 	got := renderUINode(t, trackedRowNode())
-	for _, want := range []string{`class="min-w-0 grow"`, `class="min-w-0 sm:w-42 sm:shrink-0"`, `class="flex shrink-0 sm:w-30 sm:justify-end"`} {
+	for _, want := range []string{`class="min-w-0 grow"`, `class="min-w-0 sm:ml-2 sm:w-42 sm:shrink-0"`, `class="flex shrink-0 sm:w-30 sm:justify-end"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("row does not draw %s:\n%s", want, got)
 		}
 	}
-	if n := strings.Count(got, `class="min-w-0 sm:w-42 sm:shrink-0"`); n != 1 {
+	if n := strings.Count(got, `class="min-w-0 sm:ml-2 sm:w-42 sm:shrink-0"`); n != 1 {
 		t.Errorf("the field column is drawn %d times, want once (an empty child still holds it)", n)
 	}
 	plain := trackedRowNode()
