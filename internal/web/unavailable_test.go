@@ -42,7 +42,7 @@ func TestBlockUnavailableWorkspace(t *testing.T) {
 	if code := get(fine.ID, "/pages/nav_calendar"); code != http.StatusOK {
 		t.Errorf("a screen in another Workspace = %d, want 200 -- one broken Workspace stopped a healthy one", code)
 	}
-	for _, path := range []string{"/switch-workspace", "/account-profile", "/logout", "/api/account-menu/workspaces", "/create-workspace"} {
+	for _, path := range []string{"/switch-workspace", "/account-profile", "/logout", "/create-workspace"} {
 		if code := get(broken.ID, path); code != http.StatusOK {
 			t.Errorf("%s in the unavailable Workspace = %d, want 200 -- a member must be able to leave", path, code)
 		}

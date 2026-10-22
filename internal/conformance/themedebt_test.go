@@ -63,7 +63,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"account.templ":            {size: 1, ink: 0, weight: 0, fill: 0}, // floors: 1 10px marker legend (no role)
 	"approvalinbox.templ":      {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 1 link look (T-L), 1 glyph box (size paired with a fixed circle)
 	"approvalstepper.templ":    {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 3 glyph box (size paired with a fixed circle)
-	"appshell.templ":           {size: 4, ink: 0, weight: 0, fill: 0}, // floors: 2 glyph box (size paired with a fixed circle), 2 link look (T-L)
+	"appshell.templ":           {size: 3, ink: 0, weight: 0, fill: 0}, // floors: 2 glyph box (size paired with a fixed circle), 1 link look (T-L; the account menu's and the More sheet's went with their workspace rows, 2026-10-22)
 	"attachments.templ":        {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 1 glyph box (size paired with a fixed circle), 1 link look (T-L)
 	"controls.templ":           {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)
 	"detail.templ":             {size: 2, ink: 0, weight: 0, fill: 0}, // floors: 2 link look (T-L)

@@ -40,7 +40,7 @@ func blockUnavailableWorkspace(store *data.Store, unavailable map[string]bool) f
 // leavesTheWorkspace is the closed set of paths that must keep answering in an unavailable Workspace.
 func leavesTheWorkspace(path string) bool {
 	switch {
-	case path == "/logout", path == "/api/account-menu/workspaces":
+	case path == "/logout":
 		return true
 	case strings.HasPrefix(path, "/switch-workspace"), strings.HasPrefix(path, "/create-workspace"), strings.HasPrefix(path, "/account-"):
 		return true

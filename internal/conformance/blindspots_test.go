@@ -33,7 +33,7 @@ var handWrittenLeading = map[string]int{
 // handWrittenTracking counts `tracking-wide`, the artifact's 0.025em on eyebrows and table heads. It is not a Theme role (the
 // type styles name it beside their size), so every uppercase label writes it. 16 across 10 `.templ` files.
 var handWrittenTracking = map[string]int{
-	"approvalinbox.templ": 1, "appsettings.templ": 1, "appshell.templ": 3, "attachments.templ": 1, "controls.templ": 1,
+	"approvalinbox.templ": 1, "appsettings.templ": 1, "appshell.templ": 2, "attachments.templ": 1, "controls.templ": 1,
 	"detail.templ": 2, "inference.templ": 1, "layout.templ": 2, "rolematrix.templ": 1, "workspacesettings.templ": 1,
 }
 

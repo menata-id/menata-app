@@ -167,7 +167,6 @@ func requireWorkspaceMember(store *data.Store, cfg config.Config) func(http.Hand
 var activeMembershipReadAllowlist = map[string]bool{
 	"/api/approval-inbox/pending-count": true,
 	"/api/notifications/unread-count":   true,
-	"/api/account-menu/workspaces":      true,
 }
 
 // requireActiveMembership evicts a deactivated member (Flow 2 canvas re-audit, ROADMAP.md,
