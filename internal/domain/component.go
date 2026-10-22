@@ -235,7 +235,7 @@ const (
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action
 // ("New contract" opens the form). Empty is a plain link.
-var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecondary: true, LinkQuiet: true, LinkPlain: true, LinkRow: true}
+var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecondary: true, LinkQuiet: true, LinkPlain: true, LinkRow: true, LinkChip: true}
 
 // LinkQuiet is a link variant, not a button's: the link keeps its place in a line of text but reads in the secondary ink instead of the accent's, for
 // what the page has stopped inviting a click on (a finished task's title). It is declared beside a `when:` that picks it for a finished record.
@@ -250,9 +250,14 @@ const LinkPlain ButtonVariant = "plain"
 // second one. For a list of things that each open: Workspace Home's Applications.
 const LinkRow ButtonVariant = "row"
 
-// KnownLinkIcons is the closed set of marks a link drawn as a button may carry in place of its words (`icon:`): the two chevrons a window stepper
-// ("previous", "next") is drawn with. The words are still the link's accessible name, so a screen reader hears "Previous week".
-var KnownLinkIcons = map[string]bool{"chevron-left": true, "chevron-right": true}
+// LinkChip is the link drawn as a pill: the unselected look of a filter chip (a bordered pill in the secondary ink, the accent edge on
+// hover), for a short run of suggestions that each start something -- Workspace Home's example prompts. It is `filterChipLink`'s own look
+// (one `chipClasses`), not a second pill.
+const LinkChip ButtonVariant = "chip"
+
+// KnownLinkIcons is the closed set of marks a link may carry (`icon:`). On a link drawn as a button the mark replaces its words: the two chevrons
+// a window stepper ("previous", "next") is drawn with. On a plain link (no `variant:`) the mark sits before its words: the gear of "Workspace settings". The words are still the link's accessible name, so a screen reader hears "Previous week".
+var KnownLinkIcons = map[string]bool{"chevron-left": true, "chevron-right": true, "settings": true}
 
 // SearchParamsReserved are the query names a SearchBox may not use: the runtime owns them (the Application a page is
 // drawn in, a record page's id, the calendar's week).

@@ -167,6 +167,22 @@ templ rowLink(href, text string) {
 	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkStrong), accentHoverClass(ctx), "after:absolute after:inset-0", "focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-blue-300" }>{ text }</a>
 }
 
+// chipLink is `variant: chip`: a link drawn as the unselected pill a filter chip is (`chipClasses`), for suggestions that each start something.
+templ chipLink(href, text string) {
+	<a href={ templ.URL(href) } class={ chipClasses(ctx, false) }>{ text }</a>
+}
+
+// iconTextLink is a plain link with a mark before its words (`icon:` with no `variant:`): the gear of "Workspace settings". The mark is
+// decoration; the words are the link's name.
+templ iconTextLink(href, text, name string) {
+	<a href={ templ.URL(href) } class={ "inline-flex items-center", layoutGap(ctx, domain.GapXtight), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
+		<span aria-hidden="true">
+			@icon(name, "size-3.5")
+		</span>
+		{ text }
+	</a>
+}
+
 // plainLink is `variant: plain`: the link in the strong ink, the accent only when it is pointed at.
 templ plainLink(href, text string) {
 	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkStrong), accentHoverClass(ctx) }>{ text }</a>

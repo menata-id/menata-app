@@ -69,3 +69,23 @@ func TestValidateSearchBox(t *testing.T) {
 		}
 	}
 }
+
+// `inline` lays a Collection's items in one wrapping run (a row of chips): a boolean, and not also ordered, divided or block.
+func TestValidateCollection_inlineIsBooleanAndExcludesTheOtherShapes(t *testing.T) {
+	if issues := validateCollection(map[string]string{"gap": "tight", "inline": "true"}); len(issues) != 0 {
+		t.Errorf("an inline list: %v", issues)
+	}
+	if issues := validateCollection(map[string]string{"gap": "tight", "inline": "false", "divided": "true"}); len(issues) != 0 {
+		t.Errorf("inline: false beside divided: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"yes":     {"gap": "tight", "inline": "yes"},
+		"ordered": {"gap": "tight", "inline": "true", "ordered": "true"},
+		"divided": {"gap": "tight", "inline": "true", "divided": "true"},
+		"block":   {"gap": "tight", "inline": "true", "block": "true"},
+	} {
+		if issues := validateCollection(in); len(issues) == 0 {
+			t.Errorf("inline with %s was accepted", name)
+		}
+	}
+}

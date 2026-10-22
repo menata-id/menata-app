@@ -1976,3 +1976,31 @@ func TestLowerARecordParagraphTakesItsToneFromTheRecord(t *testing.T) {
 		t.Errorf("a toned paragraph was refused: %v", issues)
 	}
 }
+
+// A link's `icon:` is a mark in place of a button's words (variant: primary or secondary) or before a plain link's words (no variant);
+// any other variant is neither, and a mark outside the closed set is refused.
+func TestLower_aLinkIconIsForAButtonOrAPlainLinkOnly(t *testing.T) {
+	res := navFixture("/somewhere")
+	lowerIcon := func(props map[string]string) error {
+		_, err := Lower(linkTo("nav_x", props), res)
+		return err
+	}
+	for name, props := range map[string]map[string]string{
+		"a plain link with the gear":   {"icon": "settings", "text": "Workspace settings"},
+		"a primary button, chevron":    {"icon": "chevron-left", "variant": "primary", "text": "Previous"},
+		"a secondary button, settings": {"icon": "settings", "variant": "secondary", "text": "Settings"},
+	} {
+		if err := lowerIcon(props); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	for _, v := range []string{"quiet", "plain", "row", "chip"} {
+		err := lowerIcon(map[string]string{"icon": "settings", "variant": v, "text": "x"})
+		if err == nil || !strings.Contains(err.Error(), "variant: "+v+" is neither") {
+			t.Errorf("icon with variant %s: err = %v", v, err)
+		}
+	}
+	if err := lowerIcon(map[string]string{"icon": "sparkle", "text": "x"}); err == nil || !strings.Contains(err.Error(), "not a mark a link takes") {
+		t.Errorf("a mark outside the closed set: err = %v", err)
+	}
+}

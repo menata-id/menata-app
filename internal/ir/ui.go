@@ -236,7 +236,7 @@ var allowedProps = map[string][]string{
 	"component/Avatar":           {"initials", "label", "size", "presence"},
 	"component/IconTile":         {"icon", "color", "size", "draft"},
 	"component/Metric":           {"label", "value", "hint", "tone", "href"},
-	"component/Collection":       {"gap", "empty", "ordered", "divided", "block", "truncated", "heading", "hint"},
+	"component/Collection":       {"gap", "empty", "ordered", "divided", "block", "inline", "truncated", "heading", "hint"},
 	"component/Field":            {"label", "for", "note", "flag"},
 	"component/Button":           {"label", "variant", "name", "value", "confirm", "action", "method", "describes"},
 	"component/Tag":              {"label", "color"},

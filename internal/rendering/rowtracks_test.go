@@ -75,10 +75,72 @@ func TestLinkVariantRow_stretchesOverTheRow(t *testing.T) {
 	// And a Collection's divided item is the positioned ancestor it stretches over.
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "item"); return err })
 	var buf bytes.Buffer
-	if err := collectionBody(domain.GapDefault, "", false, true, true, []templ.Component{item}).Render(context.Background(), &buf); err != nil {
+	if err := collectionBody(domain.GapDefault, "", false, true, true, false, []templ.Component{item}).Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(buf.String(), `<li class="relative `) {
 		t.Errorf("a divided item is not positioned, so a row link would stretch over something else:\n%s", buf.String())
+	}
+}
+
+// `inline: true` is a run of short items side by side and wrapping (a row of chips), and a Collection without it stays the column it was.
+func TestCollectionInline_isARunNotAColumn(t *testing.T) {
+	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "chip"); return err })
+	render := func(inline bool) string {
+		var buf bytes.Buffer
+		if err := collectionBody(domain.GapTight, "", false, false, false, inline, []templ.Component{item, item}).Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(buf.String())
+	}
+	if got := render(true); !strings.HasPrefix(got, `<ul class="m-0 flex list-none flex-wrap`) || strings.Contains(got, "flex-col") {
+		t.Errorf("an inline Collection is not a wrapping run:\n%s", got)
+	}
+	if got := render(false); !strings.HasPrefix(got, `<ul class="flex flex-col`) || strings.Contains(got, "list-none") {
+		t.Errorf("a Collection without inline stopped being a column:\n%s", got)
+	}
+}
+
+// `variant: chip` is the pill a filter chip is, drawn from the same classes, and `icon:` on a link with no variant puts the mark before
+// its words and hides it from assistive technology.
+func TestLinkVariantChipAndIconBeforeWords(t *testing.T) {
+	chip := renderUINode(t, ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticLink), Props: map[string]string{"href": "/x", "text": "Asset booking", "variant": "chip"}})
+	if want := `class="` + chipClasses(context.Background(), false) + `"`; !strings.Contains(chip, want) || !strings.Contains(chip, ">Asset booking</a>") {
+		t.Errorf("chip link = %s\nwant the classes of a filter chip: %s", chip, want)
+	}
+	// Not circular: what a chip is, said once in words, so a change to chipClasses itself is seen (a bordered pill at the meta size, in the
+	// control border and the secondary ink; a filter chip draws the identical string).
+	for _, part := range []string{"rounded-full", "border px-3 py-1", "text-xs", "border-border-control", "text-ink-secondary"} {
+		if !strings.Contains(chip, part) {
+			t.Errorf("chip link does not carry %q: %s", part, chip)
+		}
+	}
+	var filter bytes.Buffer
+	if err := filterChipLink("Asset booking", "3", "/x", false).Render(context.Background(), &filter); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(filter.String(), chipClasses(context.Background(), false)) {
+		t.Errorf("a filter chip and a chip link are not one pill:\n%s", filter.String())
+	}
+	gear := renderUINode(t, ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticLink), Props: map[string]string{"href": "/s", "text": "Workspace settings", "icon": "settings"}})
+	if i, j := strings.Index(gear, "<svg"), strings.Index(gear, "Workspace settings"); i < 0 || j < i || !strings.Contains(gear[:i], `aria-hidden="true"`) {
+		t.Errorf("the mark is not before the words, or not hidden:\n%s", gear)
+	}
+}
+
+// A search box with a button beside it takes the width that is left; one alone keeps its fixed width.
+func TestSearchField_aBoxWithAButtonFillsTheWidth(t *testing.T) {
+	render := func(submit string) string {
+		var buf bytes.Buffer
+		if err := searchField("Describe it", "idea", "e.g.", "", "/new", submit, "").Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	if got := render("Start"); !strings.Contains(got, "min-w-0 grow") || strings.Contains(got, "sm:w-70") || !strings.Contains(got, `gap-2 w-full"`) {
+		t.Errorf("a box with a button does not fill the width:\n%s", got)
+	}
+	if got := render(""); !strings.Contains(got, "sm:w-70") || strings.Contains(got, "grow") {
+		t.Errorf("a box alone lost its fixed width:\n%s", got)
 	}
 }

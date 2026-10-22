@@ -929,10 +929,10 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	}
 	if icon, ok := n.Props["icon"]; ok {
 		if !domain.KnownLinkIcons[icon] {
-			return nil, fmt.Errorf("%s: icon: %q is not a mark a link takes (chevron-left, chevron-right)", path, icon)
+			return nil, fmt.Errorf("%s: icon: %q is not a mark a link takes (chevron-left, chevron-right, settings)", path, icon)
 		}
-		if v := domain.ButtonVariant(n.Props["variant"]); v != domain.ButtonPrimary && v != domain.ButtonSecondary {
-			return nil, fmt.Errorf("%s: icon: draws a link as a button with a mark in place of its words, so it takes variant: primary or secondary", path)
+		if v := domain.ButtonVariant(n.Props["variant"]); v != "" && v != domain.ButtonPrimary && v != domain.ButtonSecondary {
+			return nil, fmt.Errorf("%s: icon: is a mark in place of a button's words (variant: primary or secondary) or before a plain link's (no variant), and variant: %s is neither", path, v)
 		}
 		if n.Props["text"] == "" && n.From["text"] == "" {
 			return nil, fmt.Errorf("%s: icon: replaces the words on the page, not for a screen reader -- the link still writes text:, which is its accessible name", path)

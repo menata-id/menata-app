@@ -936,6 +936,7 @@ var collectionContract = domain.ComponentContract{
 		{Name: "ordered", Kind: "bool"},
 		{Name: "divided", Kind: "bool"},
 		{Name: "block", Kind: "bool"},
+		{Name: "inline", Kind: "bool"},
 		{Name: "truncated", Kind: "int"},
 		{Name: "heading", Kind: "string"},
 		{Name: "hint", Kind: "string"},
@@ -957,6 +958,12 @@ func validateCollection(inputs map[string]string) []string {
 	}
 	if v := inputs["block"]; v != "" && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Collection block %q is not true or false", v))
+	}
+	if v := inputs["inline"]; v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Collection inline %q is not true or false", v))
+	}
+	if inputs["inline"] == "true" && (inputs["ordered"] == "true" || inputs["divided"] == "true" || inputs["block"] == "true") {
+		issues = append(issues, "Collection inline lays its items in one wrapping run (a row of chips), so it is not also ordered, divided or block")
 	}
 	if inputs["block"] == "true" && inputs["ordered"] == "true" {
 		issues = append(issues, "Collection block draws each item as one full-width block, so it is not also ordered (an ordinal sits beside the item)")

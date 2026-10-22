@@ -1216,15 +1216,15 @@ func truncationFromProp(limit string) Truncation {
 	return t
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, truncated Truncation, heading string, hint string, items []templ.Component) {
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, truncated Truncation, heading string, hint string, items []templ.Component) {
 	if heading != "" {
 		@stackLayout(domain.GapTight) {
 			@collectionHeading(heading, hint, len(items))
-			@collectionBody(gap, empty, ordered, divided, block, items)
+			@collectionBody(gap, empty, ordered, divided, block, inline, items)
 			@truncationNotice(truncated)
 		}
 	} else {
-		@collectionBody(gap, empty, ordered, divided, block, items)
+		@collectionBody(gap, empty, ordered, divided, block, inline, items)
 		@truncationNotice(truncated)
 	}
 }
@@ -1242,7 +1242,7 @@ templ collectionHeading(heading string, hint string, count int) {
 	}
 }
 
-templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, items []templ.Component) {
+templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if divided && ordered {
@@ -1271,6 +1271,15 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, b
 				</li>
 			}
 		</ol>
+	} else if inline {
+		// `inline` is a run of short items laid side by side and wrapping (a row of chips), not a column: each item is one inline part.
+		<ul class={ "m-0 flex list-none flex-wrap items-center p-0", layoutGap(ctx, gap) }>
+			for _, it := range items {
+				<li class={ textClass(ctx, domain.RoleBody) }>
+					@it
+				</li>
+			}
+		</ul>
 	} else {
 		<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
 			for _, it := range items {
@@ -1606,6 +1615,10 @@ templ uiNodeBody(n ir.UINode) {
 						@plainLink(n.Props["href"], n.Props["text"])
 					} else if v == domain.LinkRow && n.Props["href"] != "" {
 						@rowLink(n.Props["href"], n.Props["text"])
+					} else if v == domain.LinkChip && n.Props["href"] != "" {
+						@chipLink(n.Props["href"], n.Props["text"])
+					} else if v == "" && n.Props["icon"] != "" && n.Props["href"] != "" {
+						@iconTextLink(n.Props["href"], n.Props["text"], n.Props["icon"])
 					} else if v != "" && n.Props["icon"] != "" && n.Props["href"] != "" {
 						@iconLinkButton(n.Props["text"], n.Props["href"], n.Props["icon"], v)
 					} else if v != "" && n.Props["href"] != "" {
@@ -1630,7 +1643,7 @@ templ uiNodeBody(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

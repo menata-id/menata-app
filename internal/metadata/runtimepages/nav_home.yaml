@@ -51,28 +51,44 @@ page:
       gap: default
       when: { viewer: workspace_role, is: admin }
       children:
-        - static: panel-heading
-          text: Add an application
-        - static: message
-          text: Describe what your team needs. Menata asks a few questions, shows what it will build, then generates it as a draft; nobody else sees it until you publish.
+        - layout: row
+          gap: default
+          align: stretch
+          wrap: nowrap
+          children:
+            - component: IconTile
+              icon: sparkle
+              color: blue
+              size: sheet
+            - layout: stack
+              gap: tight
+              children:
+                - static: panel-heading
+                  text: Add an application
+                - static: message
+                  text: Describe what your team needs. Menata asks a few questions, shows what it will build, then generates it as a draft; nobody else sees it until you publish.
         - component: SearchBox
           label: Describe the application you need
           query: idea
           placeholder: "e.g. Leave requests approved by a supervisor, then HR"
           submit: Start →
           to: nav_new_application
-        - component: Collection
-          gap: tight
-          hide_empty: true
-          binding: { dataset: ds_runtime_application_suggestions, rows: records }
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
           children:
-            - static: link
-              from: { text: title, href: link }
-        - static: caption
-          text: Only workspace admins can add applications.
-        - static: link
-          to: nav_install_application
-          text: Already know what you need? Install an application →
+            - component: Collection
+              gap: tight
+              inline: true
+              hide_empty: true
+              binding: { dataset: ds_runtime_application_suggestions, rows: records }
+              children:
+                - static: link
+                  variant: chip
+                  from: { text: title, href: link }
+            - static: caption
+              text: Only workspace admins can add applications.
     - component: Collection
       gap: tight
       block: true
@@ -93,5 +109,15 @@ page:
                   from: { label: status }
                 - static: paragraph
                   from: { text: subtitle }
-            - static: link
-              to: nav_workspace_settings
+            - layout: row
+              gap: comfortable
+              align: center
+              children:
+                - static: link
+                  variant: quiet
+                  to: nav_install_application
+                  text: Install an application
+                - static: link
+                  icon: settings
+                  to: nav_workspace_settings
+                  text: Workspace settings

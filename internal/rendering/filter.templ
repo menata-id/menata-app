@@ -54,10 +54,16 @@ templ filterChipLink(label, count, href string, current bool) {
 		if current {
 			aria-current="true"
 		}
-		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1", textClass(ctx, domain.RoleMeta), chipStateClasses(ctx, current) }
+		class={ chipClasses(ctx, current) }
 	>
 		{ label } <span class={ chipCountClass(ctx, current) }>{ count }</span>
 	</a>
+}
+
+// chipClasses is the one look of a chip: a bordered pill at the meta size. The Approval Inbox's SLA chips, every FilterChips and a
+// `static: link` with `variant: chip` draw it, so a suggestion and a filter cannot drift into two pills.
+func chipClasses(ctx context.Context, current bool) string {
+	return radiusClass(ctx, domain.RadiusPill) + " border px-3 py-1 " + textClass(ctx, domain.RoleMeta) + " " + chipStateClasses(ctx, current)
 }
 
 // chipStateClasses is a chip's state in one Go choice -- two Theme readers as templ.KV keys collide under a remapped
