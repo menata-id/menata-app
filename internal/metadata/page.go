@@ -648,7 +648,7 @@ func (p pageNodeDoc) cellDocs() []pageNodeDoc {
 
 // PlaceholderResolver stands in for the database when only a tree's *shape* is being checked: one dimension
 // row, and one record that projects every role in `domain.KnownCardFieldRoles` (each "x", except `color`,
-// which is a palette entry). A `from:` naming anything
+// `icon` and `tint`, which are entries of closed sets). A `from:` naming anything
 // outside that vocabulary therefore fails to lower, which is how a typo in a role is a load error. Exported so
 // the conformance sweep over installed manifests asks the same question the loader does.
 //
@@ -709,6 +709,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// definition, so a Tag filled from it must validate. Every other role stays "x", which is how
 			// `from: {color: title}` is a load error -- a title is not a palette entry.
 			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
+			// And the two that name a face: an icon of the closed set and an Application tint, for an IconTile to validate.
+			rec[string(domain.CardFieldRoleIcon)], rec[string(domain.CardFieldRoleTint)] = "board", "slate"
 			// The derived date roles: a label, and a tone out of the closed set a StatusBadge validates against.
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
 			rec[domain.PageDateRelativeRole] = "x"

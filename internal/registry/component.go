@@ -69,6 +69,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentActionBar:        {Contract: actionBarContract, Validate: validateActionBar},
 	domain.ComponentStepper:          {Contract: stepperContract, Validate: validateStepper},
 	domain.ComponentToggle:           {Contract: toggleContract, Validate: validateToggle},
+	domain.ComponentIconTile:         {Contract: iconTileContract, Validate: validateIconTile},
 }
 
 // toggleContract is a record's completion circle (mockup PM01 and PM08): open (a ring) or finished (a filled circle with a
@@ -1314,6 +1315,47 @@ func validateDiff(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(diffContract, inputs, "Diff")
 	if v, ok := inputs["label"]; ok && strings.TrimSpace(v) == "" {
 		issues = append(issues, "Diff label is blank -- a diff must say which file")
+	}
+	return issues
+}
+
+// iconTileContract is the small square that holds one icon on an Application's tint (Workspace Home's list, the application menu,
+// the launcher, the "Add an application" heading). It is a Component because four hand-written `span`s drew it, differing in a size
+// and a corner, and because a page could not otherwise put one at the head of a row.
+//
+// `icon` and `color` are names of closed sets (`domain.KnownIcons`, `domain.KnownApplicationColors`), so a page names a face and
+// never a class. `color` is optional and means slate when unset, as an Application that declares none does; `draft` draws the
+// dashed outline of an Application nobody has published, a state and not a colour for the reason `AvatarPresence` is. `size`
+// is required, because every site chose one and a default would hide a choice.
+var iconTileContract = domain.ComponentContract{
+	Type:   domain.ComponentIconTile,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "icon", Kind: "string", Required: true},
+		{Name: "color", Kind: "string"},
+		{Name: "size", Kind: "TileSize", Required: true},
+		{Name: "draft", Kind: "bool"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "decoration: the tile is drawn aria-hidden and carries no name, because the Application's own name is drawn beside it; a use that stands alone without a visible name is a defect of the page, not something the tile can repair",
+	Renderer:         "iconTile",
+}
+
+func validateIconTile(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(iconTileContract, inputs, "IconTile")
+	if v := inputs["icon"]; v != "" && !domain.KnownIcons[v] {
+		issues = append(issues, fmt.Sprintf("IconTile icon %q is not one of the declared icons", v))
+	}
+	if v := inputs["color"]; v != "" && !domain.KnownApplicationColors[v] {
+		issues = append(issues, fmt.Sprintf("IconTile color %q is not one of the declared Application colours", v))
+	}
+	if v := inputs["size"]; v != "" && !domain.KnownTileSizes[domain.TileSize(v)] {
+		issues = append(issues, fmt.Sprintf("IconTile size %q is not one of the declared sizes", v))
+	}
+	if v := inputs["draft"]; v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("IconTile draft %q is not true or false", v))
 	}
 	return issues
 }

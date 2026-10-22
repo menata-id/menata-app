@@ -266,7 +266,7 @@ test's own doc comment is the authoritative explanation; read it before changing
   **view groups** (Application `view_groups:`, nav `view_group:`/`summary: counts`; a Board/Table/Calendar of one Machine share a declared header and a scope parameter that every Dataset of the group must carry as an `optional: true` comparison),
   a calendar's `$month`/`?range=`/`fill: weeks`/`moves: true`, a link's `set:`/`icon:`/`variant: quiet`/`variant: plain`, a panel's `density: compact`, a row's `wrap: nowrap`, a Machine's `plural:`, a view group scope's `new:` (a "New project" form in the Switch menu), 
   a board View's `column_actions: [rename, move, delete]` and `add_column: {to, label, note}` (a relation-grouped board's column menu and "add list" tile), `Popover` `trigger: quiet|pill`, a Dataset `sort:` key's `by:` (the related record's column), a record-template paragraph's `tone:`,
-  a Table's children = its row actions. Edit/delete rules: `set_once`, `locked_when`, `on_parent_delete: restrict`,
+  a Table's children = its row actions. `IconTile` (2026-10-22) is an Application's face (`icon`/`color`/`size`/`draft`, or `from: {icon: icon, color: tint}`); `appIconClasses` is read only by it (`TestNoHandWrittenIconTile`). Edit/delete rules: `set_once`, `locked_when`, `on_parent_delete: restrict`,
   `deletable_unless` -- a button reads the same rule the route enforces (`composition.heldRecords`).
   One record's page: nav `record_of:` (`/pages/<nav>/<id>`, `$parameters.id`, `where: {field: id}`), `field:`/`tone:`/
   `steps:` roles, `Stepper`, `binding: {transition: trn_x}` on a Button or Form, link `pass:`, Form `values:`/`then: record`.

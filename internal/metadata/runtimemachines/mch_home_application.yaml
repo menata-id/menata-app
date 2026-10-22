@@ -13,6 +13,8 @@ fields:
   - { id: fld_status, name: Summary kind, type: status, options: [Pending, Count, Draft, None] }
   - { id: fld_summary, name: Summary, type: text }
   - { id: fld_link, name: Opens at, type: text }
+  - { id: fld_icon, name: Icon, type: text }
+  - { id: fld_tint, name: Colour, type: text }
 # Which tone each kind draws in: a pending count is active (info), a draft needs attention (warn); a count or nothing is neutral.
 status_categories:
   field: fld_status
@@ -24,6 +26,8 @@ card_fields:
   - { field: fld_status, role: status }
   - { field: fld_summary, role: summary }
   - { field: fld_link, role: link }
+  - { field: fld_icon, role: icon }
+  - { field: fld_tint, role: tint }
 datasets:
   - id: ds_runtime_home_applications
     select: records

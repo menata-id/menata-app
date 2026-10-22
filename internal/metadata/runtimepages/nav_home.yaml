@@ -20,6 +20,15 @@ page:
           align: center
           justify: spread
           children:
+            - component: IconTile
+              size: lead
+              when: { role: status, is_not: Draft }
+              from: { icon: icon, color: tint }
+            - component: IconTile
+              size: lead
+              draft: true
+              when: { role: status, is: Draft }
+              from: { icon: icon }
             - layout: stack
               gap: hair
               children:

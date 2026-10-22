@@ -1593,6 +1593,8 @@ templ uiNodeBody(n ir.UINode) {
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
+				case domain.ComponentIconTile:
+					@iconTile(n.Props["icon"], n.Props["color"], domain.TileSize(n.Props["size"]), n.Props["draft"] == "true")
 				case domain.ComponentButton:
 					@requestButton(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"], n.Props["action"], n.Props["method"], n.Props["confirm"], n.Props["describes"])
 				case domain.ComponentTag:
@@ -1699,6 +1701,38 @@ func appIconClasses(color string) string {
 		return "bg-app-amber-bg text-app-amber-ink"
 	default:
 		return "bg-app-slate-bg text-app-slate-ink"
+	}
+}
+
+// iconTileSizeClasses is a tile's box and corner for each declared step, and the icon's own size inside it. Whole literal strings
+// per case, for the reason appIconClasses records: the scanner reads this file's text, so a name assembled at runtime never
+// reaches app.css. `compact` keeps the control corner it was drawn with; the other three were `rounded-lg`.
+func iconTileSizeClasses(ctx context.Context, size domain.TileSize) (box, glyph string) {
+	switch size {
+	case domain.TileCompact:
+		return "flex size-6 shrink-0 items-center justify-center " + radiusClass(ctx, domain.RadiusControl), "size-3.5"
+	case domain.TileInline:
+		return "flex size-8 shrink-0 items-center justify-center rounded-lg", "size-4.5"
+	case domain.TileLead:
+		return "flex size-10 shrink-0 items-center justify-center rounded-lg", "size-4.5"
+	default:
+		return "flex size-9 shrink-0 items-center justify-center rounded-lg", "size-5"
+	}
+}
+
+// iconTile is the registered renderer for `domain.ComponentIconTile` (007 §12.3): one icon of `domain.KnownIcons` in a square on
+// an Application's tint. A draft is the dashed outline of an Application nobody has published, in the generated-draft indigo.
+// It is decoration, so it is hidden from assistive technology: the Application's name is drawn beside it.
+templ iconTile(iconName, color string, size domain.TileSize, draft bool) {
+	{{ box, glyph := iconTileSizeClasses(ctx, size) }}
+	if draft {
+		<span aria-hidden="true" class={ box, "border border-dashed", draftTileEdgeClass(), draftTileInkClass(), backgroundClass(ctx, domain.BackgroundRaised) }>
+			@icon(iconName, glyph)
+		</span>
+	} else {
+		<span aria-hidden="true" class={ box, appIconClasses(color) }>
+			@icon(iconName, glyph)
+		</span>
 	}
 }
 

@@ -1492,6 +1492,7 @@ building on. `conformance.TestWritingGuideShowsEachComponentsStatus` holds this 
 | `SearchBox` | stable | Declared by the runtime's own page for Members, installed in every Workspace |
 | `Stepper` | stable | Declared by installed pages (Dokter Kecil's contract and payment plan pages) |
 | `Toggle` | stable | Declared by installed pages (Project Management's Table: the completion circle) |
+| `IconTile` | stable | Declared by the runtime's own page for Workspace Home (an Application's face at the head of its row); the application menu, the More sheet and the launcher draw it from Go |
 | `ActionBar` | stable | Declared by installed pages (Dokter Kecil's Contracts: "+ New contract") |
 | `FilterChips` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
 | `FilterSelect` | stable | Declared by installed pages (Dokter Kecil's Contracts, Instalments and Payment plans) |
@@ -1883,6 +1884,21 @@ script) wait on a declaration for that; none is covered.
   children:
     - component: Form
       # ... a bound Form, as under "Form" above
+```
+
+**`component: IconTile`** is one icon on an Application's tint, in a small square: the face of an Application in a list. `icon` is a
+name of the closed icon set (the same names a navigation item's `icon:` takes, plus the chrome's: `sparkle`, `settings`, ...) and is
+required; `color` is `blue`, `emerald`, `amber` or `slate` (slate when left out); `size` is required and one of `compact` (24px, in a
+menu row), `inline` (32px, a card in the launcher), `sheet` (36px) and `lead` (40px, a list row that is the screen's subject); `draft:
+true` draws the dashed outline of something nobody has published. It is decoration and carries no name: draw the Application's name
+beside it. A bad name is a load error, and so is any property that is not one of those four. Both `icon` and `color` may be read from a
+record with `from: {icon: icon, color: tint}` (the `icon` and `tint` card roles, which a runtime Machine such as Workspace Home's
+`mch_home_application` fills from the Application's own `icon:` and `color:`).
+
+```yaml
+- component: IconTile
+  size: lead
+  from: { icon: icon, color: tint }
 ```
 
 **`component: Avatar`** is a person's initials in a circle. All four inputs are required: `initials` (one to three letters you

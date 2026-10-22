@@ -77,6 +77,11 @@ const (
 	// CardFieldRoleSummary is a longer plain sentence a record says about itself (what a member can actually do, once their
 	// Groups are counted), drawn as a paragraph beneath the lines above.
 	CardFieldRoleSummary CardFieldRole = "summary"
+	// CardFieldRoleIcon is a text Field holding one name of KnownIcons, and CardFieldRoleTint one of KnownApplicationColors: how
+	// a record that stands for an Application draws its face (`IconTile`, `from: {icon: icon, color: tint}`). Two roles and not
+	// `color`, which is a Tag's palette entry: a tag and an Application are tinted from different closed sets.
+	CardFieldRoleIcon CardFieldRole = "icon"
+	CardFieldRoleTint CardFieldRole = "tint"
 )
 
 // SafeInAppPath reports whether s is a route inside this app: one slash then something that is not a second slash or
@@ -151,6 +156,8 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleSubtitle:  true,
 	CardFieldRoleDetail:    true,
 	CardFieldRoleSummary:   true,
+	CardFieldRoleIcon:      true,
+	CardFieldRoleTint:      true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

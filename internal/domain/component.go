@@ -53,6 +53,15 @@ const (
 	ComponentStatusBadge ComponentType = "StatusBadge"
 	// ComponentAvatar is §12.3's own `Avatar`: one person as a circle of initials.
 	ComponentAvatar ComponentType = "Avatar"
+	// ComponentIconTile is a small square that holds one icon on an Application's tint: the face of an Application in a list, a
+	// menu, the launcher and a panel's heading.
+	//
+	// **It already existed unregistered, four times**: `appshell.templ`'s application menu row, its More sheet, the launcher card
+	// and Workspace Home's list each drew the same `span` (a size, `appIconClasses(color)`, one `icon`), differing in a size and, in
+	// one, a corner. The icon is a name of `KnownIcons` and the tint a name of `KnownApplicationColors`: a page, like an
+	// Application, picks names and never a class or a colour (007 §15.2). The tile is decoration: the Application's name sits beside
+	// it, so it carries no accessible name of its own (the contract says so, as Avatar's says the opposite).
+	ComponentIconTile ComponentType = "IconTile"
 	// ComponentMetric is §12.3's own `Metric`: one headline number with its label.
 	//
 	// **Registered by building its case rather than by waiting for one** (owner, 2026-10-03: *"buatkan case
@@ -340,6 +349,25 @@ var KnownButtonVariants = map[ButtonVariant]bool{
 	ButtonSecondary: true,
 	ButtonDanger:    true,
 }
+
+// TileSize is how large an icon tile is, as a closed set named for the place it sits and not for a measurement, as AvatarSize is.
+// Four steps, the four sizes the hand-written tiles drew when they migrated (2026-10-22); folding two of them would change what
+// a screen draws, which is a decision with its own measurement and not part of making them one Component.
+type TileSize string
+
+const (
+	// TileCompact sits in a dense menu row beside a label (24px, with the smaller corner).
+	TileCompact TileSize = "compact"
+	// TileInline sits at the head of a card in the launcher (32px).
+	TileInline TileSize = "inline"
+	// TileSheet sits in a row of a sheet or a panel's heading (36px).
+	TileSheet TileSize = "sheet"
+	// TileLead heads a row of a list that is the screen's subject (40px): Workspace Home's Applications.
+	TileLead TileSize = "lead"
+)
+
+// KnownTileSizes is the closed set.
+var KnownTileSizes = map[TileSize]bool{TileCompact: true, TileInline: true, TileSheet: true, TileLead: true}
 
 // AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason
 // `Gap` is a ladder and not a pixel count (§15.2: a logical declaration carrying `size: 40px` has smuggled a

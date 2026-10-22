@@ -75,6 +75,7 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 			out = append(out, &data.Record{ID: app.ID, MachineID: "mch_home_application", WorkspaceID: workspaceID, Values: map[string]any{
 				"fld_id": app.ID, "fld_title": app.Name, "fld_description": app.Description, "fld_role": "Your role: " + role,
 				"fld_status": status, "fld_summary": summary, "fld_link": route,
+				"fld_icon": homeIcon(app.Icon), "fld_tint": app.Color,
 			}})
 		}
 		// A Workspace's admins also see the drafts the assistant has generated, as rows of the same list: a draft is an Application
@@ -88,11 +89,21 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 				out = append(out, &data.Record{ID: d.id, MachineID: "mch_home_application", WorkspaceID: workspaceID, Values: map[string]any{
 					"fld_id": d.id, "fld_title": d.name, "fld_description": draftApplicationNote, "fld_role": "Not published yet",
 					"fld_status": "Draft", "fld_summary": "Draft", "fld_link": d.reviewRoute,
+					"fld_icon": "sparkle",
 				}})
 			}
 		}
 		return out, nil
 	}
+}
+
+// homeIcon is the icon an Application's row draws: its own declared one, else the board, which every Application can be said to be.
+// An Application declares none only when its manifest chose not to, and a row with no face would be the one that looks broken.
+func homeIcon(declared string) string {
+	if declared == "" {
+		return "board"
+	}
+	return declared
 }
 
 // pendingTotalFor is the pending-approval number, read only when some Application the viewer sees declares the badge it belongs

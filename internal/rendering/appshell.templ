@@ -470,9 +470,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 	<nav aria-label="Application" class={ "flex items-center", layoutGap(ctx, domain.GapMicro), pageColumnClasses, "py-1.5" }>
 		<span class={ "mr-1 flex items-center", layoutGap(ctx, domain.GapTight) }>
 			if app.Icon != "" {
-				<span class={ "flex size-6 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), appIconClasses(app.Color) }>
-					@icon(app.Icon, "size-3.5")
-				</span>
+				@iconTile(app.Icon, app.Color, domain.TileCompact, false)
 			}
 			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
 		</span>
@@ -656,9 +654,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 						aria-current="page"
 					}
 				>
-					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
-						@icon(other.Icon, "size-5")
-					</span>
+					@iconTile(other.Icon, other.Color, domain.TileSheet, false)
 					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), other.ID == app.ID) }>{ other.Name }</span>
 						if other.Description != "" {
@@ -1119,15 +1115,11 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 	</div>
 }
 
-// launcherAppCard is one Application's face in the launcher -- ui-sample/nav-chrome.js's
-// launcherPanelHTML row shape, reusing
-// appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
-// Home card exactly.
+// launcherAppCard is one Application's face in the launcher: its icon tile (`iconTile`, so it matches the one Workspace Home's list
+// draws), its name and its description.
 templ launcherAppCard(app domain.Application) {
 	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class={ "flex items-start", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-2", hoverWashClass(ctx) }>
-		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg", appIconClasses(app.Color) }>
-			@icon(app.Icon, "size-4.5")
-		</span>
+		@iconTile(app.Icon, app.Color, domain.TileInline, false)
 		<span class="flex min-w-0 flex-col">
 			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ app.Name }</span>
 			if app.Description != "" {

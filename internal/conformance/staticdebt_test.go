@@ -1253,3 +1253,47 @@ var markGoodExempt = map[string]int{}
 // The board's drag-and-drop draws its landing slot (`slot.className = "h-1 rounded-full bg-emerald-600"`) and the
 // target lane's ring in a script, where no Go reader runs (CP6, 2026-10-13: emerald-500 folded to mark-good).
 var markGoodScriptUses = map[string]int{"machine.templ": 1}
+
+// TestNoHandWrittenIconTile holds the zero floor for `IconTile` (007 §12.3, 2026-10-22): an Application's face -- an icon on its
+// declared tint -- is drawn by `iconTile` alone, so the tint is read from `appIconClasses` in exactly one place. Four hand-written
+// `span`s drew it before (the application menu row, the More sheet, the launcher card and the Workspace Home list), differing in a
+// size and a corner; a fifth reading the tint would be the same shape again, and the way to find one is the one function that
+// turns a declared colour into the tile's classes.
+//
+// Measured by text, in the `.templ` sources with comments removed: `appIconClasses(` may be called once (inside `iconTile`, in
+// layout.templ) and defined once. Blind spots, stated: a tile built with the `bg-app-*` classes written out beside no
+// `appIconClasses` call, and one that never carries an Application's tint (the chrome's neutral Home and Settings tiles, the PDF
+// type tile, the initials tile) -- those are other shapes, not this one.
+func TestNoHandWrittenIconTile(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	// A comment starts at a `//` that opens the line or follows a space, so the `//` of an `https://` address is not read as one and
+	// does not hide a call that follows it on the line.
+	comment := regexp.MustCompile(`(?m)(^|[ \t])//[^\n]*`)
+	calls := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := comment.ReplaceAllString(string(b), "")
+		src = strings.ReplaceAll(src, "func appIconClasses(", "") // its own definition is not a use
+		if n := strings.Count(src, "appIconClasses("); n > 0 {
+			calls[e.Name()] = n
+		}
+	}
+	if calls["layout.templ"] != 1 {
+		t.Errorf("layout.templ reads appIconClasses %d times, want exactly 1 (inside iconTile): the scan is looking at the wrong text, or the renderer changed", calls["layout.templ"])
+	}
+	for name, n := range calls {
+		if name != "layout.templ" {
+			t.Errorf("%s reads appIconClasses %d time(s): a hand-written icon tile. Use `@iconTile(icon, color, size, draft)` so a tile's tint, corner and size stay one decision", name, n)
+		}
+	}
+}
