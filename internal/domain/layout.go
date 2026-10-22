@@ -487,6 +487,10 @@ const (
 	// conditional text, a sentence with an inline `<span>`, and three whose apostrophe `{ text }` would escape
 	// to `&#39;` (not byte-identical, the same floor StaticMessage and StaticNote carry).
 	StaticCaption StaticKind = "caption"
+	// StaticDivider is a thin rule that sets one region of a page off from the next (007 §12.6's `divider`): no text, no properties. It was
+	// named by 007 from the start and had no use until Workspace Home's footer; seven menu separators in the shell were drawing the same
+	// rule by hand, and now draw it through the same `dividerClasses`.
+	StaticDivider StaticKind = "divider"
 	// StaticCode is text whose line breaks and spacing matter: a loader's multi-line verdict, a file's content. A `<pre>` at the
 	// meta role in the body ink, wrapping rather than scrolling sideways so a long line is still read. It is the one static kind
 	// that keeps its whitespace, which is its whole reason to exist beside `paragraph`.
@@ -507,5 +511,6 @@ var KnownStaticKinds = map[StaticKind]bool{
 
 	StaticPanelHeading: true,
 	StaticCaption:      true,
+	StaticDivider:      true,
 	StaticCode:         true,
 }

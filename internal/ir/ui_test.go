@@ -99,6 +99,9 @@ var heldOutStaticKinds = map[domain.StaticKind]string{}
 // declare a subheading although the renderer drew one -- no gate saw it, because each list was individually valid.
 func TestValidateAcceptsEveryStaticKindWithItsText(t *testing.T) {
 	for kind := range domain.KnownStaticKinds {
+		if kind == domain.StaticDivider {
+			continue // a rule has no words: TestValidateAStaticDividerTakesNoText
+		}
 		node := UINode{Kind: NodeLayout, Type: "stack", Props: map[string]string{"gap": "tight"},
 			Children: []UINode{{Kind: NodeStatic, Type: string(kind), Props: map[string]string{"text": "x"}}}}
 		issues := Validate(node)
@@ -176,5 +179,19 @@ func TestValidateChecksColumnsAlignAgainstItsOwnSet(t *testing.T) {
 	sec.Props["align"] = "start"
 	if issues := Validate(sec); len(issues) == 0 {
 		t.Error("section accepted an align it does not declare")
+	}
+}
+
+// A divider is a rule and not text: it validates with no properties and refuses words, so a page cannot put a sentence in a line.
+func TestValidateAStaticDividerTakesNoText(t *testing.T) {
+	stack := func(props map[string]string) UINode {
+		return UINode{Kind: NodeLayout, Type: "stack", Props: map[string]string{"gap": "tight"},
+			Children: []UINode{{Kind: NodeStatic, Type: string(domain.StaticDivider), Props: props}}}
+	}
+	if issues := Validate(stack(nil)); len(issues) != 0 {
+		t.Errorf("a divider with no properties: %v", issues)
+	}
+	if issues := Validate(stack(map[string]string{"text": "x"})); len(issues) == 0 {
+		t.Error("a divider was given words and accepted")
 	}
 }

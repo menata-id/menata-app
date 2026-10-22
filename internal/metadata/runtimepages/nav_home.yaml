@@ -31,7 +31,7 @@ page:
                   from: { icon: icon, color: tint }
                 - component: IconTile
                   size: lead
-                  draft: true
+                  state: draft
                   when: { role: status, is: Draft }
                   from: { icon: icon }
             - layout: stack
@@ -58,7 +58,7 @@ page:
           children:
             - component: IconTile
               icon: sparkle
-              color: blue
+              state: assistant
               size: sheet
             - layout: stack
               gap: tight
@@ -89,6 +89,8 @@ page:
                   from: { text: title, href: link }
             - static: caption
               text: Only workspace admins can add applications.
+    - static: divider
+      when: { viewer: workspace_role, is: admin }
     - component: Collection
       gap: tight
       block: true

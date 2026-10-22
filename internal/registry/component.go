@@ -1341,7 +1341,7 @@ var iconTileContract = domain.ComponentContract{
 		{Name: "icon", Kind: "string", Required: true},
 		{Name: "color", Kind: "string"},
 		{Name: "size", Kind: "TileSize", Required: true},
-		{Name: "draft", Kind: "bool"},
+		{Name: "state", Kind: "TileState"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
@@ -1361,8 +1361,11 @@ func validateIconTile(inputs map[string]string) []string {
 	if v := inputs["size"]; v != "" && !domain.KnownTileSizes[domain.TileSize(v)] {
 		issues = append(issues, fmt.Sprintf("IconTile size %q is not one of the declared sizes", v))
 	}
-	if v := inputs["draft"]; v != "" && v != "true" && v != "false" {
-		issues = append(issues, fmt.Sprintf("IconTile draft %q is not true or false", v))
+	if v := inputs["state"]; v != "" && !domain.KnownTileStates[domain.TileState(v)] {
+		issues = append(issues, fmt.Sprintf("IconTile state %q is not one of the declared states (draft, assistant)", v))
+	}
+	if inputs["state"] != "" && inputs["color"] != "" {
+		issues = append(issues, "IconTile color is an Application's tint, and a tile in a state (draft, assistant) is drawn in the generated-draft indigo, so it takes none")
 	}
 	return issues
 }

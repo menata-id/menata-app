@@ -376,6 +376,22 @@ const (
 	TileLead TileSize = "lead"
 )
 
+// TileState is what an icon tile says besides which Application it is: the two things the assistant makes, in the generated-draft indigo
+// (`--color-draft-edge`/`--color-draft-ink`, a categorical colour with its own dark steps, so no Application colour was added for it).
+// Empty is an Application's own tile on its declared tint. It is a state and not a colour, as `AvatarPresence` is: a page cannot pass indigo
+// to a tile that is not the assistant's.
+type TileState string
+
+const (
+	// TileDraft is an Application the assistant generated and nobody has published: a dashed outline on the raised surface.
+	TileDraft TileState = "draft"
+	// TileAssistant is the assistant itself (the "Add an application" panel): a solid pale-indigo tile.
+	TileAssistant TileState = "assistant"
+)
+
+// KnownTileStates is the closed set.
+var KnownTileStates = map[TileState]bool{TileDraft: true, TileAssistant: true}
+
 // KnownTileSizes is the closed set.
 var KnownTileSizes = map[TileSize]bool{TileCompact: true, TileInline: true, TileSheet: true, TileLead: true}
 

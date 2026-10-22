@@ -856,7 +856,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			return templ_7745c5c3_Err
 		}
 		if app.Icon != "" {
-			templ_7745c5c3_Err = iconTile(app.Icon, app.Color, domain.TileCompact, false).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = iconTile(app.Icon, app.Color, domain.TileCompact, "").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1796,7 +1796,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var102 = []any{"mx-2.5 my-1.5 h-px", borderFillClass(ctx, domain.BorderDivider)}
+			var templ_7745c5c3_Var102 = []any{"mx-2.5 my-1.5", dividerClasses(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var102...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1864,7 +1864,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = iconTile(other.Icon, other.Color, domain.TileSheet, false).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = iconTile(other.Icon, other.Color, domain.TileSheet, "").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1980,7 +1980,7 @@ func moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string
 				return templ_7745c5c3_Err
 			}
 			if switchWorkspaceHref != "" {
-				var templ_7745c5c3_Var115 = []any{"mx-2.5 my-1.5 h-px", borderFillClass(ctx, domain.BorderDivider)}
+				var templ_7745c5c3_Var115 = []any{"mx-2.5 my-1.5", dividerClasses(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var115...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2621,7 +2621,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var154 = []any{"my-1 h-px", borderFillClass(ctx, domain.BorderDivider)}
+				var templ_7745c5c3_Var154 = []any{"my-1", dividerClasses(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var154...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -2672,7 +2672,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var156 = []any{"my-1 h-px", borderFillClass(ctx, domain.BorderDivider)}
+			var templ_7745c5c3_Var156 = []any{"my-1", dividerClasses(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var156...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2694,7 +2694,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var158 = []any{"my-1 h-px", borderFillClass(ctx, domain.BorderDivider)}
+			var templ_7745c5c3_Var158 = []any{"my-1", dividerClasses(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var158...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -3121,7 +3121,7 @@ func appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, above
 				return templ_7745c5c3_Err
 			}
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				var templ_7745c5c3_Var185 = []any{"my-1 h-px", borderFillClass(ctx, domain.BorderDivider)}
+				var templ_7745c5c3_Var185 = []any{"my-1", dividerClasses(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var185...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -3449,7 +3449,7 @@ func launcherAppCard(app domain.Application) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = iconTile(app.Icon, app.Color, domain.TileInline, false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = iconTile(app.Icon, app.Color, domain.TileInline, "").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

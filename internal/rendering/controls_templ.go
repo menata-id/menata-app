@@ -394,7 +394,7 @@ func quietLink(href, text string) templ.Component {
 	})
 }
 
-// rowLink is `variant: row`: the strong ink of plainLink, and a hit area that is the row around it. The `after:` box stretches over the
+// rowLink is `variant: row`: the item-title text role (15px: `RoleItem` is "an Application's name" in a list) in the strong ink of plainLink, and a hit area that is the row around it. The `after:` box stretches over the
 // nearest positioned ancestor (a divided Collection's item is one), so the whole row is one target and what else it holds is not a second
 // one -- the technique the board card's title already uses. Keyboard focus draws the global ring on the words and, inside the row's edge, the same ring on the box the link covers, so a row-sized target shows a row-sized ring.
 func rowLink(href, text string) templ.Component {
@@ -418,7 +418,7 @@ func rowLink(href, text string) templ.Component {
 			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var18 = []any{inkClass(ctx, domain.InkStrong), accentHoverClass(ctx), "after:absolute after:inset-0", "focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-blue-300"}
+		var templ_7745c5c3_Var18 = []any{textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong), accentHoverClass(ctx), "after:absolute after:inset-0", "focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-blue-300"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -456,7 +456,7 @@ func rowLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/controls.templ`, Line: 167, Col: 240}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/controls.templ`, Line: 167, Col: 314}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {

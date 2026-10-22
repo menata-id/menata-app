@@ -1351,3 +1351,40 @@ func TestNoHandWrittenRowChevron(t *testing.T) {
 		}
 	}
 }
+
+// TestNoHandWrittenDividerRule holds the floor for the thin rule (2026-10-22): `static: divider` -- named by 007 §12.6 from the start --
+// and the six separators inside the shell's menus and sheets each wrote a 1px rule in the divider edge role by hand. They draw it through
+// `dividerClasses` now (a menu site adds the margin its geometry wants), so the rule's height and colour are one decision. Measured by
+// text: a class expression in a `.templ` holding `h-px` and `BorderDivider` may exist only in layout.templ's `dividerClasses`. Blind spots,
+// stated: a rule built another way (a `border-t`, an `<hr>` with its own classes) and the other 1px shapes, which are not this one (the
+// stepper's connector reads `BorderControl`, the document preview's dotted line is a mock-up of a page).
+func TestNoHandWrittenDividerRule(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`(?m)(^|[ \t])//[^\n]*`)
+	rule := regexp.MustCompile(`h-px[^\n]*BorderDivider`)
+	seen := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		if n := len(rule.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			seen[e.Name()] = n
+		}
+	}
+	if seen["layout.templ"] != 1 {
+		t.Errorf("layout.templ writes the rule %d times, want exactly 1 (dividerClasses): the scan is looking at the wrong text, or the reader changed", seen["layout.templ"])
+	}
+	for name, n := range seen {
+		if name != "layout.templ" {
+			t.Errorf("%s writes a 1px divider rule by hand %d time(s): use `dividerClasses(ctx)` (or `static: divider` on a page) so its height and colour stay one decision", name, n)
+		}
+	}
+}

@@ -30,7 +30,7 @@ var colourRoleReaders = []string{"inkClass", "accentHoverClass", "borderClass", 
 	// 3.2d review's forms.
 	"surfaceFromSm", "openSurfaceClasses", "raisedTintClass", "unreadTintClass",
 	// Dark mode's categorical and scrim properties (DK8, DK10).
-	"scrimClass", "draftTileEdgeClass", "draftTileInkClass", "fileTypeTileClasses", "appIconClasses"}
+	"scrimClass", "draftTileEdgeClass", "draftTileFillClass", "draftTileInkClass", "fileTypeTileClasses", "appIconClasses"}
 
 // categoricalColourReaders are the readers of the categorical properties (DK8) that live beside their component rather
 // than in layout.templ: a Tag's hue (an Application icon's pair moved into layout.templ with the Home page's deletion).

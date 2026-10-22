@@ -923,6 +923,11 @@ func draftTileEdgeClass() string {
 	return "border-draft-edge"
 }
 
+// draftTileFillClass is the assistant tile's pale indigo: the draft edge at a fifth of its strength, so it takes the same dark step.
+func draftTileFillClass() string {
+	return "bg-draft-edge/20"
+}
+
 func draftTileInkClass() string {
 	return "text-draft-ink"
 }
@@ -1409,6 +1414,12 @@ templ rowChevron() {
 	</span>
 }
 
+// dividerClasses is the one drawing of a thin rule: 1px tall, in the divider edge role as a fill. The `static: divider` node, and the
+// separators inside the shell's menus and sheets, draw it; each menu site adds the margin its own geometry wants.
+func dividerClasses(ctx context.Context) string {
+	return "h-px " + borderFillClass(ctx, domain.BorderDivider)
+}
+
 // staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
 // not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
 // `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
@@ -1425,6 +1436,8 @@ templ staticText(kind domain.StaticKind, text string) {
 			<span class={ textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase" }>{ text }</span>
 		case domain.StaticPanelHeading:
 			<h2 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
+		case domain.StaticDivider:
+			<hr class={ "m-0 border-0", dividerClasses(ctx) }/>
 		case domain.StaticCaption:
 			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ text }</p>
 		case domain.StaticCode:
@@ -1649,7 +1662,7 @@ templ uiNodeBody(n ir.UINode) {
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 				case domain.ComponentIconTile:
-					@iconTile(n.Props["icon"], n.Props["color"], domain.TileSize(n.Props["size"]), n.Props["draft"] == "true")
+					@iconTile(n.Props["icon"], n.Props["color"], domain.TileSize(n.Props["size"]), domain.TileState(n.Props["state"]))
 				case domain.ComponentButton:
 					@requestButton(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"], n.Props["action"], n.Props["method"], n.Props["confirm"], n.Props["describes"])
 				case domain.ComponentTag:
@@ -1776,18 +1789,23 @@ func iconTileSizeClasses(ctx context.Context, size domain.TileSize) (box, glyph 
 }
 
 // iconTile is the registered renderer for `domain.ComponentIconTile` (007 §12.3): one icon of `domain.KnownIcons` in a square on
-// an Application's tint. A draft is the dashed outline of an Application nobody has published, in the generated-draft indigo.
+// an Application's tint. A `draft` is the dashed outline of an Application nobody has published and the `assistant` state the assistant's own solid tile, both in the generated-draft indigo.
 // It is decoration, so it is hidden from assistive technology: the Application's name is drawn beside it.
-templ iconTile(iconName, color string, size domain.TileSize, draft bool) {
+templ iconTile(iconName, color string, size domain.TileSize, state domain.TileState) {
 	{{ box, glyph := iconTileSizeClasses(ctx, size) }}
-	if draft {
-		<span aria-hidden="true" class={ box, "border border-dashed", draftTileEdgeClass(), draftTileInkClass(), backgroundClass(ctx, domain.BackgroundRaised) }>
-			@icon(iconName, glyph)
-		</span>
-	} else {
-		<span aria-hidden="true" class={ box, appIconClasses(color) }>
-			@icon(iconName, glyph)
-		</span>
+	switch state {
+		case domain.TileDraft:
+			<span aria-hidden="true" class={ box, "border border-dashed", draftTileEdgeClass(), draftTileInkClass(), backgroundClass(ctx, domain.BackgroundRaised) }>
+				@icon(iconName, glyph)
+			</span>
+		case domain.TileAssistant:
+			<span aria-hidden="true" class={ box, draftTileFillClass(), draftTileInkClass() }>
+				@icon(iconName, glyph)
+			</span>
+		default:
+			<span aria-hidden="true" class={ box, appIconClasses(color) }>
+				@icon(iconName, glyph)
+			</span>
 	}
 }
 

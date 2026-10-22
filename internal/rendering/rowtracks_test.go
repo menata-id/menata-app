@@ -72,6 +72,10 @@ func TestLinkVariantRow_stretchesOverTheRow(t *testing.T) {
 	if !strings.Contains(got, `href="/x"`) || !strings.Contains(got, "after:absolute after:inset-0") || !strings.Contains(got, ">Open</a>") {
 		t.Errorf("row link = %s", got)
 	}
+	// An item's title in a list is the item role (15px), emphasised, in the strong ink.
+	if want := textClass(context.Background(), domain.RoleItem); !strings.Contains(got, want) || !strings.Contains(got, "font-medium") || !strings.Contains(got, "text-ink-strong") {
+		t.Errorf("row link does not read the item role %q, medium weight and strong ink: %s", want, got)
+	}
 	// And a Collection's divided item is the positioned ancestor it stretches over.
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "item"); return err })
 	var buf bytes.Buffer
@@ -145,5 +149,41 @@ func TestSearchField_aBoxWithAButtonFillsTheWidth(t *testing.T) {
 	}
 	if got := render(""); !strings.Contains(got, "sm:w-70") || strings.Contains(got, "grow") {
 		t.Errorf("a box alone lost its fixed width:\n%s", got)
+	}
+}
+
+// An icon tile is an Application's face on its tint, or -- in a state -- the assistant's: the dashed draft outline and the solid pale
+// indigo both read the generated-draft tokens, never an Application colour.
+func TestIconTile_statesReadTheDraftTokens(t *testing.T) {
+	tile := func(color string, state domain.TileState) string {
+		return renderUINode(t, ir.UINode{Kind: ir.NodeComponent, Type: string(domain.ComponentIconTile), Props: map[string]string{"icon": "sparkle", "color": color, "size": "sheet", "state": string(state)}})
+	}
+	own := tile("blue", "")
+	if !strings.Contains(own, "bg-app-blue-bg") || strings.Contains(own, "draft") {
+		t.Errorf("an Application's tile does not read its tint:\n%s", own)
+	}
+	draft := tile("", domain.TileDraft)
+	if !strings.Contains(draft, "border-dashed") || !strings.Contains(draft, "border-draft-edge") || !strings.Contains(draft, "text-draft-ink") {
+		t.Errorf("the draft tile is not the dashed indigo outline:\n%s", draft)
+	}
+	assistant := tile("", domain.TileAssistant)
+	if !strings.Contains(assistant, "bg-draft-edge/20") || !strings.Contains(assistant, "text-draft-ink") || strings.Contains(assistant, "border-dashed") {
+		t.Errorf("the assistant tile is not the solid pale indigo:\n%s", assistant)
+	}
+	for name, got := range map[string]string{"own": own, "draft": draft, "assistant": assistant} {
+		if !strings.Contains(got, `aria-hidden="true"`) {
+			t.Errorf("%s tile is not hidden from assistive technology", name)
+		}
+	}
+}
+
+// `static: divider` is a rule and not text: an `<hr>` in the divider edge role, with no words and no margin of its own.
+func TestStaticDivider_isAnHrInTheDividerRole(t *testing.T) {
+	got := renderUINode(t, ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticDivider)})
+	if want := `<hr class="m-0 border-0 ` + dividerClasses(context.Background()) + `">`; strings.TrimSpace(got) != want {
+		t.Errorf("divider = %s, want %s", got, want)
+	}
+	if !strings.Contains(got, "h-px") || !strings.Contains(got, "bg-border-divider") {
+		t.Errorf("the rule is not 1px in the divider role: %s", got)
 	}
 }
