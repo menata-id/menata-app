@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 // ActionDecide is the cross-record Action the runtime realizes beyond plain record writes:
 // Approve/Reject on an Approval Step (development-history.md Phase 12, `POST .../decide`).
 const ActionDecide = "decide"
@@ -264,4 +266,15 @@ type ParentActorGate struct {
 	ViaField string
 	// ActorField is a person Field on the parent Machine whose value the acting identity must match.
 	ActorField string
+}
+
+// AppRoleLabel is how an Application role id is shown to a person: `production_manager` reads "Production manager". Application
+// roles are plain strings with no declared display name (see Application.Roles), so the label is derived from the id, in one place,
+// and never retyped by a screen.
+func AppRoleLabel(role string) string {
+	words := strings.ReplaceAll(strings.TrimSpace(role), "_", " ")
+	if words == "" {
+		return ""
+	}
+	return strings.ToUpper(words[:1]) + words[1:]
 }

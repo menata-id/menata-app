@@ -55,7 +55,7 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 			if route == "" {
 				route = domain.RuntimeScreenRoute("nav_home")
 			}
-			role := membership.AppRoles[app.ID]
+			role := domain.AppRoleLabel(membership.AppRoles[app.ID])
 			if role == "" {
 				role = "—"
 			}

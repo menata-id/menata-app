@@ -517,7 +517,7 @@ func TestHomeIsARuntimePageOpenToEveryMember(t *testing.T) {
 	}
 	mck := sessionCookieValueForTest(t, config.Config{SessionSecret: "homepage-secret"}, member.ID, 0)
 	got := getPage(t, h, mck, "/home")
-	if !strings.Contains(got, app.Name) || !strings.Contains(got, "Your role: "+app.Roles[0]) {
+	if !strings.Contains(got, app.Name) || !strings.Contains(got, "Your role: "+domain.AppRoleLabel(app.Roles[0])) {
 		t.Error("a member does not see the Application they hold a role in, with that role")
 	}
 	for _, hidden := range []string{"HP-Leave Requests", "Add an application", `name="idea"`, "Install an application", "You manage"} {
