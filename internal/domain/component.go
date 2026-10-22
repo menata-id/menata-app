@@ -235,7 +235,7 @@ const (
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action
 // ("New contract" opens the form). Empty is a plain link.
-var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecondary: true, LinkQuiet: true, LinkPlain: true}
+var KnownLinkVariants = map[ButtonVariant]bool{ButtonPrimary: true, ButtonSecondary: true, LinkQuiet: true, LinkPlain: true, LinkRow: true}
 
 // LinkQuiet is a link variant, not a button's: the link keeps its place in a line of text but reads in the secondary ink instead of the accent's, for
 // what the page has stopped inviting a click on (a finished task's title). It is declared beside a `when:` that picks it for a finished record.
@@ -244,6 +244,11 @@ const LinkQuiet ButtonVariant = "quiet"
 // LinkPlain is the other link variant that is not a button's: the link reads in the strong ink instead of the accent's (and takes the accent on hover),
 // for the words a list of records is read for -- a Table's first column in the mockups -- where a column of blue would read as a column of actions.
 const LinkPlain ButtonVariant = "plain"
+
+// LinkRow is the link that is a whole row: its words read in the strong ink as `plain` does, and the link's hit area is the row around it
+// (the nearest positioned ancestor, which a divided Collection's item is), so the row is one target and its other content is not a
+// second one. For a list of things that each open: Workspace Home's Applications.
+const LinkRow ButtonVariant = "row"
 
 // KnownLinkIcons is the closed set of marks a link drawn as a button may carry in place of its words (`icon:`): the two chevrons a window stepper
 // ("previous", "next") is drawn with. The words are still the link's accessible name, so a screen reader hears "Previous week".

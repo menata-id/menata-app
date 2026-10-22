@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"menata.app/internal/domain"
 )
@@ -66,6 +67,10 @@ type UINode struct {
 	// Children are the composed subtree. A leaf Kind must not have any -- that is §15.3's slot/type
 	// mismatch, which on a tree with no named slots yet means "a leaf was given a subtree".
 	Children []UINode
+	// Track is the column this node keeps as a child of a row that declares `tracks:` (domain.RowTrack), "" for a node in no column.
+	// Lowering writes it, never an author. It is a field and not a Prop because it belongs to the place the node sits and not to the
+	// node: a Component's contract declares its own inputs and must not grow one to suit a row (007 §12.3).
+	Track domain.RowTrack
 }
 
 // layoutsRequiringChildren are the Layout kinds whose whole purpose is to hold something. A `stack` with no
@@ -111,6 +116,9 @@ func validate(n UINode, depth int, ancestry map[string]bool, issues *[]string) {
 	if !KnownNodeKinds[n.Kind] {
 		*issues = append(*issues, fmt.Sprintf("node kind %q is not one this runtime realizes", n.Kind))
 		return
+	}
+	if n.Track != "" && !domain.KnownRowTracks[n.Track] {
+		*issues = append(*issues, fmt.Sprintf("node %q sits in the column %q, which is not one a row declares (fill, fit, field, badge)", n.describe(), n.Track))
 	}
 
 	switch n.Kind {
@@ -207,7 +215,7 @@ func componentHasSlot(t string) bool { return slottedComponents[t] }
 // and a reader can see the whole surface at once.
 var allowedProps = map[string][]string{
 	"layout/stack":               {"gap", "anchor", "move"},
-	"layout/row":                 {"gap", "align", "justify", "wrap"},
+	"layout/row":                 {"gap", "align", "justify", "wrap", "tracks", "mark"},
 	"layout/grid":                {"gap", "mobile", "columns"},
 	"layout/split":               {"gap", "side", "aside"},
 	"layout/columns":             {"gap", "align"},
@@ -269,6 +277,8 @@ var layoutPropValues = map[string]func(string) bool{
 	"columns/align":   func(v string) bool { return domain.KnownColumnsAligns[domain.ColumnsAlign(v)] },
 	"justify":         func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
 	"row/wrap":        func(v string) bool { return domain.KnownRowWraps[domain.RowWrap(v)] },
+	"row/mark":        func(v string) bool { return domain.KnownRowMarks[domain.RowMark(v)] },
+	"row/tracks":      rowTracksKnown,
 	"side":            func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
 	"aside":           func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
 	"section/current": func(v string) bool { return v == "true" },
@@ -277,6 +287,16 @@ var layoutPropValues = map[string]func(string) bool{
 	"anchor":  func(v string) bool { return anchorPattern.MatchString(v) },
 	"mobile":  gridColsKnown,
 	"columns": gridColsKnown,
+}
+
+// rowTracksKnown is true when every word of a row's `tracks:` is a member of the closed set; an empty list is the default (no tracks).
+func rowTracksKnown(v string) bool {
+	for _, w := range strings.Fields(v) {
+		if !domain.KnownRowTracks[domain.RowTrack(w)] {
+			return false
+		}
+	}
+	return true
 }
 
 func gridColsKnown(v string) bool {

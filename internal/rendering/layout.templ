@@ -1257,7 +1257,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, b
 	} else if divided {
 		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for _, it := range items {
-				<li class={ templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
+				<li class={ "relative", templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					@it
 				</li>
 			}
@@ -1365,6 +1365,36 @@ func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, just
 		}
 	}
 	return strings.Join(parts, " ")
+}
+
+// rowTrackClasses is the box a column of a row with `tracks:` draws around its child, a whole literal string for each step (the scanner
+// reads this file's text). The two fixed columns are fixed only from `sm` up: a phone's row wraps and they flow under the name.
+func rowTrackClasses(track domain.RowTrack) string {
+	switch track {
+	case domain.TrackFit:
+		return "shrink-0"
+	case domain.TrackField:
+		return "min-w-0 sm:w-42 sm:shrink-0"
+	case domain.TrackBadge:
+		return "flex sm:w-30 sm:shrink-0 sm:justify-end"
+	default:
+		return "min-w-0 grow"
+	}
+}
+
+// rowMark is what a row draws after its last child (domain.RowMark): the disclosure chevron of a row that is a link. Nothing for no mark.
+templ rowMark(mark domain.RowMark) {
+	if mark == domain.MarkChevron {
+		@rowChevron()
+	}
+}
+
+// rowChevron is the chevron at the end of a row that opens something, in the faint ink: one drawing for the rows a `page:` declares and
+// the rows Go still draws (settings, the launcher, the application menu's sheet), which had each written the same span.
+templ rowChevron() {
+	<span aria-hidden="true" class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
+		@icon("chevron-right", "size-4")
+	</span>
 }
 
 // staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
@@ -1512,10 +1542,12 @@ templ uiLayout(n ir.UINode) {
 			if domain.RowWrap(n.Props["wrap"]) == domain.RowNoWrap {
 				@rowNoWrapLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
 					@uiChildren(n)
+					@rowMark(domain.RowMark(n.Props["mark"]))
 				}
 			} else {
 				@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
 					@uiChildren(n)
+					@rowMark(domain.RowMark(n.Props["mark"]))
 				}
 			}
 		case domain.LayoutGrid:
@@ -1536,7 +1568,12 @@ templ uiLayout(n ir.UINode) {
 // rather than guessing, and `ir.Validate` is what refuses one before it gets here -- which is the division
 // §15.3 states ("the compiler MUST reject") and the reason the walker stays this small.
 templ uiNode(n ir.UINode) {
-	if n.Props[ir.SpanProp] == "all" {
+	if n.Track != "" {
+		// A child of a row that declares `tracks:` keeps its column; the column is a box around the child, so the child itself is drawn as it always is.
+		<div class={ rowTrackClasses(n.Track) }>
+			@uiNodeBody(n)
+		</div>
+	} else if n.Props[ir.SpanProp] == "all" {
 		// A notice about a grid, not one of its cells: it takes the whole row, whatever the column count at this width.
 		<div class="col-span-full">
 			@uiNodeBody(n)
@@ -1564,6 +1601,8 @@ templ uiNodeBody(n ir.UINode) {
 						@quietLink(n.Props["href"], n.Props["text"])
 					} else if v == domain.LinkPlain && n.Props["href"] != "" {
 						@plainLink(n.Props["href"], n.Props["text"])
+					} else if v == domain.LinkRow && n.Props["href"] != "" {
+						@rowLink(n.Props["href"], n.Props["text"])
 					} else if v != "" && n.Props["icon"] != "" && n.Props["href"] != "" {
 						@iconLinkButton(n.Props["text"], n.Props["href"], n.Props["icon"], v)
 					} else if v != "" && n.Props["href"] != "" {

@@ -16,38 +16,36 @@ page:
       binding: { dataset: ds_runtime_home_applications, rows: records }
       children:
         - layout: row
-          gap: default
+          gap: comfortable
           align: center
-          justify: spread
+          tracks: fit fill field badge
+          mark: chevron
           children:
-            - component: IconTile
-              size: lead
-              when: { role: status, is_not: Draft }
-              from: { icon: icon, color: tint }
-            - component: IconTile
-              size: lead
-              draft: true
-              when: { role: status, is: Draft }
-              from: { icon: icon }
+            - layout: stack
+              gap: hair
+              children:
+                - component: IconTile
+                  size: lead
+                  when: { role: status, is_not: Draft }
+                  from: { icon: icon, color: tint }
+                - component: IconTile
+                  size: lead
+                  draft: true
+                  when: { role: status, is: Draft }
+                  from: { icon: icon }
             - layout: stack
               gap: hair
               children:
                 - static: link
-                  variant: plain
+                  variant: row
                   from: { text: title, href: link }
                 - static: caption
                   from: { text: subtitle }
-                - static: caption
-                  from: { text: detail }
-            - component: StatusBadge
-              when: { role: status, is: Pending }
-              from: { label: summary, tone: "status:tone" }
-            - component: StatusBadge
-              when: { role: status, is: Draft }
-              from: { label: summary, tone: "status:tone" }
             - static: caption
-              when: { role: status, is: Count }
-              from: { text: summary }
+              from: { text: detail }
+            - component: StatusBadge
+              when: { role: status, is_not: None }
+              from: { label: summary, tone: "status:tone" }
     - layout: section
       gap: default
       when: { viewer: workspace_role, is: admin }

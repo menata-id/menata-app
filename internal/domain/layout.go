@@ -151,6 +151,38 @@ const (
 // KnownRowWraps is the closed set.
 var KnownRowWraps = map[RowWrap]bool{RowWrapWrap: true, RowNoWrap: true}
 
+// RowTrack is the width a child of a row keeps, so the children of one row sit in the same columns as those of the rows around it
+// (Workspace Home's list: a name that grows, a role column, a badge column). A row declares `tracks:` as one word for each child, in
+// order, and a child that a `when:` leaves out still holds its column, so what comes after it does not slide left. Named for what the
+// column holds and not for a width, as `AsideWidth` is: four steps, the four the Home list needed, and a fifth arrives with its screen.
+//
+// Below `sm` a column is not fixed: a phone's row wraps, and the role and the badge flow under the name.
+type RowTrack string
+
+const (
+	// TrackFill takes what the others leave and may shrink: the name and its lines.
+	TrackFill RowTrack = "fill"
+	// TrackFit is as wide as what it holds and never shrinks: an icon, a mark.
+	TrackFit RowTrack = "fit"
+	// TrackField is a fixed column for one short labelled value (168px from `sm`): "Your role: Approver".
+	TrackField RowTrack = "field"
+	// TrackBadge is a fixed column whose content sits at its end (120px from `sm`): a count or a status pill.
+	TrackBadge RowTrack = "badge"
+)
+
+// KnownRowTracks is the closed set.
+var KnownRowTracks = map[RowTrack]bool{TrackFill: true, TrackFit: true, TrackField: true, TrackBadge: true}
+
+// RowMark is what a row draws after its last child. One member: `chevron`, the disclosure mark of a row that is a link (the whole row
+// opens something). It is a row's own, so a row that is a link says so in one word and not by a child each screen draws again.
+type RowMark string
+
+// MarkChevron is a right-pointing chevron in the faint ink.
+const MarkChevron RowMark = "chevron"
+
+// KnownRowMarks is the closed set.
+var KnownRowMarks = map[RowMark]bool{MarkChevron: true}
+
 // RowJustify is a row's main-axis distribution, as a closed set. Two members: flow from the start, or push the
 // children apart. Six of the 24 migrated sites do the second.
 type RowJustify string

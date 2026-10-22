@@ -1297,3 +1297,57 @@ func TestNoHandWrittenIconTile(t *testing.T) {
 		}
 	}
 }
+
+// chevronMarkSites are the `.templ` files that may still draw `@icon("chevron-right", ...)` themselves, each with what it is: not the
+// disclosure mark at the end of a row that opens something, which is `rowChevron` (and `layout: row`'s `mark: chevron`).
+var chevronMarkSites = map[string]struct {
+	n      int
+	reason string
+}{
+	"layout.templ":          {1, "rowChevron itself"},
+	"chooseworkspace.templ": {1, "the smaller (size-3) marker inside a workspace card's own button, which sits after a label and is not at a row's end"},
+}
+
+// TestNoHandWrittenRowChevron holds the floor for the row's chevron (2026-10-22): the mark at the end of a row that opens something was
+// written out by hand in five places (the settings rows, the application menu's sheet), each a span of the faint ink around the same
+// icon, and a page's `layout: row` could not say it at all. It is one `rowChevron` now, so its ink, its size and the `aria-hidden` a
+// decorative mark needs cannot drift. Measured by text in the `.templ` sources with comments removed; a chevron drawn another way
+// (an inline `<svg>`, a `.go` file, `chevron-left`, or the call written with a space after the parenthesis, which templ's formatter
+// normally removes) is not seen.
+func TestNoHandWrittenRowChevron(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`(?m)(^|[ \t])//[^\n]*`)
+	seen := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		if n := strings.Count(comment.ReplaceAllString(string(b), ""), `@icon("chevron-right"`); n > 0 {
+			seen[e.Name()] = n
+		}
+	}
+	for name, n := range seen {
+		allowed, ok := chevronMarkSites[name]
+		switch {
+		case !ok:
+			t.Errorf("%s draws a chevron %d time(s) by hand: use `@rowChevron()` (or `mark: chevron` on a declared row) so a row's disclosure mark stays one decision", name, n)
+		case n > allowed.n:
+			t.Errorf("%s draws %d chevrons by hand, up from %d (%s)", name, n, allowed.n, allowed.reason)
+		case n < allowed.n:
+			t.Errorf("%s draws %d chevrons by hand, down from %d -- lower chevronMarkSites to lock it in", name, n, allowed.n)
+		}
+	}
+	for name := range chevronMarkSites {
+		if seen[name] == 0 {
+			t.Errorf("chevronMarkSites names %s, which draws no chevron now -- remove the entry", name)
+		}
+	}
+}

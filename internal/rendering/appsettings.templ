@@ -95,9 +95,7 @@ templ settingsRow(href, label, description string, current bool) {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 			}
 		</span>
-		<span class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
-			@icon("chevron-right", "size-4")
-		</span>
+		@rowChevron()
 	</a>
 }
 
@@ -151,9 +149,7 @@ templ settingsListRow(href, label, description string) {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 			}
 		</span>
-		<span class={ "shrink-0", inkClass(ctx, domain.InkFaint) }>
-			@icon("chevron-right", "size-4")
-		</span>
+		@rowChevron()
 	</a>
 }
 

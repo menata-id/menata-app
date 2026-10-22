@@ -1168,7 +1168,8 @@ func TestCollection_dividedDrawsOneSurfaceWithARuleBetweenRows(t *testing.T) {
 	got := render(false, true)
 	for _, want := range []string{
 		`<ul class="m-0 list-none overflow-hidden p-0 rounded-lg border border-slate-200 bg-white">`,
-		`<li class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0">`,
+		// `relative` makes the item the ancestor a `variant: row` link stretches over; it draws nothing.
+		`<li class="relative flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0">`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("divided collection missing %q; got %q", want, got)

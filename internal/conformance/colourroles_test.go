@@ -128,7 +128,7 @@ var handWrittenColours = map[string]struct {
 	"account.templ":            {2, "the focus ring (CP4): a field's and the notification toggle's"},
 	"attachments.templ":        {1, "the focus ring (CP4) of the attach button"},
 	"authshell.templ":          {4, "the focus ring (CP4) of three pre-auth controls, and the brand glyph's white on bg-brand"},
-	"controls.templ":           {1, "the focus ring (CP4) in fieldClasses"},
+	"controls.templ":           {2, "the focus ring (CP4) in fieldClasses, and the same ring (blue-300, as the base rule and the sr-only stand-ins draw it) on the box a `variant: row` link covers: a row-sized target shows a row-sized ring"},
 	"login.templ":              {2, "the focus ring (CP4) of the two sign-in fields"},
 	"layout.templ":             {6, "markGoodFill/Border/HoverBorder: the Design System's mark-good, one value in both modes (DK7); paperClass and paperInkClass: the PDF paper layer, white with fixed inks in both modes (DK9)"},
 	"declaredscreen.templ":     {3, "the calendar card's drop-target ring in its script, the board's mark (markGoodScriptUses): mark-good, one value in both modes (DK7)"},

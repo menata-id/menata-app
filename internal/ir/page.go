@@ -642,11 +642,21 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if err != nil {
 		return nil, err
 	}
+	tracks, err := rowTracks(n, props, path)
+	if err != nil {
+		return nil, err
+	}
+	if tracks != nil {
+		props = withoutKey(props, "tracks")
+	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, c := range n.Children {
 		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record, writes)
 		if err != nil {
 			return nil, err
+		}
+		if tracks != nil {
+			kids = inTrack(kids, tracks[i])
 		}
 		out.Children = append(out.Children, kids...)
 	}
@@ -654,6 +664,60 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		return nil, err
 	}
 	return []UINode{out}, nil
+}
+
+// rowTracks reads a row's `tracks:` -- one word for each child, in order -- and refuses what cannot be drawn: a word outside the closed
+// set, a count that is not the children's, or `tracks:` on anything but a row. nil when the node declares none.
+func rowTracks(n domain.PageNode, props map[string]string, path string) ([]domain.RowTrack, error) {
+	words, declared := props["tracks"]
+	if !declared {
+		return nil, nil
+	}
+	if NodeKind(n.Kind) != NodeLayout || n.Type != string(domain.LayoutRow) {
+		return nil, fmt.Errorf("%s: tracks: gives the children of a row their columns, so it is valid only on a layout: row", path)
+	}
+	fields := strings.Fields(words)
+	if len(fields) != len(n.Children) {
+		return nil, fmt.Errorf("%s: tracks: names %d column(s) and the row holds %d child(ren) -- one word for each child, in order, a child a when: hides still holding its column", path, len(fields), len(n.Children))
+	}
+	for i, c := range n.Children {
+		if c.Each != "" || c.Binding != nil {
+			return nil, fmt.Errorf("%s: tracks: a column holds one child, and children[%d] draws once for each of something (each: / binding:), which would put several boxes in one column and shift every row that has a different number of them", path, i)
+		}
+	}
+	out := make([]domain.RowTrack, len(fields))
+	for i, w := range fields {
+		if !domain.KnownRowTracks[domain.RowTrack(w)] {
+			return nil, fmt.Errorf("%s: tracks: %q is not a column (fill, fit, field, badge)", path, w)
+		}
+		out[i] = domain.RowTrack(w)
+	}
+	return out, nil
+}
+
+// inTrack puts every node a child lowered to in its column. A child that lowered to nothing -- a `when:` that did not hold -- becomes an
+// empty caption in that column, so the columns after it keep their place instead of sliding left (an empty `layout` would be refused: a
+// Layout exists to hold children).
+func inTrack(kids []UINode, track domain.RowTrack) []UINode {
+	if len(kids) == 0 {
+		kids = []UINode{{Kind: NodeStatic, Type: string(domain.StaticCaption), Props: map[string]string{"text": ""}}}
+	}
+	out := make([]UINode, len(kids))
+	for i, k := range kids {
+		k.Track = track
+		out[i] = k
+	}
+	return out
+}
+
+func withoutKey(m map[string]string, key string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		if k != key {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // lowerLayoutEmpty consumes a layout's `empty:` -- the words a page says when everything it holds was hidden by its

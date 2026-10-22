@@ -160,6 +160,13 @@ templ quietLink(href, text string) {
 	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkSecondary), inkHoverClass(ctx, domain.InkStrong) }>{ text }</a>
 }
 
+// rowLink is `variant: row`: the strong ink of plainLink, and a hit area that is the row around it. The `after:` box stretches over the
+// nearest positioned ancestor (a divided Collection's item is one), so the whole row is one target and what else it holds is not a second
+// one -- the technique the board card's title already uses. Keyboard focus draws the global ring on the words and, inside the row's edge, the same ring on the box the link covers, so a row-sized target shows a row-sized ring.
+templ rowLink(href, text string) {
+	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkStrong), accentHoverClass(ctx), "after:absolute after:inset-0", "focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-blue-300" }>{ text }</a>
+}
+
 // plainLink is `variant: plain`: the link in the strong ink, the accent only when it is pointed at.
 templ plainLink(href, text string) {
 	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkStrong), accentHoverClass(ctx) }>{ text }</a>
