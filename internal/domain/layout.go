@@ -156,7 +156,8 @@ var KnownRowWraps = map[RowWrap]bool{RowWrapWrap: true, RowNoWrap: true}
 // order, and a child that a `when:` leaves out still holds its column, so what comes after it does not slide left. Named for what the
 // column holds and not for a width, as `AsideWidth` is: four steps, the four the Home list needed, and a fifth arrives with its screen.
 //
-// Below `sm` a column is not fixed: a phone's row wraps, and the role and the badge flow under the name.
+// Below `sm` a column is not fixed: the badge keeps its own width and the `field` column is left out (a phone's row is one line, so the row
+// declares `wrap: nowrap`).
 type RowTrack string
 
 const (

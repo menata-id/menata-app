@@ -18,6 +18,7 @@ page:
         - layout: row
           gap: comfortable
           align: center
+          wrap: nowrap
           tracks: fit fill field badge
           mark: chevron
           children:

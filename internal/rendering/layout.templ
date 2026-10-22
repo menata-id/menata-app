@@ -1368,15 +1368,18 @@ func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, just
 }
 
 // rowTrackClasses is the box a column of a row with `tracks:` draws around its child, a whole literal string for each step (the scanner
-// reads this file's text). The two fixed columns are fixed only from `sm` up: a phone's row wraps and they flow under the name.
+// reads this file's text). The two fixed columns are fixed only from `sm` up. On a phone the row is one line (the row declares
+// `wrap: nowrap`): the badge keeps its own width and the `field` column is left out, because a row that wrapped instead put the icon,
+// the name and the chevron on three different lines (measured at 390px, 2026-10-22). The mockup's phone row says the field as a third
+// line under the name; that needs a child to move between columns, which a track cannot do yet.
 func rowTrackClasses(track domain.RowTrack) string {
 	switch track {
 	case domain.TrackFit:
 		return "shrink-0"
 	case domain.TrackField:
-		return "min-w-0 sm:w-42 sm:shrink-0"
+		return "hidden min-w-0 sm:block sm:w-42 sm:shrink-0"
 	case domain.TrackBadge:
-		return "flex sm:w-30 sm:shrink-0 sm:justify-end"
+		return "flex shrink-0 sm:w-30 sm:justify-end"
 	default:
 		return "min-w-0 grow"
 	}
