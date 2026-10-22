@@ -12,6 +12,7 @@ page:
       gap: default
       block: true
       divided: true
+      density: roomy
       empty: No application to open here yet. An application appears once it is installed into this workspace and you hold a role in it; ask a workspace admin for one.
       binding: { dataset: ds_runtime_home_applications, rows: records }
       children:
@@ -19,7 +20,7 @@ page:
           gap: comfortable
           align: center
           wrap: nowrap
-          tracks: fit fill field badge
+          tracks: fit fill badge
           mark: chevron
           children:
             - layout: stack
@@ -34,16 +35,20 @@ page:
                   state: draft
                   when: { role: status, is: Draft }
                   from: { icon: icon }
-            - layout: stack
+            - layout: columns
               gap: hair
+              tracks: fill field
               children:
-                - static: link
-                  variant: row
-                  from: { text: title, href: link }
+                - layout: stack
+                  gap: hair
+                  children:
+                    - static: link
+                      variant: row
+                      from: { text: title, href: link }
+                    - static: caption
+                      from: { text: subtitle }
                 - static: caption
-                  from: { text: subtitle }
-            - static: caption
-              from: { text: detail }
+                  from: { text: detail }
             - component: StatusBadge
               when: { role: status, is_not: None }
               from: { label: summary, tone: "status:tone" }

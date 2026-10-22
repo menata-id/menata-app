@@ -34,12 +34,12 @@ func trackedRowNode() ir.UINode {
 // in no column is drawn with no box at all (the byte-identical case every existing screen is).
 func TestRowTracks_eachStepDrawsItsOwnBox(t *testing.T) {
 	got := renderUINode(t, trackedRowNode())
-	for _, want := range []string{`class="min-w-0 grow"`, `class="hidden min-w-0 sm:block sm:w-42 sm:shrink-0"`, `class="flex shrink-0 sm:w-30 sm:justify-end"`} {
+	for _, want := range []string{`class="min-w-0 grow"`, `class="min-w-0 sm:w-42 sm:shrink-0"`, `class="flex shrink-0 sm:w-30 sm:justify-end"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("row does not draw %s:\n%s", want, got)
 		}
 	}
-	if n := strings.Count(got, `class="hidden min-w-0 sm:block sm:w-42 sm:shrink-0"`); n != 1 {
+	if n := strings.Count(got, `class="min-w-0 sm:w-42 sm:shrink-0"`); n != 1 {
 		t.Errorf("the field column is drawn %d times, want once (an empty child still holds it)", n)
 	}
 	plain := trackedRowNode()
@@ -79,7 +79,7 @@ func TestLinkVariantRow_stretchesOverTheRow(t *testing.T) {
 	// And a Collection's divided item is the positioned ancestor it stretches over.
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "item"); return err })
 	var buf bytes.Buffer
-	if err := collectionBody(domain.GapDefault, "", false, true, true, false, []templ.Component{item}).Render(context.Background(), &buf); err != nil {
+	if err := collectionBody(domain.GapDefault, "", false, true, true, false, "", []templ.Component{item}).Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(buf.String(), `<li class="relative `) {
@@ -92,7 +92,7 @@ func TestCollectionInline_isARunNotAColumn(t *testing.T) {
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "chip"); return err })
 	render := func(inline bool) string {
 		var buf bytes.Buffer
-		if err := collectionBody(domain.GapTight, "", false, false, false, inline, []templ.Component{item, item}).Render(context.Background(), &buf); err != nil {
+		if err := collectionBody(domain.GapTight, "", false, false, false, inline, "", []templ.Component{item, item}).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
 		return strings.TrimSpace(buf.String())
@@ -185,5 +185,26 @@ func TestStaticDivider_isAnHrInTheDividerRole(t *testing.T) {
 	}
 	if !strings.Contains(got, "h-px") || !strings.Contains(got, "bg-border-divider") {
 		t.Errorf("the rule is not 1px in the divider role: %s", got)
+	}
+}
+
+// `density` sets the padding of a divided Collection's rows: regular is the 16px-by-12px row every list drew, roomy the 20px-by-14px row of
+// a list whose rows carry an icon tile.
+func TestCollectionDensity_setsADividedRowsPadding(t *testing.T) {
+	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "row"); return err })
+	render := func(density domain.ListDensity, ordered bool) string {
+		var buf bytes.Buffer
+		if err := collectionBody(domain.GapDefault, "", ordered, true, false, false, density, []templ.Component{item}).Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	for _, ordered := range []bool{false, true} {
+		if got := render("", ordered); !strings.Contains(got, "px-4 py-3") || strings.Contains(got, "px-5") {
+			t.Errorf("ordered=%v: the default row is not the regular padding:\n%s", ordered, got)
+		}
+		if got := render(domain.ListRoomy, ordered); !strings.Contains(got, "px-5 py-3.5") || strings.Contains(got, "px-4 py-3 ") {
+			t.Errorf("ordered=%v: a roomy row does not carry the roomy padding:\n%s", ordered, got)
+		}
 	}
 }

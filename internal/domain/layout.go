@@ -151,13 +151,26 @@ const (
 // KnownRowWraps is the closed set.
 var KnownRowWraps = map[RowWrap]bool{RowWrapWrap: true, RowNoWrap: true}
 
+// ListDensity is how much room the rows of a divided Collection give their content, a closed set named for the rows and not for pixels:
+// `regular` is the 16px-by-12px row every list drew, `roomy` the 20px-by-14px row of a list whose rows carry an icon tile and two lines
+// (Workspace Home's Applications; the mockups' Applications and Members lists share its 20px sides). The word `density` is PanelDensity's.
+type ListDensity string
+
+const (
+	ListRegular ListDensity = "regular"
+	ListRoomy   ListDensity = "roomy"
+)
+
+// KnownListDensities is the closed set.
+var KnownListDensities = map[ListDensity]bool{ListRegular: true, ListRoomy: true}
+
 // RowTrack is the width a child of a row keeps, so the children of one row sit in the same columns as those of the rows around it
 // (Workspace Home's list: a name that grows, a role column, a badge column). A row declares `tracks:` as one word for each child, in
 // order, and a child that a `when:` leaves out still holds its column, so what comes after it does not slide left. Named for what the
 // column holds and not for a width, as `AsideWidth` is: four steps, the four the Home list needed, and a fifth arrives with its screen.
 //
-// Below `sm` a column is not fixed: the badge keeps its own width and the `field` column is left out (a phone's row is one line, so the row
-// declares `wrap: nowrap`).
+// Below `sm` a column is not fixed: the badge keeps its own width (a phone's row is one line, so the row declares `wrap: nowrap`), and a
+// `field` set in a `columns` layout with the name is stacked under it, because `columns` stack on a phone.
 type RowTrack string
 
 const (

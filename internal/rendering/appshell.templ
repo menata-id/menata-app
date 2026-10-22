@@ -1010,7 +1010,7 @@ templ launcherAppCard(app domain.Application) {
 // activityFeedListRow is the activity feed as a `Collection` whose item slot holds one entry row. It and
 // `taskRowList` were structurally identical and are the two independent callers `Collection` arrived with.
 templ activityFeedListRow(entries []ActivityEntry) {
-	@collection(domain.GapTight, "", false, false, false, false, Truncation{}, "", "", activityItems(entries))
+	@collection(domain.GapTight, "", false, false, false, false, "", Truncation{}, "", "", activityItems(entries))
 }
 
 // activityItems fills the item slot, one composed component per entry. A plain Go helper rather than a templ

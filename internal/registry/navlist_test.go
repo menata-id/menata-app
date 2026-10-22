@@ -89,3 +89,19 @@ func TestValidateCollection_inlineIsBooleanAndExcludesTheOtherShapes(t *testing.
 		}
 	}
 }
+
+// `density` is the padding of a divided list's rows: a closed set, and meaningless without `divided`.
+func TestValidateCollection_densityIsClosedAndNeedsDivided(t *testing.T) {
+	if issues := validateCollection(map[string]string{"gap": "tight", "divided": "true", "density": "roomy"}); len(issues) != 0 {
+		t.Errorf("a roomy divided list: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"unknown":       {"gap": "tight", "divided": "true", "density": "huge"},
+		"not divided":   {"gap": "tight", "density": "roomy"},
+		"divided false": {"gap": "tight", "divided": "false", "density": "roomy"},
+	} {
+		if issues := validateCollection(in); len(issues) == 0 {
+			t.Errorf("density with %s was accepted", name)
+		}
+	}
+}

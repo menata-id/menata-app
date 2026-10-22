@@ -1221,17 +1221,25 @@ func truncationFromProp(limit string) Truncation {
 	return t
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, truncated Truncation, heading string, hint string, items []templ.Component) {
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, truncated Truncation, heading string, hint string, items []templ.Component) {
 	if heading != "" {
 		@stackLayout(domain.GapTight) {
 			@collectionHeading(heading, hint, len(items))
-			@collectionBody(gap, empty, ordered, divided, block, inline, items)
+			@collectionBody(gap, empty, ordered, divided, block, inline, density, items)
 			@truncationNotice(truncated)
 		}
 	} else {
-		@collectionBody(gap, empty, ordered, divided, block, inline, items)
+		@collectionBody(gap, empty, ordered, divided, block, inline, density, items)
 		@truncationNotice(truncated)
 	}
+}
+
+// listRowPadding is a divided Collection row's padding for each declared density: whole literal strings, as the scanner needs.
+func listRowPadding(density domain.ListDensity) string {
+	if density == domain.ListRoomy {
+		return "px-5 py-3.5"
+	}
+	return "px-4 py-3"
 }
 
 // collectionHeading is a section's title row: the heading, how many items sit under it, and an optional qualifier.
@@ -1247,13 +1255,13 @@ templ collectionHeading(heading string, hint string, count int) {
 	}
 }
 
-templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, items []templ.Component) {
+templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if divided && ordered {
 		<ol class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for i, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), listRowPadding(density), textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
 					@it
 				</li>
@@ -1262,7 +1270,7 @@ templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, b
 	} else if divided {
 		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for _, it := range items {
-				<li class={ "relative", templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3", textClass(ctx, domain.RoleBody), "last:border-b-0" }>
+				<li class={ "relative", templ.KV("flex flex-col", block), templ.KV("flex flex-wrap items-center", !block), layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), listRowPadding(density), textClass(ctx, domain.RoleBody), "last:border-b-0" }>
 					@it
 				</li>
 			}
@@ -1382,16 +1390,16 @@ func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, just
 }
 
 // rowTrackClasses is the box a column of a row with `tracks:` draws around its child, a whole literal string for each step (the scanner
-// reads this file's text). The two fixed columns are fixed only from `sm` up. On a phone the row is one line (the row declares
-// `wrap: nowrap`): the badge keeps its own width and the `field` column is left out, because a row that wrapped instead put the icon,
-// the name and the chevron on three different lines (measured at 390px, 2026-10-22). The mockup's phone row says the field as a third
-// line under the name; that needs a child to move between columns, which a track cannot do yet.
+// reads this file's text). The two fixed columns are fixed only from `sm` up. On a phone a row is one line (it declares `wrap: nowrap`;
+// one that wrapped put the icon, the name and the chevron on three lines, measured at 390px, 2026-10-22) and the badge keeps its own
+// width. The `field` stays in the flow: put it in a `layout: columns` with the name and the columns stack it under the name on a phone
+// (the mockup's phone row) and set it in its own column from `sm` up.
 func rowTrackClasses(track domain.RowTrack) string {
 	switch track {
 	case domain.TrackFit:
 		return "shrink-0"
 	case domain.TrackField:
-		return "hidden min-w-0 sm:block sm:w-42 sm:shrink-0"
+		return "min-w-0 sm:w-42 sm:shrink-0"
 	case domain.TrackBadge:
 		return "flex shrink-0 sm:w-30 sm:justify-end"
 	default:
@@ -1656,7 +1664,7 @@ templ uiNodeBody(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", domain.ListDensity(n.Props["density"]), truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

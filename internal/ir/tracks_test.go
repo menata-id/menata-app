@@ -86,7 +86,7 @@ func TestLower_refusesTracksThatCannotBeDrawn(t *testing.T) {
 	notARow := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"tracks": "fill"}, Children: []domain.PageNode{
 		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}},
 	}}
-	if _, err := Lower(notARow, Resolver{}); err == nil || !strings.Contains(err.Error(), "only on a layout: row") {
+	if _, err := Lower(notARow, Resolver{}); err == nil || !strings.Contains(err.Error(), "only on a layout: row or columns") {
 		t.Errorf("tracks on a stack: err = %v", err)
 	}
 }
@@ -120,5 +120,24 @@ func TestLower_refusesAnEachOrBoundChildUnderTracks(t *testing.T) {
 	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(row)}}
 	if _, err := Lower(root, recordWithStatus("Pending")); err == nil || !strings.Contains(err.Error(), "draws once for each of something") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// `columns` stack on a phone, so `tracks:` on one is how a name and its field sit side by side from `sm` up and one under the other on a
+// phone: the same positional rule as a row's, the hidden child still holding its column.
+func TestLower_columnsTakeTracksToo(t *testing.T) {
+	cols := trackedRow("fill field badge")
+	cols.Type = "columns"
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(cols)}}
+	got, err := Lower(root, recordWithStatus("Done"))
+	if err != nil {
+		t.Fatalf("Lower: %v", err)
+	}
+	kids := got.Children[0].Children[0].Children
+	if len(kids) != 3 || kids[0].Track != domain.TrackFill || kids[1].Track != domain.TrackField || kids[2].Track != domain.TrackBadge {
+		t.Errorf("columns children are not in their columns: %+v", kids)
+	}
+	if issues := Validate(got.Children[0].Children[0]); len(issues) > 0 {
+		t.Errorf("a columns layout with tracks fails validation: %v", issues)
 	}
 }

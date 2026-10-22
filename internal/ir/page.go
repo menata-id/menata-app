@@ -673,8 +673,8 @@ func rowTracks(n domain.PageNode, props map[string]string, path string) ([]domai
 	if !declared {
 		return nil, nil
 	}
-	if NodeKind(n.Kind) != NodeLayout || n.Type != string(domain.LayoutRow) {
-		return nil, fmt.Errorf("%s: tracks: gives the children of a row their columns, so it is valid only on a layout: row", path)
+	if NodeKind(n.Kind) != NodeLayout || (n.Type != string(domain.LayoutRow) && n.Type != string(domain.LayoutColumns)) {
+		return nil, fmt.Errorf("%s: tracks: gives the children of a row (or of columns) their columns, so it is valid only on a layout: row or columns", path)
 	}
 	fields := strings.Fields(words)
 	if len(fields) != len(n.Children) {

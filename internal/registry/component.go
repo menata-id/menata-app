@@ -937,6 +937,7 @@ var collectionContract = domain.ComponentContract{
 		{Name: "divided", Kind: "bool"},
 		{Name: "block", Kind: "bool"},
 		{Name: "inline", Kind: "bool"},
+		{Name: "density", Kind: "ListDensity"},
 		{Name: "truncated", Kind: "int"},
 		{Name: "heading", Kind: "string"},
 		{Name: "hint", Kind: "string"},
@@ -961,6 +962,13 @@ func validateCollection(inputs map[string]string) []string {
 	}
 	if v := inputs["inline"]; v != "" && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Collection inline %q is not true or false", v))
+	}
+	if v := inputs["density"]; v != "" {
+		if !domain.KnownListDensities[domain.ListDensity(v)] {
+			issues = append(issues, fmt.Sprintf("Collection density %q is not one of the declared densities (regular, roomy)", v))
+		} else if inputs["divided"] != "true" {
+			issues = append(issues, "Collection density sets the padding of a divided list's rows, so it needs divided: true")
+		}
 	}
 	if inputs["inline"] == "true" && (inputs["ordered"] == "true" || inputs["divided"] == "true" || inputs["block"] == "true") {
 		issues = append(issues, "Collection inline lays its items in one wrapping run (a row of chips), so it is not also ordered, divided or block")
