@@ -54,7 +54,7 @@ func ValidateRecordAgainst(m *domain.Machine, values, stored map[string]any) err
 			blank = true
 		}
 		if blank && (f.Required || requiredNow(f, values)) {
-			issues = append(issues, fmt.Sprintf("field %q is required", f.ID))
+			issues = append(issues, fmt.Sprintf("field %q is required (%s)", f.ID, f.Name))
 			continue
 		}
 		if empty {
