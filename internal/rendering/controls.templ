@@ -530,6 +530,9 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>
+			if note := emptyReferenceNote(ctx, f, relations, required); note != "" {
+				<p class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ note }</p>
+			}
 		// A group Field picks from the Workspace's own Groups (CAP-F24). Its own case rather than
 		// the IsReference() one above precisely because IsReference() is false for it: a Group has
 		// no target Machine to key relations by, so the options arrive in their own list.
