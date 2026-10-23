@@ -61,7 +61,7 @@ navigation:
   # Application's primary screen -- mch_task's default view, vw_task_board -- but nothing
   # declared it, so it was reachable only through the generic Machine list.
   - id: nav_board
-    label: Board
+    label: Tasks
     route: /machines/mch_task
     priority: 2
     icon: board

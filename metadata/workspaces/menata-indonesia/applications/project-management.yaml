@@ -64,7 +64,7 @@ navigation:
   # then the rest behind "More" (rendering.appMenuTabLimit). mch_task's default view is vw_task_board;
   # until 2026-10-11 only `default`'s copy declared this item, so every other install had no Board in its menu.
   - id: nav_board
-    label: Board
+    label: Tasks
     route: /machines/mch_task
     priority: 2
     icon: board
