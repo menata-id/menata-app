@@ -491,7 +491,7 @@ func TestHomeIsARuntimePageOpenToEveryMember(t *testing.T) {
 		app.Name, "Your role:", `href="` + app.HomeRoute + `"`,
 		"HP-Leave Requests", `href="/new-application/` + session.ID + `/review"`, ">Draft<",
 		"Add an application", `role="search"`, `action="/new-application"`, `name="idea"`, "Start →",
-		`href="/install-application"`, "Install an application", "You manage",
+		`href="/install-application"`, "start from the library", "You manage",
 		`href="/workspace-settings"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -520,7 +520,7 @@ func TestHomeIsARuntimePageOpenToEveryMember(t *testing.T) {
 	if !strings.Contains(got, app.Name) || !strings.Contains(got, "Your role: "+domain.AppRoleLabel(app.Roles[0])) {
 		t.Error("a member does not see the Application they hold a role in, with that role")
 	}
-	for _, hidden := range []string{"HP-Leave Requests", "Add an application", `name="idea"`, "Install an application", "You manage"} {
+	for _, hidden := range []string{"HP-Leave Requests", "Add an application", `name="idea"`, "start from the library", "You manage"} {
 		if strings.Contains(got, hidden) {
 			t.Errorf("a member's Home shows %q, which is for admins", hidden)
 		}

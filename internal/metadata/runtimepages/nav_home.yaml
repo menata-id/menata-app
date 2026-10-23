@@ -56,22 +56,13 @@ page:
       gap: default
       when: { viewer: workspace_role, is: admin }
       children:
-        - layout: row
-          gap: default
-          align: stretch
-          wrap: nowrap
+        - layout: stack
+          gap: hair
           children:
-            - component: IconTile
-              icon: sparkle
-              state: assistant
-              size: sheet
-            - layout: stack
-              gap: tight
-              children:
-                - static: panel-heading
-                  text: Add an application
-                - static: message
-                  text: Describe what your team needs. Menata asks a few questions, shows what it will build, then generates it as a draft; nobody else sees it until you publish.
+            - static: overline
+              text: Add an application
+            - static: caption
+              text: Describe what your team needs. Menata asks a few questions, shows what it will build, then generates it as a draft; nobody else sees it until you publish.
         - component: SearchBox
           label: Describe the application you need
           query: idea
@@ -79,21 +70,34 @@ page:
           submit: Start →
           to: nav_new_application
         - layout: row
-          gap: default
+          gap: tight
           align: center
           justify: spread
           children:
-            - component: Collection
+            - layout: row
               gap: tight
-              inline: true
-              hide_empty: true
-              binding: { dataset: ds_runtime_application_suggestions, rows: records }
+              align: center
               children:
+                - static: caption
+                  text: "Try:"
+                - component: Collection
+                  gap: tight
+                  inline: true
+                  hide_empty: true
+                  binding: { dataset: ds_runtime_application_suggestions, rows: records }
+                  children:
+                    - static: link
+                      variant: chip
+                      from: { text: title, href: link }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - static: caption
+                  text: "\u2014 or"
                 - static: link
-                  variant: chip
-                  from: { text: title, href: link }
-            - static: caption
-              text: Only workspace admins can add applications.
+                  to: nav_install_application
+                  text: start from the library
     - static: divider
       when: { viewer: workspace_role, is: admin }
     - component: Collection
@@ -120,10 +124,6 @@ page:
               gap: comfortable
               align: center
               children:
-                - static: link
-                  variant: quiet
-                  to: nav_install_application
-                  text: Install an application
                 - static: link
                   icon: settings
                   to: nav_workspace_settings
