@@ -35,6 +35,7 @@ fields:
     name: List
     type: relation
     machine: mch_list
+    on_parent_delete: restrict
 
 # A Task's own status move gets logged to the Project Activity feed (ROADMAP.md Phase 14),
 # generalized here (2026-09-19) from what used to be hardcoded Go (internal/web's
