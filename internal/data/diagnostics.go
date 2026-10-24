@@ -28,10 +28,14 @@ type ReadLog struct {
 	dbTime  time.Duration
 	// method and path say which request this log belongs to, for a line the tracer writes while
 	// the request is still running (SLOW-QUERY), when queryDiagnostics has not printed its own yet.
-	method   string
-	path     string
-	total    int
-	byTarget map[string]int
+	method string
+	path   string
+	// workspace is the slug of the Workspace the request turned out to be in. queryDiagnostics sits
+	// outside the middleware that resolves it, so that middleware reports it here (NoteWorkspace)
+	// and the line printed afterwards carries it. Empty for a request that never reached one.
+	workspace string
+	total     int
+	byTarget  map[string]int
 }
 
 // countQuery records one statement issued through the pool (QueryTracer). Unlike record it takes
@@ -61,6 +65,28 @@ func (l *ReadLog) SetRequest(method, path string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.method, l.path = method, path
+}
+
+// NoteWorkspace records which Workspace the request is in, so its diagnostic line can say so. A
+// ctx with no ReadLog is ignored.
+func NoteWorkspace(ctx context.Context, slug string) {
+	l := readLogFrom(ctx)
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.workspace = slug
+}
+
+// Workspace is the slug NoteWorkspace recorded, or "" when none was.
+func (l *ReadLog) Workspace() string {
+	if l == nil {
+		return ""
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.workspace
 }
 
 func (l *ReadLog) request() string {

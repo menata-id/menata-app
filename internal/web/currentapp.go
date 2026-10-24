@@ -39,6 +39,7 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 			if row, ok := currentWorkspaceRow(ctx, store); ok {
 				ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name, row.Archived)
 				req = req.WithContext(ctx)
+				data.NoteWorkspace(ctx, row.Slug)
 			}
 			next.ServeHTTP(w, req)
 		})

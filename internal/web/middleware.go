@@ -335,10 +335,17 @@ func logRequest(req *http.Request, reads *data.ReadLog, status string, elapsed t
 	// a periodic review parses by position (count fields, then the path) stays where it was. db is the
 	// summed statement time, total is the handler's wall time; total minus db is what the page spent
 	// outside the database.
-	log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s] writes=%d db=%s total=%s method=%s status=%s route=%s",
+	// ws= follows route= and is printed only when the request reached a Workspace, so a pre-auth line
+	// is as short as it was. Without it a slow or failing route cannot be attributed to a Workspace
+	// from the log, though every Workspace has its own copy of the metadata behind that route.
+	ws := ""
+	if slug := reads.Workspace(); slug != "" {
+		ws = " ws=" + slug
+	}
+	log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s] writes=%d db=%s total=%s method=%s status=%s route=%s%s",
 		anomalyPrefix(req.Method, status, reads.Repeated(), gap),
 		reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "), reads.Writes(),
-		formatMillis(reads.DBTime()), formatMillis(elapsed), req.Method, status, route)
+		formatMillis(reads.DBTime()), formatMillis(elapsed), req.Method, status, route, ws)
 }
 
 // formatMillis prints a duration as milliseconds with one decimal ("12.3ms"). Whole milliseconds

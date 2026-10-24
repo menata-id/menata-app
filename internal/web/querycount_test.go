@@ -551,7 +551,7 @@ func TestNoGetRouteVariantRepeatsAReadOrLeavesOneUnnamed(t *testing.T) {
 	}
 }
 
-var queryTimingPattern = regexp.MustCompile(`\] writes=\d+ db=([0-9.]+)ms total=([0-9.]+)ms method=[A-Z]+ status=(\d+|panic) route=\S+$`)
+var queryTimingPattern = regexp.MustCompile(`\] writes=\d+ db=([0-9.]+)ms total=([0-9.]+)ms method=[A-Z]+ status=(\d+|panic) route=\S+( ws=\S+)?$`)
 
 // TestDiagnosticLineReportsDurations holds the two timing fields the log review of 2026-10-05 found
 // missing (it could say how many statements a page ran but never how long it took). db must be
@@ -647,6 +647,34 @@ func TestDiagnosticLineCarriesMethodStatusAndRoutePattern(t *testing.T) {
 	implicit := diagnosticLineFor(t, "/quiet", func(http.ResponseWriter, *http.Request) {}, http.MethodGet, "/quiet")
 	if !strings.Contains(implicit, "status=200") {
 		t.Errorf("a handler that wrote nothing is a 200:\n  %s", implicit)
+	}
+}
+
+// TestDiagnosticLineNamesTheWorkspace: queryDiagnostics runs outside the middleware that resolves the
+// Workspace, so ws= only appears if that middleware reports it back; a request that never reached a
+// Workspace carries no ws= at all.
+func TestDiagnosticLineNamesTheWorkspace(t *testing.T) {
+	in := diagnosticLineFor(t, "/w", func(w http.ResponseWriter, r *http.Request) {
+		data.NoteWorkspace(r.Context(), "acme")
+	}, http.MethodGet, "/w")
+	if !strings.HasSuffix(in, " route=/w ws=acme") {
+		t.Errorf("a request inside a Workspace does not name it:\n  %s", in)
+	}
+	if !queryTimingPattern.MatchString(in) {
+		t.Errorf("ws= broke the documented trailing fields:\n  %s", in)
+	}
+	// The wiring itself: currentWorkspace is what reports the slug, reading the identity's row.
+	wired := diagnosticLineFor(t, "/w", func(w http.ResponseWriter, r *http.Request) {
+		id := &requestIdentity{workspace: &data.Workspace{Slug: "acme"}}
+		r = r.WithContext(context.WithValue(r.Context(), identityKey{}, id))
+		currentWorkspace(nil, map[string]domain.Workspace{})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(w, r)
+	}, http.MethodGet, "/w")
+	if !strings.HasSuffix(wired, " route=/w ws=acme") {
+		t.Errorf("currentWorkspace does not report the Workspace to the diagnostic line:\n  %s", wired)
+	}
+	out := diagnosticLineFor(t, "/w", func(http.ResponseWriter, *http.Request) {}, http.MethodGet, "/w")
+	if strings.Contains(out, "ws=") {
+		t.Errorf("a request outside any Workspace names one:\n  %s", out)
 	}
 }
 
