@@ -98,6 +98,7 @@ func newServer(addr string, h http.Handler) *http.Server {
 		ReadTimeout:       60 * time.Second,
 		WriteTimeout:      120 * time.Second,
 		IdleTimeout:       120 * time.Second,
+		ErrorLog:          web.ServerErrorLog(),
 	}
 }
 

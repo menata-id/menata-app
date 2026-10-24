@@ -38,18 +38,40 @@ func ReportPool(ctx context.Context, pool *pgxpool.Pool, every time.Duration) {
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
 	var prev poolSample
+	quiet := 0 // consecutive ticks whose line was left out
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			cur := sampleOf(pool.Stat())
-			var mem runtime.MemStats
-			runtime.ReadMemStats(&mem)
-			log.Print(formatPoolLine(prev, cur, runtime.NumGoroutine(), mem.HeapAlloc))
+			if poolLineDue(prev, cur, quiet) {
+				var mem runtime.MemStats
+				runtime.ReadMemStats(&mem)
+				log.Print(formatPoolLine(prev, cur, runtime.NumGoroutine(), mem.HeapAlloc))
+				quiet = 0
+			} else {
+				quiet++
+			}
 			prev = cur
 		}
 	}
+}
+
+// quietPoolTicks is how many consecutive idle ticks are left unprinted before one is printed anyway.
+// Six at five minutes is a line every half hour on a host nobody is using: the heap and goroutine
+// gauges still show a leak growing, at a sixth of the lines.
+const quietPoolTicks = 6
+
+// poolLineDue reports whether this tick prints. An interval in which the pool was not asked for a
+// connection (no acquires) and no caller gave up on one says only what the previous line said, so it
+// is left out until quietPoolTicks of them have passed. A canceled acquire always prints, since that
+// line carries the ANOMALY marker; so does the first tick, which covers everything since start.
+func poolLineDue(prev, cur poolSample, quiet int) bool {
+	if cur.acquires != prev.acquires || cur.canceled != prev.canceled {
+		return true
+	}
+	return quiet >= quietPoolTicks-1 || prev == (poolSample{})
 }
 
 // formatPoolLine renders one report. `empty` is acquires that found no idle connection and had to

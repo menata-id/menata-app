@@ -678,6 +678,24 @@ func TestDiagnosticLineNamesTheWorkspace(t *testing.T) {
 	}
 }
 
+// TestHealthyBadgePollsAreNotLogged: the two badge counts were half of all request lines. A plain 200
+// is left out; the same route failing, or any other route, is still a line.
+func TestHealthyBadgePollsAreNotLogged(t *testing.T) {
+	const poll = "/api/notifications/unread-count"
+	if line := diagnosticLineFor(t, poll, func(http.ResponseWriter, *http.Request) {}, http.MethodGet, poll); line != "" {
+		t.Errorf("a healthy badge poll was logged:\n  %s", line)
+	}
+	failed := diagnosticLineFor(t, poll, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}, http.MethodGet, poll)
+	if !strings.HasPrefix(failed, "ANOMALY(5xx) ") {
+		t.Errorf("a failing badge poll must still be logged and marked:\n  %s", failed)
+	}
+	if line := diagnosticLineFor(t, "/home", func(http.ResponseWriter, *http.Request) {}, http.MethodGet, "/home"); line == "" {
+		t.Error("an ordinary page must still be logged")
+	}
+}
+
 // TestDiagnosticLineSurvivesAPanicAndMarksIt: the Recoverer above turns a panic into a 500 after this
 // frame has unwound, so without the deferred log the most broken request was the one line missing.
 // Measured 2026-10-05: eight routes panicked in four Workspaces and the diagnostic said nothing.

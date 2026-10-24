@@ -308,6 +308,9 @@ func queryDiagnostics(next http.Handler) http.Handler {
 // that issued no query included: a 303 to /login and a 401 are requests too, and before this the log
 // was silent on exactly the traffic that never reached the database.
 func logRequest(req *http.Request, reads *data.ReadLog, status string, elapsed time.Duration) {
+	if quietPoll(req, reads, status, elapsed) {
+		return
+	}
 	parts := make([]string, 0, 8)
 	for _, tc := range reads.Breakdown() {
 		if tc.Reads > 1 {
@@ -346,6 +349,21 @@ func logRequest(req *http.Request, reads *data.ReadLog, status string, elapsed t
 		anomalyPrefix(req.Method, status, reads.Repeated(), gap),
 		reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "), reads.Writes(),
 		formatMillis(reads.DBTime()), formatMillis(elapsed), req.Method, status, route, ws)
+}
+
+// slowPollAt is the wall time from which a badge poll is logged even though it answered 200.
+const slowPollAt = 100 * time.Millisecond
+
+// quietPoll reports whether a request is a healthy badge poll, which logRequest leaves out. The two
+// badge counts are fetched on a timer by every open tab and were half of all request lines measured
+// 2026-10-24, so the log was mostly the same four statements repeated. Their cost is not lost: the
+// query budget is held by TestNavBadgeQueryCost, a slow statement still writes SLOW-QUERY, and a poll
+// that is not a plain 200, that repeats or leaves a statement unnamed, or that takes slowPollAt is
+// logged like any other request. The set is activeMembershipReadAllowlist's, the routes already
+// named there as small, frequently-polled GET fragments.
+func quietPoll(req *http.Request, reads *data.ReadLog, status string, elapsed time.Duration) bool {
+	return req.Method == http.MethodGet && activeMembershipReadAllowlist[req.URL.Path] &&
+		status == "200" && reads.Repeated() == 0 && reads.Unnamed() == 0 && elapsed < slowPollAt
 }
 
 // formatMillis prints a duration as milliseconds with one decimal ("12.3ms"). Whole milliseconds

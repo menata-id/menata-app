@@ -39,3 +39,30 @@ func TestFormatPoolLineSurvivesAnIdleInterval(t *testing.T) {
 		t.Errorf("idle interval: %s", got)
 	}
 }
+
+func TestIdlePoolIntervalsPrintOnlyEverySixth(t *testing.T) {
+	idle := poolSample{total: 2, idle: 2, max: 4, acquires: 50}
+	first := poolSample{}
+	if !poolLineDue(first, idle, 0) {
+		t.Error("the first tick covers everything since start and must print")
+	}
+	printed := 0
+	for tick := 0; tick < 12; tick++ {
+		if poolLineDue(idle, idle, tick%quietPoolTicks) {
+			printed++
+		}
+	}
+	if printed != 2 {
+		t.Errorf("12 idle ticks printed %d lines, want 2", printed)
+	}
+	busier := idle
+	busier.acquires += 3
+	if !poolLineDue(idle, busier, 0) {
+		t.Error("an interval with acquires must print")
+	}
+	gave := idle
+	gave.canceled = 1
+	if !poolLineDue(idle, gave, 0) {
+		t.Error("a canceled acquire must always print, it carries the ANOMALY marker")
+	}
+}
