@@ -29,13 +29,6 @@ navigation:
       layout: stack
       gap: comfortable
       children:
-        - component: ActionBar
-          label: Instalment actions
-          children:
-            - static: link
-              list_of: ds_purchase_orders
-              text: Purchase orders
-              variant: secondary
         - layout: grid
           gap: default
           columns: 4
