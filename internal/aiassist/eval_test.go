@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-const evalMaxTurns = 4
+const evalMaxTurns = 5
 
 // knownGapsForEval is the register as the test binary started, kept so a run without it can restore it.
 var knownGapsForEval = append([]KnownGap(nil), KnownGaps...)
@@ -42,12 +42,17 @@ var knownGapsForEval = append([]KnownGap(nil), KnownGaps...)
 const evalFollowUp = "Terserah kamu, pilih saja yang paling masuk akal untuk semua pertanyaan tadi. Saya sendiri memegang peran pertama. Semua masuk ke menu sesuai urutan usulanmu. Silakan langsung buatkan."
 
 type evalRun struct {
-	Case          string          `json:"case"`
-	Group         string          `json:"group"`
-	Run           int             `json:"run"`
-	Turns         int             `json:"turns"`
-	ChangeSet     bool            `json:"change_set"`
+	Case      string `json:"case"`
+	Group     string `json:"group"`
+	Run       int    `json:"run"`
+	Turns     int    `json:"turns"`
+	ChangeSet bool   `json:"change_set"`
+	// ValidateError is the refusal that stood after the one automatic correction round internal/web gives a
+	// change that does not validate (runAssistantTurn); FirstRefusal is what the model's first change drew.
+	// Recovered is true when the first change was refused and the corrected one was accepted.
 	ValidateError string          `json:"validate_error,omitempty"`
+	FirstRefusal  string          `json:"first_refusal,omitempty"`
+	Recovered     bool            `json:"recovered,omitempty"`
 	Gaps          []CapabilityGap `json:"gaps"`
 	Messages      []string        `json:"messages"`
 	Error         string          `json:"error,omitempty"`
@@ -177,8 +182,20 @@ func runEvalCase(client Client, prompt string, existing ExistingState, c evalCas
 		r.Gaps = append(r.Gaps, reply.Gaps()...)
 		if reply.Change != nil {
 			r.ChangeSet = true
-			if err := Validate(*reply.Change, existing); err != nil {
+			err := Validate(*reply.Change, existing)
+			if err != nil && r.FirstRefusal == "" {
+				// One correction round, worded as internal/web's handler words it: the model answers once more.
+				r.FirstRefusal = err.Error()
+				raw, _ := json.Marshal(reply)
+				report := "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
+					err.Error() + "\n\nCorrect it, or ask me what you need to know."
+				turns = append(turns, Turn{Role: "model", Text: string(raw)}, Turn{Role: "user", Text: report})
+				continue
+			}
+			if err != nil {
 				r.ValidateError = err.Error()
+			} else if r.FirstRefusal != "" {
+				r.Recovered = true
 			}
 			break
 		}
@@ -257,7 +274,7 @@ func summariseEval(rs []evalRun) string {
 	for _, g := range KnownGaps {
 		known[g.Key] = true
 	}
-	var total, errs, changes, valid int
+	var total, errs, changes, valid, refusedFirst, recovered int
 	var ctlRuns, ctlFalse, ctlRecords, ctlFromRegister, gapRuns, gapHit, gapOther, gapNone int
 	var keyRuns, keyHit int
 	var gaps, gapsIdeal, gapsKnown int
@@ -275,6 +292,12 @@ func summariseEval(rs []evalRun) string {
 			changes++
 			if r.ValidateError == "" {
 				valid++
+			}
+			if r.FirstRefusal != "" {
+				refusedFirst++
+				if r.Recovered {
+					recovered++
+				}
 			}
 		}
 		for _, g := range r.Gaps {
@@ -328,7 +351,9 @@ func summariseEval(rs []evalRun) string {
 	b.WriteString("| Measure | Result |\n|---|---|\n")
 	fmt.Fprintf(&b, "| Runs that failed outright (API error) | %s |\n", pct(errs, total))
 	fmt.Fprintf(&b, "| Runs that reached a change | %s |\n", pct(changes, total-errs))
-	fmt.Fprintf(&b, "| Changes that pass Validate | %s |\n", pct(valid, changes))
+	fmt.Fprintf(&b, "| Changes refused by Validate the first time | %s |\n", pct(refusedFirst, changes))
+	fmt.Fprintf(&b, "| ...of those, recovered by the one correction round | %s |\n", pct(recovered, refusedFirst))
+	fmt.Fprintf(&b, "| Changes that pass Validate after it (what a person gets) | %s |\n", pct(valid, changes))
 	fmt.Fprintf(&b, "| Gap cases: a gap of the wanted key or class recorded (recall) | %s |\n", pct(gapHit, gapRuns))
 	fmt.Fprintf(&b, "| Gap cases: gaps recorded, but none of the wanted key or class | %s |\n", pct(gapOther, gapRuns))
 	fmt.Fprintf(&b, "| Gap cases: no gap at all (a silent drop) | %s |\n", pct(gapNone, gapRuns))
@@ -363,7 +388,7 @@ func summariseEval(rs []evalRun) string {
 		sort.Strings(ks)
 		fmt.Fprintf(&b, "| %s | %s | %d/%d | %d/%d | %d/%d | %s |\n", id, runs[0].Group, sat, len(runs), chg, len(runs), val, chg, strings.Join(ks, "; "))
 	}
-	b.WriteString("\n## Validate failures\n\n")
+	b.WriteString("\n## Validate failures that stood after the correction round\n\n")
 	n := 0
 	for _, r := range rs {
 		if r.ValidateError != "" {
