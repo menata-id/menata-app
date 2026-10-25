@@ -440,13 +440,20 @@ var generatedChangeSchema = geminiSchema{
 }
 
 var capabilityGapSchema = geminiSchema{
-	PropertyOrdering: []string{"requested", "kind", "note"},
+	PropertyOrdering: []string{"capability_key", "requested", "kind", "class", "ideal_capability", "wanted_shape", "where", "intent", "benchmark", "note"},
 	Type:             "OBJECT",
-	Required:         []string{"requested", "kind", "note"},
+	Required:         []string{"capability_key", "requested", "kind", "class", "ideal_capability", "note"},
 	Properties: map[string]geminiSchema{
-		"kind":      {Type: "STRING", Enum: []string{GapRuntime, GapAssistant}, Description: "\"runtime\" when the runtime cannot express this at all yet; \"assistant\" when the runtime can (it is in the first list) but you cannot write it yet."},
-		"requested": {Type: "STRING", Description: "A short name for the missing capability, e.g. \"multi-person voting approval\" -- stable enough that the same request from different conversations names the same thing, so gaps can be counted."},
-		"note":      {Type: "STRING", Description: "One sentence of context: what the user actually asked for."},
+		"capability_key":   {Type: "STRING", Description: "A stable lowercase slug (words joined by hyphens) naming the capability, not the application. When the need is the same as one in the known list, reuse that key exactly."},
+		"requested":        {Type: "STRING", Description: "A short human name for the missing capability, e.g. \"multi-person voting approval\"."},
+		"kind":             {Type: "STRING", Enum: []string{GapRuntime, GapAssistant}, Description: "\"runtime\" when the runtime cannot express this at all yet; \"assistant\" when the runtime can (it is in the first list) but you cannot write it yet."},
+		"class":            {Type: "STRING", Enum: GapClasses, Description: "ui_component: a display component common UI frameworks offer; workflow_logic: state moves, roles, rules, automation; data_model: field types, relations, computed values; configuration: settings a user changes without editing metadata; integration: something outside the runtime."},
+		"ideal_capability": {Type: "STRING", Description: "The capability the runtime ideally SHOULD have, in general terms that fit any application, not only this request: what it can do, for whom, and how it behaves. Two or three sentences with the context a developer needs to build it."},
+		"wanted_shape":     {Type: "STRING", Description: "Optional. A sketch of how Runtime Metadata would ideally declare it, e.g. the YAML keys."},
+		"where":            {Type: "STRING", Description: "Optional. The machine or screen where the need arose."},
+		"intent":           {Type: "STRING", Description: "Optional. The person's own words, briefly."},
+		"benchmark":        {Type: "STRING", Description: "Optional. The counterpart in a common UI framework or workflow engine, when there is one."},
+		"note":             {Type: "STRING", Description: "One sentence of context: what the user actually asked for."},
 	},
 }
 

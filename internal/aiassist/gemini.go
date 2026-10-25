@@ -58,15 +58,42 @@ const (
 	GapUnclassified = "unclassified" // written before gaps carried a kind
 )
 
-// CapabilityGap is one thing the assistant told a user it cannot do yet.
+// The classes of capability a gap can belong to. They separate what is core (a display component a common
+// UI framework offers, the logic of a flow) from what follows from it, because the order of building
+// differs. ClassUnclassified is a stored row from before migration 021, or a class the model got wrong.
+const (
+	ClassUIComponent   = "ui_component"   // a display component common UI frameworks offer
+	ClassWorkflowLogic = "workflow_logic" // state moves, roles, rules, automation
+	ClassDataModel     = "data_model"     // field types, relations, computed values
+	ClassConfiguration = "configuration"  // settings a user changes without editing metadata
+	ClassIntegration   = "integration"    // something outside the runtime
+	ClassUnclassified  = "unclassified"
+)
+
+// GapClasses is every class the response schema offers the model, in the order the prompt explains them.
+var GapClasses = []string{ClassUIComponent, ClassWorkflowLogic, ClassDataModel, ClassConfiguration, ClassIntegration}
+
+// CapabilityGap is one thing the assistant told a user it cannot do yet, written as a specification for the
+// people who will build it (plan 2026-10-25, A1): IdealCapability is what the runtime ideally should be able
+// to do, in general terms, and is required by the response schema; the rest is context when the model knows
+// it. The assistant never records a stand-in here -- to the person, what cannot be built is declined.
 type CapabilityGap struct {
 	Requested string `json:"requested"`
 	Note      string `json:"note"`
 	Kind      string `json:"kind,omitempty"`
+	// CapabilityKey is the stable slug gaps are counted by; Requested is only the human name.
+	CapabilityKey   string `json:"capability_key,omitempty"`
+	Class           string `json:"class,omitempty"`
+	IdealCapability string `json:"ideal_capability,omitempty"`
+	WantedShape     string `json:"wanted_shape,omitempty"`
+	Where           string `json:"where,omitempty"`
+	Intent          string `json:"intent,omitempty"`
+	Benchmark       string `json:"benchmark,omitempty"`
 }
 
-// Gaps is every gap this reply names, the legacy single one included, each with a kind a store
-// accepts: a kind the model got wrong becomes GapUnclassified rather than failing the turn.
+// Gaps is every gap this reply names, the legacy single one included, each with a kind, a class and a key a
+// store accepts: a kind or class the model got wrong becomes "unclassified" rather than failing the turn, and
+// a key that is not a slug is made one (or taken from the name when absent), so a gap is never lost.
 func (r Reply) Gaps() []CapabilityGap {
 	all := append([]CapabilityGap(nil), r.CapabilityGaps...)
 	if r.LegacyCapabilityGap != nil {
@@ -76,8 +103,25 @@ func (r Reply) Gaps() []CapabilityGap {
 		if all[i].Kind != GapRuntime && all[i].Kind != GapAssistant {
 			all[i].Kind = GapUnclassified
 		}
+		if !validGapClass(all[i].Class) {
+			all[i].Class = ClassUnclassified
+		}
+		key := GapSlug(all[i].CapabilityKey)
+		if key == "" {
+			key = GapSlug(all[i].Requested)
+		}
+		all[i].CapabilityKey = key
 	}
 	return all
+}
+
+func validGapClass(c string) bool {
+	for _, k := range GapClasses {
+		if c == k {
+			return true
+		}
+	}
+	return false
 }
 
 // Client is the one method this package needs from an AI backend -- narrow on purpose, so a test

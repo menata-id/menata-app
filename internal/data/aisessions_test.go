@@ -94,17 +94,25 @@ func TestStore_RecordAICapabilityGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAISession: %v", err)
 	}
-	if err := store.RecordAICapabilityGap(ctx, session.ID, workspaceID, "runtime", "multi-person voting approval", "user asked for three people to vote on a request"); err != nil {
+	if err := store.RecordAICapabilityGap(ctx, session.ID, workspaceID, AICapabilityGap{
+		Kind: "runtime", Requested: "multi-person voting approval", Note: "user asked for three people to vote on a request",
+		CapabilityKey: "multi-person-voting-approval", Class: "workflow_logic",
+		IdealCapability: "Several people each cast a vote and the request moves when a declared quorum is reached.",
+	}); err != nil {
 		t.Fatalf("RecordAICapabilityGap: %v", err)
 	}
 
 	var count int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM ai_capability_gaps WHERE session_id = $1 AND requested_capability = $2`,
-		session.ID, "multi-person voting approval").Scan(&count); err != nil {
+	var key, class, ideal string
+	if err := pool.QueryRow(ctx, `SELECT count(*), max(capability_key), max(class), max(ideal_capability) FROM ai_capability_gaps WHERE session_id = $1 AND requested_capability = $2`,
+		session.ID, "multi-person voting approval").Scan(&count, &key, &class, &ideal); err != nil {
 		t.Fatalf("query capability gap: %v", err)
 	}
 	if count != 1 {
 		t.Errorf("capability gap row count = %d, want 1", count)
+	}
+	if key != "multi-person-voting-approval" || class != "workflow_logic" || ideal == "" {
+		t.Errorf("stored key/class/ideal = %q/%q/%q, want the detail columns written", key, class, ideal)
 	}
 }
 

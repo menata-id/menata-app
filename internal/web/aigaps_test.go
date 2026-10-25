@@ -29,7 +29,8 @@ func TestPostNewApplicationMessage_everyNamedGapIsRecordedAndLogged(t *testing.T
 		Change:  validGeneratedChange("Desain Request"),
 		CapabilityGaps: []aiassist.CapabilityGap{
 			{Requested: "notifikasi ke pemegang peran", Kind: aiassist.GapAssistant, Note: "email semua koordinator"},
-			{Requested: "tampilan papan per status", Kind: aiassist.GapAssistant, Note: "kanban"},
+			{Requested: "tampilan papan per status", Kind: aiassist.GapAssistant, Note: "kanban",
+				CapabilityKey: "Board View!", Class: aiassist.ClassUIComponent, IdealCapability: "A board with one column per option of a status field.", Benchmark: "Trello board"},
 			{Requested: "persetujuan bertingkat generik", Kind: aiassist.GapRuntime, Note: "atasan lalu direktur"},
 			{Requested: "rekap persen per cabang", Kind: "bukan-jenis-yang-sah", Note: "model salah menamai jenis"},
 		},
@@ -68,6 +69,26 @@ func TestPostNewApplicationMessage_everyNamedGapIsRecordedAndLogged(t *testing.T
 		if !strings.Contains(logged.String(), line) || !strings.Contains(logged.String(), `requested=`+strconv.Quote(req)) {
 			t.Errorf("no AI-GAP log line for %q (kind %s) in:\n%s", req, kind, logged.String())
 		}
+	}
+	// The specification fields are stored, and a key that is not a slug is made one; a gap with no key takes
+	// its name's slug; an unknown class is "unclassified". The log carries them by name.
+	var key, class, ideal, benchmark string
+	if err := s.pool.QueryRow(s.wsCtx, `SELECT capability_key, class, ideal_capability, benchmark FROM ai_capability_gaps WHERE workspace_id = $1 AND requested_capability = $2`,
+		s.workspaceID, "tampilan papan per status").Scan(&key, &class, &ideal, &benchmark); err != nil {
+		t.Fatal(err)
+	}
+	if key != "board-view" || class != "ui_component" || ideal == "" || benchmark != "Trello board" {
+		t.Errorf("stored detail = %q/%q/%q/%q, want board-view/ui_component/<ideal>/Trello board", key, class, ideal, benchmark)
+	}
+	if err := s.pool.QueryRow(s.wsCtx, `SELECT capability_key, class FROM ai_capability_gaps WHERE workspace_id = $1 AND requested_capability = $2`,
+		s.workspaceID, "rekap persen per cabang").Scan(&key, &class); err != nil {
+		t.Fatal(err)
+	}
+	if key != "rekap-persen-per-cabang" || class != "unclassified" {
+		t.Errorf("a gap with no key or class stored %q/%q, want its name's slug and unclassified", key, class)
+	}
+	if !strings.Contains(logged.String(), ` key=board-view class=ui_component ideal="A board with one column per option of a status field."`) {
+		t.Errorf("the AI-GAP line does not carry key, class and ideal by name:\n%s", logged.String())
 	}
 	// The conversation shown to the person names them all, not only the first.
 	session := s.sessionFromRedirect(t, rec)

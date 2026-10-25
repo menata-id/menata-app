@@ -186,15 +186,32 @@ func (s *Store) AIApplicationOrigin(ctx context.Context, workspaceID, applicatio
 	return *t, true, nil
 }
 
+// AICapabilityGap is one gap as stored: what the assistant could not build, written as a specification
+// for whoever builds the capability (migration 021). Kind is "runtime", "assistant" or "unclassified"
+// and Class is one of migration 021's classes or "unclassified"; the CHECKs refuse anything else.
+type AICapabilityGap struct {
+	Kind            string
+	Requested       string
+	Note            string
+	CapabilityKey   string
+	Class           string
+	IdealCapability string
+	WantedShape     string
+	Where           string
+	Intent          string
+	Benchmark       string
+}
+
 // RecordAICapabilityGap writes one structured "the runtime can't say this yet" row (the kajian's
 // own §3.4 ask) -- never updated or deleted once written, so a later count across many
-// conversations reflects real, unedited history. kind is "runtime", "assistant" or "unclassified"
-// (migration 017's CHECK refuses anything else).
-func (s *Store) RecordAICapabilityGap(ctx context.Context, sessionID, workspaceID, kind, requested, note string) error {
+// conversations reflects real, unedited history.
+func (s *Store) RecordAICapabilityGap(ctx context.Context, sessionID, workspaceID string, g AICapabilityGap) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO ai_capability_gaps (id, session_id, workspace_id, kind, requested_capability, note)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, newID("aigap_"), sessionID, workspaceID, kind, requested, note)
+		INSERT INTO ai_capability_gaps (id, session_id, workspace_id, kind, requested_capability, note,
+			capability_key, class, ideal_capability, wanted_shape, location, intent, benchmark)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`, newID("aigap_"), sessionID, workspaceID, g.Kind, g.Requested, g.Note,
+		g.CapabilityKey, g.Class, g.IdealCapability, g.WantedShape, g.Intent, g.Where, g.Benchmark)
 	if err != nil {
 		return fmt.Errorf("record ai capability gap: %w", err)
 	}

@@ -192,7 +192,23 @@ produce no change. A reply may carry a change and capability_gaps together: buil
 name each thing you left out. Give each entry a kind: "runtime" when the runtime cannot express it
 at all, "assistant" when the runtime can (it is in the first list, or you know it exists) but you
 cannot write it yet. Name the same missing thing the same way every time, so the entries can be
-counted.`
+counted.
+
+An entry is a specification for the people who will build the capability, not an apology. Write it as the
+capability the runtime ideally SHOULD have, in general terms that fit any application and not only this one
+screen of this request:
+- capability_key: a stable lowercase slug naming the capability, not the application.
+- ideal_capability (required): what the runtime should be able to do, for whom, and how it behaves -- two or
+  three sentences with the context a developer needs, so nobody has to guess.
+- class: ` + strings.Join(GapClasses, ", ") + `. A ui_component is a display component a common UI framework
+  offers (a table, board, calendar, dialog); workflow_logic is state moves, roles, rules and automation;
+  data_model is field types, relations and computed values; configuration is a setting a person changes
+  without editing metadata; integration is something outside the runtime.
+- wanted_shape, where, intent, benchmark: fill them in when you know them. A benchmark is how a common UI
+  framework or workflow engine names the same thing.
+Never shrink your design because the runtime cannot yet build part of it. Work out what the person needs,
+build what the lists above allow, and record the rest -- and to the person, say plainly that the rest is not
+possible yet. Do not substitute something that merely looks like it.` + openGapSentence()
 }
 
 // ReadyMadeTemplates are the library Applications the prompt may point a person at. A conformance

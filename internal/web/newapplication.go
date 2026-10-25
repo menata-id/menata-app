@@ -226,13 +226,20 @@ func storeModelTurn(ctx context.Context, store *data.Store, workspaceID string, 
 
 // recordCapabilityGaps writes one row and one AI-GAP log line per gap a reply names. The log line is
 // the reader (owner decision 2026-10-15: gaps feed the development process, not a screen), so it is
-// a stable key=value line and carries the request text quoted, never the conversation.
+// a stable key=value line and carries the request text quoted, never the conversation. The fields that
+// existed first keep their places; the specification fields (plan 2026-10-25, A1) follow, and a reader
+// picks every one by name.
 func recordCapabilityGaps(ctx context.Context, store *data.Store, workspaceID, sessionID string, reply aiassist.Reply) error {
 	for _, g := range reply.Gaps() {
-		if err := store.RecordAICapabilityGap(ctx, sessionID, workspaceID, g.Kind, g.Requested, g.Note); err != nil {
+		if err := store.RecordAICapabilityGap(ctx, sessionID, workspaceID, data.AICapabilityGap{
+			Kind: g.Kind, Requested: g.Requested, Note: g.Note,
+			CapabilityKey: g.CapabilityKey, Class: g.Class, IdealCapability: g.IdealCapability,
+			WantedShape: g.WantedShape, Where: g.Where, Intent: g.Intent, Benchmark: g.Benchmark,
+		}); err != nil {
 			return err
 		}
-		log.Printf("AI-GAP kind=%s workspace=%s session=%s requested=%q note=%q", g.Kind, workspaceID, sessionID, g.Requested, g.Note)
+		log.Printf("AI-GAP kind=%s workspace=%s session=%s requested=%q note=%q key=%s class=%s ideal=%q shape=%q where=%q intent=%q benchmark=%q",
+			g.Kind, workspaceID, sessionID, g.Requested, g.Note, g.CapabilityKey, g.Class, g.IdealCapability, g.WantedShape, g.Where, g.Intent, g.Benchmark)
 	}
 	return nil
 }
