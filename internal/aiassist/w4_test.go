@@ -2,6 +2,7 @@ package aiassist
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -95,8 +96,8 @@ func TestW4_eachMisuseIsRefusedForItsOwnReason(t *testing.T) {
 	}
 }
 
-// An update may add a view (after the existing ones) and a card entry and rename a view; it may not retype,
-// regroup, remove or reorder a view, put a new one first, or drop or re-role a card entry. Everything hand-set survives.
+// An update may add a view (after the existing ones) and a card entry and rename a view; it may not retype
+// or regroup a view or remove them all, put a new one first, or drop or re-role a card entry. Everything hand-set survives.
 func TestW4_updatesAddRenameAndRefuseTheRightThings(t *testing.T) {
 	manifest := w2Workspace(t)
 	app := boardApp()
@@ -116,9 +117,9 @@ func TestW4_updatesAddRenameAndRefuseTheRightThings(t *testing.T) {
 		edit func(m *GeneratedMachine)
 		why  string
 	}{
-		"retyping a view":   {func(m *GeneratedMachine) { m.Views[0].Type = "table"; m.Views[0].GroupBy = "" }, "cannot change its type or grouping"},
-		"regrouping a view": {func(m *GeneratedMachine) { m.Views[0].GroupBy = "fld_title" }, "cannot change its type or grouping"},
-		"removing a view":   {func(m *GeneratedMachine) { m.Views = nil }, "cannot be removed"},
+		"retyping a view":     {func(m *GeneratedMachine) { m.Views[0].Type = "table"; m.Views[0].GroupBy = "" }, "cannot change its type or grouping"},
+		"regrouping a view":   {func(m *GeneratedMachine) { m.Views[0].GroupBy = "fld_title" }, "cannot change its type or grouping"},
+		"removing every view": {func(m *GeneratedMachine) { m.Views = nil }, "needs at least one view"},
 		"a new view first": {func(m *GeneratedMachine) {
 			m.Views = append([]GeneratedView{{ID: "vw_w4_t", Name: "T", Type: "table"}}, m.Views...)
 		}, "must come after"},
@@ -140,6 +141,39 @@ func TestW4_updatesAddRenameAndRefuseTheRightThings(t *testing.T) {
 	got := DescribeApplication("app_w4", state.Applications["app_w4"]).Machines[0]
 	if len(got.Views) != 2 || got.Views[0].Name != "Kanban" || got.Views[0].Type != "board" || got.Views[1].Type != "table" || len(got.CardFields) != 3 {
 		t.Errorf("after the update: views %+v, card_fields %+v", got.Views, got.CardFields)
+	}
+}
+
+// A person may ask for "only the board": an update removes a view (one must remain) and reorders the rest, and
+// the file is left with exactly those views in that order.
+func TestW4_anUpdateRemovesAndReordersViews(t *testing.T) {
+	manifest := w2Workspace(t)
+	app := boardApp()
+	if _, err := Write(manifest, GeneratedChange{Kind: KindNewApplication, Application: app}, nil); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	desire := func(edit func(m *GeneratedMachine)) GeneratedChange {
+		state, _ := stateOf(t, manifest)
+		d := DescribeApplication("app_w4", state.Applications["app_w4"])
+		edit(&d.Machines[0])
+		return GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_w4", Application: &d}
+	}
+	state, _ := stateOf(t, manifest)
+	before := DescribeApplication("app_w4", state.Applications["app_w4"]).Machines[0].Views
+	if len(before) < 2 {
+		t.Fatalf("fixture needs two views, has %+v", before)
+	}
+	publish(t, manifest, desire(func(m *GeneratedMachine) { slices.Reverse(m.Views) }))
+	state, _ = stateOf(t, manifest)
+	got := DescribeApplication("app_w4", state.Applications["app_w4"]).Machines[0].Views
+	if got[0].ID != before[len(before)-1].ID || got[len(got)-1].ID != before[0].ID {
+		t.Errorf("reordered views = %+v, was %+v", got, before)
+	}
+	publish(t, manifest, desire(func(m *GeneratedMachine) { m.Views = m.Views[:1] }))
+	state, _ = stateOf(t, manifest)
+	got = DescribeApplication("app_w4", state.Applications["app_w4"]).Machines[0].Views
+	if len(got) != 1 || got[0].ID != before[len(before)-1].ID {
+		t.Errorf("after removing the others: %+v", got)
 	}
 }
 

@@ -534,12 +534,20 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 			p.change("view %q on %q is now called %q", ov.Name, m.Name, v.Name)
 		}
 	}
+	removed := 0
 	for _, ov := range old.Views {
 		if !seen[ov.ID] {
-			p.refuse("view %s on %s cannot be removed", ov.ID, m.ID)
+			removed++
+			p.change("view %q on %q is removed", ov.Name, m.Name)
 		}
 	}
-	// the existing views must keep their relative order
+	// a view arranges records and holds none, so dropping one loses no data -- but a machine with no
+	// view has no screen, so one must remain
+	if removed > 0 && len(m.Views) == 0 {
+		p.refuse("machine %s needs at least one view: keep one, or add the view that should replace the others", m.ID)
+	}
+	// the existing views may be reordered: the first is what opens by default, which is often exactly
+	// what a person asks for ("only the board")
 	var oldOrder, newOrder []string
 	for _, ov := range old.Views {
 		if seen[ov.ID] {
@@ -552,7 +560,7 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 		}
 	}
 	if !slices.Equal(oldOrder, newOrder) {
-		p.refuse("the order of existing views on %s cannot change: the first is what opens by default", m.ID)
+		p.change("the views on %q are reordered: the first now opens by default", m.Name)
 	}
 }
 

@@ -58,7 +58,8 @@ func composableSurface() string {
   {field, days: [{value, days}]}, e.g. a due date from the priority; not together with a default).
 - How a machine's records are arranged ("views"): "board" (one column per option of a STATUS field named in
   "group_by"; this is what people usually mean by kanban or papan), "table", or "cards". The first view is
-  what opens by default, so put the board first when the person wants one. A board or cards view needs
+  what opens by default, so put the board first when the person wants one. When updating, a view may be
+  removed (one must remain) and the views reordered; ask for neither a retype nor a regroup, add a new view instead. A board or cards view needs
   "card_fields", what each card shows, as {field, role} pairs: role "title" (a text field, always include
   one), "status" (a status field), "date" (a date field), "person" (a person field), "money" (a number or
   money field). Ask what a card should show; do not guess.

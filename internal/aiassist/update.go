@@ -237,6 +237,9 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			setScalar(node, "name", v.Name)
 		}
 	}
+	if err := reshapeViews(doc, old, m); err != nil {
+		return installer.Rejected(fmt.Errorf("views on %s: %w", m.ID, err))
+	}
 	if m.Completion != nil && old.Completion == nil {
 		if err := setEncoded(doc, "completion", completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}); err != nil {
 			return err
@@ -592,4 +595,41 @@ func mentionOutside(n, skip *yaml.Node, id, path string) string {
 		}
 	}
 	return ""
+}
+
+// reshapeViews removes the views the desired machine no longer lists and puts the rest in its order.
+// A view that anything else in the file names is not removed (the same rule as a field): the
+// reference would dangle.
+func reshapeViews(doc *yaml.Node, old, m GeneratedMachine) error {
+	want := map[string]int{}
+	for i, v := range m.Views {
+		want[v.ID] = i
+	}
+	views := ensureSeq(doc, "views")
+	for _, ov := range old.Views {
+		if _, keep := want[ov.ID]; keep {
+			continue
+		}
+		idx := slices.IndexFunc(views.Content, func(n *yaml.Node) bool {
+			v := mapValue(n, "id")
+			return v != nil && v.Value == ov.ID
+		})
+		if idx < 0 {
+			return fmt.Errorf("view %s is not declared in this file", ov.ID)
+		}
+		if where := mentionOutside(doc, views.Content[idx], ov.ID, ""); where != "" {
+			return fmt.Errorf("view %s is still used by %s -- remove that first", ov.ID, where)
+		}
+		views.Content = append(views.Content[:idx], views.Content[idx+1:]...)
+	}
+	rank := func(n *yaml.Node) int {
+		if v := mapValue(n, "id"); v != nil {
+			if i, ok := want[v.Value]; ok {
+				return i
+			}
+		}
+		return len(m.Views)
+	}
+	slices.SortStableFunc(views.Content, func(a, b *yaml.Node) int { return rank(a) - rank(b) })
+	return nil
 }
