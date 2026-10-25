@@ -231,6 +231,21 @@ func evalSatisfied(c evalCase, r evalRun) bool {
 	switch c.Group {
 	case "control":
 		return len(r.Gaps) == 0
+	case "table":
+		if len(r.Gaps) > 0 {
+			return false
+		}
+		for _, reply := range r.Replies {
+			if reply.Change == nil || reply.Change.Application == nil {
+				continue
+			}
+			for _, n := range reply.Change.Application.Navigation {
+				if n.List.isTable() {
+					return true
+				}
+			}
+		}
+		return false
 	case "template":
 		for _, m := range r.Messages {
 			if strings.Contains(m, c.WantTemplate) {
@@ -275,7 +290,7 @@ func summariseEval(rs []evalRun) string {
 		known[g.Key] = true
 	}
 	var total, errs, changes, valid, refusedFirst, recovered int
-	var ctlRuns, ctlFalse, ctlRecords, ctlFromRegister, gapRuns, gapHit, gapOther, gapNone int
+	var ctlRuns, ctlFalse, ctlRecords, ctlFromRegister, gapRuns, gapHit, gapOther, gapNone, tblRuns, tblHit int
 	var keyRuns, keyHit int
 	var gaps, gapsIdeal, gapsKnown int
 	want := map[string]evalCase{}
@@ -321,6 +336,11 @@ func summariseEval(rs []evalRun) string {
 					ctlFromRegister++
 				}
 			}
+		case "table":
+			tblRuns++
+			if r.Satisfied {
+				tblHit++
+			}
 		case "gap":
 			gapRuns++
 			switch {
@@ -358,6 +378,7 @@ func summariseEval(rs []evalRun) string {
 	fmt.Fprintf(&b, "| Gap cases: gaps recorded, but none of the wanted key or class | %s |\n", pct(gapOther, gapRuns))
 	fmt.Fprintf(&b, "| Gap cases: no gap at all (a silent drop) | %s |\n", pct(gapNone, gapRuns))
 	fmt.Fprintf(&b, "| Cases that want a register key: that key used | %s |\n", pct(keyHit, keyRuns))
+	fmt.Fprintf(&b, "| Table cases: a table written, no gap (the slot is used) | %s |\n", pct(tblHit, tblRuns))
 	fmt.Fprintf(&b, "| Control cases: any gap recorded (false gap) | %s |\n", pct(ctlFalse, ctlRuns))
 	fmt.Fprintf(&b, "| Control cases: false gap records that are a register key | %s |\n", pct(ctlFromRegister, ctlRecords))
 	fmt.Fprintf(&b, "| Gaps whose ideal_capability has 40+ characters | %s |\n", pct(gapsIdeal, gaps))

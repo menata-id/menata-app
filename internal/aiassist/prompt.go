@@ -85,6 +85,12 @@ func composableSurface() string {
   who is looking beyond "the records that name me", say the runtime cannot do that yet and record a
   capability gap of kind "runtime" named "izin baca per peran"; offer a "mine" list and an "all" list
   as separate menu entries if that helps.
+  A list may be a table ("columns" inside "list"): the machine's fields to show as columns, 1 to 8, in
+  order, the first one linking to the record; with "columns" the machine needs no title entry. A table may
+  also have "search_fields" (text or long_text fields a search box above it looks in, at most 4) and, when its
+  scope is "all", "filter_field" (a status field: chips above the table filter by each of its options and count
+  them). Offer a table when the person wants to scan records by several attributes, search them or filter them
+  by status; ask which columns they want. File and group fields cannot be columns.
 - A menu entry may instead be a status filter ("by_status" on a NEW menu item): a page of one tile per
   option of a STATUS field ("status_field"), each tile showing how many records are in that status and
   opening a second page of the records in it (at most "limit", 1 to 200). Give "detail_label", the menu
@@ -226,7 +232,7 @@ var UnwritableByTheAssistant = []struct {
 }{
 	{"machineDoc", "card_tags", "tags on a board card"},
 	{"machineDoc", "datasets", "a Dataset of your own design -- a list narrowed by anything except \"the records that name the viewer\", counts by a field other than status, a total or an average"},
-	{"", "page", "a screen that counts or groups by anything except the status filter above, or a list narrowed by anything but the viewer or one status"},
+	{"", "page", "a screen that counts or groups by anything except the status filter above, a board, a calendar, a page for one record, or a list or table narrowed by anything but the viewer, one status field or a search over text fields"},
 	{"machineDoc", "sla_field", "an SLA deadline badge"},
 	{"machineDoc", "constraints", "a rule that blocks a change because of other records"},
 }

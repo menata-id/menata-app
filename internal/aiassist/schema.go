@@ -368,15 +368,18 @@ var generatedApplicationSchema = geminiSchema{
 }
 
 var generatedListSchema = geminiSchema{
-	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit"},
+	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit", "columns", "search_fields", "filter_field"},
 	Type:             "OBJECT",
 	Required:         []string{"scope", "limit"},
 	Properties: map[string]geminiSchema{
-		"scope":        {Type: "STRING", Enum: []string{ListScopeMine, ListScopeAll}, Description: "\"mine\": only the records whose person field is the person looking. \"all\": every record. Ask the person which each list is; never pick for them. This only chooses what the list shows -- it does not stop anyone opening the other records elsewhere."},
-		"person_field": {Type: "STRING", Description: "Required for \"mine\": a person field of that machine saying whose record it is. Leave empty for \"all\"."},
-		"sort_field":   {Type: "STRING", Description: "A field of that machine, or created_at / updated_at. Leave empty for newest first by created_at."},
-		"direction":    {Type: "STRING", Enum: sortDirectionEnum()},
-		"limit":        {Type: "INTEGER", Description: "How many records the list shows at most, 1 to 200."},
+		"scope":         {Type: "STRING", Enum: []string{ListScopeMine, ListScopeAll}, Description: "\"mine\": only the records whose person field is the person looking. \"all\": every record. Ask the person which each list is; never pick for them. This only chooses what the list shows -- it does not stop anyone opening the other records elsewhere."},
+		"person_field":  {Type: "STRING", Description: "Required for \"mine\": a person field of that machine saying whose record it is. Leave empty for \"all\"."},
+		"sort_field":    {Type: "STRING", Description: "A field of that machine, or created_at / updated_at. Leave empty for newest first by created_at."},
+		"direction":     {Type: "STRING", Enum: sortDirectionEnum()},
+		"limit":         {Type: "INTEGER", Description: "How many records the list shows at most, 1 to 200."},
+		"columns":       {Type: "ARRAY", Items: &stringSchema, Description: "Optional: makes the page a table instead of a plain list of titles. The fields of that machine to show as columns, 1 to 8, in order; the first column links to the record. Choose the fields a person scanning the list needs; ask when unsure."},
+		"search_fields": {Type: "ARRAY", Items: &stringSchema, Description: "Only with columns: text fields (type text or long_text) a search box above the table looks in, at most 4."},
+		"filter_field":  {Type: "STRING", Description: "Only with columns, and only with scope \"all\": a status field of that machine; chips above the table filter by its options and count each one."},
 	},
 }
 

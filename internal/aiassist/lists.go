@@ -62,10 +62,14 @@ func (n GeneratedMenuItem) hasPage() bool {
 }
 
 type wherePredDoc struct {
-	Field string         `yaml:"field,omitempty"`
-	Op    string         `yaml:"op,omitempty"`
-	Value string         `yaml:"value,omitempty"`
-	All   []wherePredDoc `yaml:"all,omitempty"`
+	Field string `yaml:"field,omitempty"`
+	Op    string `yaml:"op,omitempty"`
+	Value string `yaml:"value,omitempty"`
+	// Optional makes a comparison against a request parameter apply only when the request carries it, so an
+	// unset filter or search box lists everything.
+	Optional bool           `yaml:"optional,omitempty"`
+	All      []wherePredDoc `yaml:"all,omitempty"`
+	Any      []wherePredDoc `yaml:"any,omitempty"`
 }
 
 type sortFieldDoc struct {
@@ -76,32 +80,45 @@ type sortFieldDoc struct {
 // pageNodeDoc is the one shape the writer needs of a page node; metadata's own pageNodeDoc has a custom
 // decoder and unexported fields, so (like the other docs in writer.go) this is a write-side mirror.
 type pageNodeDoc struct {
-	Label     string            `yaml:"label,omitempty"`
-	Heading   string            `yaml:"heading,omitempty"`
-	Summary   string            `yaml:"summary,omitempty"`
-	Submit    string            `yaml:"submit,omitempty"`
-	Text      string            `yaml:"text,omitempty"`
-	ListOf    string            `yaml:"list_of,omitempty"`
-	Variant   string            `yaml:"variant,omitempty"`
-	Becomes   string            `yaml:"becomes,omitempty"`
-	Align     string            `yaml:"align,omitempty"`
-	Justify   string            `yaml:"justify,omitempty"`
-	Divided   bool              `yaml:"divided,omitempty"`
-	HideEmpty bool              `yaml:"hide_empty,omitempty"`
-	Complete  bool              `yaml:"complete,omitempty"`
-	Columns   int               `yaml:"columns,omitempty"`
-	Mobile    int               `yaml:"mobile,omitempty"`
-	To        string            `yaml:"to,omitempty"`
-	Param     string            `yaml:"param,omitempty"`
-	Layout    string            `yaml:"layout,omitempty"`
-	Static    string            `yaml:"static,omitempty"`
-	Component string            `yaml:"component,omitempty"`
-	Gap       string            `yaml:"gap,omitempty"`
-	Empty     string            `yaml:"empty,omitempty"`
-	Tone      string            `yaml:"tone,omitempty"`
-	Binding   *pageBindingDoc   `yaml:"binding,omitempty"`
-	From      map[string]string `yaml:"from,omitempty"`
-	Children  []pageNodeDoc     `yaml:"children,omitempty"`
+	Label     string `yaml:"label,omitempty"`
+	Heading   string `yaml:"heading,omitempty"`
+	Summary   string `yaml:"summary,omitempty"`
+	Submit    string `yaml:"submit,omitempty"`
+	Text      string `yaml:"text,omitempty"`
+	ListOf    string `yaml:"list_of,omitempty"`
+	Variant   string `yaml:"variant,omitempty"`
+	Becomes   string `yaml:"becomes,omitempty"`
+	Align     string `yaml:"align,omitempty"`
+	Justify   string `yaml:"justify,omitempty"`
+	Divided   bool   `yaml:"divided,omitempty"`
+	HideEmpty bool   `yaml:"hide_empty,omitempty"`
+	Complete  bool   `yaml:"complete,omitempty"`
+	// Columns is a grid's number of columns (an int) or a Table's list of columns ([]tableColumnDoc): the same
+	// key means each in the loader, told apart by its shape.
+	Columns     any               `yaml:"columns,omitempty"`
+	Query       string            `yaml:"query,omitempty"`
+	All         string            `yaml:"all,omitempty"`
+	Placeholder string            `yaml:"placeholder,omitempty"`
+	Framed      bool              `yaml:"framed,omitempty"`
+	Mobile      int               `yaml:"mobile,omitempty"`
+	To          string            `yaml:"to,omitempty"`
+	Param       string            `yaml:"param,omitempty"`
+	Layout      string            `yaml:"layout,omitempty"`
+	Static      string            `yaml:"static,omitempty"`
+	Component   string            `yaml:"component,omitempty"`
+	Gap         string            `yaml:"gap,omitempty"`
+	Empty       string            `yaml:"empty,omitempty"`
+	Tone        string            `yaml:"tone,omitempty"`
+	Binding     *pageBindingDoc   `yaml:"binding,omitempty"`
+	From        map[string]string `yaml:"from,omitempty"`
+	Children    []pageNodeDoc     `yaml:"children,omitempty"`
+}
+
+// tableColumnDoc is one column of a Table: its header, the Field it shows, and, for the first, the record it links to.
+type tableColumnDoc struct {
+	Header string `yaml:"header"`
+	Field  string `yaml:"field"`
+	Href   string `yaml:"href,omitempty"`
 }
 
 type pageBindingDoc struct {
@@ -174,6 +191,46 @@ func listedItems(desired []GeneratedMenuItem, ids []string, current map[string]b
 // listDatasetID derives a list's Dataset id from its navigation id, which is unique in the Workspace.
 func listDatasetID(navID string) string { return "ds_" + strings.TrimPrefix(navID, "nav_") + "_list" }
 
+// The limits of a table, and the two request parameters its search box and chips travel in.
+const (
+	maxTableColumns  = 8
+	maxSearchFields  = 4
+	tableSearchQuery = "q"
+	tableFilterQuery = "filter"
+)
+
+// isTable reports whether a list is written as a Table (it names columns) rather than the plain Collection.
+func (l *GeneratedList) isTable() bool { return l != nil && len(l.Columns) > 0 }
+
+// tableFilterDatasetID and tableFilterMeasureID name what the chips of a table count by; both follow the
+// navigation id, which is unique in the Workspace.
+func tableFilterDatasetID(navID string) string {
+	return "ds_" + strings.TrimPrefix(navID, "nav_") + "_filter"
+}
+func tableFilterMeasureID(navID string) string {
+	return "msr_" + strings.TrimPrefix(navID, "nav_") + "_filter"
+}
+
+// tableWhere is the predicate of a table's Dataset: the viewer's own records for scope "mine", the chip's status
+// when one is chosen, and any of the search fields containing the words typed. The last two are optional
+// comparisons, so a request that sets neither lists every record the scope allows.
+func tableWhere(spec *GeneratedList) *wherePredDoc {
+	var all, any []wherePredDoc
+	if spec.Scope == ListScopeMine {
+		all = append(all, wherePredDoc{Field: spec.PersonField, Op: "equals", Value: "$current_user"})
+	}
+	if spec.FilterField != "" {
+		all = append(all, wherePredDoc{Field: spec.FilterField, Op: "equals", Value: "$parameters." + tableFilterQuery, Optional: true})
+	}
+	for _, f := range spec.SearchFields {
+		any = append(any, wherePredDoc{Field: f, Op: "contains", Value: "$parameters." + tableSearchQuery, Optional: true})
+	}
+	if len(all) == 0 && len(any) == 0 {
+		return nil
+	}
+	return &wherePredDoc{All: all, Any: any}
+}
+
 // datasetFor is the Dataset a list is written as.
 func datasetFor(l listed) datasetDoc {
 	if st := l.Item.ByStatus; st != nil {
@@ -195,6 +252,10 @@ func datasetFor(l listed) datasetDoc {
 	ds := datasetDoc{ID: l.DatasetID, Select: domain.SelectRecords, Sort: []sortFieldDoc{{Field: field, Direction: dir}}, Limit: spec.Limit}
 	if spec.Scope == ListScopeMine {
 		ds.ViewerScoped = true
+	}
+	if spec.isTable() {
+		ds.Where = tableWhere(spec)
+	} else if spec.Scope == ListScopeMine {
 		ds.Where = &wherePredDoc{Field: spec.PersonField, Op: "equals", Value: "$current_user"}
 	}
 	return ds
@@ -212,6 +273,9 @@ func pageFor(l listed, m GeneratedMachine) pageNodeDoc {
 				Binding: &pageBindingDoc{Dataset: l.DatasetID, Measure: statusMeasureID, Rows: "dimension"},
 			}},
 		}}}
+	}
+	if l.Item.List.isTable() {
+		return tablePage(l, m)
 	}
 	roles := map[string]bool{}
 	for _, cf := range m.CardFields {
@@ -287,11 +351,89 @@ func validateLists(app *GeneratedApplication) []string {
 		if l.Direction != "" && l.Direction != "asc" && l.Direction != "desc" {
 			issues = append(issues, fmt.Sprintf("%s: direction must be \"asc\" or \"desc\"", where))
 		}
-		if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
-			issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- a list draws each record by its title", where, m.ID))
+		if l.isTable() {
+			issues = append(issues, validateTable(where, l, fields)...)
+		} else {
+			if len(l.SearchFields) > 0 || l.FilterField != "" {
+				issues = append(issues, where+": search_fields and filter_field belong to a table; give columns, or leave them out")
+			}
+			if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
+				issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- a list draws each record by its title", where, m.ID))
+			}
 		}
 	}
 	return issues
+}
+
+// oneLine reports whether a Field's name can be drawn as a column header, a chips label or a search placeholder: the
+// loader refuses a blank one or one that runs over a line, and only at publish, after the person approved the review.
+func oneLine(name string) bool {
+	return strings.TrimSpace(name) != "" && !strings.ContainsAny(name, "\r\n")
+}
+
+// validateTable holds a table to what it can show: 1..8 distinct columns that are Fields of the Machine and of a
+// type a column can show, search over text Fields only, and chips over a status Field only with scope "all"
+// (the chips count every record, which for the viewer's own list would count what the table does not show).
+func validateTable(where string, l *GeneratedList, fields map[string]GeneratedField) []string {
+	var issues []string
+	if n := len(l.Columns); n < 1 || n > maxTableColumns {
+		issues = append(issues, fmt.Sprintf("%s: a table has 1 to %d columns, not %d", where, maxTableColumns, n))
+	}
+	seen := map[string]bool{}
+	for _, id := range l.Columns {
+		f, ok := fields[id]
+		switch {
+		case seen[id]:
+			issues = append(issues, fmt.Sprintf("%s: column %q is listed twice", where, id))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("%s: column %q is not a field of this machine", where, id))
+		case !tableColumnTypes[domain.FieldType(f.Type)]:
+			issues = append(issues, fmt.Sprintf("%s: column %q is a %s field, which a table column cannot show", where, id, f.Type))
+
+		case !oneLine(f.Name):
+			issues = append(issues, fmt.Sprintf("%s: column %q has no one-line name to be its header -- name the field first", where, id))
+		}
+		seen[id] = true
+	}
+	if len(l.SearchFields) > maxSearchFields {
+		issues = append(issues, fmt.Sprintf("%s: a search box looks in at most %d fields", where, maxSearchFields))
+	}
+	seenSearch := map[string]bool{}
+	for _, id := range l.SearchFields {
+		f, ok := fields[id]
+		switch {
+		case seenSearch[id]:
+			issues = append(issues, fmt.Sprintf("%s: search field %q is listed twice", where, id))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("%s: search field %q is not a field of this machine", where, id))
+		case domain.FieldType(f.Type) != domain.FieldTypeText && domain.FieldType(f.Type) != domain.FieldTypeLongText:
+			issues = append(issues, fmt.Sprintf("%s: search field %q is a %s field; a search box looks in text or long_text fields", where, id, f.Type))
+
+		case !oneLine(f.Name):
+			issues = append(issues, fmt.Sprintf("%s: search field %q has no one-line name for the search box to name it by -- name the field first", where, id))
+		}
+		seenSearch[id] = true
+	}
+	if l.FilterField != "" {
+		if f, ok := fields[l.FilterField]; !ok || domain.FieldType(f.Type) != domain.FieldTypeStatus {
+			issues = append(issues, fmt.Sprintf("%s: filter_field %q must be a status field of this machine", where, l.FilterField))
+		} else if !oneLine(f.Name) {
+			issues = append(issues, fmt.Sprintf("%s: filter_field %q has no one-line name to label its chips -- name the field first", where, l.FilterField))
+		}
+		if l.Scope != ListScopeAll {
+			issues = append(issues, where+": filter chips count every record, so they go only on a table with scope \"all\"; for \"mine\" drop filter_field")
+		}
+	}
+	return issues
+}
+
+// tableColumnTypes is the field types a table column shows. It is measured, not assumed: see
+// TestTable_everyFieldTypeAsAColumnIsKnown.
+var tableColumnTypes = map[domain.FieldType]bool{
+	domain.FieldTypeText: true, domain.FieldTypeLongText: true, domain.FieldTypeNumber: true, domain.FieldTypeBoolean: true,
+	domain.FieldTypeDate: true, domain.FieldTypeStatus: true, domain.FieldTypePerson: true, domain.FieldTypeMoney: true,
+	domain.FieldTypeRelation: true,
+	// file and group are refused by the loader as columns: a file's value is a storage key, a group is read by no page binding.
 }
 
 // validateByStatus holds a status filter to what it needs: a status field to count by, a label for the page
@@ -331,12 +473,53 @@ func validateByStatus(item GeneratedMenuItem, machines map[string]GeneratedMachi
 	return issues
 }
 
-// datasetsFor is every Dataset an entry's page needs: one for a list or a tile page, several for a queue.
+// tablePage is the page a table is written as: the filter chips and the search box in one row when it has either,
+// then the Table over the list's Dataset. Headers are the Fields' own names; the first column links to the record.
+// It names no route and no colour.
+func tablePage(l listed, m GeneratedMachine) pageNodeDoc {
+	spec := l.Item.List
+	names := map[string]string{}
+	for _, f := range m.Fields {
+		names[f.ID] = f.Name
+	}
+	cols := make([]tableColumnDoc, len(spec.Columns))
+	for i, id := range spec.Columns {
+		cols[i] = tableColumnDoc{Header: names[id], Field: id}
+	}
+	cols[0].Href = domain.PageRecordRole
+	var controls []pageNodeDoc
+	if spec.FilterField != "" {
+		controls = append(controls, pageNodeDoc{Component: "FilterChips", Label: names[spec.FilterField], Query: tableFilterQuery, All: "All",
+			Binding: &pageBindingDoc{Dataset: tableFilterDatasetID(l.NavID), Measure: tableFilterMeasureID(l.NavID), Rows: "dimension"}})
+	}
+	if len(spec.SearchFields) > 0 {
+		var words []string
+		for _, f := range spec.SearchFields {
+			words = append(words, strings.ToLower(names[f]))
+		}
+		controls = append(controls, pageNodeDoc{Component: "SearchBox", Label: "Search", Query: tableSearchQuery, Placeholder: "Search " + strings.Join(words, ", ")})
+	}
+	children := []pageNodeDoc{}
+	if len(controls) > 0 {
+		children = append(children, pageNodeDoc{Layout: "row", Gap: "tight", Align: "center", Children: controls})
+	}
+	children = append(children, pageNodeDoc{Component: "Table", Label: l.Item.Label, Empty: listEmptyWords, Framed: true,
+		Columns: cols, Binding: &pageBindingDoc{Dataset: l.DatasetID, Rows: "records"}})
+	return pageNodeDoc{Layout: "stack", Gap: "default", Children: children}
+}
+
+// datasetsFor is every Dataset an entry's page needs: one for a list or a tile page, two for a table with chips,
+// several for a queue.
 func datasetsFor(l listed, m GeneratedMachine) []datasetDoc {
 	if l.Item.Queue != nil {
 		return queueDatasets(l, m)
 	}
-	return []datasetDoc{datasetFor(l)}
+	out := []datasetDoc{datasetFor(l)}
+	if spec := l.Item.List; spec.isTable() && spec.FilterField != "" {
+		out = append(out, datasetDoc{ID: tableFilterDatasetID(l.NavID), Dimension: spec.FilterField,
+			Measures: []measureDoc{{ID: tableFilterMeasureID(l.NavID), Aggregate: "count"}}})
+	}
+	return out
 }
 
 // pageForEntry is the page an entry is written as, whichever kind it is.

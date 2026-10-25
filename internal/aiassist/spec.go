@@ -128,6 +128,14 @@ type GeneratedList struct {
 	Direction string `json:"direction,omitempty"`
 	// Limit is how many records the list shows at most, 1..200.
 	Limit int `json:"limit"`
+	// Columns, when set, makes the page a Table of these Fields, in this order, the first one the link to the
+	// record; empty keeps the plain list of titles (D2, plan 2026-10-25). SearchFields and FilterField belong to a
+	// table and need Columns.
+	Columns []string `json:"columns,omitempty"`
+	// SearchFields are text Fields a search box above the table looks in.
+	SearchFields []string `json:"search_fields,omitempty"`
+	// FilterField is a status Field the table is filtered by, with chips that count each option.
+	FilterField string `json:"filter_field,omitempty"`
 }
 
 // The scopes of a generated list.
