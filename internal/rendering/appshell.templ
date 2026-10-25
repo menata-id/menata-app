@@ -209,6 +209,12 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 				// the trigger behind it. (`toggle` does not bubble, hence the capture.)
 				document.addEventListener("toggle", function (e) {
 					var d = e.target;
+					// One popover open at a time: opening one closes every other, except the menu it was opened from and anything opened from it.
+					if (d.matches && d.matches("details[data-popover][open]")) {
+						document.querySelectorAll("details[data-popover][open]").forEach(function (o) {
+							if (o !== d && !o.contains(d) && !d.contains(o)) { o.open = false; }
+						});
+					}
 					if (!d.matches || !d.matches("details[data-popover][open]") || !d.querySelector("[role=dialog]")) { return; }
 					var first = d.querySelector("[role=dialog] input:not([type=hidden]), [role=dialog] select, [role=dialog] textarea");
 					if (first) { first.focus(); }
