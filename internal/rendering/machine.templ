@@ -1259,22 +1259,27 @@ templ createForm(m *domain.Machine, relations RelationOptions, groups GroupOptio
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't
 // duplicated per Layout kind.
 templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
+	{{ formID := "create-" + m.ID }}
+	{{ ctx = withControlForm(ctx, formID) }}
 	<tr>
-		<form
-			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
-			hx-target="#machine-body"
-			hx-swap="innerHTML"
-			hx-encoding="multipart/form-data"
-		>
-			for _, f := range m.Fields {
-				<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle" }>
-					@fieldInput(f, f.Default, relations, groups, f.Required)
-				</td>
-			}
-			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle whitespace-nowrap" }>
-				@button("Add", domain.ButtonPrimary, "", "")
+		for _, f := range m.Fields {
+			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle" }>
+				@fieldInput(f, f.Default, relations, groups, f.Required)
 			</td>
-		</form>
+		}
+		<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle whitespace-nowrap" }>
+			// A <form> cannot be a child of a <tr> (the parser closes it at once, so the cells land outside it and Save does nothing):
+			// the form lives in this cell and the row's controls name it with form= (controlForm).
+			<form
+				id={ formID }
+				hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+				hx-target="#machine-body"
+				hx-swap="innerHTML"
+				hx-encoding="multipart/form-data"
+			>
+				@button("Add", domain.ButtonPrimary, "", "")
+			</form>
+		</td>
 	</tr>
 }
 
@@ -1342,29 +1347,36 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 // doesn't re-check either -- allowsRecordEdit (internal/web/record.go's updateRecordForm) is what
 // actually enforces it, on the PUT this form submits, regardless of how the request got here.
 templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) {
-	<tr id={ "record-" + r.ID }>
-		<form
-			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
-			hx-target={ "#record-" + r.ID }
-			hx-swap="outerHTML"
-			hx-encoding="multipart/form-data"
-		>
-			for _, f := range m.Fields {
-				<td class={ tableCellClasses(ctx) }>
-					@editInput(m, f, r, relations, groups)
-				</td>
-			}
-			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>
+	{{ formID := "edit-" + r.ID }}
+	{{ ctx = withControlForm(ctx, formID) }}
+	<tr id={ "record-" + r.ID } data-row-editor>
+		for _, f := range m.Fields {
+			<td class={ tableCellClasses(ctx) }>
+				@editInput(m, f, r, relations, groups)
+			</td>
+		}
+		<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>
+			// A <form> cannot be a child of a <tr> (the parser closes it at once, so the cells land outside it and Save does nothing):
+			// the form lives in this cell and the row's controls name it with form= (controlForm).
+			<form
+				id={ formID }
+				class="m-0"
+				hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
+				hx-target={ "#record-" + r.ID }
+				hx-swap="outerHTML"
+				hx-encoding="multipart/form-data"
+			>
 				<button type="submit" class={ buttonClasses(ctx, domain.ButtonPrimary) + " mr-1" }>Save</button>
 				<button
 					type="button"
+					data-row-cancel
 					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
 				>Cancel</button>
-			</td>
-		</form>
+			</form>
+		</td>
 	</tr>
 }
 

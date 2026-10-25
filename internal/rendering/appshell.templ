@@ -205,6 +205,18 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 						if (!d.querySelector("details[data-popover][open]")) { d.open = false; }
 					});
 				});
+				// One table row is edited at a time: when a row's editor has been drawn, every other open row editor is put back with its own
+				// Cancel (the row it was). An editor's tr carries data-row-editor and its Cancel data-row-cancel; the swap's target keeps its id,
+				// which finds the new row after an outerHTML swap.
+				document.addEventListener("htmx:afterSwap", function (e) {
+					var id = e.detail && e.detail.target && e.detail.target.id;
+					var row = id ? document.getElementById(id) : null;
+					if (!row || !row.matches("tr[data-row-editor]")) { return; }
+					document.querySelectorAll("tr[data-row-editor]").forEach(function (o) {
+						var cancel = o !== row ? o.querySelector("[data-row-cancel]") : null;
+						if (cancel) { cancel.click(); }
+					});
+				});
 				// A dialog that has opened takes the focus into its first control, so typing starts at once and a keyboard user is not left on
 				// the trigger behind it. (`toggle` does not bubble, hence the capture.)
 				document.addEventListener("toggle", function (e) {

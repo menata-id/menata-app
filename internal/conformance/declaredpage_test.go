@@ -190,7 +190,7 @@ func TestInstalledPageDatasetsExistInTheLibraryTemplate(t *testing.T) {
 				}
 				for _, b := range pageBindings(*item.Page) {
 					lib, ok := library[owner[b.Dataset]]
-					if !ok {
+					if !ok || !isCopyOf(ws, owner[b.Dataset], lib) {
 						continue
 					}
 					checked++
@@ -209,6 +209,28 @@ func TestInstalledPageDatasetsExistInTheLibraryTemplate(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("no installed page binds a Dataset owned by a library Machine -- this gate is measuring nothing")
 	}
+}
+
+// isCopyOf says whether the Workspace's Machine of that id is an installed copy of the library one, not a different Machine that happens
+// to share its id (an assistant-generated one: "mch_task" with its own fld_task_* Fields). A copy declares nothing the library Machine does
+// not -- installing is a byte-identical copy unless an id collides, and then the id is renamed -- so a Field the library lacks means it is not.
+// Without this the gate read a generated Machine as the library's and demanded Datasets of it that only the generated one has (2026-10-25).
+func isCopyOf(ws domain.Workspace, id string, lib *domain.Machine) bool {
+	have := map[string]bool{}
+	for _, f := range lib.Fields {
+		have[f.ID] = true
+	}
+	for _, m := range ws.Machines {
+		if m.ID != id {
+			continue
+		}
+		for _, f := range m.Fields {
+			if !have[f.ID] {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func pageBindings(n domain.PageNode) []domain.PageBinding {

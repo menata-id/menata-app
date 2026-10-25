@@ -498,7 +498,7 @@ func computedDisplay(current any) string {
 // sends the record whole and the update route, which refuses a change to it, sees none.
 templ editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions) {
 	if locked, why := m.LockedField(f, r.Values); locked {
-		<input type="hidden" name={ f.ID } value={ figureInputValue(r.Values[f.ID]) }/>
+		<input type="hidden" name={ f.ID } { controlForm(ctx)... } value={ figureInputValue(r.Values[f.ID]) }/>
 		<span title={ why }>{ valueText(ctx, f, r.Values[f.ID]) }</span>
 	} else {
 		@fieldInput(f, r.Values[f.ID], relations, groups, f.Required)
@@ -515,7 +515,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		case f.Compute != nil:
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) } title="Calculated automatically when saved">{ computedDisplay(current) }</span>
 		case f.Type == domain.FieldTypeStatus:
-			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
+			<select name={ f.ID } { controlForm(ctx)... } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				if !required || toString(current) == "" {
 					<option value=""></option>
 				}
@@ -524,7 +524,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 				}
 			</select>
 		case f.IsReference():
-			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
+			<select name={ f.ID } { controlForm(ctx)... } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
 				for _, opt := range relations[f.RelatedMachine] {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
@@ -537,31 +537,31 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		// the IsReference() one above precisely because IsReference() is false for it: a Group has
 		// no target Machine to key relations by, so the options arrive in their own list.
 		case f.Type == domain.FieldTypeGroup:
-			<select name={ f.ID } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
+			<select name={ f.ID } { controlForm(ctx)... } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
 				<option value=""></option>
 				for _, opt := range groups {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>
 		case f.Type == domain.FieldTypeBoolean:
-			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class={ "size-4", controlAccentClass(ctx) }/>
+			<input type="checkbox" name={ f.ID } { controlForm(ctx)... } checked?={ toBool(current) } class={ "size-4", controlAccentClass(ctx) }/>
 		case f.Type == domain.FieldTypeDate:
-			<input type="date" name={ f.ID } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="date" name={ f.ID } { controlForm(ctx)... } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type.IsNumeric():
-			<input type="number" step="any" name={ f.ID } required?={ required } value={ figureInputValue(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="number" step="any" name={ f.ID } { controlForm(ctx)... } required?={ required } value={ figureInputValue(current) } class={ fieldClasses(ctx) + " w-full" }/>
 		case f.Type == domain.FieldTypeLongText:
-			<textarea name={ f.ID } required?={ required } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
+			<textarea name={ f.ID } { controlForm(ctx)... } required?={ required } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<a href={ templ.URL("/uploads/" + key) } target="_blank" class={ "truncate text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ storage.DisplayName(key) }</a>
-					<input type="file" name={ f.ID } class={ "w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }/>
+					<input type="file" name={ f.ID } { controlForm(ctx)... } class={ "w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }/>
 				</div>
 			} else {
-				<input type="file" name={ f.ID } class={ "w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }/>
+				<input type="file" name={ f.ID } { controlForm(ctx)... } class={ "w-full font-sans", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }/>
 			}
 		default:
-			<input type="text" name={ f.ID } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
+			<input type="text" name={ f.ID } { controlForm(ctx)... } required?={ required } value={ toString(current) } class={ fieldClasses(ctx) + " w-full" }/>
 	}
 }
 
