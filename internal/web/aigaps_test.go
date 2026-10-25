@@ -30,7 +30,8 @@ func TestPostNewApplicationMessage_everyNamedGapIsRecordedAndLogged(t *testing.T
 		CapabilityGaps: []aiassist.CapabilityGap{
 			{Requested: "notifikasi ke pemegang peran", Kind: aiassist.GapAssistant, Note: "email semua koordinator"},
 			{Requested: "tampilan papan per status", Kind: aiassist.GapAssistant, Note: "kanban",
-				CapabilityKey: "Board View!", Class: aiassist.ClassUIComponent, IdealCapability: "A board with one column per option of a status field.", Benchmark: "Trello board"},
+				CapabilityKey: "Board View!", Class: aiassist.ClassUIComponent, IdealCapability: "A board with one column per option of a status field.",
+				WantedShape: "views: [{type: board}]", Where: "mch_ticket", Intent: "saya mau papan kanban", Benchmark: "Trello board"},
 			{Requested: "persetujuan bertingkat generik", Kind: aiassist.GapRuntime, Note: "atasan lalu direktur"},
 			{Requested: "rekap persen per cabang", Kind: "bukan-jenis-yang-sah", Note: "model salah menamai jenis"},
 		},
@@ -72,13 +73,16 @@ func TestPostNewApplicationMessage_everyNamedGapIsRecordedAndLogged(t *testing.T
 	}
 	// The specification fields are stored, and a key that is not a slug is made one; a gap with no key takes
 	// its name's slug; an unknown class is "unclassified". The log carries them by name.
-	var key, class, ideal, benchmark string
-	if err := s.pool.QueryRow(s.wsCtx, `SELECT capability_key, class, ideal_capability, benchmark FROM ai_capability_gaps WHERE workspace_id = $1 AND requested_capability = $2`,
-		s.workspaceID, "tampilan papan per status").Scan(&key, &class, &ideal, &benchmark); err != nil {
+	var key, class, ideal, shape, where, intent, benchmark string
+	if err := s.pool.QueryRow(s.wsCtx, `SELECT capability_key, class, ideal_capability, wanted_shape, location, intent, benchmark FROM ai_capability_gaps WHERE workspace_id = $1 AND requested_capability = $2`,
+		s.workspaceID, "tampilan papan per status").Scan(&key, &class, &ideal, &shape, &where, &intent, &benchmark); err != nil {
 		t.Fatal(err)
 	}
-	if key != "board-view" || class != "ui_component" || ideal == "" || benchmark != "Trello board" {
-		t.Errorf("stored detail = %q/%q/%q/%q, want board-view/ui_component/<ideal>/Trello board", key, class, ideal, benchmark)
+	// Every one of the seven columns is read back with a value of its own, so two written into each other's
+	// column cannot pass.
+	if key != "board-view" || class != "ui_component" || ideal != "A board with one column per option of a status field." ||
+		shape != "views: [{type: board}]" || where != "mch_ticket" || intent != "saya mau papan kanban" || benchmark != "Trello board" {
+		t.Errorf("stored detail = %q/%q/%q/%q/%q/%q/%q, want each field in its own column", key, class, ideal, shape, where, intent, benchmark)
 	}
 	if err := s.pool.QueryRow(s.wsCtx, `SELECT capability_key, class FROM ai_capability_gaps WHERE workspace_id = $1 AND requested_capability = $2`,
 		s.workspaceID, "rekap persen per cabang").Scan(&key, &class); err != nil {

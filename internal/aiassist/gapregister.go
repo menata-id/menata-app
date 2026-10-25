@@ -120,11 +120,15 @@ func ValidateKnownGaps(gaps []KnownGap, capability func(id string) (exists, aiWr
 	return problems
 }
 
-// openGapSentence lists, for the prompt, every gap not yet built, so the model reuses a key when the need is
-// the same. Sorted by key so the prompt is stable between requests.
-func openGapSentence() string {
+// openGapSentence lists, for the prompt, every gap of the register not yet built.
+func openGapSentence() string { return openGapsSentence(KnownGaps) }
+
+// openGapsSentence lists every gap in gaps not yet built, so the model reuses a key when the need is the
+// same. Sorted by key so the prompt is stable between requests. It takes the slice so a test can give it a
+// built gap, which the real register does not hold yet.
+func openGapsSentence(gaps []KnownGap) string {
 	var open []KnownGap
-	for _, g := range KnownGaps {
+	for _, g := range gaps {
 		if g.Status != GapBuilt {
 			open = append(open, g)
 		}

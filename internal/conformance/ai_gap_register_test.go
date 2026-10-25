@@ -1,6 +1,8 @@
 package conformance
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"menata.app/internal/aiassist"
@@ -25,5 +27,26 @@ func TestGapRegisterAgreesWithTheCapabilityCatalogue(t *testing.T) {
 	})
 	for _, p := range problems {
 		t.Error(p)
+	}
+}
+
+// Migration 021's CHECK on ai_capability_gaps.class is the database's own copy of aiassist.GapClasses. A class
+// the model may name that the CHECK refuses would make RecordAICapabilityGap fail, and with it the whole turn,
+// so the gap the model named would be lost. The migration text is read, so no database is needed.
+func TestGapClassCheckInTheMigrationListsEveryClass(t *testing.T) {
+	raw, err := os.ReadFile("../../migrations/021_ai_capability_gap_detail.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := string(raw)
+	i := strings.Index(check, "CHECK (class IN (")
+	if i < 0 {
+		t.Fatal("migration 021 has no CHECK (class IN (...))")
+	}
+	check = check[i : i+strings.Index(check[i:], "))")]
+	for _, c := range append(append([]string{}, aiassist.GapClasses...), aiassist.ClassUnclassified) {
+		if !strings.Contains(check, "'"+c+"'") {
+			t.Errorf("the migration's class CHECK does not allow %q, which aiassist offers", c)
+		}
 	}
 }

@@ -102,3 +102,35 @@ func TestValidateKnownGaps(t *testing.T) {
 		t.Errorf("a repeated key reported %v, want one 'twice'", p)
 	}
 }
+
+// A built gap is not offered to the model as missing, an open and a planned one are, and the order is by key.
+// The real register holds no built gap yet, so this is the only place the branch is exercised.
+func TestOpenGapsSentenceSkipsBuiltAndSorts(t *testing.T) {
+	got := openGapsSentence([]KnownGap{
+		{Key: "zeta", Class: ClassDataModel, Summary: "z", Status: GapPlanned},
+		{Key: "done", Class: ClassUIComponent, Summary: "d", Status: GapBuilt, Capability: "x"},
+		{Key: "alpha", Class: ClassConfiguration, Summary: "a", Status: GapOpen},
+	})
+	if strings.Contains(got, "done") {
+		t.Errorf("a built gap is listed as missing:\n%s", got)
+	}
+	if a, z := strings.Index(got, "- alpha ("), strings.Index(got, "- zeta ("); a < 0 || z < 0 || a > z {
+		t.Errorf("open and planned gaps must both be listed, alpha first:\n%s", got)
+	}
+	if openGapsSentence([]KnownGap{{Key: "done", Class: ClassUIComponent, Summary: "d", Status: GapBuilt, Capability: "x"}}) != "" {
+		t.Error("a register of only built gaps must add nothing to the prompt")
+	}
+}
+
+// The prompt explains every class the schema offers, by its name, so the two cannot drift apart.
+func TestPromptNamesEveryGapClass(t *testing.T) {
+	prompt := SystemPromptFor(nil, nil)
+	for _, c := range GapClasses {
+		if !strings.Contains(prompt, c) {
+			t.Errorf("the prompt never names gap class %q", c)
+		}
+	}
+	if !strings.Contains(prompt, strings.Join(GapClasses, ", ")) {
+		t.Errorf("the prompt does not list the classes as %q", strings.Join(GapClasses, ", "))
+	}
+}
