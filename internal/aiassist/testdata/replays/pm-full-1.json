@@ -1,0 +1,348 @@
+{
+ "case": "pm-full",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Buatkan aplikasi manajemen proyek untuk tim kreatif: proyek, daftar (list), dan tugas. Tugas ditampilkan sebagai papan per daftar dengan drag untuk memindahkan, juga sebagai kalender tanggal jatuh tempo, dan punya halaman detail dengan tombol aksi. Admin proyek bisa menambah status dan field sendiri lewat menu pengaturan.",
+ "replies": [
+  {
+   "message": "Untuk membuat aplikasi Manajemen Proyek Tim Kreatif ini, saya perlu menanyakan beberapa hal penting sebelum menerbitkannya:\n\n1. Peran apa (roles) yang akan Anda pegang sendiri setelah aplikasi ini dipublikasikan (publisher_role)? (Misalnya: 'Admin' atau 'Manajer')\n2. Menu apa saja yang ingin ditampilkan di navigasi aplikasi, urutannya, dan label setiap menu? Mesin yang tersedia adalah: Proyek, Daftar, dan Tugas.\n\nSelain itu, beberapa permintaan Anda memerlukan fitur yang belum dapat saya buatkan melalui metadata saat ini, dan telah saya catat dalam daftar capability_gaps:\n- Pengguna menambah status dan field sendiri lewat pengaturan (user-managed-fields-and-statuses)\n- Tampilan kalender tanggal jatuh tempo\n- Drag antar kolom papan secara visual",
+   "capability_gaps": [
+    {
+     "requested": "Admin menambah status dan field sendiri lewat pengaturan",
+     "note": "Admin proyek bisa menambah status dan field sendiri lewat menu pengaturan.",
+     "kind": "assistant",
+     "capability_key": "user-managed-fields-and-statuses",
+     "class": "configuration",
+     "ideal_capability": "An application's admin adds, renames, orders and removes the Fields and status options of its Machines from a settings screen, without editing metadata."
+    },
+    {
+     "requested": "Tampilan kalender tanggal jatuh tempo",
+     "note": "Tugas ditampilkan sebagai kalender tanggal jatuh tempo.",
+     "kind": "runtime",
+     "capability_key": "calendar-view",
+     "class": "ui_component",
+     "ideal_capability": "A calendar view displaying records by their date fields, allowing users to schedule and inspect items directly on a month, week, or day grid."
+    },
+    {
+     "requested": "Drag untuk memindahkan tugas di papan",
+     "note": "Tugas ditampilkan sebagai papan per daftar dengan drag untuk memindahkan.",
+     "kind": "runtime",
+     "capability_key": "drag-and-drop-board",
+     "class": "ui_component",
+     "ideal_capability": "Interactive drag and drop manipulation of board cards across status columns to update records seamlessly."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah menyiapkan aplikasi Manajemen Proyek Tim Kreatif lengkap dengan mesin Proyek, Daftar, dan Tugas. Peran Anda diatur sebagai 'Admin' (peran pertama), dan ketiga mesin tersebut telah dimasukkan ke menu navigasi sesuai urutan yang paling masuk akal (Proyek, Daftar, Tugas). Catatan untuk fitur kalender dan drag-and-drop telah dimasukkan ke capability_gaps karena belum didukung runtime secara langsung.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_creative_project_mgmt",
+     "name": "Manajemen Proyek Kreatif",
+     "description": "Aplikasi manajemen proyek untuk tim kreatif mencakup proyek, daftar, dan tugas.",
+     "icon": "check-square",
+     "color": "emerald",
+     "roles": [
+      "Admin",
+      "Anggota Tim"
+     ],
+     "publisher_role": "Admin",
+     "machines": [
+      {
+       "id": "mch_project",
+       "name": "Proyek",
+       "fields": [
+        {
+         "id": "fld_project_name",
+         "name": "Nama Proyek",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_project_desc",
+         "name": "Deskripsi",
+         "type": "long_text",
+         "required": false
+        },
+        {
+         "id": "fld_project_status",
+         "name": "Status Proyek",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Perencanaan",
+          "Aktif",
+          "Selesai"
+         ],
+         "default": "Perencanaan"
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_project_name",
+         "role": "title"
+        },
+        {
+         "field": "fld_project_status",
+         "role": "status"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_project_status",
+        "values": [
+         {
+          "option": "Perencanaan",
+          "category": "start"
+         },
+         {
+          "option": "Aktif",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_project_board",
+         "name": "Papan Proyek",
+         "type": "board",
+         "group_by": "fld_project_status"
+        },
+        {
+         "id": "vw_project_table",
+         "name": "Tabel Proyek",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      },
+      {
+       "id": "mch_list",
+       "name": "Daftar",
+       "fields": [
+        {
+         "id": "fld_list_name",
+         "name": "Nama Daftar",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_list_project",
+         "name": "Proyek",
+         "type": "relation",
+         "required": true,
+         "related_machine": "mch_project"
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_list_name",
+         "role": "title"
+        }
+       ],
+       "views": [
+        {
+         "id": "vw_list_table",
+         "name": "Tabel Daftar",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      },
+      {
+       "id": "mch_task",
+       "name": "Tugas",
+       "fields": [
+        {
+         "id": "fld_task_title",
+         "name": "Judul Tugas",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_task_list",
+         "name": "Daftar",
+         "type": "relation",
+         "required": true,
+         "related_machine": "mch_list"
+        },
+        {
+         "id": "fld_task_status",
+         "name": "Status Tugas",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Baru",
+          "Dikerjakan",
+          "Tertunda",
+          "Selesai"
+         ],
+         "default": "Baru"
+        },
+        {
+         "id": "fld_task_due",
+         "name": "Jatuh Tempo",
+         "type": "date",
+         "required": false
+        },
+        {
+         "id": "fld_task_assignee",
+         "name": "Ditugaskan ke",
+         "type": "person",
+         "required": false
+        }
+       ],
+       "completion": {
+        "field": "fld_task_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_task_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_task_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_task_due",
+         "role": "date"
+        },
+        {
+         "field": "fld_task_assignee",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_task_status",
+        "values": [
+         {
+          "option": "Baru",
+          "category": "start"
+         },
+         {
+          "option": "Dikerjakan",
+          "category": "active"
+         },
+         {
+          "option": "Tertunda",
+          "category": "attention"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_task_board",
+         "name": "Papan Tugas",
+         "type": "board",
+         "group_by": "fld_task_status"
+        },
+        {
+         "id": "vw_task_table",
+         "name": "Tabel Tugas",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_start_task",
+         "name": "Mulai Dikerjakan",
+         "field": "fld_task_status",
+         "from": "Baru",
+         "to": "Dikerjakan"
+        },
+        {
+         "id": "trn_delay_task",
+         "name": "Tunda Tugas",
+         "field": "fld_task_status",
+         "from": "Dikerjakan",
+         "to": "Tertunda"
+        },
+        {
+         "id": "trn_complete_task",
+         "name": "Selesaikan Tugas",
+         "field": "fld_task_status",
+         "from": "Dikerjakan",
+         "to": "Selesai",
+         "sets": [
+          {
+           "field": "fld_task_due",
+           "source": "today"
+          }
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Proyek",
+       "machine_id": "mch_project",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      },
+      {
+       "label": "Daftar",
+       "machine_id": "mch_list",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      },
+      {
+       "label": "Tugas",
+       "machine_id": "mch_task",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Admin menambah status dan field sendiri lewat pengaturan",
+     "note": "Admin proyek bisa menambah status dan field sendiri lewat menu pengaturan.",
+     "kind": "assistant",
+     "capability_key": "user-managed-fields-and-statuses",
+     "class": "configuration",
+     "ideal_capability": "An application's admin adds, renames, orders and removes the Fields and status options of its Machines from a settings screen, without editing metadata."
+    },
+    {
+     "requested": "Tampilan kalender tanggal jatuh tempo",
+     "note": "Tugas ditampilkan sebagai kalender tanggal jatuh tempo.",
+     "kind": "runtime",
+     "capability_key": "calendar-view",
+     "class": "ui_component",
+     "ideal_capability": "A calendar view displaying records by their date fields, allowing users to schedule and inspect items directly on a month, week, or day grid."
+    },
+    {
+     "requested": "Drag untuk memindahkan tugas di papan",
+     "note": "Tugas ditampilkan sebagai papan per daftar dengan drag untuk memindahkan.",
+     "kind": "runtime",
+     "capability_key": "drag-and-drop-board",
+     "class": "ui_component",
+     "ideal_capability": "Interactive drag and drop manipulation of board cards across status columns to update records seamlessly."
+    }
+   ]
+  }
+ ]
+}

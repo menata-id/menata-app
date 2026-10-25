@@ -1,0 +1,235 @@
+{
+ "case": "lending",
+ "run": 1,
+ "group": "control",
+ "prompt": "Aplikasi peminjaman alat: peminjam, alat yang dipinjam, tanggal pinjam, tanggal jatuh tempo. Status dipinjam, dikembalikan. Tampilkan daftar pinjaman yang jatuh tempo.",
+ "replies": [
+  {
+   "message": "Halo! Untuk membangun aplikasi peminjaman alat dengan peminjam, alat, tanggal pinjam, jatuh tempo, serta status dipinjam dan dikembalikan, saya perlu menanyakan beberapa hal agar aplikasinya lengkap:\n\n1. Apakah aplikasi ini memerlukan peran (roles) tertentu, seperti peminjam atau pengelola alat? \n2. Peran mana yang akan Anda pegang sendiri nanti setelah aplikasi ini dipublikasikan (publisher_role)?\n3. Mesin apa saja yang ingin Anda masukkan ke dalam menu navigasi aplikasi, dan apa nama setiap menu tersebut?\n\nSilakan beri tahu saya pilihan Anda agar saya bisa segera menyiapkan rancangan metadatanya."
+  },
+  {
+   "message": "Saya telah membuat aplikasi \"Peminjaman Alat\" dengan peran \"peminjam\" dan \"pengelola_alat\". Anda memegang peran pertama (\"peminjam\") sebagai publisher role, dan dua menu navigasi telah disiapkan: \"Daftar Pinjaman\" (sebagai antrean kerja/queue yang menampilkan tanggal jatuh tempo dan tombol proses) serta \"Daftar Alat\".",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_peminjaman_alat",
+     "name": "Peminjaman Alat",
+     "description": "Aplikasi pengelolaan peminjaman alat dan pemantauan jatuh tempo",
+     "icon": "calendar",
+     "color": "blue",
+     "roles": [
+      "peminjam",
+      "pengelola_alat"
+     ],
+     "publisher_role": "peminjam",
+     "machines": [
+      {
+       "id": "mch_pinjaman",
+       "name": "Pinjaman",
+       "fields": [
+        {
+         "id": "fld_peminjam",
+         "name": "Peminjam",
+         "type": "person",
+         "required": true,
+         "stamp": "current_user"
+        },
+        {
+         "id": "fld_alat",
+         "name": "Alat",
+         "type": "relation",
+         "required": true,
+         "related_machine": "mch_alat"
+        },
+        {
+         "id": "fld_tanggal_pinjam",
+         "name": "Tanggal Pinjam",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_jatuh_tempo",
+         "name": "Tanggal Jatuh Tempo",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_status_pinjam",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "dipinjam",
+          "dikembalikan"
+         ],
+         "default": "dipinjam"
+        }
+       ],
+       "completion": {
+        "field": "fld_status_pinjam",
+        "done": "dikembalikan"
+       },
+       "card_fields": [
+        {
+         "field": "fld_alat",
+         "role": "title"
+        },
+        {
+         "field": "fld_status_pinjam",
+         "role": "status"
+        },
+        {
+         "field": "fld_jatuh_tempo",
+         "role": "date"
+        },
+        {
+         "field": "fld_peminjam",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status_pinjam",
+        "values": [
+         {
+          "option": "dipinjam",
+          "category": "active"
+         },
+         {
+          "option": "dikembalikan",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board_pinjam",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status_pinjam"
+        },
+        {
+         "id": "vw_table_pinjam",
+         "name": "Tabel Pinjaman",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create_pinjam",
+         "action": "create",
+         "roles": [
+          "peminjam",
+          "pengelola_alat"
+         ]
+        },
+        {
+         "id": "prm_edit_pinjam",
+         "action": "edit",
+         "roles": [
+          "pengelola_alat"
+         ],
+         "actor_field": "fld_peminjam"
+        },
+        {
+         "id": "prm_delete_pinjam",
+         "action": "delete",
+         "roles": [
+          "pengelola_alat"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_kembalikan",
+         "name": "Kembalikan Alat",
+         "field": "fld_status_pinjam",
+         "from": "dipinjam",
+         "to": "dikembalikan"
+        }
+       ],
+       "events": null
+      },
+      {
+       "id": "mch_alat",
+       "name": "Alat",
+       "fields": [
+        {
+         "id": "fld_nama_alat",
+         "name": "Nama Alat",
+         "type": "text",
+         "required": true
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_nama_alat",
+         "role": "title"
+        }
+       ],
+       "views": [
+        {
+         "id": "vw_table_alat",
+         "name": "Daftar Alat",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create_alat",
+         "action": "create",
+         "roles": [
+          "pengelola_alat"
+         ]
+        },
+        {
+         "id": "prm_edit_alat",
+         "action": "edit",
+         "roles": [
+          "pengelola_alat"
+         ]
+        },
+        {
+         "id": "prm_delete_alat",
+         "action": "delete",
+         "roles": [
+          "pengelola_alat"
+         ]
+        }
+       ],
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Pinjaman",
+       "machine_id": "mch_pinjaman",
+       "queue": {
+        "date_field": "fld_jatuh_tempo",
+        "limit": 50,
+        "words": {
+         "overdue": "Terlambat",
+         "due_today": "Jatuh Tempo Hari Ini",
+         "next_week": "7 Hari Kedepan",
+         "later": "Nanti",
+         "recently_done": "Baru Saja Dikembalikan",
+         "empty": "Tidak ada pinjaman",
+         "all": "Semua Pinjaman",
+         "add": "Pinjam Alat"
+        }
+       }
+      },
+      {
+       "label": "Daftar Alat",
+       "machine_id": "mch_alat",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

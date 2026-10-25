@@ -1,0 +1,264 @@
+{
+ "case": "progress-rollup",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi proyek dan tugas: setiap proyek menampilkan persentase tugasnya yang sudah selesai, dihitung otomatis dari tugas-tugasnya, dan diurutkan dari yang paling tertinggal.",
+ "replies": [
+  {
+   "message": "Halo! Untuk aplikasi proyek dan tugas, sistem saat ini belum mendukung perhitungan otomatis persentase tugas selesai yang ditampilkan langsung di proyek (computed field lintas relasi atau rollup). Apakah Anda ingin kita buat dua bagian utama (Proyek dan Tugas) dengan daftar atau papan tugas, dan mencatat fitur persentase otomatis tersebut sebagai pengembangan selanjutnya?",
+   "capability_gaps": [
+    {
+     "requested": "Persentase tugas selesai dihitung otomatis dari relasi tugas ke proyek",
+     "note": "Menghitung persentase tugas selesai secara otomatis dari tugas-tugas di dalam proyek.",
+     "kind": "runtime",
+     "capability_key": "rollup-computed-fields",
+     "class": "data_model",
+     "ideal_capability": "Allows computed number fields to aggregate values (such as counts, sums, or percentages) across related child records (tasks) up to a parent record (project), updating automatically whenever child records change."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah membuat aplikasi Proyek dan Tugas dengan peran 'Anggota Tim' (yang Anda pegang), serta dua mesin utama: Proyek dan Tugas. Tugas dihubungkan ke Proyek menggunakan relasi, dan Anda dapat mengelola tugas dalam bentuk papan (kanban) atau tabel. Menu disusun dengan Proyek di urutan pertama dan Tugas di urutan kedua.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_project_management",
+     "name": "Manajemen Proyek dan Tugas",
+     "description": "Aplikasi untuk mengelola proyek dan tugas dengan pelacakan status pekerjaan.",
+     "icon": "check-square",
+     "color": "blue",
+     "roles": [
+      "Anggota Tim",
+      "Manajer Proyek"
+     ],
+     "publisher_role": "Anggota Tim",
+     "machines": [
+      {
+       "id": "mch_project",
+       "name": "Proyek",
+       "fields": [
+        {
+         "id": "fld_project_name",
+         "name": "Nama Proyek",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_project_status",
+         "name": "Status Proyek",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Baru",
+          "Berjalan",
+          "Selesai"
+         ],
+         "default": "Baru"
+        },
+        {
+         "id": "fld_project_deadline",
+         "name": "Tenggat Waktu",
+         "type": "date",
+         "required": false
+        }
+       ],
+       "completion": {
+        "field": "fld_project_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_project_name",
+         "role": "title"
+        },
+        {
+         "field": "fld_project_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_project_deadline",
+         "role": "date"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_project_status",
+        "values": [
+         {
+          "option": "Baru",
+          "category": "start"
+         },
+         {
+          "option": "Berjalan",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_project_board",
+         "name": "Papan Proyek",
+         "type": "board",
+         "group_by": "fld_project_status"
+        },
+        {
+         "id": "vw_project_table",
+         "name": "Tabel Proyek",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_start_project",
+         "name": "Mulai Proyek",
+         "field": "fld_project_status",
+         "from": "Baru",
+         "to": "Berjalan"
+        },
+        {
+         "id": "trn_complete_project",
+         "name": "Selesaikan Proyek",
+         "field": "fld_project_status",
+         "from": "Berjalan",
+         "to": "Selesai",
+         "sets": [
+          {
+           "field": "fld_project_deadline",
+           "source": "today"
+          }
+         ]
+        }
+       ],
+       "events": null
+      },
+      {
+       "id": "mch_task",
+       "name": "Tugas",
+       "fields": [
+        {
+         "id": "fld_task_title",
+         "name": "Judul Tugas",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_task_project",
+         "name": "Proyek",
+         "type": "relation",
+         "required": true,
+         "related_machine": "mch_project"
+        },
+        {
+         "id": "fld_task_status",
+         "name": "Status Tugas",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Belum Mulai",
+          "Dalam Proses",
+          "Selesai"
+         ],
+         "default": "Belum Mulai"
+        },
+        {
+         "id": "fld_task_assignee",
+         "name": "Ditugaskan ke",
+         "type": "person",
+         "required": false
+        }
+       ],
+       "completion": {
+        "field": "fld_task_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_task_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_task_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_task_assignee",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_task_status",
+        "values": [
+         {
+          "option": "Belum Mulai",
+          "category": "start"
+         },
+         {
+          "option": "Dalam Proses",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_task_board",
+         "name": "Papan Tugas",
+         "type": "board",
+         "group_by": "fld_task_status"
+        },
+        {
+         "id": "vw_task_table",
+         "name": "Tabel Tugas",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_task_in_progress",
+         "name": "Kerjakan",
+         "field": "fld_task_status",
+         "from": "Belum Mulai",
+         "to": "Dalam Proses"
+        },
+        {
+         "id": "trn_task_complete",
+         "name": "Selesaikan",
+         "field": "fld_task_status",
+         "from": "Dalam Proses",
+         "to": "Selesai"
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Proyek",
+       "machine_id": "mch_project",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      },
+      {
+       "label": "Tugas",
+       "machine_id": "mch_task",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,223 @@
+{
+ "case": "multilevel-approval",
+ "run": 1,
+ "group": "template",
+ "prompt": "Saya butuh alur persetujuan dokumen bertingkat: staf mengajukan dokumen, lalu manajer, lalu direktur, lengkap dengan tanda tangan dan lampiran.",
+ "replies": [
+  {
+   "message": "The runtime cannot support a dedicated multi-level approval workflow with sequencing, signatures, or PDF compositing. Approval is handled through a status field moving via the ordinary edit form, gated by roles. Also, signatures and PDF compositing are not supported.",
+   "capability_gaps": [
+    {
+     "requested": "alur persetujuan dokumen bertingkat",
+     "note": "User asked for multi-level document approval with sequencing.",
+     "kind": "runtime",
+     "capability_key": "multi-level-approval-workflow",
+     "class": "workflow_logic",
+     "ideal_capability": "An approval engine that supports sequential multi-step reviews (e.g., staff to manager to director) where each step can require specific permissions or routing rules before final sign-off."
+    },
+    {
+     "requested": "tanda tangan dan lampiran",
+     "note": "User asked for signatures and PDF compositing.",
+     "kind": "runtime",
+     "capability_key": "document-signatures-and-compositing",
+     "class": "integration",
+     "ideal_capability": "The runtime should be able to capture digital signatures and composite them into a PDF document for storage and formal output."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah merancang aplikasi baru bernama \"Pengajuan Dokumen\" dengan mesin dokumen, lengkap dengan status pengajuan, peran staf, manajer, dan direktur, serta navigasi menu utama. Peran penerbit (\"staff\") diatur untuk Anda.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_pengajuan_dokumen",
+     "name": "Pengajuan Dokumen",
+     "description": "Alur pengajuan dan peninjauan dokumen",
+     "icon": "file-text",
+     "color": "blue",
+     "roles": [
+      "staff",
+      "manager",
+      "director"
+     ],
+     "publisher_role": "staff",
+     "machines": [
+      {
+       "id": "mch_dokumen",
+       "name": "Dokumen",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_keterangan",
+         "name": "Keterangan",
+         "type": "long_text",
+         "required": false
+        },
+        {
+         "id": "fld_lampiran",
+         "name": "Lampiran",
+         "type": "file",
+         "required": false
+        },
+        {
+         "id": "fld_pengaju",
+         "name": "Pengaju",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "diajukan",
+          "ditinjau_manajer",
+          "disetujui_direktur",
+          "ditolak"
+         ],
+         "default": "diajukan"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "disetujui_direktur"
+       },
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_pengaju",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "diajukan",
+          "category": "start"
+         },
+         {
+          "option": "ditinjau_manajer",
+          "category": "active"
+         },
+         {
+          "option": "disetujui_direktur",
+          "category": "done"
+         },
+         {
+          "option": "ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "staff"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "staff",
+          "manager",
+          "director"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "manager",
+          "director"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_ke_manajer",
+         "name": "Tinjau oleh Manajer",
+         "field": "fld_status",
+         "from": "diajukan",
+         "to": "ditinjau_manajer",
+         "roles": [
+          "manager"
+         ]
+        },
+        {
+         "id": "trn_ke_direktur",
+         "name": "Setujui oleh Direktur",
+         "field": "fld_status",
+         "from": "ditinjau_manajer",
+         "to": "disetujui_direktur",
+         "roles": [
+          "director"
+         ]
+        },
+        {
+         "id": "trn_tolak",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "ditinjau_manajer",
+         "to": "ditolak",
+         "roles": [
+          "manager",
+          "director"
+         ]
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_log",
+         "on_create": true,
+         "service": "log_activity",
+         "summary": "{fld_judul} diajukan"
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Dokumen",
+       "machine_id": "mch_dokumen",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

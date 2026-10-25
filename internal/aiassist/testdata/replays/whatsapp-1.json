@@ -1,0 +1,208 @@
+{
+ "case": "whatsapp",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi antrean pasien klinik. Saat giliran pasien hampir tiba, kirim pesan WhatsApp ke nomornya.",
+ "replies": [
+  {
+   "message": "The runtime can send in-app notices and emails through the send_notification service, but it cannot send WhatsApp messages directly. Would you like me to build the patient queue application using in-app and email notifications instead?",
+   "capability_gaps": [
+    {
+     "requested": "WhatsApp notification integration",
+     "note": "The user asked to send WhatsApp messages to patients when their turn is near.",
+     "kind": "runtime",
+     "capability_key": "whatsapp-integration",
+     "class": "integration",
+     "ideal_capability": "The runtime should be able to send outbound WhatsApp messages via connected messaging provider APIs when records change or events trigger."
+    }
+   ]
+  },
+  {
+   "message": "I have created the clinic patient queue application with a work queue navigation for patients, using in-app and email notifications when their status changes. You will hold the 'admin' role.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_patient_queue",
+     "name": "Antrean Pasien",
+     "description": "Aplikasi antrean pasien klinik dengan pengelolaan status dan notifikasi dalam aplikasi.",
+     "icon": "timer",
+     "color": "blue",
+     "roles": [
+      "admin",
+      "staff"
+     ],
+     "publisher_role": "admin",
+     "machines": [
+      {
+       "id": "mch_patient",
+       "name": "Pasien",
+       "fields": [
+        {
+         "id": "fld_name",
+         "name": "Nama Pasien",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_phone",
+         "name": "Nomor Telepon",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_queue_number",
+         "name": "Nomor Antrean",
+         "type": "number",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "menunggu",
+          "hampir_tiba",
+          "diperiksa",
+          "selesai",
+          "batal"
+         ],
+         "default": "menunggu"
+        },
+        {
+         "id": "fld_assigned_staff",
+         "name": "Petugas",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_name",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_assigned_staff",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "menunggu",
+          "category": "start"
+         },
+         {
+          "option": "hampir_tiba",
+          "category": "attention"
+         },
+         {
+          "option": "diperiksa",
+          "category": "active"
+         },
+         {
+          "option": "selesai",
+          "category": "done"
+         },
+         {
+          "option": "batal",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan Antrean",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel Pasien",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_to_almost",
+         "name": "Panggil (Hampir Tiba)",
+         "field": "fld_status",
+         "from": "menunggu",
+         "to": "hampir_tiba"
+        },
+        {
+         "id": "trn_to_exam",
+         "name": "Mulai Periksa",
+         "field": "fld_status",
+         "from": "hampir_tiba",
+         "to": "diperiksa"
+        },
+        {
+         "id": "trn_to_done",
+         "name": "Selesaikan",
+         "field": "fld_status",
+         "from": "diperiksa",
+         "to": "selesai"
+        },
+        {
+         "id": "trn_to_cancel",
+         "name": "Batalkan",
+         "field": "fld_status",
+         "from": "menunggu",
+         "to": "batal"
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_notify_almost",
+         "on": "fld_status",
+         "when_equals": "hampir_tiba",
+         "service": "send_notification",
+         "summary": "Pasien {fld_name} dipanggil untuk segera bersiap.",
+         "recipient_field": "fld_assigned_staff",
+         "preference_key": "assigned"
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Antrean Pasien",
+       "machine_id": "mch_patient",
+       "queue": {
+        "limit": 50,
+        "words": {
+         "overdue": "Menunggu Lama",
+         "due_today": "Hari Ini",
+         "recently_done": "Selesai"
+        }
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "WhatsApp notification integration",
+     "note": "The user asked to send WhatsApp messages to patients when their turn is near.",
+     "kind": "runtime",
+     "capability_key": "whatsapp-integration",
+     "class": "integration",
+     "ideal_capability": "The runtime should be able to send outbound WhatsApp messages via connected messaging provider APIs when records change or events trigger."
+    }
+   ]
+  }
+ ]
+}

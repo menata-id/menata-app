@@ -1,0 +1,204 @@
+{
+ "case": "training",
+ "run": 1,
+ "group": "control",
+ "prompt": "Pendaftaran pelatihan karyawan: nama pelatihan, peserta (karyawan), tanggal pelaksanaan, biaya. Atasan menyetujui atau menolak pendaftaran. Status diajukan, disetujui, ditolak, selesai.",
+ "replies": [
+  {
+   "message": "Halo! Saya mengerti Anda ingin membuat aplikasi **Pendaftaran Pelatihan Karyawan** dengan rincian berikut:\n- **Mesin Pendaftaran Pelatihan** yang mencakup: Nama Pelatihan (teks), Peserta (pengguna/person), Tanggal Pelaksanaan (tanggal), Biaya (uang), dan Status (diajukan, disetujui, ditolak, selesai).\n- Alur persetujuan oleh atasan melalui perubahan status.\n\nSebelum saya buatkan rancangan lengkapnya beserta metadata, bolehkah saya tahu:\n1. Peran (roles) apa saja yang akan ada di aplikasi ini? (Misalnya: `karyawan` dan `atasan`)\n2. Dari peran-peran tersebut, siapakah peran yang akan Anda pegang sendiri saat aplikasi ini diterbitkan (`publisher_role`)?\n3. Mesin mana saja yang ingin Anda masukkan ke dalam menu navigasi aplikasi, dan apa nama label setiap menu tersebut?"
+  },
+  {
+   "message": "Saya telah membuat aplikasi **Pendaftaran Pelatihan Karyawan** dengan konfigurasi berikut:\n- **Peran (Roles):** `karyawan` (peran Anda sebagai pembuat yang memegang peran ini) dan `atasan`.\n- **Mesin Pendaftaran Pelatihan (`mch_pelatihan`):** \n  - Nama Pelatihan (Teks)\n  - Peserta (Pengguna/Person, otomatis mencatat pembuat dengan `current_user`)\n  - Tanggal Pelaksanaan (Tanggal)\n  - Biaya (Uang)\n  - Status: Diajukan, Disetujui, Ditolak, Selesai (dengan transisi status lengkap untuk pengajuan, persetujuan oleh atasan, penolakan, dan penyelesaian).\n- **Navigasi Menu:** Daftar pendaftaran pelatihan yang terintegrasi langsung di menu utama.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_pendaftaran_pelatihan",
+     "name": "Pendaftaran Pelatihan Karyawan",
+     "description": "Aplikasi untuk mengajukan, menyetujui, dan mengelola pendaftaran pelatihan karyawan.",
+     "icon": "calendar",
+     "color": "blue",
+     "roles": [
+      "karyawan",
+      "atasan"
+     ],
+     "publisher_role": "karyawan",
+     "machines": [
+      {
+       "id": "mch_pelatihan",
+       "name": "Pendaftaran Pelatihan",
+       "fields": [
+        {
+         "id": "fld_nama_pelatihan",
+         "name": "Nama Pelatihan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_peserta",
+         "name": "Peserta",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        },
+        {
+         "id": "fld_tanggal_pelaksanaan",
+         "name": "Tanggal Pelaksanaan",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_biaya",
+         "name": "Biaya",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "diajukan",
+          "disetujui",
+          "ditolak",
+          "selesai"
+         ],
+         "default": "diajukan"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_nama_pelatihan",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal_pelaksanaan",
+         "role": "date"
+        },
+        {
+         "field": "fld_peserta",
+         "role": "person"
+        },
+        {
+         "field": "fld_biaya",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "diajukan",
+          "category": "start"
+         },
+         {
+          "option": "disetujui",
+          "category": "active"
+         },
+         {
+          "option": "ditolak",
+          "category": "stopped"
+         },
+         {
+          "option": "selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "karyawan"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "karyawan",
+          "atasan"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "karyawan"
+         ],
+         "actor_field": "fld_peserta"
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_setuju",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "diajukan",
+         "to": "disetujui",
+         "roles": [
+          "atasan"
+         ]
+        },
+        {
+         "id": "trn_tolak",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "diajukan",
+         "to": "ditolak",
+         "roles": [
+          "atasan"
+         ]
+        },
+        {
+         "id": "trn_selesai",
+         "name": "Selesaikan",
+         "field": "fld_status",
+         "from": "disetujui",
+         "to": "selesai",
+         "roles": [
+          "atasan",
+          "karyawan"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pendaftaran Pelatihan",
+       "machine_id": "mch_pelatihan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,204 @@
+{
+ "case": "petty-cash",
+ "run": 2,
+ "group": "control",
+ "prompt": "Buat aplikasi kas kecil: setiap pengeluaran punya tanggal, keterangan, jumlah uang, dan kategori. Bendahara harus menyetujui sebelum dianggap tercatat. Statusnya diajukan, disetujui, ditolak.",
+ "replies": [
+  {
+   "message": "Halo! Saya akan membantu Anda membuat aplikasi Kas Kecil. Aplikasi ini akan memiliki satu mesin untuk mencatat pengeluaran dengan tanggal, keterangan, jumlah uang, dan kategori, serta status (Diajukan, Disetujui, Ditolak) beserta transisinya yang dikelola oleh peran Bendahara.\n\nSebelum saya menghasilkan metadata aplikasinya, saya ingin menanyakan beberapa hal:\n1. Peran apa saja yang sebaiknya ada di aplikasi ini? (Misalnya: Kasir, Bendahara)\n2. Peran manakah yang akan Anda pegang sendiri setelah aplikasi ini diterbitkan?\n3. Mesin pengeluaran ini nantinya akan dimasukkan ke dalam menu aplikasi dengan label apa?"
+  },
+  {
+   "message": "Saya telah membuat aplikasi Kas Kecil dengan peran Kasir dan Bendahara. Anda memegang peran Kasir (sebagai penerbit aplikasi), dan menu aplikasi telah diatur secara berurutan menampilkan daftar pengeluaran.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_kas_kecil",
+     "name": "Kas Kecil",
+     "description": "Aplikasi pencatatan dan persetujuan pengeluaran kas kecil",
+     "icon": "file-text",
+     "color": "emerald",
+     "roles": [
+      "Kasir",
+      "Bendahara"
+     ],
+     "publisher_role": "Kasir",
+     "machines": [
+      {
+       "id": "mch_pengeluaran",
+       "name": "Pengeluaran",
+       "fields": [
+        {
+         "id": "fld_tanggal",
+         "name": "Tanggal",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_keterangan",
+         "name": "Keterangan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_jumlah",
+         "name": "Jumlah Uang",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_kategori",
+         "name": "Kategori",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Operasional",
+          "ATK",
+          "Konsumsi",
+          "Lainnya"
+         ]
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "default": "Diajukan",
+         "stamp": "current_user",
+         "required_when": {
+          "field": "fld_status",
+          "equals": "Diajukan"
+         },
+         "default_from": {
+          "field": "fld_status",
+          "days": []
+         }
+        },
+        {
+         "id": "fld_diajukan_oleh",
+         "name": "Diajukan Oleh",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Disetujui"
+       },
+       "card_fields": [
+        {
+         "field": "fld_keterangan",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal",
+         "role": "date"
+        },
+        {
+         "field": "fld_jumlah",
+         "role": "money"
+        },
+        {
+         "field": "fld_diajukan_oleh",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Diajukan",
+          "category": "start"
+         },
+         {
+          "option": "Disetujui",
+          "category": "done"
+         },
+         {
+          "option": "Ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan_pengeluaran",
+         "name": "Papan Pengeluaran",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel_pengeluaran",
+         "name": "Tabel Pengeluaran",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create_pengeluaran",
+         "action": "create",
+         "roles": [
+          "Kasir",
+          "Bendahara"
+         ]
+        },
+        {
+         "id": "prm_edit_pengeluaran",
+         "action": "edit",
+         "roles": [
+          "Kasir",
+          "Bendahara"
+         ]
+        },
+        {
+         "id": "prm_delete_pengeluaran",
+         "action": "delete",
+         "roles": [
+          "Bendahara"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_setuju",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "Diajukan",
+         "to": "Disetujui",
+         "roles": [
+          "Bendahara"
+         ]
+        },
+        {
+         "id": "trn_tolak",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "Diajukan",
+         "to": "Ditolak",
+         "roles": [
+          "Bendahara"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pengeluaran Kas Kecil",
+       "machine_id": "mch_pengeluaran",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,186 @@
+{
+ "case": "leave-request",
+ "run": 2,
+ "group": "control",
+ "prompt": "Saya butuh aplikasi pengajuan cuti. Karyawan mengisi tanggal mulai, tanggal selesai dan alasan. Atasan menyetujui atau menolak. Statusnya diajukan, disetujui, ditolak.",
+ "replies": [
+  {
+   "message": "Untuk membuat aplikasi pengajuan cuti dengan status diajukan, disetujui, dan ditolak, kita perlu menentukan peran apa saja yang akan digunakan (misalnya 'Karyawan' dan 'Atasan') serta siapa yang memegang peran tersebut saat aplikasi dipublikasikan. Selain itu, mari kita tentukan mesin apa saja yang ingin ditampilkan di menu navigasi utama. Peran apa yang akan Anda pegang setelah aplikasi ini diterbitkan?"
+  },
+  {
+   "message": "Saya telah membuat aplikasi pengajuan cuti dengan peran 'Karyawan' dan 'Atasan'. Anda memegang peran 'Karyawan' saat aplikasi diterbitkan. Pengajuan cuti memiliki tanggal mulai, tanggal selesai, alasan, serta status (Diajukan, Disetujui, Ditolak). Alur persetujuan diatur melalui transisi status dengan izin untuk atasan, dan menu aplikasi telah disiapkan untuk menampilkan daftar pengajuan cuti.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_cuti",
+     "name": "Pengajuan Cuti",
+     "description": "Aplikasi untuk mengajukan dan menyetujui cuti karyawan.",
+     "icon": "calendar",
+     "color": "blue",
+     "roles": [
+      "Karyawan",
+      "Atasan"
+     ],
+     "publisher_role": "Karyawan",
+     "machines": [
+      {
+       "id": "mch_cuti",
+       "name": "Cuti",
+       "fields": [
+        {
+         "id": "fld_alasan",
+         "name": "Alasan",
+         "type": "long_text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal_mulai",
+         "name": "Tanggal Mulai",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal_selesai",
+         "name": "Tanggal Selesai",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Diajukan",
+          "Disetujui",
+          "Ditolak"
+         ],
+         "default": "Diajukan"
+        },
+        {
+         "id": "fld_pemohon",
+         "name": "Pemohon",
+         "type": "person",
+         "required": true,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Disetujui"
+       },
+       "card_fields": [
+        {
+         "field": "fld_alasan",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal_mulai",
+         "role": "date"
+        },
+        {
+         "field": "fld_pemohon",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Diajukan",
+          "category": "start"
+         },
+         {
+          "option": "Disetujui",
+          "category": "done"
+         },
+         {
+          "option": "Ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board_cuti",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table_cuti",
+         "name": "Daftar Cuti",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create_cuti",
+         "action": "create",
+         "roles": [
+          "Karyawan",
+          "Atasan"
+         ]
+        },
+        {
+         "id": "prm_edit_cuti",
+         "action": "edit",
+         "roles": [
+          "Karyawan",
+          "Atasan"
+         ]
+        },
+        {
+         "id": "prm_delete_cuti",
+         "action": "delete",
+         "roles": [
+          "Karyawan",
+          "Atasan"
+         ],
+         "actor_field": "fld_pemohon"
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_setuju",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "Diajukan",
+         "to": "Disetujui",
+         "roles": [
+          "Atasan"
+         ]
+        },
+        {
+         "id": "trn_tolak",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "Diajukan",
+         "to": "Ditolak",
+         "roles": [
+          "Atasan"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pengajuan Cuti",
+       "machine_id": "mch_cuti",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

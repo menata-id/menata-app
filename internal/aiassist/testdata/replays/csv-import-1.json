@@ -1,0 +1,146 @@
+{
+ "case": "csv-import",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi daftar kontak pelanggan. Saya sudah punya 2000 kontak di file Excel; tolong ada fitur impor dari file itu.",
+ "replies": [
+  {
+   "message": "Fitur impor data dari file Excel (.xlsx atau .csv) secara massal ke dalam runtime belum dapat saya buatkan karena runtime saat ini belum mendukung import eksternal melalui metadata. Saya dapat membantu membuatkan aplikasi untuk mengelola daftar kontak pelanggan secara lengkap beserta kolom-kolom yang Anda butuhkan secara manual. Apakah Anda ingin kita buatkan aplikasi kontaknya?",
+   "capability_gaps": [
+    {
+     "requested": "Impor data dari file Excel",
+     "note": "Pengguna meminta fitur impor dari file Excel untuk 2000 kontak yang sudah ada.",
+     "kind": "runtime",
+     "capability_key": "excel-data-import",
+     "class": "integration",
+     "ideal_capability": "Allows users to upload an Excel or CSV file to bulk-create records in a machine, mapping columns from the file to fields of the machine with validation feedback."
+    }
+   ]
+  },
+  {
+   "message": "Baik, saya akan buatkan aplikasi 'Manajemen Kontak Pelanggan' dengan peran 'Admin' (peran pertama yang Anda pegang), dilengkapi mesin untuk menyimpan data kontak, perusahaan, dan interaksi. Menu aplikasi akan menampilkan daftar semua kontak sebagai menu utama.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_customer_contacts",
+     "name": "Manajemen Kontak Pelanggan",
+     "description": "Aplikasi untuk mengelola data kontak pelanggan dan riwayat interaksi.",
+     "icon": "user-check",
+     "color": "blue",
+     "roles": [
+      "Admin",
+      "Staff"
+     ],
+     "publisher_role": "Admin",
+     "machines": [
+      {
+       "id": "mch_contact",
+       "name": "Kontak",
+       "fields": [
+        {
+         "id": "fld_name",
+         "name": "Nama Lengkap",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_company",
+         "name": "Perusahaan",
+         "type": "text",
+         "required": false
+        },
+        {
+         "id": "fld_email",
+         "name": "Email",
+         "type": "text",
+         "required": false
+        },
+        {
+         "id": "fld_phone",
+         "name": "Nomor Telepon",
+         "type": "text",
+         "required": false
+        },
+        {
+         "id": "fld_status",
+         "name": "Status Pelanggan",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Prospek",
+          "Aktif",
+          "Non-Aktif"
+         ],
+         "default": "Prospek"
+        },
+        {
+         "id": "fld_notes",
+         "name": "Catatan",
+         "type": "long_text",
+         "required": false
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_name",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_phone",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Prospek",
+          "category": "start"
+         },
+         {
+          "option": "Aktif",
+          "category": "active"
+         },
+         {
+          "option": "Non-Aktif",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_contact_board",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_contact_table",
+         "name": "Tabel Kontak",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Kontak",
+       "machine_id": "mch_contact",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

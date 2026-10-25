@@ -6,6 +6,7 @@
 //
 //	make aieval                       # all cases, 3 runs each
 //	AIEVAL_RUNS=1 AIEVAL_ONLY=helpdesk,calendar make aieval
+//	AIEVAL_RECORD=dir make aieval     # also write every conversation, one JSON file per run (the replay fixtures)
 //	AIEVAL_NO_REGISTER=1 make aieval  # the prompt without the register's list of known gaps, to see what it does
 //
 // It only measures. Nothing here changes the prompt, and no number it prints is a gate.
@@ -51,6 +52,10 @@ type evalRun struct {
 	Messages      []string        `json:"messages"`
 	Error         string          `json:"error,omitempty"`
 	Satisfied     bool            `json:"satisfied"`
+	// Prompt and Replies are the whole conversation as the model gave it, written out one file per run when
+	// AIEVAL_RECORD is set, so a later test can replay it without the model (plan C2).
+	Prompt  string  `json:"-"`
+	Replies []Reply `json:"-"`
 }
 
 func TestAIEvalBaseline(t *testing.T) {
@@ -129,6 +134,27 @@ func TestAIEvalBaseline(t *testing.T) {
 	_ = w.Flush()
 	_ = f.Close()
 
+	if dir := os.Getenv("AIEVAL_RECORD"); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range results {
+			b, err := json.MarshalIndent(struct {
+				Case    string  `json:"case"`
+				Run     int     `json:"run"`
+				Group   string  `json:"group"`
+				Prompt  string  `json:"prompt"`
+				Replies []Reply `json:"replies"`
+			}{r.Case, r.Run, r.Group, r.Prompt, r.Replies}, "", " ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s-%d.json", r.Case, r.Run)), b, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
 	summary := summariseEval(results)
 	if err := os.WriteFile(filepath.Join(out, "summary.md"), []byte(summary), 0o644); err != nil {
 		t.Fatal(err)
@@ -137,7 +163,7 @@ func TestAIEvalBaseline(t *testing.T) {
 }
 
 func runEvalCase(client Client, prompt string, existing ExistingState, c evalCase, run int) evalRun {
-	r := evalRun{Case: c.ID, Group: c.Group, Run: run}
+	r := evalRun{Case: c.ID, Group: c.Group, Run: run, Prompt: c.Prompt}
 	turns := []Turn{{Role: "user", Text: c.Prompt}}
 	for r.Turns < evalMaxTurns {
 		reply, err := generateWithRetry(client, prompt, turns)
@@ -146,6 +172,7 @@ func runEvalCase(client Client, prompt string, existing ExistingState, c evalCas
 			break
 		}
 		r.Turns++
+		r.Replies = append(r.Replies, reply)
 		r.Messages = append(r.Messages, reply.Message)
 		r.Gaps = append(r.Gaps, reply.Gaps()...)
 		if reply.Change != nil {

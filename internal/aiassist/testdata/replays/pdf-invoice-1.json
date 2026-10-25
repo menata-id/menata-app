@@ -1,0 +1,201 @@
+{
+ "case": "pdf-invoice",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi faktur: setiap faktur punya pelanggan, tanggal dan total. Pengguna harus bisa mengunduh faktur sebagai PDF yang rapi untuk dikirim ke pelanggan.",
+ "replies": [
+  {
+   "message": "Fitur untuk mengunduh faktur sebagai PDF yang rapi belum dapat dibuat karena perenderan PDF kustom (composite_signed_document atau mesin unduh PDF) belum tersedia di runtime saat ini. Namun, saya dapat membuat aplikasi faktur lengkap dengan pelanggan, tanggal, total, dan daftar menu untuk Anda. Apakah Anda ingin melanjutkan pembuatan aplikasi faktur ini tanpa unduh PDF?",
+   "capability_gaps": [
+    {
+     "requested": "Mengunduh faktur sebagai PDF",
+     "note": "Pengguna meminta faktur dapat diunduh sebagai PDF yang rapi.",
+     "kind": "runtime",
+     "capability_key": "pdf-document-export",
+     "class": "ui_component",
+     "ideal_capability": "The runtime should allow users to export any record (such as an invoice) as a cleanly formatted PDF document using a template layout, suitable for printing or sending directly to clients."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah membuat aplikasi Faktur dengan mesin Pelanggan dan Faktur. Peran Anda adalah Admin, dan kedua mesin tersebut telah dimasukkan ke dalam menu navigasi aplikasi.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_faktur",
+     "name": "Aplikasi Faktur",
+     "description": "Mengelola pelanggan dan faktur penagihan",
+     "icon": "file-text",
+     "color": "blue",
+     "roles": [
+      "Admin",
+      "Staff"
+     ],
+     "publisher_role": "Admin",
+     "machines": [
+      {
+       "id": "mch_pelanggan",
+       "name": "Pelanggan",
+       "fields": [
+        {
+         "id": "fld_nama_pelanggan",
+         "name": "Nama Pelanggan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_telepon",
+         "name": "Telepon",
+         "type": "text",
+         "required": false
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_nama_pelanggan",
+         "role": "title"
+        }
+       ],
+       "views": [
+        {
+         "id": "vw_tabel_pelanggan",
+         "name": "Tabel Pelanggan",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      },
+      {
+       "id": "mch_faktur",
+       "name": "Faktur",
+       "fields": [
+        {
+         "id": "fld_nomor_faktur",
+         "name": "Nomor Faktur",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_pelanggan",
+         "name": "Pelanggan",
+         "type": "relation",
+         "required": true,
+         "related_machine": "mch_pelanggan"
+        },
+        {
+         "id": "fld_tanggal_faktur",
+         "name": "Tanggal",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_total_faktur",
+         "name": "Total",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_status_faktur",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Draft",
+          "Terkirim",
+          "Lunas"
+         ],
+         "default": "Draft"
+        }
+       ],
+       "completion": {
+        "field": "fld_status_faktur",
+        "done": "Lunas"
+       },
+       "card_fields": [
+        {
+         "field": "fld_nomor_faktur",
+         "role": "title"
+        },
+        {
+         "field": "fld_status_faktur",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal_faktur",
+         "role": "date"
+        },
+        {
+         "field": "fld_total_faktur",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status_faktur",
+        "values": [
+         {
+          "option": "Draft",
+          "category": "start"
+         },
+         {
+          "option": "Terkirim",
+          "category": "active"
+         },
+         {
+          "option": "Lunas",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan_faktur",
+         "name": "Papan Faktur",
+         "type": "board",
+         "group_by": "fld_status_faktur"
+        },
+        {
+         "id": "vw_tabel_faktur",
+         "name": "Tabel Faktur",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Faktur",
+       "machine_id": "mch_faktur",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      },
+      {
+       "label": "Pelanggan",
+       "machine_id": "mch_pelanggan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Mengunduh faktur sebagai PDF",
+     "note": "Pengguna meminta faktur dapat diunduh sebagai PDF yang rapi.",
+     "kind": "runtime",
+     "capability_key": "pdf-document-export",
+     "class": "ui_component",
+     "ideal_capability": "The runtime should allow users to export any record (such as an invoice) as a cleanly formatted PDF document using a template layout, suitable for printing or sending directly to clients."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,209 @@
+{
+ "case": "maintenance",
+ "run": 1,
+ "group": "control",
+ "prompt": "Aplikasi permintaan perawatan gedung: pelapor mengisi lokasi, masalah dan tanggal target; teknisi mengerjakan. Tampilkan sebagai papan per status (baru, dikerjakan, selesai) dan sebagai tabel.",
+ "replies": [
+  {
+   "message": "Halo! Saya akan membantu membuat aplikasi Permintaan Perawatan Gedung dengan mesin untuk mencatat permintaan, status (Baru, Dikerjakan, Selesai), tampilan papan dan tabel, serta pelapor otomatis. Sebelum saya selesaikan pembuatannya, peran apa yang akan Anda pegang sendiri dari daftar peran yang ada (misal: 'teknisi' atau 'pelapor') agar Anda tidak terkunci dari aplikasi setelah dipublikasikan? Dan di menu aplikasi, mesin mana saja yang ingin ditampilkan serta apa label menunya?"
+  },
+  {
+   "message": "Saya telah menyiapkan aplikasi Permintaan Perawatan Gedung lengkap dengan mesin pencatat permintaan, status, tampilan papan dan tabel, serta peran pelapor dan teknisi. Anda telah ditetapkan memegang peran 'pelapor' (peran pertama) dan seluruh mesin telah dimasukkan ke dalam menu navigasi aplikasi.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_perawatan_gedung",
+     "name": "Permintaan Perawatan Gedung",
+     "description": "Aplikasi untuk mencatat, mengelola, dan melacak perbaikan serta perawatan gedung.",
+     "icon": "check-square",
+     "color": "emerald",
+     "roles": [
+      "pelapor",
+      "teknisi"
+     ],
+     "publisher_role": "pelapor",
+     "machines": [
+      {
+       "id": "mch_permintaan_perawatan",
+       "name": "Permintaan Perawatan",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul Masalah",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_lokasi",
+         "name": "Lokasi",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_masalah",
+         "name": "Detail Masalah",
+         "type": "long_text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal_target",
+         "name": "Tanggal Target",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "baru",
+          "dikerjakan",
+          "selesai"
+         ],
+         "default": "baru"
+        },
+        {
+         "id": "fld_pelapor",
+         "name": "Pelapor",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        },
+        {
+         "id": "fld_teknisi",
+         "name": "Teknisi",
+         "type": "person",
+         "required": false
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal_target",
+         "role": "date"
+        },
+        {
+         "field": "fld_pelapor",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "baru",
+          "category": "start"
+         },
+         {
+          "option": "dikerjakan",
+          "category": "active"
+         },
+         {
+          "option": "selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "pelapor",
+          "teknisi"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "pelapor",
+          "teknisi"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "teknisi"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_mulai",
+         "name": "Mulai Dikerjakan",
+         "field": "fld_status",
+         "from": "baru",
+         "to": "dikerjakan",
+         "roles": [
+          "teknisi"
+         ]
+        },
+        {
+         "id": "trn_selesai",
+         "name": "Selesaikan",
+         "field": "fld_status",
+         "from": "dikerjakan",
+         "to": "selesai",
+         "roles": [
+          "teknisi"
+         ],
+         "sets": [
+          {
+           "field": "fld_tanggal_target",
+           "source": "today"
+          }
+         ]
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_log",
+         "on_create": true,
+         "service": "log_activity",
+         "summary": "Permintaan perawatan baru dibuat di {fld_lokasi}"
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Permintaan",
+       "machine_id": "mch_permintaan_perawatan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

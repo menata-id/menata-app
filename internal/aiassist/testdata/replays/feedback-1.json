@@ -1,0 +1,196 @@
+{
+ "case": "feedback",
+ "run": 1,
+ "group": "control",
+ "prompt": "Tempat menampung masukan pelanggan: judul, isi masukan, jenis (saran, keluhan, pujian), pengirim. Tim produk menandainya baru, dibahas, ditindaklanjuti, ditutup.",
+ "replies": [
+  {
+   "message": "Halo! Saya sedang merancang aplikasi \"Masukan Pelanggan\" untuk menampung dan mengelola masukan dari pelanggan Anda. Berdasarkan permintaan Anda, saya telah menyiapkan dua jenis peran di dalamnya: \"Admin\" (untuk tim produk yang akan memproses masukan) dan \"Pelanggan\" (atau staf). \n\nSebelum saya buatkan kodenya, saya punya beberapa pertanyaan penting:\n1. Siapa di antara Anda yang akan memegang peran **Admin** saat aplikasi ini diterbitkan?\n2. Mesin apa saja yang ingin Anda tampilkan di menu navigasi utama, dan apa nama label untuk setiap menu tersebut?\n\nBerikut adalah rancangan mesin yang akan dibuat:\n- **Masukan Pelanggan** (judul, isi masukan, jenis [saran, keluhan, pujian], pengirim, dan status [baru, dibahas, ditindaklanjuti, ditutup])."
+  },
+  {
+   "message": "Aplikasi \"Masukan Pelanggan\" telah siap dirancang. Saya telah menetapkan peran \"Admin\" untuk Anda, dan membuatkan menu navigasi utama yang mencakup daftar masukan pelanggan. Mesin ini dilengkapi dengan bidang untuk judul, isi masukan, jenis (saran, keluhan, pujian), pengirim, serta status (baru, dibahas, ditindaklanjuti, ditutup) lengkap dengan tampilan papan (kanban) dan status kategorinya.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_masukan_pelanggan",
+     "name": "Masukan Pelanggan",
+     "description": "Tempat menampung dan mengelola masukan dari pelanggan.",
+     "icon": "inbox",
+     "color": "blue",
+     "roles": [
+      "admin",
+      "staff"
+     ],
+     "publisher_role": "admin",
+     "machines": [
+      {
+       "id": "mch_feedback",
+       "name": "Masukan Pelanggan",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Judul",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_content",
+         "name": "Isi Masukan",
+         "type": "long_text",
+         "required": true
+        },
+        {
+         "id": "fld_type",
+         "name": "Jenis",
+         "type": "status",
+         "required": true,
+         "options": [
+          "saran",
+          "keluhan",
+          "pujian"
+         ],
+         "default": "saran"
+        },
+        {
+         "id": "fld_sender",
+         "name": "Pengirim",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "baru",
+          "dibahas",
+          "ditindaklanjuti",
+          "ditutup"
+         ],
+         "default": "baru"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "ditutup"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "baru",
+          "category": "start"
+         },
+         {
+          "option": "dibahas",
+          "category": "active"
+         },
+         {
+          "option": "ditindaklanjuti",
+          "category": "attention"
+         },
+         {
+          "option": "ditutup",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "admin",
+          "staff"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "admin",
+          "staff"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "admin"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_to_dibahas",
+         "name": "Mulai Dibahas",
+         "field": "fld_status",
+         "from": "baru",
+         "to": "dibahas",
+         "roles": [
+          "admin"
+         ]
+        },
+        {
+         "id": "trn_to_tindaklanjuti",
+         "name": "Tindaklanjuti",
+         "field": "fld_status",
+         "from": "dibahas",
+         "to": "ditindaklanjuti",
+         "roles": [
+          "admin"
+         ]
+        },
+        {
+         "id": "trn_to_ditutup",
+         "name": "Tutup Masukan",
+         "field": "fld_status",
+         "from": "ditindaklanjuti",
+         "to": "ditutup",
+         "roles": [
+          "admin"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Masukan Pelanggan",
+       "machine_id": "mch_feedback",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

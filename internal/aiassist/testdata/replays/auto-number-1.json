@@ -1,0 +1,211 @@
+{
+ "case": "auto-number",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi surat keluar: setiap surat otomatis mendapat nomor urut seperti SK-2026-0001 yang tidak bisa diubah dan tidak dipakai ulang.",
+ "replies": [
+  {
+   "message": "Untuk aplikasi surat keluar dengan penomoran otomatis yang berurutan (seperti SK-2026-0001), pembuatan format penomoran otomatis secara sekuensial yang unik dan tidak berulang memerlukan fitur khusus pada penomoran record yang belum didukung oleh metadata runtime saat ini.",
+   "capability_gaps": [
+    {
+     "requested": "Penomoran otomatis sekuensial unik",
+     "note": "Pengguna meminta penomoran otomatis seperti SK-2026-0001 yang tidak bisa diubah dan tidak dipakai ulang.",
+     "kind": "runtime",
+     "capability_key": "sequential-auto-numbering",
+     "class": "data_model",
+     "ideal_capability": "Automatically generate sequential, gapless reference numbers or codes for records (such as SK-YYYY-XXXX) based on a configured prefix and counter, ensuring uniqueness and preventing reuse even if records are deleted."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah membuatkan aplikasi Surat Keluar lengkap dengan pencatatan nomor surat, perihal, tujuan, tanggal surat, isi ringkas, serta status pemrosesan (Draft, Dikirim, Selesai, Dibatalkan). Peran utama yang Anda pegang adalah \"Admin Surat\", dan seluruh mesin telah dimasukkan ke dalam menu navigasi sesuai urutan yang paling sesuai.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_surat_keluar",
+     "name": "Aplikasi Surat Keluar",
+     "description": "Pengelolaan dan pencatatan surat keluar instansi",
+     "icon": "file-text",
+     "color": "blue",
+     "roles": [
+      "Admin Surat",
+      "Staff"
+     ],
+     "publisher_role": "Admin Surat",
+     "machines": [
+      {
+       "id": "mch_surat",
+       "name": "Surat Keluar",
+       "fields": [
+        {
+         "id": "fld_nomor",
+         "name": "Nomor Surat",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_perihal",
+         "name": "Perihal",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_tujuan",
+         "name": "Tujuan Surat",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal",
+         "name": "Tanggal Surat",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_isi",
+         "name": "Isi Ringkas",
+         "type": "long_text",
+         "required": false
+        },
+        {
+         "id": "fld_status",
+         "name": "Status Surat",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Draft",
+          "Dikirim",
+          "Selesai",
+          "Dibatalkan"
+         ],
+         "default": "Draft"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_perihal",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal",
+         "role": "date"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Draft",
+          "category": "start"
+         },
+         {
+          "option": "Dikirim",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         },
+         {
+          "option": "Dibatalkan",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board_surat",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table_surat",
+         "name": "Tabel Surat",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_surat_create",
+         "action": "create",
+         "roles": [
+          "Admin Surat",
+          "Staff"
+         ]
+        },
+        {
+         "id": "prm_surat_edit",
+         "action": "edit",
+         "roles": [
+          "Admin Surat",
+          "Staff"
+         ]
+        },
+        {
+         "id": "prm_surat_delete",
+         "action": "delete",
+         "roles": [
+          "Admin Surat"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_kirim",
+         "name": "Kirim Surat",
+         "field": "fld_status",
+         "from": "Draft",
+         "to": "Dikirim"
+        },
+        {
+         "id": "trn_selesai",
+         "name": "Selesaikan Surat",
+         "field": "fld_status",
+         "from": "Dikirim",
+         "to": "Selesai"
+        },
+        {
+         "id": "trn_batal",
+         "name": "Batalkan Surat",
+         "field": "fld_status",
+         "from": "Draft",
+         "to": "Dibatalkan"
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Surat Keluar",
+       "machine_id": "mch_surat",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Penomoran otomatis sekuensial unik",
+     "note": "Fitur penomoran otomatis sekuensial seperti SK-2026-0001 yang tidak bisa diubah tidak didukung oleh metadata runtime saat ini.",
+     "kind": "runtime",
+     "capability_key": "sequential-auto-numbering",
+     "class": "data_model",
+     "ideal_capability": "Automatically generate sequential, gapless reference numbers or codes for records (such as SK-YYYY-XXXX) based on a configured prefix and counter, ensuring uniqueness and preventing reuse even if records are deleted."
+    }
+   ]
+  }
+ ]
+}

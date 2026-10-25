@@ -1,0 +1,168 @@
+{
+ "case": "card-in-column",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Buat papan tugas dengan kolom per daftar. Saat saya menambah kartu langsung dari sebuah kolom, daftar kartu itu otomatis terisi sesuai kolomnya.",
+ "replies": [
+  {
+   "message": "To build a task board with columns per status where tasks created directly in a column automatically inherit that status, I need a few more details. \n\n1. What roles should this application have (e.g. Admin, Member)?\n2. Which of those roles will you hold yourself once it is published?\n3. What should the status columns of your task board be (e.g. Baru, Dalam Proses, Selesai)?\n4. Which machines should appear in the navigation menu, and what should each entry say?",
+   "capability_gaps": [
+    {
+     "requested": "membuat kartu dari kolom langsung mengisi status kolom tersebut",
+     "note": "Saat saya menambah kartu langsung dari sebuah kolom, daftar kartu itu otomatis terisi sesuai kolomnya.",
+     "kind": "assistant",
+     "capability_key": "create-from-grouping-sets-the-group",
+     "class": "workflow_logic",
+     "ideal_capability": "A record created from inside a group (a board column, a filtered list) is created with the grouping relation or status already set to that group's record or option."
+    }
+   ]
+  },
+  {
+   "message": "I have created your Task Board application with an Admin and a Member role (you will hold the Admin role). The application includes a Task machine with a title, description, and a status field containing 'Baru', 'Dalam Proses', and 'Selesai'. Its default view is a board grouped by status. Both the board and the work queue have been added to your navigation menu in a logical order.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_task_board",
+     "name": "Task Board",
+     "description": "A simple task board application with columns per status.",
+     "icon": "board",
+     "color": "blue",
+     "roles": [
+      "Admin",
+      "Member"
+     ],
+     "publisher_role": "Admin",
+     "machines": [
+      {
+       "id": "mch_task",
+       "name": "Task",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Title",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_description",
+         "name": "Description",
+         "type": "long_text",
+         "required": false
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Baru",
+          "Dalam Proses",
+          "Selesai"
+         ],
+         "default": "Baru"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Baru",
+          "category": "start"
+         },
+         {
+          "option": "Dalam Proses",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_start_progress",
+         "name": "Mulai Proses",
+         "field": "fld_status",
+         "from": "Baru",
+         "to": "Dalam Proses"
+        },
+        {
+         "id": "trn_complete",
+         "name": "Selesaikan",
+         "field": "fld_status",
+         "from": "Dalam Proses",
+         "to": "Selesai"
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_log_creation",
+         "on_create": true,
+         "service": "log_activity",
+         "summary": "Task {fld_title} was created"
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Task Board",
+       "machine_id": "mch_task",
+       "queue": {
+        "limit": 50,
+        "words": {}
+       }
+      },
+      {
+       "label": "All Tasks",
+       "machine_id": "mch_task",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "membuat kartu dari kolom langsung mengisi status kolom tersebut",
+     "note": "Saat saya menambah kartu langsung dari sebuah kolom, daftar kartu itu otomatis terisi sesuai kolomnya.",
+     "kind": "assistant",
+     "capability_key": "create-from-grouping-sets-the-group",
+     "class": "workflow_logic",
+     "ideal_capability": "A record created from inside a group (a board column, a filtered list) is created with the grouping relation or status already set to that group's record or option."
+    }
+   ]
+  }
+ ]
+}

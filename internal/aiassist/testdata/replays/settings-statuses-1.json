@@ -1,0 +1,273 @@
+{
+ "case": "settings-statuses",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Buat aplikasi pelacak bug. Admin aplikasi harus bisa menambah, mengganti nama dan mengurutkan status sendiri dari layar pengaturan, tanpa meminta developer.",
+ "replies": [
+  {
+   "message": "The runtime can store status options in the application metadata, but it does not yet have a settings screen where an admin can add, rename, reorder, or remove status options or fields without editing metadata. I have recorded this as a capability gap. Would you like me to build the bug tracking application with a fixed set of statuses (such as New, In Progress, In Review, and Done), and which roles would you like to include?",
+   "capability_gaps": [
+    {
+     "requested": "user-managed fields and statuses",
+     "note": "Admin aplikasi harus bisa menambah, mengganti nama dan mengurutkan status sendiri dari layar pengaturan, tanpa meminta developer.",
+     "kind": "assistant",
+     "capability_key": "user-managed-fields-and-statuses",
+     "class": "configuration",
+     "ideal_capability": "An application's admin adds, renames, orders and removes the Fields and status options of its Machines from a settings screen, without editing metadata. This allows business users to adapt the data model over time as their workflow evolves."
+    }
+   ]
+  },
+  {
+   "message": "I have created the bug tracking application (Pelacak Bug) with roles for Admin, Developer, and Reporter. You will hold the Admin role upon publication. The application includes a Bug machine with fields for Title, Description, Priority, Status, Assignee, and Reporter (automatically stamped with your user), arranged as a board view grouped by status, a work queue, and full navigation covering all bugs.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_pelacak_bug",
+     "name": "Pelacak Bug",
+     "description": "Aplikasi untuk melacak dan mengelola bug atau masalah perangkat lunak.",
+     "icon": "check-square",
+     "color": "blue",
+     "roles": [
+      "Admin",
+      "Developer",
+      "Reporter"
+     ],
+     "publisher_role": "Admin",
+     "machines": [
+      {
+       "id": "mch_bug",
+       "name": "Bug",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Judul Bug",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_description",
+         "name": "Deskripsi",
+         "type": "long_text",
+         "required": false
+        },
+        {
+         "id": "fld_priority",
+         "name": "Prioritas",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Rendah",
+          "Sedang",
+          "Tinggi",
+          "Kritis"
+         ],
+         "default": "Sedang"
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Baru",
+          "Diproses",
+          "Pengujian",
+          "Selesai",
+          "Ditolak"
+         ],
+         "default": "Baru"
+        },
+        {
+         "id": "fld_assignee",
+         "name": "Ditugaskan Kepada",
+         "type": "person",
+         "required": false
+        },
+        {
+         "id": "fld_reporter",
+         "name": "Pelapor",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_assignee",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Baru",
+          "category": "start"
+         },
+         {
+          "option": "Diproses",
+          "category": "active"
+         },
+         {
+          "option": "Pengujian",
+          "category": "attention"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         },
+         {
+          "option": "Ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan Bug",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel Bug",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "Admin",
+          "Developer",
+          "Reporter"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "Admin",
+          "Developer",
+          "Reporter"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "Admin"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_start",
+         "name": "Mulai Proses",
+         "field": "fld_status",
+         "from": "Baru",
+         "to": "Diproses",
+         "roles": [
+          "Admin",
+          "Developer"
+         ]
+        },
+        {
+         "id": "trn_test",
+         "name": "Kirim untuk Diuji",
+         "field": "fld_status",
+         "from": "Diproses",
+         "to": "Pengujian",
+         "roles": [
+          "Admin",
+          "Developer"
+         ]
+        },
+        {
+         "id": "trn_complete",
+         "name": "Selesaikan",
+         "field": "fld_status",
+         "from": "Pengujian",
+         "to": "Selesai",
+         "roles": [
+          "Admin",
+          "Developer"
+         ]
+        },
+        {
+         "id": "trn_reject",
+         "name": "Tolak Bug",
+         "field": "fld_status",
+         "from": "Baru",
+         "to": "Ditolak",
+         "roles": [
+          "Admin",
+          "Developer"
+         ]
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_log_creation",
+         "on_create": true,
+         "service": "log_activity",
+         "summary": "Bug {fld_title} dilaporkan."
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Antrean Kerja",
+       "machine_id": "mch_bug",
+       "queue": {
+        "limit": 50,
+        "words": {
+         "overdue": "Terlambat",
+         "due_today": "Hari Ini",
+         "next_week": "7 Hari Kedepan",
+         "later": "Nanti",
+         "recently_done": "Baru Selesai",
+         "empty": "Tidak ada bug",
+         "all": "Semua",
+         "add": "Tambah Bug"
+        }
+       }
+      },
+      {
+       "label": "Semua Bug",
+       "machine_id": "mch_bug",
+       "list": {
+        "scope": "all",
+        "limit": 100
+       }
+      },
+      {
+       "label": "Bug Saya",
+       "machine_id": "mch_bug",
+       "list": {
+        "scope": "mine",
+        "person_field": "fld_assignee",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

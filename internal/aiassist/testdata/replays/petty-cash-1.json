@@ -1,0 +1,159 @@
+{
+ "case": "petty-cash",
+ "run": 1,
+ "group": "control",
+ "prompt": "Buat aplikasi kas kecil: setiap pengeluaran punya tanggal, keterangan, jumlah uang, dan kategori. Bendahara harus menyetujui sebelum dianggap tercatat. Statusnya diajukan, disetujui, ditolak.",
+ "replies": [
+  {
+   "message": "Selamat! Aplikasi kas kecil Anda berhasil dirancang dengan mesin pengeluaran (expense), status (diajukan, disetujui, ditolak), serta navigasi menu utama. Silakan tinjau dan setujui untuk menerapkannya."
+  },
+  {
+   "message": "Aplikasi Kas Kecil berhasil dibuat lengkap dengan mesin pengeluaran (expense), status (diajukan, disetujui, ditolak), transisi persetujuan oleh bendahara, serta navigasi menu utama.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_kas_kecil",
+     "name": "Kas Kecil",
+     "description": "Aplikasi pencatatan dan persetujuan pengeluaran kas kecil",
+     "icon": "dashboard",
+     "color": "emerald",
+     "roles": [
+      "bendahara",
+      "pemohon"
+     ],
+     "publisher_role": "bendahara",
+     "machines": [
+      {
+       "id": "mch_expense",
+       "name": "Pengeluaran",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Keterangan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_date",
+         "name": "Tanggal",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_amount",
+         "name": "Jumlah Uang",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_category",
+         "name": "Kategori",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "diajukan",
+          "disetujui",
+          "ditolak"
+         ],
+         "default": "diajukan"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "disetujui"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_date",
+         "role": "date"
+        },
+        {
+         "field": "fld_amount",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "diajukan",
+          "category": "start"
+         },
+         {
+          "option": "disetujui",
+          "category": "done"
+         },
+         {
+          "option": "ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_approve",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "diajukan",
+         "to": "disetujui",
+         "roles": [
+          "bendahara"
+         ]
+        },
+        {
+         "id": "trn_reject",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "diajukan",
+         "to": "ditolak",
+         "roles": [
+          "bendahara"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pengeluaran",
+       "machine_id": "mch_expense",
+       "queue": {
+        "limit": 50,
+        "words": {}
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

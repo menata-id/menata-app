@@ -1,0 +1,189 @@
+{
+ "case": "own-records-only",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi laporan kunjungan sales: setiap sales hanya boleh melihat laporan miliknya sendiri, dan manajer wilayah melihat semua laporan di wilayahnya.",
+ "replies": [
+  {
+   "message": "Untuk aplikasi laporan kunjungan sales, saat ini runtime dapat menampilkan laporan miliknya sendiri (\"mine\"), namun pembatasan visibilitas berdasarkan wilayah (manajer melihat wilayahnya, sales melihat miliknya) belum dapat dilakukan secara otomatis karena izin baca per peran belum didukung. Saya telah mencatatnya sebagai capability gap. Apakah Anda ingin kita buatkan aplikasi dengan daftar laporan saya (milik sales) dan daftar semua laporan (untuk manajer), serta apa saja data yang perlu diisi dalam laporan kunjungan tersebut?",
+   "capability_gaps": [
+    {
+     "requested": "Pembatasan baca data berdasarkan wilayah atau peran selain data pemilik sendiri",
+     "note": "Manajer wilayah ingin melihat semua laporan di wilayahnya sementara sales hanya melihat miliknya.",
+     "kind": "runtime",
+     "capability_key": "izin-baca-per-peran",
+     "class": "workflow_logic",
+     "ideal_capability": "Administrator dapat mengatur izin akses baca (read permission) pada tingkat data, seperti membatasi agar pengguna hanya dapat melihat data yang berada dalam wilayah tugasnya atau data yang dibuat oleh timnya sendiri."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah membuat aplikasi \"Laporan Kunjungan Sales\" lengkap dengan data laporan (judul, tanggal, nama sales, wilayah, hasil kunjungan, dan status), peran Sales dan Manajer Wilayah, serta menu navigasi yang mencakup daftar laporan milik Anda sendiri dan daftar semua laporan. Peran Anda diatur sebagai \"Sales\" (peran pertama).",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_laporan_kunjungan_sales",
+     "name": "Laporan Kunjungan Sales",
+     "description": "Aplikasi untuk mencatat dan mengelola laporan kunjungan sales ke pelanggan.",
+     "icon": "file-text",
+     "color": "blue",
+     "roles": [
+      "Sales",
+      "Manajer Wilayah"
+     ],
+     "publisher_role": "Sales",
+     "machines": [
+      {
+       "id": "mch_laporan_kunjungan",
+       "name": "Laporan Kunjungan",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul Kunjungan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal",
+         "name": "Tanggal Kunjungan",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_sales",
+         "name": "Sales",
+         "type": "person",
+         "required": true,
+         "stamp": "current_user"
+        },
+        {
+         "id": "fld_wilayah",
+         "name": "Wilayah",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_hasil",
+         "name": "Hasil Kunjungan",
+         "type": "long_text",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Draft",
+          "Submitted",
+          "Reviewed"
+         ],
+         "default": "Draft"
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal",
+         "role": "date"
+        },
+        {
+         "field": "fld_sales",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Draft",
+          "category": "start"
+         },
+         {
+          "option": "Submitted",
+          "category": "active"
+         },
+         {
+          "option": "Reviewed",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel",
+         "name": "Tabel Laporan",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": [
+        {
+         "id": "trn_submit",
+         "name": "Kirim Laporan",
+         "field": "fld_status",
+         "from": "Draft",
+         "to": "Submitted",
+         "actor_field": "fld_sales"
+        },
+        {
+         "id": "trn_review",
+         "name": "Setujui Laporan",
+         "field": "fld_status",
+         "from": "Submitted",
+         "to": "Reviewed",
+         "roles": [
+          "Manajer Wilayah"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Laporan Saya",
+       "machine_id": "mch_laporan_kunjungan",
+       "list": {
+        "scope": "mine",
+        "person_field": "fld_sales",
+        "limit": 50
+       }
+      },
+      {
+       "label": "Semua Laporan",
+       "machine_id": "mch_laporan_kunjungan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Pembatasan baca data berdasarkan wilayah atau peran selain data pemilik sendiri",
+     "note": "Manajer wilayah ingin melihat semua laporan di wilayahnya sementara sales hanya melihat miliknya.",
+     "kind": "runtime",
+     "capability_key": "izin-baca-per-peran",
+     "class": "workflow_logic",
+     "ideal_capability": "Administrator dapat mengatur izin akses baca (read permission) pada tingkat data, seperti membatasi agar pengguna hanya dapat melihat data yang berada dalam wilayah tugasnya atau data yang dibuat oleh timnya sendiri."
+    }
+   ]
+  }
+ ]
+}

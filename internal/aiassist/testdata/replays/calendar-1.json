@@ -1,0 +1,167 @@
+{
+ "case": "calendar",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi agenda kegiatan sekolah: kegiatan punya tanggal dan penanggung jawab. Saya mau melihatnya sebagai kalender bulanan, bukan daftar.",
+ "replies": [
+  {
+   "message": "Kalender bulanan tidak didukung secara langsung oleh runtime saat ini. Runtime menyediakan tampilan papan (board), kartu (cards), dan tabel (table). Saya dapat membuat aplikasi agenda kegiatan dengan tampilan papan atau tabel dan menyertakan bidang tanggal, namun untuk tampilan kalender bulanan saya harus mencatatnya sebagai keterbatasan.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_agenda_sekolah",
+     "name": "Agenda Kegiatan Sekolah",
+     "description": "Pengelolaan agenda kegiatan sekolah dengan penanggung jawab dan tanggal kegiatan",
+     "icon": "calendar",
+     "color": "blue",
+     "roles": [
+      "admin",
+      "staff"
+     ],
+     "publisher_role": "admin",
+     "machines": [
+      {
+       "id": "mch_kegiatan",
+       "name": "Kegiatan",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul Kegiatan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal",
+         "name": "Tanggal Kegiatan",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_penanggung_jawab",
+         "name": "Penanggung Jawab",
+         "type": "person",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Rencana",
+          "Berlangsung",
+          "Selesai"
+         ],
+         "default": "Rencana"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal",
+         "role": "date"
+        },
+        {
+         "field": "fld_penanggung_jawab",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Rencana",
+          "category": "start"
+         },
+         {
+          "option": "Berlangsung",
+          "category": "active"
+         },
+         {
+          "option": "Selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan_kegiatan",
+         "name": "Papan Kegiatan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel_kegiatan",
+         "name": "Tabel Kegiatan",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "admin",
+          "staff"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "admin",
+          "staff"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "admin"
+         ]
+        }
+       ],
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Agenda Kegiatan",
+       "machine_id": "mch_kegiatan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "kalender bulanan",
+     "note": "Pengguna meminta tampilan kalender bulanan untuk agenda kegiatan.",
+     "kind": "assistant",
+     "capability_key": "monthly-calendar-view",
+     "class": "ui_component",
+     "ideal_capability": "A monthly calendar view displays records distributed across calendar days based on a date field, allowing users to see deadlines or events visually in a grid.",
+     "wanted_shape": "views: [{id: \"vw_calendar\", name: \"Kalender\", type: \"calendar\", date_field: \"fld_date\"}]",
+     "where": "machine agenda kegiatan",
+     "intent": "Saya mau melihatnya sebagai kalender bulanan, bukan daftar.",
+     "benchmark": "FullCalendar / Month Grid"
+    }
+   ]
+  }
+ ]
+}

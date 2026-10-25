@@ -1,0 +1,178 @@
+{
+ "case": "asset-register",
+ "run": 1,
+ "group": "control",
+ "prompt": "Daftar aset kantor: kode aset, nama, kategori (laptop, monitor, furnitur), penanggung jawab (karyawan), tanggal beli, nilai perolehan. Status dipakai, diperbaiki, dihapuskan.",
+ "replies": [
+  {
+   "message": "Saya dapat merancang aplikasi \"Daftar Aset Kantor\" untuk mencatat kode aset, nama, kategori, penanggung jawab, tanggal beli, nilai perolehan, serta status aset (dipakai, diperbaiki, dihapuskan).\n\nSebelum kita membuat aplikasi ini, mohon pilih:\n1. Peran apa sajakah yang dibutuhkan dalam aplikasi ini? (Contoh: Admin Aset, Karyawan)\n2. Siapakah di antara peran tersebut yang akan Anda pegang sendiri saat aplikasi dipublikasikan? (Ini diperlukan agar Anda tidak terkunci di luar aplikasi setelah diterbitkan)\n3. Mesin apa saja yang ingin ditampilkan di menu navigasi, dengan urutan dan label seperti apa?"
+  },
+  {
+   "message": "Saya telah merancang aplikasi \"Daftar Aset Kantor\" lengkap dengan peran Admin Aset dan Karyawan, di mana Anda bertindak sebagai Admin Aset. Mesin Aset telah dibuat dengan kolom kode aset, nama, kategori, penanggung jawab, tanggal beli, nilai perolehan, serta status (dipakai, diperbaiki, dihapuskan), lengkap dengan tampilan papan (board) dan tabel serta menu navigasinya.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_daftar_aset_kantor",
+     "name": "Daftar Aset Kantor",
+     "description": "Aplikasi pencatatan dan pengelolaan aset kantor.",
+     "icon": "",
+     "color": "",
+     "roles": [
+      "Admin Aset",
+      "Karyawan"
+     ],
+     "publisher_role": "Admin Aset",
+     "machines": [
+      {
+       "id": "mch_aset",
+       "name": "Aset",
+       "fields": [
+        {
+         "id": "fld_kode_aset",
+         "name": "Kode Aset",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_nama",
+         "name": "Nama",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_kategori",
+         "name": "Kategori",
+         "type": "status",
+         "required": true,
+         "options": [
+          "laptop",
+          "monitor",
+          "furnitur"
+         ],
+         "default": "laptop"
+        },
+        {
+         "id": "fld_penanggung_jawab",
+         "name": "Penanggung Jawab",
+         "type": "person",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal_beli",
+         "name": "Tanggal Beli",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_nilai_perolehan",
+         "name": "Nilai Perolehan",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "dipakai",
+          "diperbaiki",
+          "dihapuskan"
+         ],
+         "default": "dipakai"
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_nama",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_tanggal_beli",
+         "role": "date"
+        },
+        {
+         "field": "fld_penanggung_jawab",
+         "role": "person"
+        },
+        {
+         "field": "fld_nilai_perolehan",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "dipakai",
+          "category": "active"
+         },
+         {
+          "option": "diperbaiki",
+          "category": "attention"
+         },
+         {
+          "option": "dihapuskan",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board_aset",
+         "name": "Papan Aset",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table_aset",
+         "name": "Tabel Aset",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create_aset",
+         "action": "create",
+         "roles": [
+          "Admin Aset"
+         ]
+        },
+        {
+         "id": "prm_edit_aset",
+         "action": "edit",
+         "roles": [
+          "Admin Aset"
+         ]
+        },
+        {
+         "id": "prm_delete_aset",
+         "action": "delete",
+         "roles": [
+          "Admin Aset"
+         ]
+        }
+       ],
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Aset",
+       "machine_id": "mch_aset",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

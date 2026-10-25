@@ -1,0 +1,207 @@
+{
+ "case": "helpdesk",
+ "run": 1,
+ "group": "control",
+ "prompt": "Buatkan aplikasi helpdesk internal: karyawan membuat tiket dengan judul, deskripsi dan prioritas (rendah, sedang, tinggi); petugas IT mengambil tiket lalu statusnya baru, dikerjakan, selesai. Petugas diberi tahu lewat email saat ada tiket baru.",
+ "replies": [
+  {
+   "message": "Untuk membuat aplikasi helpdesk internal ini, saya perlu menanyakan dua hal:\n1. Role apa saja yang sebaiknya ada? (Misalnya: `karyawan` dan `it_support`)\n2. Peran mana yang akan Anda pegang sendiri setelah aplikasi ini dipublikasikan (sebagai `publisher_role`), agar Anda tidak terkunci dari aplikasi?\n\nSetelah itu, mari kita tentukan menu apa saja yang ingin ditampilkan."
+  },
+  {
+   "message": "Saya telah merancang aplikasi helpdesk internal lengkap dengan role karyawan dan it_support (di mana Anda memegang peran karyawan sebagai publisher_role), mesin tiket dengan status (baru, dikerjakan, selesai), prioritas (rendah, sedang, tinggi), transisi status, izin akses, pengiriman email otomatis ke IT support saat tiket baru dibuat, serta menu navigasi yang mencakup antrean tiket kerja dan daftar tiket saya.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_internal_helpdesk",
+     "name": "Helpdesk Internal",
+     "description": "Aplikasi manajemen tiket dukungan IT untuk karyawan dan staf teknis.",
+     "icon": "inbox",
+     "color": "blue",
+     "roles": [
+      "karyawan",
+      "it_support"
+     ],
+     "publisher_role": "karyawan",
+     "machines": [
+      {
+       "id": "mch_ticket",
+       "name": "Tiket",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Judul",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_description",
+         "name": "Deskripsi",
+         "type": "long_text",
+         "required": true
+        },
+        {
+         "id": "fld_priority",
+         "name": "Prioritas",
+         "type": "status",
+         "required": true,
+         "options": [
+          "rendah",
+          "sedang",
+          "tinggi"
+         ],
+         "default": "rendah"
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "baru",
+          "dikerjakan",
+          "selesai"
+         ],
+         "default": "baru"
+        },
+        {
+         "id": "fld_requester",
+         "name": "Pemohon",
+         "type": "person",
+         "required": true,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "selesai"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_requester",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "baru",
+          "category": "start"
+         },
+         {
+          "option": "dikerjakan",
+          "category": "active"
+         },
+         {
+          "option": "selesai",
+          "category": "done"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan Tiket",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel Tiket",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "karyawan",
+          "it_support"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "it_support"
+         ],
+         "actor_field": "fld_requester"
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "it_support"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_start_work",
+         "name": "Ambil Tiket",
+         "field": "fld_status",
+         "from": "baru",
+         "to": "dikerjakan",
+         "roles": [
+          "it_support"
+         ]
+        },
+        {
+         "id": "trn_complete",
+         "name": "Selesaikan Tiket",
+         "field": "fld_status",
+         "from": "dikerjakan",
+         "to": "selesai",
+         "roles": [
+          "it_support"
+         ]
+        }
+       ],
+       "events": [
+        {
+         "id": "evt_notify_new_ticket",
+         "on_create": true,
+         "service": "send_notification",
+         "summary": "Tiket baru \"{fld_title}\" telah dibuat dan menunggu penanganan.",
+         "preference_key": "assigned",
+         "recipient_role": "it_support"
+        }
+       ]
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Antrean Tiket",
+       "machine_id": "mch_ticket",
+       "queue": {
+        "limit": 50,
+        "words": {
+         "empty": "Tidak ada tiket",
+         "add": "Buat Tiket Baru"
+        }
+       }
+      },
+      {
+       "label": "Tiket Saya",
+       "machine_id": "mch_ticket",
+       "list": {
+        "scope": "mine",
+        "person_field": "fld_requester",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

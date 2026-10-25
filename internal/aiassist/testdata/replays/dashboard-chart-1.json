@@ -1,0 +1,102 @@
+{
+ "case": "dashboard-chart",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi penjualan: pesanan dengan tanggal, pelanggan dan nilai. Saya mau dasbor dengan grafik total penjualan per bulan dan per pelanggan.",
+ "replies": [
+  {
+   "message": "Saya dapat membuatkan aplikasi Penjualan untuk Anda, tetapi untuk saat ini runtime belum mendukung dasbor dengan grafik total penjualan per bulan atau per pelanggan. Saya akan membuatkan aplikasi dengan mesin pesanan (tanggal, pelanggan, dan nilai), tetapi fitur grafik perlu dicatat sebagai batasan runtime saat ini.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_penjualan",
+     "name": "Penjualan",
+     "description": "Pengelolaan pesanan penjualan, pelanggan, dan nilai.",
+     "icon": "bar-chart",
+     "color": "emerald",
+     "roles": [
+      "admin",
+      "staff"
+     ],
+     "publisher_role": "admin",
+     "machines": [
+      {
+       "id": "mch_pesanan",
+       "name": "Pesanan",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul Pesanan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_tanggal",
+         "name": "Tanggal",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_pelanggan",
+         "name": "Pelanggan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_nilai",
+         "name": "Nilai",
+         "type": "money",
+         "required": true
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_tanggal",
+         "role": "date"
+        },
+        {
+         "field": "fld_nilai",
+         "role": "money"
+        }
+       ],
+       "views": [
+        {
+         "id": "vw_tabel",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": null,
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pesanan",
+       "machine_id": "mch_pesanan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "grafik total penjualan per bulan dan per pelanggan",
+     "note": "Pengguna meminta dasbor dengan grafik total penjualan per bulan dan per pelanggan.",
+     "kind": "assistant",
+     "capability_key": "datasets",
+     "class": "ui_component",
+     "ideal_capability": "Menampilkan grafik atau agregasi data yang dikelompokkan berdasarkan field seperti tanggal (per bulan) atau relasi (per pelanggan), sehingga pengguna dapat melihat ringkasan visual dari data operasional."
+    }
+   ]
+  }
+ ]
+}

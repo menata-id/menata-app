@@ -1,0 +1,197 @@
+{
+ "case": "voting-approval",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Aplikasi persetujuan anggaran: sebuah permintaan harus disetujui oleh minimal 2 dari 3 anggota komite, bukan satu orang.",
+ "replies": [
+  {
+   "message": "Persetujuan anggaran yang memerlukan minimal 2 dari 3 anggota komite (voting multi-orang) memerlukan engine khusus yang saat ini belum didukung oleh metadata runtime kami (runtime hanya mendukung satu penanggung jawab atau satu peran tunggal per langkah). Saya telah mencatat batasan ini sebagai kapabilitas yang perlu dibangun.",
+   "capability_gaps": [
+    {
+     "requested": "Persetujuan minimal N dari M anggota",
+     "note": "Pengguna meminta persetujuan anggaran harus disetujui oleh minimal 2 dari 3 anggota komite.",
+     "kind": "runtime",
+     "capability_key": "multi-person-voting-approval",
+     "class": "workflow_logic",
+     "ideal_capability": "Sebuah langkah persetujuan (transition) dapat dikonfigurasi agar memerlukan persetujuan dari minimal sejumlah orang tertentu (threshold) di antara sekelompok peran atau anggota komite sebelum status dapat bergeser ke tahap berikutnya."
+    }
+   ]
+  },
+  {
+   "message": "Saya telah membuat aplikasi persetujuan anggaran dengan peran 'komite' dan 'staf', di mana Anda bertindak sebagai anggota komite. Menu aplikasi mencakup daftar pengajuan anggaran.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_anggaran",
+     "name": "Persetujuan Anggaran",
+     "description": "Aplikasi pengelolaan dan persetujuan anggaran",
+     "icon": "file-text",
+     "color": "emerald",
+     "roles": [
+      "komite",
+      "staf"
+     ],
+     "publisher_role": "komite",
+     "machines": [
+      {
+       "id": "mch_pengajuan",
+       "name": "Pengajuan Anggaran",
+       "fields": [
+        {
+         "id": "fld_judul",
+         "name": "Judul Pengajuan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_jumlah",
+         "name": "Jumlah Dana",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "baru",
+          "disetujui",
+          "ditolak"
+         ],
+         "default": "baru"
+        },
+        {
+         "id": "fld_pemohon",
+         "name": "Pemohon",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "disetujui"
+       },
+       "card_fields": [
+        {
+         "field": "fld_judul",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_jumlah",
+         "role": "money"
+        },
+        {
+         "field": "fld_pemohon",
+         "role": "person"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "baru",
+          "category": "start"
+         },
+         {
+          "option": "disetujui",
+          "category": "done"
+         },
+         {
+          "option": "ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_papan",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_tabel",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "staf",
+          "komite"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "komite"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "komite"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_setuju",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "baru",
+         "to": "disetujui",
+         "roles": [
+          "komite"
+         ]
+        },
+        {
+         "id": "trn_tolak",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "baru",
+         "to": "ditolak",
+         "roles": [
+          "komite"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Pengajuan Anggaran",
+       "machine_id": "mch_pengajuan",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Persetujuan minimal N dari M anggota",
+     "note": "Pengguna meminta persetujuan anggaran harus disetujui oleh minimal 2 dari 3 anggota komite.",
+     "kind": "runtime",
+     "capability_key": "multi-person-voting-approval",
+     "class": "workflow_logic",
+     "ideal_capability": "Sebuah langkah persetujuan (transition) dapat dikonfigurasi agar memerlukan persetujuan dari minimal sejumlah orang tertentu (threshold) di antara sekelompok peran atau anggota komite sebelum status dapat bergeser ke tahap berikutnya."
+    }
+   ]
+  }
+ ]
+}

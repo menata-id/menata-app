@@ -1,0 +1,148 @@
+{
+ "case": "inventory",
+ "run": 1,
+ "group": "control",
+ "prompt": "Aplikasi stok gudang sederhana: barang punya kode, nama, jumlah, dan status (tersedia, menipis, habis). Gudang mengubah status secara manual.",
+ "replies": [
+  {
+   "message": "Halo! Saya akan membantu Anda membuat aplikasi Stok Gudang. Berdasarkan kebutuhan Anda, saya telah merancang satu mesin \"Barang\" yang mencakup kode, nama, jumlah, dan status (tersedia, menipis, habis), serta tampilan tabel dan papan (board) yang dikelompokkan berdasarkan status.\n\nSebelum kita dapat menerbitkan aplikasi ini, saya perlu menanyakan dua hal:\n1. Peran apa saja yang sebaiknya ada di aplikasi ini (misalnya: \"Admin Gudang\", \"Staf\"), dan **peran mana yang akan Anda pegang sendiri** setelah aplikasi ini diterbitkan?\n2. Mesin \"Barang\" ini akan dimasukkan ke dalam menu aplikasi. Label apa yang ingin Anda gunakan untuk menu tersebut (misalnya: \"Daftar Barang\" atau \"Stok Gudang\")?"
+  },
+  {
+   "message": "Saya telah membuat aplikasi Stok Gudang lengkap dengan mesin Barang yang mencakup kode, nama, jumlah, dan status (tersedia, menipis, habis). Peran \"Admin Gudang\" telah diatur sebagai peran Anda sendiri, dan menu \"Daftar Barang\" telah ditambahkan ke navigasi.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_stok_gudang",
+     "name": "Stok Gudang",
+     "description": "Aplikasi pengelolaan stok gudang sederhana dengan pembaruan status manual.",
+     "icon": "dashboard",
+     "color": "emerald",
+     "roles": [
+      "Admin Gudang",
+      "Staf"
+     ],
+     "publisher_role": "Admin Gudang",
+     "machines": [
+      {
+       "id": "mch_barang",
+       "name": "Barang",
+       "fields": [
+        {
+         "id": "fld_kode",
+         "name": "Kode",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_nama",
+         "name": "Nama",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_jumlah",
+         "name": "Jumlah",
+         "type": "number",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "tersedia",
+          "menipis",
+          "habis"
+         ],
+         "default": "tersedia"
+        }
+       ],
+       "card_fields": [
+        {
+         "field": "fld_nama",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_jumlah",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "tersedia",
+          "category": "start"
+         },
+         {
+          "option": "menipis",
+          "category": "attention"
+         },
+         {
+          "option": "habis",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "Admin Gudang",
+          "Staf"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "Admin Gudang",
+          "Staf"
+         ]
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "Admin Gudang"
+         ]
+        }
+       ],
+       "transitions": null,
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Daftar Barang",
+       "machine_id": "mch_barang",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

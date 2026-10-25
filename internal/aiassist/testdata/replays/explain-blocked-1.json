@@ -1,0 +1,208 @@
+{
+ "case": "explain-blocked",
+ "run": 1,
+ "group": "gap",
+ "prompt": "Buat aplikasi permintaan pembelian. Kalau seseorang tidak bisa membuat permintaan, layar harus menjelaskan peran apa yang dibutuhkan dan siapa yang bisa memberikannya.",
+ "replies": [
+  {
+   "message": "Untuk membuat aplikasi Permintaan Pembelian, kita perlu merancang mesin untuk data permintaan tersebut beserta peran-perannya. Mengenai permintaan agar layar menjelaskan peran yang dibutuhkan dan siapa yang bisa memberikannya ketika seseorang tidak dapat membuat permintaan, runtime belum dapat melakukan hal tersebut saat ini. Apakah Anda ingin kita buatkan aplikasi dengan peran pengaju dan penyetuju (manajer), lalu apa saja kolom yang ingin disertakan?",
+   "capability_gaps": [
+    {
+     "requested": "Penjelasan mengapa suatu aksi tidak tersedia beserta peran pemberinya",
+     "note": "Pengguna meminta layar menjelaskan peran dan siapa yang bisa memberi akses ketika seseorang tidak bisa membuat permintaan.",
+     "kind": "runtime",
+     "capability_key": "explain-why-an-action-is-unavailable",
+     "class": "workflow_logic",
+     "ideal_capability": "When a person cannot perform an action or create a record, the UI displays a clear message explaining which role or permission is missing and naming the users or roles who can grant it."
+    }
+   ]
+  },
+  {
+   "message": "Aplikasi Permintaan Pembelian berhasil dirancang dengan peran Karyawan dan Manajer Pembelian. Anda memegang peran Karyawan sebagai penerbit. Mesin Permintaan Pembelian telah dilengkapi kolom judul, jumlah, tanggal, status, dan pemohon, serta dimasukkan ke menu aplikasi.",
+   "change": {
+    "kind": "new_application",
+    "application": {
+     "id": "app_purchase_request",
+     "name": "Permintaan Pembelian",
+     "description": "Aplikasi untuk mengelola pengajuan dan persetujuan pembelian barang atau jasa.",
+     "icon": "file-text",
+     "color": "blue",
+     "roles": [
+      "Karyawan",
+      "Manajer Pembelian"
+     ],
+     "publisher_role": "Karyawan",
+     "machines": [
+      {
+       "id": "mch_purchase_request",
+       "name": "Permintaan Pembelian",
+       "fields": [
+        {
+         "id": "fld_title",
+         "name": "Judul Permintaan",
+         "type": "text",
+         "required": true
+        },
+        {
+         "id": "fld_amount",
+         "name": "Jumlah Biaya",
+         "type": "money",
+         "required": true
+        },
+        {
+         "id": "fld_date",
+         "name": "Tanggal Dibutuhkan",
+         "type": "date",
+         "required": true
+        },
+        {
+         "id": "fld_status",
+         "name": "Status",
+         "type": "status",
+         "required": true,
+         "options": [
+          "Baru",
+          "Disetujui",
+          "Ditolak"
+         ],
+         "default": "Baru"
+        },
+        {
+         "id": "fld_requester",
+         "name": "Pemohon",
+         "type": "person",
+         "required": false,
+         "stamp": "current_user"
+        }
+       ],
+       "completion": {
+        "field": "fld_status",
+        "done": "Disetujui"
+       },
+       "card_fields": [
+        {
+         "field": "fld_title",
+         "role": "title"
+        },
+        {
+         "field": "fld_status",
+         "role": "status"
+        },
+        {
+         "field": "fld_date",
+         "role": "date"
+        },
+        {
+         "field": "fld_requester",
+         "role": "person"
+        },
+        {
+         "field": "fld_amount",
+         "role": "money"
+        }
+       ],
+       "status_categories": {
+        "field": "fld_status",
+        "values": [
+         {
+          "option": "Baru",
+          "category": "start"
+         },
+         {
+          "option": "Disetujui",
+          "category": "done"
+         },
+         {
+          "option": "Ditolak",
+          "category": "stopped"
+         }
+        ]
+       },
+       "views": [
+        {
+         "id": "vw_board",
+         "name": "Papan Status",
+         "type": "board",
+         "group_by": "fld_status"
+        },
+        {
+         "id": "vw_table",
+         "name": "Tabel",
+         "type": "table"
+        }
+       ],
+       "permissions": [
+        {
+         "id": "prm_create",
+         "action": "create",
+         "roles": [
+          "Karyawan",
+          "Manajer Pembelian"
+         ]
+        },
+        {
+         "id": "prm_edit",
+         "action": "edit",
+         "roles": [
+          "Manajer Pembelian"
+         ],
+         "actor_field": "fld_requester"
+        },
+        {
+         "id": "prm_delete",
+         "action": "delete",
+         "roles": [
+          "Manajer Pembelian"
+         ]
+        }
+       ],
+       "transitions": [
+        {
+         "id": "trn_approve",
+         "name": "Setujui",
+         "field": "fld_status",
+         "from": "Baru",
+         "to": "Disetujui",
+         "roles": [
+          "Manajer Pembelian"
+         ]
+        },
+        {
+         "id": "trn_reject",
+         "name": "Tolak",
+         "field": "fld_status",
+         "from": "Baru",
+         "to": "Ditolak",
+         "roles": [
+          "Manajer Pembelian"
+         ]
+        }
+       ],
+       "events": null
+      }
+     ],
+     "navigation": [
+      {
+       "label": "Permintaan Pembelian",
+       "machine_id": "mch_purchase_request",
+       "list": {
+        "scope": "all",
+        "limit": 50
+       }
+      }
+     ]
+    }
+   },
+   "capability_gaps": [
+    {
+     "requested": "Penjelasan mengapa suatu aksi tidak tersedia beserta peran pemberinya",
+     "note": "Pengguna meminta layar menjelaskan peran dan siapa yang bisa memberi akses ketika seseorang tidak bisa membuat permintaan.",
+     "kind": "runtime",
+     "capability_key": "explain-why-an-action-is-unavailable",
+     "class": "workflow_logic",
+     "ideal_capability": "When a person cannot perform an action or create a record, the UI displays a clear message explaining which role or permission is missing and naming the users or roles who can grant it."
+    }
+   ]
+  }
+ ]
+}
