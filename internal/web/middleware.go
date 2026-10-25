@@ -351,6 +351,10 @@ func logRequest(req *http.Request, reads *data.ReadLog, status string, elapsed t
 		formatMillis(reads.DBTime()), formatMillis(elapsed), req.Method, status, route, ws)
 }
 
+// logHealthyPolls turns quietPoll off. Only a test sets it: the query budget of a badge poll is measured from the
+// line the poll logs, and a healthy poll logs none.
+var logHealthyPolls = false
+
 // slowPollAt is the wall time from which a badge poll is logged even though it answered 200.
 const slowPollAt = 100 * time.Millisecond
 
@@ -362,7 +366,7 @@ const slowPollAt = 100 * time.Millisecond
 // logged like any other request. The set is activeMembershipReadAllowlist's, the routes already
 // named there as small, frequently-polled GET fragments.
 func quietPoll(req *http.Request, reads *data.ReadLog, status string, elapsed time.Duration) bool {
-	return req.Method == http.MethodGet && activeMembershipReadAllowlist[req.URL.Path] &&
+	return !logHealthyPolls && req.Method == http.MethodGet && activeMembershipReadAllowlist[req.URL.Path] &&
 		status == "200" && reads.Repeated() == 0 && reads.Unnamed() == 0 && elapsed < slowPollAt
 }
 

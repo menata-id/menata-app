@@ -110,6 +110,8 @@ const maxQueriesPerNavBadge = 8
 // renders, and asserts it stays a read.
 func TestNavBadgeQueryCost(t *testing.T) {
 	h, cookie := newRouterTestSetup(t, "navbadge")
+	logHealthyPolls = true // a healthy poll is otherwise unlogged, and this test reads its line
+	t.Cleanup(func() { logHealthyPolls = false })
 
 	req := httptest.NewRequest(http.MethodGet, "/api/approval-inbox/pending-count", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
