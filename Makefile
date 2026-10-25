@@ -11,7 +11,7 @@ TAILWIND_VERSION = v4.3.3
 TAILWIND_SHA256  = dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
 TAILWIND         = bin/tailwindcss
 
-.PHONY: deploy generate css build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks tokens
+.PHONY: deploy generate css build run test conformance threshold aieval vet tidy migrate-up migrate-down migrate-status check-generated install-hooks tokens
 
 # Builds the committed HEAD (not the working tree), restarts menata-app.service, checks the running
 # process executes the binary just built, and smokes five routes. scripts/deploy.sh says why it does not
@@ -82,6 +82,12 @@ install-hooks:
 # audits/2026-09-22-lapisan-query-dan-indeks-kajian.md).
 threshold:
 	DATABASE_URL="$(DB_URL)" go test -tags=threshold -run Threshold -v -timeout 10m ./internal/composition/
+
+# aieval is the baseline measurement of the AI assistant against the real model (plan 2026-10-25, C1). It calls a
+# paid API and is not deterministic, so it is never part of `make test` or the pre-push hook. Results land in
+# AIEVAL_OUT (default: a temp dir, printed at the end). AIEVAL_RUNS and AIEVAL_ONLY narrow it.
+aieval:
+	@GEMINI_API_KEY="$(shell grep GEMINI_API_KEY .env 2>/dev/null | cut -d= -f2- | tr -d "'\"")" go test -tags=aieval -run AIEvalBaseline -v -timeout 90m ./internal/aiassist/
 
 vet:
 	go vet ./...
