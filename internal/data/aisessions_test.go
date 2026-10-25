@@ -176,3 +176,18 @@ func TestStore_AISessionPublication_originIsTheFirstNewApplicationPublish(t *tes
 		t.Errorf("publishing through another workspace = %v, want ErrRecordNotFound", err)
 	}
 }
+
+// The publish route's update path reads the application's origin; that read names itself, or the
+// request is logged ANOMALY(unnamed) on every publish of an update (2026-10-25 log review).
+func TestStore_AIApplicationOrigin_namesItsRead(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+	ctx, rl := WithReadLog(context.Background())
+	workspaceID := newAISessionTestWorkspace(t, store)
+	if _, _, err := store.AIApplicationOrigin(ctx, workspaceID, "app_w"); err != nil {
+		t.Fatal(err)
+	}
+	if rl.byTarget["ai application origin"] != 1 {
+		t.Errorf("the origin read did not name itself: %v", rl.byTarget)
+	}
+}

@@ -173,6 +173,7 @@ func (s *Store) MarkAISessionPublished(ctx context.Context, workspaceID, id, app
 // assistant did not create (a library install, a hand-written file) or one published before migration
 // 018 -- the age of those is unknown, and the caller must say so rather than report zero.
 func (s *Store) AIApplicationOrigin(ctx context.Context, workspaceID, applicationID string) (published time.Time, ok bool, err error) {
+	readLogFrom(ctx).record("ai application origin")
 	var t *time.Time
 	if err := s.pool.QueryRow(ctx, `
 		SELECT min(published_at) FROM ai_sessions
