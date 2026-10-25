@@ -46,3 +46,26 @@ events:
     then:
       service: log_activity
       summary: Card "{fld_card_title}" dibuat
+card_fields:
+  - field: fld_card_title
+    role: title
+  - field: fld_card_status
+    role: status
+  - field: fld_card_due_date
+    role: date
+  - field: fld_card_assignee
+    role: person
+status_categories:
+  field: fld_card_status
+  values:
+    Done: done
+    In Progress: active
+    To Do: start
+views:
+  - id: vw_card_board
+    name: Papan Kanban
+    type: board
+    group_by: fld_card_status
+  - id: vw_card_table
+    name: Tabel
+    type: table
