@@ -211,7 +211,7 @@ func (s *Store) RecordAICapabilityGap(ctx context.Context, sessionID, workspaceI
 			capability_key, class, ideal_capability, wanted_shape, location, intent, benchmark)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`, newID("aigap_"), sessionID, workspaceID, g.Kind, g.Requested, g.Note,
-		g.CapabilityKey, g.Class, g.IdealCapability, g.WantedShape, g.Intent, g.Where, g.Benchmark)
+		g.CapabilityKey, g.Class, g.IdealCapability, g.WantedShape, g.Where, g.Intent, g.Benchmark)
 	if err != nil {
 		return fmt.Errorf("record ai capability gap: %w", err)
 	}
