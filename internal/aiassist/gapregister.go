@@ -138,7 +138,10 @@ func openGapsSentence(gaps []KnownGap) string {
 	}
 	sort.Slice(open, func(i, j int) bool { return open[i].Key < open[j].Key })
 	var b strings.Builder
-	b.WriteString("\n\nCapabilities already recorded as missing (reuse the key exactly when the need is the same; do not invent a second name for it):\n")
+	b.WriteString("\n\nNames of capabilities already recorded as missing. This list is only a vocabulary: it exists so that one need " +
+		"gets one name. Record a gap ONLY because what this person asked for needs something you cannot write. " +
+		"Being on this list is never a reason to record one, and if the request does not need it, do not mention it. " +
+		"When it does need one of them, use its key exactly instead of inventing a second name:\n")
 	for _, g := range open {
 		b.WriteString("- " + g.Key + " (" + g.Class + "): " + g.Summary + "\n")
 	}
