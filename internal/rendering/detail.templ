@@ -288,7 +288,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove, canCopy bool, cp *RecordCopy) {
 	@popover("⋯", "Card actions", domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityCompact) {
 		if canMove && move != nil {
-			<details>
+			<details name="record-action">
 				<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>
 					Move…
 					<span class={ textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>Another list</span>
@@ -332,7 +332,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 			</details>
 		}
 		if canCopy && cp != nil {
-			<details>
+			<details name="record-action">
 				<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5", textClass(ctx, domain.RoleBody), hoverWashClass(ctx) }>Copy…</summary>
 				<form
 					class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "p-2" }

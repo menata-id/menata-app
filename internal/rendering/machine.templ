@@ -1088,7 +1088,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 				</form>
 			}
 			if canEdit {
-				<details name="card-edit" class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:z-20 open:border " + openSurfaceClasses(ctx) + " open:p-2 open:opacity-100 open:shadow-md" }>
+				<details name="board-edit" class={ "group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:z-20 open:border " + openSurfaceClasses(ctx) + " open:p-2 open:opacity-100 open:shadow-md" }>
 					<summary aria-label={ "Edit " + title } class={ "grid size-5 cursor-pointer list-none place-items-center rounded", touchTargetClass(), inkClass(ctx, domain.InkSecondary), sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " group-open/edit:hidden" }>
 						@icon("pencil", "size-3.5")
 					</summary>
@@ -1201,7 +1201,7 @@ func cardTitleFieldID(m *domain.Machine) string {
 // in this column. It posts to the same create route the generic form does, so every default, permission and
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
 templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, preset *ViewPreset) {
-	<details class="group">
+	<details name="board-edit" class="group">
 		<summary class={ "flex cursor-pointer list-none items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>
 			@icon("plus", "size-3.5")
 			Add { machineNoun(m) }
