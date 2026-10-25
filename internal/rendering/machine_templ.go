@@ -2691,7 +2691,7 @@ func boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove)
 			}
 		}
 		if canEdit {
-			var templ_7745c5c3_Var121 = []any{"group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:border " + openSurfaceClasses(ctx) + " open:p-2 open:opacity-100 open:shadow-md"}
+			var templ_7745c5c3_Var121 = []any{"group/edit absolute right-2 z-10", radiusClass(ctx, domain.RadiusControl), "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:z-20 open:border " + openSurfaceClasses(ctx) + " open:p-2 open:opacity-100 open:shadow-md"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var121...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
