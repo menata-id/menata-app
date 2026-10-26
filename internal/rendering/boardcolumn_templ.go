@@ -21,7 +21,7 @@ import (
 // boardColumn is one lane of a board: its name and count, the menu of what can be done to the lane itself, its cards and the composer that
 // adds one. The lane for records that name no group (`Hint` is only ever set on it) is drawn as the board's own leftover -- dashed, on the
 // page's ground, with nothing to add to it and nothing to do to it: no record stands behind it.
-func boardColumn(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor, byRecord map[string]RecordCard, targets []MoveTarget, preset *ViewPreset) templ.Component {
+func boardColumn(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor, byRecord map[string]RecordCard, targets []MoveTarget, preset *ViewPreset, relations RelationOptions, groups GroupOptions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -280,7 +280,7 @@ func boardColumn(m *domain.Machine, v domain.View, col experience.Column, place 
 			return templ_7745c5c3_Err
 		}
 		if !other {
-			templ_7745c5c3_Err = cardComposer(m, v, col, preset).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = cardComposer(m, v, col, preset, relations, groups).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

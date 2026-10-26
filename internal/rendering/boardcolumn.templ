@@ -13,7 +13,7 @@ import (
 // boardColumn is one lane of a board: its name and count, the menu of what can be done to the lane itself, its cards and the composer that
 // adds one. The lane for records that name no group (`Hint` is only ever set on it) is drawn as the board's own leftover -- dashed, on the
 // page's ground, with nothing to add to it and nothing to do to it: no record stands behind it.
-templ boardColumn(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor, byRecord map[string]RecordCard, targets []MoveTarget, preset *ViewPreset) {
+templ boardColumn(m *domain.Machine, v domain.View, col experience.Column, place columnPlace, actor domain.Actor, byRecord map[string]RecordCard, targets []MoveTarget, preset *ViewPreset, relations RelationOptions, groups GroupOptions) {
 	{{ other := col.Hint != "" }}
 	<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-40.5 shrink-0 flex-col", layoutGap(ctx, domain.GapTight), radiusClass(ctx, domain.RadiusSurface), "border p-2", columnSurface(ctx, other) }>
 		<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
@@ -33,7 +33,7 @@ templ boardColumn(m *domain.Machine, v domain.View, col experience.Column, place
 			}
 		</div>
 		if !other {
-			@cardComposer(m, v, col, preset)
+			@cardComposer(m, v, col, preset, relations, groups)
 		}
 	</div>
 }

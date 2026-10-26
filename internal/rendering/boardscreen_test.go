@@ -462,3 +462,46 @@ func TestBoardScreen_aMouseDragIsDrawnLikeTheMockupsLiftedCard(t *testing.T) {
 		}
 	}
 }
+
+// A column's composer is "a smaller form, not a second way to write" -- but a smaller form must still be one that can be
+// submitted. The log of 2026-10-22 (session aise_de84ee9b): a Card board grouped by Status, with a required List and no
+// default, answered every "Add card" with `field "fld_card_list" is required`, because the composer asked only for a
+// title and the group. It now also asks for each Field the Machine requires that the composer cannot fill itself.
+func TestBoardScreen_composerAsksForWhatTheMachineRequiresAndItCannotFill(t *testing.T) {
+	v := domain.View{ID: "vw_card_board", Name: "Board", Type: domain.ViewBoard, GroupBy: "fld_status"}
+	m := &domain.Machine{
+		ID: "mch_card", Name: "Card", Plural: "cards",
+		Fields: []domain.Field{
+			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText, Required: true},
+			{ID: "fld_list", Name: "List", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list", Required: true},
+			{ID: "fld_kind", Name: "Kind", Type: domain.FieldTypeStatus, Options: []string{"a", "b"}, Required: true, Default: "a"},
+			{ID: "fld_note", Name: "Note", Type: domain.FieldTypeText},
+			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"To Do", "Done"}, Required: true},
+		},
+		CardFields: []domain.CardField{{Field: "fld_title", Role: domain.CardFieldRoleTitle}},
+		Views:      []domain.View{v},
+	}
+	columns := []experience.Column{{ID: "To Do", Label: "To Do"}, {ID: "Done", Label: "Done"}}
+	relations := RelationOptions{"mch_list": {{ID: "lst_a", Label: "Backlog"}}}
+	var buf bytes.Buffer
+	if err := MachineBody(m, v, nil, relations, nil, columns, nil, domain.Actor{ID: "usr_ana"}, time.Now(), nil).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if n := strings.Count(got, `<select name="fld_list"`); n != 3 {
+		t.Errorf("%d List selects, want one in each of the two composers (plus the header form's): there should be 3", n)
+	}
+	if !strings.Contains(got, `Backlog`) {
+		t.Errorf("the List select offers no list")
+	}
+	// The header's own "New card" form asks for everything; only the composers (their <details>) are held to the narrower rule.
+	var composers string
+	for _, part := range strings.Split(got, `<details name="board-edit"`)[1:] {
+		composers += part[:strings.Index(part, "</details>")]
+	}
+	for _, absent := range []string{`name="fld_note"`, `<select name="fld_kind"`, `<select name="fld_status"`} {
+		if strings.Contains(composers, absent) {
+			t.Errorf("a composer asks for %s: it is optional, has a default, or is the group the column already sets", absent)
+		}
+	}
+}

@@ -682,7 +682,7 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 	<div data-board-status class="hidden" aria-hidden="true">
 		@callout(" ", domain.ToneGood)
 	</div>
-	@boardLayout(m, v, records, boardColumns, cards, actor, headerPreset(header))
+	@boardLayout(m, v, records, relations, groups, boardColumns, cards, actor, headerPreset(header))
 	@boardDragScript()
 }
 
@@ -912,14 +912,14 @@ func machineHeading(ctx context.Context, m *domain.Machine) string {
 // boardLayout groups records into columns by the selected View's own group_by and draws each as a
 // fixed-width column of cards (007 §12.2 -- Collection + Group Dimension, one column per group). Each
 // column ends in a composer that creates a record already placed in that group.
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, preset *ViewPreset) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, preset *ViewPreset) {
 	{{ byRecord := cardsByRecord(cards) }}
 	{{ columns := experience.GroupRecords(m, v, records, boardColumns) }}
 	{{ targets := MoveTargets(m, v, columns) }}
 	{{ first, last := columnEnds(columns) }}
 	<div class={ "flex items-start", layoutGap(ctx, domain.GapTight), "overflow-x-auto pb-2" }>
 		for i, col := range columns {
-			@boardColumn(m, v, col, columnPlace{First: i == first, Last: i == last}, actor, byRecord, targets, preset)
+			@boardColumn(m, v, col, columnPlace{First: i == first, Last: i == last}, actor, byRecord, targets, preset, relations, groups)
 		}
 		if v.AddColumn != nil && hasNavItem(ctx, v.AddColumn.To) {
 			@addColumnTile(*v.AddColumn)
@@ -1197,10 +1197,28 @@ func cardTitleFieldID(m *domain.Machine) string {
 	return m.LabelField()
 }
 
+// composerRequiredFields is what the composer must ask besides the title because the Machine requires it and nothing else gives it a value:
+// not the group the column already sets, not the Field a view group's scope presets, and not a Field with a default or one the runtime
+// writes (the generic create form's own rule, domain.CreateFormInputs). Without these a Machine that requires, say, a relation answers
+// every "Add card" with `field is required` (the log of 2026-10-22).
+func composerRequiredFields(m *domain.Machine, v domain.View, preset *ViewPreset) []domain.Field {
+	inputs, _ := m.CreateFormInputs()
+	var out []domain.Field
+	for _, in := range inputs {
+		if !in.Required || in.Default != "" || in.FieldID == cardTitleFieldID(m) || in.FieldID == v.GroupBy || (preset != nil && in.FieldID == preset.Field) {
+			continue
+		}
+		if f, ok := m.FieldByID(in.FieldID); ok {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // cardComposer is a column's "Add a card": a title and, hidden, the group value that places the new record
 // in this column. It posts to the same create route the generic form does, so every default, permission and
 // validation that route applies applies here -- a composer is a smaller form, not a second way to write.
-templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, preset *ViewPreset) {
+templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, preset *ViewPreset, relations RelationOptions, groups GroupOptions) {
 	<details name="board-edit" class="group">
 		<summary class={ "flex cursor-pointer list-none items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-1 py-1.5 " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkBody) + " " + inkHoverClass(ctx, domain.InkStrong) + " group-open:hidden" }>
 			@icon("plus", "size-3.5")
@@ -1218,6 +1236,12 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column, pres
 				<input type="hidden" name={ preset.Field } value={ preset.Value }/>
 			}
 			<input type="text" name={ cardTitleFieldID(m) } required placeholder={ capitalWord(machineNoun(m)) + " title" } aria-label={ capitalWord(machineNoun(m)) + " title" } class={ fieldClasses(ctx) + " w-full" }/>
+			for _, f := range composerRequiredFields(m, v, preset) {
+				<label class={ formLabelClasses(ctx) }>
+					{ f.Name }
+					@fieldInput(f, nil, relations, groups, true)
+				</label>
+			}
 			@button("Add", domain.ButtonPrimary, "", "")
 		</form>
 	</details>
