@@ -357,6 +357,15 @@ func validateLists(app *GeneratedApplication) []string {
 		if l.AddLabel != "" && !oneLine(l.AddLabel) {
 			issues = append(issues, fmt.Sprintf("%s: add_label must be words on one line, or left out", where))
 		}
+		if l.AddLabel != "" {
+			// The loader refuses these at publish, after the person approved the review (writeBindingIssues); a file Field is skipped by
+			// the create form, so a required one could never be submitted either.
+			for _, f := range m.Fields {
+				if f.Required && (domain.FieldType(f.Type) == domain.FieldTypeGroup || domain.FieldType(f.Type) == domain.FieldTypeFile) {
+					issues = append(issues, fmt.Sprintf("%s: add_label puts a create form on the list, and the form cannot ask for %s (a required %s field) -- leave add_label out, or make that field optional", where, f.ID, f.Type))
+				}
+			}
+		}
 		if l.isTable() {
 			issues = append(issues, validateTable(where, l, fields)...)
 		} else {

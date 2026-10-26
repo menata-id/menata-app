@@ -68,6 +68,14 @@ func TestAddForm_eachMisuseIsRefusedForItsOwnReason(t *testing.T) {
 		want string
 	}{
 		{"a label that runs over a line", func(a *GeneratedApplication) { a.Navigation[1].List.AddLabel = "satu\ndua" }, "one line"},
+		{"a required group field the form cannot ask for", func(a *GeneratedApplication) {
+			a.Navigation[1].List.AddLabel = "Tambah"
+			a.Machines[0].Fields = append(a.Machines[0].Fields, GeneratedField{ID: "fld_req", Name: "Req", Type: "group", Required: true})
+		}, "cannot ask for"},
+		{"a required file field the form cannot ask for", func(a *GeneratedApplication) {
+			a.Navigation[1].List.AddLabel = "Tambah"
+			a.Machines[0].Fields = append(a.Machines[0].Fields, GeneratedField{ID: "fld_req", Name: "Req", Type: "file", Required: true})
+		}, "cannot ask for"},
 		{"a label of only spaces", func(a *GeneratedApplication) { a.Navigation[1].List.AddLabel = "   " }, "one line"},
 	}
 	for _, tc := range cases {
