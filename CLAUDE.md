@@ -140,7 +140,7 @@ For any literal that looks like application behaviour (route, label, Machine/Fie
 
 ## Design reference vs. current code
 
-`ui-sample/*.html` and the mockup canvases are the design target ("a design reference, never current-code
+The mockup canvases are the design target ("a design reference, never current-code
 intent"). Match a mockup structurally; don't carry forward extra elements, and fix hardcoded values surfaced by a
 port as part of it.
 

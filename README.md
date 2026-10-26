@@ -34,8 +34,8 @@ This runtime has been used, during development, to build a multi-step document-a
 workflow — sequential or parallel approvers, an approval inbox, SLA tracking, and drag-to-place
 PDF e-signatures composited onto the signed document — and a task/project management board with
 labels, ordered lists, a calendar, and a sprint dashboard. Both are real applications defined
-almost entirely in metadata, not bespoke code, and both remain a work in progress. See
-[ui-sample/](ui-sample/) for the original design references they were built against.
+almost entirely in metadata, not bespoke code, and both remain a work in progress. The design
+references are the mockup canvases (see `CLAUDE.md`).
 
 ## Tech stack
 

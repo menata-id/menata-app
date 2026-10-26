@@ -379,12 +379,6 @@ func Routes(d Deps) http.Handler {
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))
-
-		// Static design references (ROADMAP.md's own case-portfolio.md mockups) -- ui-sample/ is
-		// a design reference, never current-code intent (per this repo's own convention), served
-		// as-is with no rendering logic of its own so it's easy to compare against the real pages
-		// above.
-		pr.Handle("/ui-sample/*", http.StripPrefix("/ui-sample/", http.FileServer(http.Dir("ui-sample"))))
 	})
 
 	return r

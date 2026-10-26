@@ -637,7 +637,6 @@ Workspace they write into.
 | `GET /workspace-groups`, `POST /workspace-groups`, `GET /workspace-groups/{id}`, `POST /workspace-groups/{id}/members`, `POST /workspace-groups/{id}/roles`, `POST /workspace-groups/{id}/delete` | Groups administration (Fase 4), same `requireWorkspaceAdmin` gate. **Absent from this table until Fase 7** — Fase 4 added the routes and not the row, which is the drift `TestNavigationRoutesAreRegistered` cannot see (it checks declared nav routes have handlers, never that a handler is written down here) |
 | `GET /uploads/*` | Download an uploaded file |
 | `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records`, `PUT /api/machines/{id}/records/{id}`, `DELETE /api/machines/{id}/records/{id}` | JSON API — full CRUD parity with the HTML routes, including update and delete |
-| `GET /ui-sample/*` | The static design mockups, served as-is from `ui-sample/` so a built page can be compared against the design it was built toward. Reference material, never current-code intent |
 
 All routes except `/health` through `/choose-workspace` above sit inside the `requireAuth` group.
 `/workspace-members*` and `/workspace-groups*` additionally require `requireWorkspaceAdmin`.
