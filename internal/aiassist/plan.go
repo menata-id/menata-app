@@ -719,7 +719,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 	plan := PlanUpdate(DescribeApplication(change.TargetAppID, current), *desired)
 	issues = append(issues, plan.Refusals...)
 	if len(plan.Items) == 0 && len(plan.Refusals) == 0 {
-		issues = append(issues, "the returned application is identical to the installed one -- nothing would change")
+		issues = append(issues, "the returned application is identical to the installed one -- nothing would change. If the change the person asked for cannot be made, say so plainly in your message and why; do not tell them it is done")
 	}
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

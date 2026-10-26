@@ -2,6 +2,7 @@ package aiassist
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -354,4 +355,40 @@ type InstalledApplication struct {
 	// Current is the Application as DescribeApplication projects it: the exact shape an update
 	// returns, so the model edits it rather than reconstructing it.
 	Current GeneratedApplication
+}
+
+// ViewerRolesSection tells the model what the person it is talking to holds in each installed Application, and what each
+// permission asks for, so "why can't I create a card?" is answered from the data and not from a guess (the log of
+// 2026-10-22). roles is that person's own effective roles keyed by Application id (domain.Actor.Roles); a role of an
+// Application that is not installed is not mentioned, and nobody else's roles are ever passed in. It is empty when
+// nothing is installed.
+func ViewerRolesSection(installed []InstalledApplication, roles map[string][]string) string {
+	if len(installed) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\nWhat the person you are talking to holds in each installed application, and which roles each permission asks for.\n" +
+		"When they ask why they cannot do something, answer from these lines -- name the role they lack and that an admin can grant it -- and do not guess:\n")
+	for _, app := range installed {
+		a := app.Current
+		held := "you hold no role"
+		if r := roles[a.ID]; len(r) > 0 {
+			held = "you hold: " + strings.Join(r, ", ")
+		}
+		fmt.Fprintf(&b, "- %s (%s): %s\n", a.Name, a.ID, held)
+		for _, m := range a.Machines {
+			for _, p := range m.Permissions {
+				asks := strings.Join(p.Roles, ", ")
+				if p.ActorField != "" {
+					asks = "only the person named in " + p.ActorField
+				} else if p.ParentActor != nil {
+					asks = "only the person named on the related record"
+				} else if asks == "" {
+					asks = "anyone"
+				}
+				fmt.Fprintf(&b, "    %s %s: %s\n", p.Action, m.Name, asks)
+			}
+		}
+	}
+	return b.String()
 }

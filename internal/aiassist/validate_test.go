@@ -150,6 +150,9 @@ func TestValidate_updateApplication_refusesRemovingAnOption(t *testing.T) {
 func TestValidate_updateApplication_refusesNoChange(t *testing.T) {
 	if err := Validate(documentApprovalUpdate(func(*GeneratedApplication) {}), documentApprovalState()); err == nil || !strings.Contains(err.Error(), "nothing would change") {
 		t.Fatalf("Validate() = %v, want a refusal of an unchanged application", err)
+	} else if !strings.Contains(err.Error(), "do not tell them it is done") {
+		// aise_19f88c18 (2026-10-25): after this refusal the model resent the same application and said the table view was back.
+		t.Errorf("the refusal does not tell the model to say plainly that nothing changed: %v", err)
 	}
 }
 

@@ -128,7 +128,7 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 		}
 		session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: message})
 
-		if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session); err != nil {
+		if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session, currentActor(req, store, cfg)); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -152,12 +152,13 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 // stood in the conversation beside no Review button, and nobody told it why (2026-09-30: an
 // extend_application with no additions, twice). One round, not a loop -- a model that cannot fix it
 // once is talking to a person who can see its message and answer.
-func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, cfg config.Config, workspaceID string, session *data.AISession) error {
+func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, cfg config.Config, workspaceID string, session *data.AISession, actor domain.Actor) error {
 	_, ws, err := workspaceInstallation(ctx, store, cfg)
 	if err != nil {
 		return err
 	}
-	prompt := aiassist.SystemPromptFor(installedApplicationsFor(ws), ws.MachineIDs)
+	installed := installedApplicationsFor(ws)
+	prompt := aiassist.SystemPromptFor(installed, ws.MachineIDs) + aiassist.ViewerRolesSection(installed, actor.Roles)
 	existing := existingStateFor(ws)
 	for attempt := 0; attempt < 2; attempt++ {
 		reply, err := generateReply(ctx, aiClient, prompt, session)
@@ -452,7 +453,7 @@ func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.
 		serverError(w, err)
 		return
 	}
-	if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session); err != nil {
+	if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session, currentActor(req, store, cfg)); err != nil {
 		serverError(w, err)
 		return
 	}
