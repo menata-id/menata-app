@@ -1,0 +1,122 @@
+# Payment Plan -- Instalments & Payments' working record (canvas K02b-K02d): production plans one instalment's payment,
+# finance approves it, and only when the proof is uploaded is it Paid -- and only then the instalment. So "paid" means
+# the money moved and the evidence is in the system. One plan, one instalment; paying one instalment in stages needs a
+# figure written across records (K-3, plan direction A1).
+id: mch_payment_plan
+name: Payment Plan
+fields:
+  # An instalment with a payment plan cannot be deleted from under it.
+  - { id: fld_term, name: Instalment, type: relation, machine: mch_contract_term, required: true, on_parent_delete: restrict }
+  # Written by the runtime when the plan is created: PP-0146 (plan A4).
+  - { id: fld_plan_no, name: Plan no., type: text, required: true, numbering: { pattern: "PP-{seq:4}" } }
+  # What a plan says of its instalment's contract (K02b): searched by counterparty and filtered by category, two hops down.
+  - { id: fld_plan_party, name: Contracted party, type: text, compute: { parent: fld_term.fld_party } }
+  - { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }
+  - { id: fld_plan_amount, name: Planned amount (net), type: money, currency: IDR, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
+  - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
+  - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }
+  - { id: fld_requested_by, name: Requested by, type: person, stamp: current_user }
+  - { id: fld_plan_status, name: Status, type: status, default: Submitted, options: [Submitted, Awaiting proof, Paid, Rejected] }
+  - { id: fld_approved_on, name: Approved on, type: date }
+  - { id: fld_paid_date, name: Payment date, type: date }
+  # Required only when the plan becomes Paid: the plan form does not ask for it; the confirmation does.
+  - { id: fld_proof, name: Proof of payment, type: file, required_when: { field: fld_plan_status, equals: Paid } }
+
+# A paid plan is the record of a payment.
+deletable_unless:
+  - { field: fld_plan_status, equals: Paid, reason: A paid plan is the record of a payment and cannot be deleted. }
+
+card_fields:
+  - { field: fld_plan_no, role: title }
+  - { field: fld_term, role: container }
+  - { field: fld_plan_amount, role: money }
+  - { field: fld_plan_status, role: status }
+  - { field: fld_plan_date, role: date }
+  - { field: fld_requested_by, role: person }
+
+completion: { field: fld_plan_status, done: Paid }
+status_categories:
+  field: fld_plan_status
+  values: { Submitted: start, Awaiting proof: active, Paid: done, Rejected: stopped }
+
+transitions:
+  - { id: trn_plan_approve, name: Approve, field: fld_plan_status, from: Submitted, to: Awaiting proof, action: edit, roles: [finance, admin], sets: { fld_approved_on: today } }
+  - { id: trn_plan_reject, name: Reject, field: fld_plan_status, from: Submitted, to: Rejected, action: edit, roles: [finance, admin] }
+  - { id: trn_plan_settle, name: Mark as paid, field: fld_plan_status, from: Awaiting proof, to: Paid, action: edit, roles: [finance, admin], sets: { fld_paid_date: today } }
+
+# A paid plan's record is evidence: it stays as it is.
+permissions:
+  - { id: prm_plan_delete, action: delete, roles: [admin] }
+
+views:
+  - { id: vw_plan_table, name: Table, type: table }
+  - { id: vw_plan_board, name: Board, type: board, group_by: fld_plan_status }
+
+events:
+  - id: evt_plan_status_changed
+    on: fld_plan_status
+    then: { service: log_activity, summary: 'Payment plan {fld_plan_no} moved from {old} to {new}' }
+  # Only a paid plan says anything about its instalment. No default: a plan submitted or rejected leaves the
+  # instalment where the schedule put it (Overdue stays Overdue).
+  - id: evt_plan_rollup
+    on: fld_plan_status
+    then:
+      service: rollup_parent_status
+      parent_field: fld_term
+      target_field: fld_term_status
+      any: { value: Paid, set: Paid }
+  - id: evt_plan_submitted_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_role: finance
+      preference_key: assigned
+      summary: 'Payment plan {fld_plan_no} needs approval'
+
+datasets:
+  - id: ds_plans_to_approve
+    select: records
+    where: { field: fld_plan_status, op: equals, value: Submitted }
+    sort: [{ field: fld_plan_date, direction: asc }]
+    limit: 200
+  - id: ds_plans_awaiting_proof
+    select: records
+    where: { field: fld_plan_status, op: equals, value: Awaiting proof }
+    sort: [{ field: fld_plan_date, direction: asc }]
+    limit: 200
+  # The plan list (K02b): a status chip and the search over the plan number are optional request parameters.
+  - id: ds_payment_plans
+    select: records
+    where:
+      all:
+        - { field: fld_plan_status, op: equals, value: $parameters.status, optional: true }
+        - { field: fld_plan_category, op: equals, value: $parameters.category, optional: true }
+      any:
+        - { field: fld_plan_no, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_plan_party, op: contains, value: $parameters.q, optional: true }
+    sort: [{ field: fld_plan_no, direction: desc }]
+    limit: 100
+  - id: ds_plans_by_status
+    dimension: fld_plan_status
+    measures:
+      - { id: msr_plans_by_status, aggregate: count }
+  # One plan's page (record_of).
+  - id: ds_plan_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1
+  # The plan the confirm page has open (K02d): the one its request names with ?selected=, none when it names none.
+  - id: ds_plan_selected
+    select: records
+    where: { field: id, op: equals, value: $parameters.selected }
+    limit: 1
+  # The plan list's total row (K02b).
+  - id: ds_plan_totals
+    measures:
+      - { id: msr_plan_count, aggregate: count }
+      - { id: msr_plan_amount, aggregate: sum, field: fld_plan_amount }
+  # The category dropdown of the plan list (K02b).
+  - id: ds_plans_by_category
+    dimension: fld_plan_category
+    measures:
+      - { id: msr_plans_by_category, aggregate: count }

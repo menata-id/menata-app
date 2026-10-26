@@ -1,0 +1,52 @@
+# Purchase Order -- one per vendor contract (canvas K02e). Reached from the Instalments page, not the menu. The printed
+# PO the mockup draws is a page per contract, which waits on a record page (plan direction B1) and print/PDF (B5,
+# K-5); until then fld_po_file holds a document made elsewhere.
+id: mch_po
+name: Purchase Order
+fields:
+  # Written by the runtime when the PO is created: PO/2026/0087, a counter per year (plan A4).
+  - { id: fld_po_no, name: PO no., type: text, required: true, numbering: { pattern: "PO/{year}/{seq:4}" } }
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true }
+  # What the PO says of its contract (K02e), kept on it by the runtime so the printed page reads one record: the contract's number,
+  # party, category, item, value and payment status (inherited fields).
+  - { id: fld_po_contract_no, name: Contract no., type: text, compute: { parent: fld_contract.fld_contract_no } }
+  - { id: fld_po_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }
+  - { id: fld_po_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+  - { id: fld_po_item, name: Item description, type: text, compute: { parent: fld_contract.fld_item_desc } }
+  - { id: fld_po_value, name: Contract value, type: money, currency: IDR, compute: { parent: fld_contract.fld_value } }
+  - id: fld_po_payment
+    name: Payment status
+    type: status
+    options: [In progress, Overdue, Settled]
+    categories: { In progress: active, Overdue: attention, Settled: done }
+    compute: { parent: fld_contract.fld_payment_status }
+  - { id: fld_po_date, name: PO date, type: date, required: true }
+  - { id: fld_po_file, name: PO file, type: file }
+  - { id: fld_po_status, name: Status, type: status, default: Draft, options: [Draft, Issued, Closed] }
+  - { id: fld_issued_on, name: Issued on, type: date }
+card_fields:
+  - { field: fld_po_no, role: title }
+  - { field: fld_contract, role: container }
+  - { field: fld_po_status, role: status }
+  - { field: fld_po_date, role: date }
+completion: { field: fld_po_status, done: Closed }
+status_categories:
+  field: fld_po_status
+  values: { Draft: start, Issued: active, Closed: done }
+transitions:
+  - { id: trn_po_issue, name: Issue, field: fld_po_status, from: Draft, to: Issued, action: edit, roles: [finance, admin], sets: { fld_issued_on: today } }
+  - { id: trn_po_close, name: Close, field: fld_po_status, from: Issued, to: Closed, action: edit, roles: [finance, admin] }
+permissions:
+  - { id: prm_po_delete, action: delete, roles: [admin] }
+views:
+  - { id: vw_po_table, name: Table, type: table }
+datasets:
+  - id: ds_purchase_orders
+    select: records
+    sort: [{ field: fld_po_date, direction: desc }]
+    limit: 200
+  # One PO's page (record_of): the record the route names.
+  - id: ds_po_one
+    select: records
+    where: { field: id, op: equals, value: $parameters.id }
+    limit: 1

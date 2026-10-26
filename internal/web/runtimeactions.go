@@ -441,6 +441,13 @@ func runInstallApplication(w http.ResponseWriter, req *http.Request, env actionE
 		serverError(w, err)
 		return "", false
 	}
+	// A companion is its own Application with its own role vocabulary, so the installer holds a role there too.
+	for _, c := range plan.Companions {
+		if err := grantInstallerRole(ctx, req, env.store, env.cfg, c.ApplicationID(), companionRole(c.Template.Application.Roles, req.FormValue("role"))); err != nil {
+			serverError(w, err)
+			return "", false
+		}
+	}
 	return installedHomeRoute(plan), true
 }
 
@@ -450,10 +457,11 @@ func runInstallApplication(w http.ResponseWriter, req *http.Request, env actionE
 // change on the way in (an id this Workspace already uses is renamed, a shared Machine it lacks is referenced).
 func templatesProvider(cfg config.Config) composition.RuntimeProvider {
 	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
-		templates, err := installer.Templates(cfg.TemplatePath)
+		all, err := installer.Templates(cfg.TemplatePath)
 		if err != nil {
 			return nil, err
 		}
+		templates := installer.Listed(all)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		ws := rendering.CurrentWorkspace(ctx)
 		out := make([]*data.Record, 0, len(templates))
@@ -463,18 +471,41 @@ func templatesProvider(cfg config.Config) composition.RuntimeProvider {
 			for _, tm := range t.Machines {
 				machines = append(machines, tm.Machine.Name)
 			}
+			description := t.Application.Description
+			for _, c := range t.Companions {
+				for _, tm := range c.Machines {
+					machines = append(machines, tm.Machine.Name)
+				}
+				// One entry, two Applications: the card says what else arrives with it.
+				description += " Installs together with " + c.Application.Name + ": " + c.Application.Description
+			}
 			status, summary := "Ready", installChanges(plan)
 			if !plan.OK() {
 				status, summary = "Blocked", strings.Join(plan.Refusals, " ")
 			}
 			out = append(out, &data.Record{ID: t.Application.ID, MachineID: "mch_template", WorkspaceID: workspaceID, Values: map[string]any{
-				"fld_id": t.Application.ID, "fld_title": t.Application.Name, "fld_description": t.Application.Description,
+				"fld_id": t.Application.ID, "fld_title": t.Application.Name, "fld_description": description,
 				"fld_machines": machineLine(machines), "fld_status": status, "fld_changes": summary,
 				"fld_roles": strings.Join(t.Application.Roles, "\n"),
 			}})
 		}
 		return out, nil
 	}
+}
+
+// companionRole is the role the installer holds in a companion Application: the one chosen on the install form when the companion
+// declares it, otherwise the least privileged one it has ("member"), otherwise its first.
+func companionRole(roles []string, chosen string) string {
+	if chosen == "" || slices.Contains(roles, chosen) {
+		return chosen
+	}
+	if slices.Contains(roles, "member") {
+		return "member"
+	}
+	if len(roles) > 0 {
+		return roles[0]
+	}
+	return ""
 }
 
 // machineLine is the one line of what a template brings, by name and not id, count first so the shape of the Application is

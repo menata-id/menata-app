@@ -220,6 +220,12 @@ type Application struct {
 	// total 13 -- mostly lists, labels and join rows, not its 4 tasks). Validated to be a Machine
 	// this Application itself claims, so a card can never report another Application's number.
 	SummaryMachine string
+	// CompanionOf names the Application, in the template library, that this one is installed together with, or "" for one that
+	// stands alone. It is how an Application whose Machines relate to another's says so: the library lists the named Application
+	// once, and installing it also installs this one, so a Workspace gets both as two Applications (installer.Templates,
+	// installer.PlanInstall). Meaningful only in the library; an installed copy keeps the key as a record of where it came from
+	// and the runtime reads nothing from it.
+	CompanionOf string
 	// Roles is this Application's own role vocabulary -- what a member may hold *here*, which is a
 	// different question from their Workspace role (admin/member). Declared per Application
 	// because the vocabularies genuinely differ between them; an Application may declare none,

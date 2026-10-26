@@ -377,6 +377,8 @@ type applicationDoc struct {
 	Icon           string `yaml:"icon"`
 	Color          string `yaml:"color"`
 	SummaryMachine string `yaml:"summary_machine"`
+	// CompanionOf names the template Application this one is installed together with -- see domain.Application.CompanionOf.
+	CompanionOf string `yaml:"companion_of"`
 	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
 	// Application that says nothing about its menu keeps it (ui-sample/nav-metadata.js's own
 	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
@@ -856,6 +858,9 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 	if doc.SummaryMachine != "" && !slices.Contains(doc.Machines, doc.SummaryMachine) {
 		issues = append(issues, fmt.Sprintf("application %q: summary_machine %q is not one of this application's own machines -- a card must report its own count, not another application's", doc.ID, doc.SummaryMachine))
 	}
+	if doc.CompanionOf == doc.ID && doc.ID != "" {
+		issues = append(issues, fmt.Sprintf("application %q: companion_of names the application itself -- it names the Application it is installed together with", doc.ID))
+	}
 	issues = append(issues, validateWorkflowBinding(doc)...)
 	issues = append(issues, validateViewGroupShape(doc)...)
 	if len(issues) > 0 {
@@ -933,6 +938,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		Icon:            doc.Icon,
 		Color:           doc.Color,
 		SummaryMachine:  doc.SummaryMachine,
+		CompanionOf:     doc.CompanionOf,
 		ShowNav:         showNav,
 		Navigation:      navigation,
 		PrimaryNavGroup: primaryNavGroup,

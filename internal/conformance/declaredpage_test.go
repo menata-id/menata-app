@@ -1157,7 +1157,8 @@ func TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace(t *testing.T) {
 		t.Fatal("the template library holds no Application -- this gate is measuring nothing")
 	}
 	pages := 0
-	for _, tmpl := range templates {
+	// A companion cannot load alone: it is installed (and so measured) with the template that names it.
+	for _, tmpl := range installer.Listed(templates) {
 		id := tmpl.Application.ID
 		t.Run(id, func(t *testing.T) {
 			dir := t.TempDir()
@@ -1181,9 +1182,11 @@ func TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace(t *testing.T) {
 				t.Fatalf("installing %s into an empty Workspace failed: %v", id, err)
 			}
 		})
-		for _, item := range tmpl.Application.AllNavigation {
-			if item.Page != nil {
-				pages++
+		for _, one := range append([]installer.Template{tmpl}, tmpl.Companions...) {
+			for _, item := range one.Application.AllNavigation {
+				if item.Page != nil {
+					pages++
+				}
 			}
 		}
 	}

@@ -44,6 +44,25 @@ type Template struct {
 	// added, because an Application whose notifications have nowhere to land is installed broken in a
 	// way nothing would report.
 	RequiresShared []string
+	// Companions are the templates that declare `companion_of:` this one (domain.Application.CompanionOf): installed together
+	// with it, each as its own Application. Empty for most templates, and always empty on a companion itself -- a companion
+	// of a companion would be a chain no screen describes.
+	Companions []Template
+}
+
+// IsCompanion reports whether this template is offered only through the one it is a companion of.
+func (t Template) IsCompanion() bool { return t.Application.CompanionOf != "" }
+
+// Listed is the templates a person is offered: every one that is not a companion, since a companion is installed with the
+// template it names and never on its own.
+func Listed(all []Template) []Template {
+	out := make([]Template, 0, len(all))
+	for _, t := range all {
+		if !t.IsCompanion() {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // TemplateMachine is one Machine a template brings, and the file it comes from.
@@ -99,7 +118,30 @@ func Templates(libraryDir string) ([]Template, error) {
 		out = append(out, t)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Application.Name < out[j].Application.Name })
-	return out, nil
+	return attachCompanions(out)
+}
+
+// attachCompanions fills each template's Companions from the `companion_of:` declarations. A companion naming a template the
+// library does not hold, or one that is itself a companion, is an error for the same reason a dangling Machine claim is.
+func attachCompanions(all []Template) ([]Template, error) {
+	index := map[string]int{}
+	for i, t := range all {
+		index[t.Application.ID] = i
+	}
+	for _, c := range all {
+		if !c.IsCompanion() {
+			continue
+		}
+		i, ok := index[c.Application.CompanionOf]
+		if !ok {
+			return nil, fmt.Errorf("template %s is a companion of %s, which no file in the library declares", c.ApplicationFile, c.Application.CompanionOf)
+		}
+		if all[i].IsCompanion() {
+			return nil, fmt.Errorf("template %s is a companion of %s, which is itself a companion -- a companion cannot have companions", c.ApplicationFile, c.Application.CompanionOf)
+		}
+		all[i].Companions = append(all[i].Companions, c)
+	}
+	return all, nil
 }
 
 // TemplateByID is Templates narrowed to one Application id -- what a POST handed a template id needs,
@@ -111,6 +153,9 @@ func TemplateByID(libraryDir, applicationID string) (Template, error) {
 	}
 	for _, t := range all {
 		if t.Application.ID == applicationID {
+			if t.IsCompanion() {
+				return Template{}, fmt.Errorf("%q is installed together with %q, not on its own", applicationID, t.Application.CompanionOf)
+			}
 			return t, nil
 		}
 	}

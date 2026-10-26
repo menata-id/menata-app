@@ -1,0 +1,19 @@
+# Category -- master data of Production Contracts (Dokter Kecil canvas K01e/K01g). Departments, cost accounts, cast
+# groups: whatever this production groups its contracts by. Adding one is adding a record, not editing this file; the
+# Overview groups contract value by it.
+id: mch_category
+name: Category
+fields:
+  - { id: fld_cat_name, name: Name, type: text, required: true }
+  - { id: fld_cat_kind, name: Kind, type: status, default: Department, options: [Department, Cost account, Group, Other] }
+  - { id: fld_cat_contracts, name: Contracts, type: number, compute: { count_children: { machine: mch_contract, via: fld_category } } }
+card_fields:
+  - { field: fld_cat_name, role: title }
+  - { field: fld_cat_kind, role: status }
+views:
+  - { id: vw_category_table, name: Table, type: table }
+datasets:
+  - { id: ds_categories, select: records, sort: [{ field: fld_cat_name }], limit: 100 }
+# Removing a category a contract still names would orphan it (K-13): only the Application's admin may delete.
+permissions:
+  - { id: prm_category_delete, action: delete, roles: [admin] }

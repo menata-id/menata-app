@@ -55,67 +55,16 @@ func Install(plan Plan, libraryDir, workspaceManifestPath string) (applicationID
 		return "", err
 	}
 
-	var machineRelPaths []string
-	for _, tm := range plan.Template.Machines {
-		src, err := os.ReadFile(filepath.Join(libraryDir, tm.File))
-		if err != nil {
-			return "", fmt.Errorf("read template machine %s: %w", tm.File, err)
-		}
-		body, hits := rewriteIDs(src, plan.Renames)
-		// A Machine being renamed must have had its own id: line rewritten. Zero there would install a
-		// copy still declaring the template's id, which collides with what is already in this Workspace
-		// -- the load-verify below would catch it, but this says which file and why.
-		if _, renamed := plan.Renames[tm.Machine.ID]; renamed && hits == 0 {
-			return "", fmt.Errorf("rewrite %s: %s is being renamed to %s, but no declaration in that file was rewritten", tm.File, tm.Machine.ID, plan.RenamedMachineID(tm.Machine.ID))
-		}
-		body = provenance(body, tm.File, plan)
-
-		// A renamed Machine gets a filename derived from its *new* id, following the library's own
-		// convention (mch_document -> document.yaml). Keeping the template's filename would collide with
-		// whatever the Workspace already has under that name -- which is precisely the case a rename
-		// exists to resolve, so it would refuse itself. An unrenamed Machine keeps the template's own
-		// filename, so a byte-identical copy is also an identically-named one.
-		dest := filepath.Join(ownDir, machineFileName(tm, plan))
-		if err := RefuseIfExists(dest, "machine "+plan.RenamedMachineID(tm.Machine.ID)); err != nil {
-			return "", err
-		}
-		if err := written.Note(dest); err != nil {
-			return "", err
-		}
-		if err := WriteFileStrict[FullMachineCheckDoc](dest, body); err != nil {
-			return "", fmt.Errorf("write machine %s: %w", dest, err)
-		}
-		rel, err := filepath.Rel(workspaceDir, dest)
+	var machineRelPaths, appRelPaths []string
+	// A template and its companions are one install: every file of every plan is noted in the same WriteSet, so a failure in the
+	// last companion takes the first Application back out too.
+	for _, one := range append([]Plan{plan}, plan.Companions...) {
+		machineRels, appRel, err := copyPlan(one, libraryDir, workspaceDir, ownDir, written)
 		if err != nil {
 			return "", err
 		}
-		machineRelPaths = append(machineRelPaths, toSlash(rel))
-	}
-
-	appSrc, err := os.ReadFile(filepath.Join(libraryDir, plan.Template.ApplicationFile))
-	if err != nil {
-		return "", fmt.Errorf("read template application %s: %w", plan.Template.ApplicationFile, err)
-	}
-	appBody, appHits := rewriteIDs(appSrc, plan.Renames)
-	// An Application declares every Machine it claims, so any rename at all must reach its file.
-	if len(plan.Renames) > 0 && appHits == 0 {
-		return "", fmt.Errorf("rewrite %s: ids were renamed (%s) but the application file references none of them", plan.Template.ApplicationFile, strings.Join(sortedKeys(plan.Renames), ", "))
-	}
-	appBody = provenance(appBody, plan.Template.ApplicationFile, plan)
-
-	appDest := filepath.Join(ownDir, "applications", filepath.Base(plan.Template.ApplicationFile))
-	if err := RefuseIfExists(appDest, "application "+plan.ApplicationID()); err != nil {
-		return "", err
-	}
-	if err := written.Note(appDest); err != nil {
-		return "", err
-	}
-	if err := WriteFileStrict[FullApplicationCheckDoc](appDest, appBody); err != nil {
-		return "", fmt.Errorf("write application %s: %w", appDest, err)
-	}
-	appRel, err := filepath.Rel(workspaceDir, appDest)
-	if err != nil {
-		return "", err
+		machineRelPaths = append(machineRelPaths, machineRels...)
+		appRelPaths = append(appRelPaths, appRel)
 	}
 
 	manifest, err := os.ReadFile(workspaceManifestPath)
@@ -146,8 +95,10 @@ func Install(plan Plan, libraryDir, workspaceManifestPath string) (applicationID
 			return "", fmt.Errorf("append shared machine %s to workspace manifest: %w", id, err)
 		}
 	}
-	if updated, err = AppendBlockListItem(updated, "applications:", toSlash(appRel)); err != nil {
-		return "", fmt.Errorf("append application to workspace manifest: %w", err)
+	for _, appRel := range appRelPaths {
+		if updated, err = AppendBlockListItem(updated, "applications:", appRel); err != nil {
+			return "", fmt.Errorf("append application to workspace manifest: %w", err)
+		}
 	}
 	if err := written.Note(workspaceManifestPath); err != nil {
 		return "", err
@@ -160,6 +111,73 @@ func Install(plan Plan, libraryDir, workspaceManifestPath string) (applicationID
 		return "", fmt.Errorf("the installed copy does not load, so it has been rolled back: %w", err)
 	}
 	return plan.ApplicationID(), nil
+}
+
+// copyPlan writes one plan's Machine files and Application file into the Workspace's own directory, noting each in written, and
+// returns the manifest-relative paths to append: the Machines', then the Application's. The manifest itself is Install's.
+func copyPlan(plan Plan, libraryDir, workspaceDir, ownDir string, written *WriteSet) (machineRelPaths []string, appRel string, err error) {
+	for _, tm := range plan.Template.Machines {
+		src, err := os.ReadFile(filepath.Join(libraryDir, tm.File))
+		if err != nil {
+			return nil, "", fmt.Errorf("read template machine %s: %w", tm.File, err)
+		}
+		body, hits := rewriteIDs(src, plan.fileRenames())
+		// A Machine being renamed must have had its own id: line rewritten. Zero there would install a
+		// copy still declaring the template's id, which collides with what is already in this Workspace
+		// -- the load-verify below would catch it, but this says which file and why.
+		if _, renamed := plan.Renames[tm.Machine.ID]; renamed && hits == 0 {
+			return nil, "", fmt.Errorf("rewrite %s: %s is being renamed to %s, but no declaration in that file was rewritten", tm.File, tm.Machine.ID, plan.RenamedMachineID(tm.Machine.ID))
+		}
+		body = provenance(body, tm.File, plan)
+
+		// A renamed Machine gets a filename derived from its *new* id, following the library's own
+		// convention (mch_document -> document.yaml). Keeping the template's filename would collide with
+		// whatever the Workspace already has under that name -- which is precisely the case a rename
+		// exists to resolve, so it would refuse itself. An unrenamed Machine keeps the template's own
+		// filename, so a byte-identical copy is also an identically-named one.
+		dest := filepath.Join(ownDir, machineFileName(tm, plan))
+		if err := RefuseIfExists(dest, "machine "+plan.RenamedMachineID(tm.Machine.ID)); err != nil {
+			return nil, "", err
+		}
+		if err := written.Note(dest); err != nil {
+			return nil, "", err
+		}
+		if err := WriteFileStrict[FullMachineCheckDoc](dest, body); err != nil {
+			return nil, "", fmt.Errorf("write machine %s: %w", dest, err)
+		}
+		rel, err := filepath.Rel(workspaceDir, dest)
+		if err != nil {
+			return nil, "", err
+		}
+		machineRelPaths = append(machineRelPaths, toSlash(rel))
+	}
+
+	appSrc, err := os.ReadFile(filepath.Join(libraryDir, plan.Template.ApplicationFile))
+	if err != nil {
+		return nil, "", fmt.Errorf("read template application %s: %w", plan.Template.ApplicationFile, err)
+	}
+	appBody, appHits := rewriteIDs(appSrc, plan.fileRenames())
+	// An Application declares every Machine it claims, so any rename at all must reach its file.
+	if len(plan.Renames) > 0 && appHits == 0 {
+		return nil, "", fmt.Errorf("rewrite %s: ids were renamed (%s) but the application file references none of them", plan.Template.ApplicationFile, strings.Join(sortedKeys(plan.Renames), ", "))
+	}
+	appBody = provenance(appBody, plan.Template.ApplicationFile, plan)
+
+	appDest := filepath.Join(ownDir, "applications", filepath.Base(plan.Template.ApplicationFile))
+	if err := RefuseIfExists(appDest, "application "+plan.ApplicationID()); err != nil {
+		return nil, "", err
+	}
+	if err := written.Note(appDest); err != nil {
+		return nil, "", err
+	}
+	if err := WriteFileStrict[FullApplicationCheckDoc](appDest, appBody); err != nil {
+		return nil, "", fmt.Errorf("write application %s: %w", appDest, err)
+	}
+	appRel, err = filepath.Rel(workspaceDir, appDest)
+	if err != nil {
+		return nil, "", err
+	}
+	return machineRelPaths, toSlash(appRel), nil
 }
 
 func toSlash(p string) string { return filepath.ToSlash(p) }
@@ -233,10 +251,10 @@ func provenance(body []byte, templateFile string, plan Plan) []byte {
 	b.WriteString("# Installed from metadata/" + toSlash(templateFile) + " on " + time.Now().Format("2006-01-02") + ".\n")
 	b.WriteString("# This is this Workspace's own copy: editing it changes nothing anywhere else, and the\n")
 	b.WriteString("# template it came from is unchanged (internal/installer).\n")
-	if len(plan.Renames) > 0 {
+	if renames := plan.fileRenames(); len(renames) > 0 {
 		b.WriteString("#\n# Ids renamed on install, because this Workspace already used them:\n")
-		for _, from := range sortedKeys(plan.Renames) {
-			b.WriteString("#   " + from + " -> " + plan.Renames[from] + "\n")
+		for _, from := range sortedKeys(renames) {
+			b.WriteString("#   " + from + " -> " + renames[from] + "\n")
 		}
 		b.WriteString("# Comments below may still name the original ids -- only declarations were rewritten.\n")
 	}

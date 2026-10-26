@@ -1,0 +1,576 @@
+# Instalments & Payments -- the second of the two Applications "Production Contracts" installs (canvas "Dokter Kecil",
+# boards K02a-K02f). What falls due across every contract, the plans that pay it, and purchase orders. It relates to
+# Production Contracts' instalments and contracts, so it is declared a companion of that Application: the library lists one
+# entry, and installing it puts both into the Workspace as two Applications (`companion_of:`).
+id: app_instalments_payments
+companion_of: app_production_contracts
+name: Instalments & Payments
+description: Instalments falling due across every contract, and the plans that pay them.
+icon: bar-chart
+color: emerald
+summary_machine: mch_payment_plan
+roles:
+  - admin
+  - finance
+  - member
+machines:
+  - mch_payment_plan
+  - mch_po
+navigation:
+  # Instalments (K02a): the reason the app exists -- what falls due next, from every contract.
+  - id: nav_instalments_due
+    label: Instalments
+    title: Instalments
+    description: Every unpaid instalment from every contract, soonest due first.
+    route: /pages/nav_instalments_due
+    priority: 1
+    icon: calendar
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Overdue instalments
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_count, rows: total }
+            - component: Metric
+              label: Overdue, gross
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_gross, rows: total }
+            - component: Metric
+              label: Due within 7 days
+              tone: warn
+              binding: { dataset: ds_instalment_figures, measure: msr_due_soon_count, rows: total }
+            - component: Metric
+              label: Unpaid, gross
+              binding: { dataset: ds_instalment_figures, measure: msr_unpaid_gross, rows: total }
+        - component: Collection
+          heading: Payment plans to approve
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_plans_to_approve, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: money }
+                    - component: Button
+                      label: Approve
+                      variant: primary
+                      becomes: Awaiting proof
+                      from: { describes: title }
+                      binding: { write: transition }
+                    - component: Button
+                      label: Reject
+                      variant: secondary
+                      becomes: Rejected
+                      from: { describes: title }
+                      binding: { write: transition }
+        - component: Collection
+          heading: Awaiting proof of payment
+          hint: open the plan to upload the proof and mark it paid
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_plans_awaiting_proof, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - static: caption
+                  from: { text: money }
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - component: FilterChips
+              label: Instalment views
+              query: view
+              all: All
+              options: "overdue=Overdue\ndue=Due ≤ 7 days\nnoplan=No plan"
+              counts: { all: msr_unpaid_count, overdue: msr_overdue_count, due: msr_due_soon_count, noplan: msr_no_plan_count }
+              binding: { dataset: ds_instalment_figures, rows: total }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search instalments
+                  query: q
+                  placeholder: Search counterparty or contract
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_instalments_by_category, measure: msr_unpaid_by_category, rows: dimension }
+        - component: Table
+          label: Unpaid instalments
+          empty: Nothing in this view.
+          framed: true
+          columns:
+            - { header: Due date, field: fld_due_date }
+            - { header: Instalment, field: fld_term_title, href: record, under: fld_contract_ref }
+            - { header: Category, field: fld_category }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: Status, field: fld_term_status }
+            - { header: Payment plan, related: rel_term_plans }
+          binding: { dataset: ds_instalments_unpaid, rows: records }
+          # Each instalment's working action (K02a): a plan for it, with the instalment already filled in -- only where
+          # it has none yet.
+          children:
+            - static: link
+              to: nav_new_plan
+              text: Create plan
+              variant: secondary
+              pass: { term: "record:id", fld_plan_amount: "value:fld_net" }
+              when: { role: "field:fld_plans", is: "0" }
+  # Payment plans (K02b): chips by status with their counts, a search over the plan number, and the plans by the
+  # columns the board draws. Approve and Reject sit on the row for finance; confirming payment happens on the plan's page.
+  - id: nav_payment_plans
+    label: Payment plans
+    title: Payment plans
+    route: /pages/nav_payment_plans
+    priority: 2
+    icon: check-square
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Payment plan actions
+          children:
+            - static: link
+              to: nav_confirm_payment
+              text: Confirm payment
+              variant: secondary
+            - static: link
+              to: nav_new_plan
+              text: + New plan
+              variant: primary
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - component: FilterChips
+              label: Plan status
+              query: status
+              all: All
+              binding: { dataset: ds_plans_by_status, measure: msr_plans_by_status, rows: dimension }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search payment plans
+                  query: q
+                  placeholder: Search number or counterparty
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_plans_by_category, measure: msr_plans_by_category, rows: dimension }
+        - component: Table
+          label: Payment plans
+          empty: No payment plan matches.
+          framed: true
+          complete: true
+          columns:
+            - { header: Plan no., field: fld_plan_no, href: record, total: count, total_label: plans }
+            - { header: Instalment, field: fld_term }
+            - { header: Category, field: fld_plan_category }
+            - { header: Net, field: fld_plan_amount, align: end, total: sum }
+            - { header: Planned, field: fld_plan_date }
+            - { header: Paid on, field: fld_paid_date }
+            - { header: Status, field: fld_plan_status }
+          binding: { dataset: ds_payment_plans, rows: records }
+          children:
+            - component: Button
+              label: Approve
+              variant: primary
+              becomes: Awaiting proof
+              from: { describes: title }
+              binding: { write: transition }
+            - component: Button
+              label: Reject
+              variant: secondary
+              becomes: Rejected
+              from: { describes: title }
+              binding: { write: transition }
+  # New payment plan (K02c): opened from an instalment's "Create plan", the instalment is filled in and shown, not
+  # offered; from the list's "+ New plan" it is chosen. Saving opens the plan's own page. It is created Submitted.
+  - id: nav_new_plan
+    label: New payment plan
+    title: New payment plan
+    description: One plan pays one instalment. The proof of payment is uploaded when the money has moved.
+    route: /pages/nav_new_plan
+    in_menu: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Submit plan
+          then: record
+          values: { fld_term: $parameters.term }
+          # What the form asks: the instalment, the amount, the date and the method. Who approved it and when it was paid are
+          # written by the runtime as the plan moves.
+          fields: [fld_term, fld_plan_amount, fld_plan_date, fld_method]
+          # The instalment's net amount comes with the link: a start, still a control the person may change.
+          starts: { fld_plan_amount: $parameters.fld_plan_amount }
+          binding: { dataset: ds_payment_plans, write: create }
+  # One payment plan's page (K02d): the plan, Approve or Reject for finance, and -- once approved -- the proof uploaded
+  # and the plan marked paid in one submit. Its payment date is written by the runtime, never typed.
+  - id: nav_plan
+    label: Payment plan
+    title: Payment plan
+    route: /pages/nav_plan
+    record_of: mch_payment_plan
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_one, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: heading
+                      from: { text: title }
+                    - component: StatusBadge
+                      from: { label: "field:fld_plan_status", tone: "tone:fld_plan_status" }
+                - component: Stepper
+                  label: Plan status
+                  from: { steps: "steps:fld_plan_status" }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Instalment
+                        - static: paragraph
+                          from: { text: "field:fld_term" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Planned amount (net)
+                        - static: paragraph
+                          from: { text: "field:fld_plan_amount" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Planned payment date
+                        - static: paragraph
+                          from: { text: "field:fld_plan_date" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Method
+                        - static: paragraph
+                          from: { text: "field:fld_method" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Approved on
+                        - static: paragraph
+                          from: { text: "field:fld_approved_on" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Payment date
+                        - static: paragraph
+                          from: { text: "field:fld_paid_date" }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      variant: primary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_plan_approve }
+                    - component: Button
+                      variant: secondary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_plan_reject }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
+  # Confirm payment (K02d): the plans awaiting proof above, the one picked below with its proof upload and "Mark as paid" in
+  # one submit -- master and detail on one page, the detail chosen with ?selected=. Reached from an approved plan.
+  - id: nav_confirm_payment
+    label: Confirm payment
+    title: Confirm payment
+    description: Opened from an approved plan. Upload the proof, and the instalment becomes paid.
+    route: /pages/nav_confirm_payment
+    in_menu: false
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Table
+          label: Awaiting proof of payment
+          empty: No plan is waiting for its proof.
+          framed: true
+          columns:
+            - { header: Plan no., field: fld_plan_no }
+            - { header: Instalment, field: fld_term }
+            - { header: Net, field: fld_plan_amount, align: end }
+            - { header: Planned, field: fld_plan_date }
+            - { header: Approved on, field: fld_approved_on }
+          binding: { dataset: ds_plans_awaiting_proof, rows: records }
+          children:
+            - static: link
+              to: nav_confirm_payment
+              text: Confirm
+              variant: secondary
+              pass: { selected: "record:id" }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_plan_selected, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - static: subheading
+                  from: { text: title }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Instalment
+                        - static: paragraph
+                          from: { text: "field:fld_term" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Net
+                        - static: paragraph
+                          from: { text: "field:fld_plan_amount" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Status
+                        - component: StatusBadge
+                          from: { label: "field:fld_plan_status", tone: "tone:fld_plan_status" }
+                - component: Form
+                  submit: Mark as paid
+                  binding: { write: transition, transition: trn_plan_settle }
+  # One purchase order's page (K02e): a declared page shaped for printing -- the PO's number and date, the contract it is for, and
+  # that contract's instalments with their deductions, status and the plan each has, all read from the records and none retyped, so
+  # the PO cannot differ from its contract. Print opens the browser's print dialog; the chrome and the buttons stay off the paper.
+  - id: nav_purchase_order
+    label: Purchase order
+    title: Purchase order
+    route: /pages/nav_purchase_order
+    record_of: mch_po
+    back_to: nav_purchase_orders
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_po_one, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Purchase order
+                        - static: heading
+                          from: { text: title }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Button
+                          label: Print
+                          variant: secondary
+                          binding: { write: print }
+                        - component: Button
+                          label: Download PDF
+                          variant: secondary
+                          binding: { write: pdf }
+                        - component: Button
+                          variant: primary
+                          from: { describes: title }
+                          binding: { write: transition, transition: trn_po_issue }
+                        - component: Button
+                          variant: secondary
+                          from: { describes: title }
+                          binding: { write: transition, transition: trn_po_close }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Issued
+                        - static: paragraph
+                          from: { text: "field:fld_po_date" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Status
+                        - component: StatusBadge
+                          from: { label: "field:fld_po_status", tone: "tone:fld_po_status" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contract no.
+                        - static: paragraph
+                          from: { text: "field:fld_po_contract_no" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contracted party
+                        - static: paragraph
+                          from: { text: "field:fld_po_party" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Category
+                        - static: paragraph
+                          from: { text: "field:fld_po_category" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Item description
+                        - static: paragraph
+                          from: { text: "field:fld_po_item" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contract value
+                        - static: paragraph
+                          from: { text: "field:fld_po_value" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Payment status
+                        - component: StatusBadge
+                          from: { label: "field:fld_po_payment", tone: "tone:fld_po_payment" }
+        - component: Table
+          label: Instalments, deductions and status
+          empty: This contract has no instalment yet.
+          framed: true
+          columns:
+            - { header: "#", from: "row:number" }
+            - { header: Instalment, field: fld_term_label, total: count, total_label: instalments }
+            - { header: Due, field: fld_due_date }
+            - { header: Planned, related: "rel_po_term_plans.fld_plan_date" }
+            - { header: Gross, field: fld_gross, align: end, total: sum }
+            - { header: VAT, field: fld_vat, align: end, total: sum }
+            - { header: WHT, field: fld_wht, align: end, total: sum }
+            - { header: Net, field: fld_net, align: end, total: sum }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_terms_of_po_contract, rows: records }
+        - static: caption
+          text: Generated by the system for internal control. This document is computer-generated and is valid without a signature.
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_po_one, rows: records }
+          children:
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - static: caption
+                  from: { text: title }
+                - static: caption
+                  text: ·  issued
+                - static: caption
+                  from: { text: "field:fld_po_date" }
+                - static: caption
+                  text: ·  generated from contract
+                - static: caption
+                  from: { text: "field:fld_po_contract_no" }
+                - static: caption
+                  text: and its instalments
+  - id: nav_payments_settings
+    label: Settings
+    title: Instalments & Payments settings
+    description: Applies to this application only.
+    route: /settings/nav_payments_settings
+    icon: settings
+    settings_hub: true
+  - id: nav_purchase_orders
+    label: Purchase orders
+    description: One per vendor contract.
+    route: /machines/mch_po
+    icon: file-text
+    settings_hub_member: true

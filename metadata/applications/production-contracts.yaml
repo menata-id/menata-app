@@ -1,0 +1,603 @@
+# Production Contracts -- the first of Dokter Kecil's two Applications (canvas page "Dokter Kecil · Aplikasi A", boards
+# K01a-K01g; plan menata-app-document audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md). Contracts with cast,
+# crew and vendors, grouped by Category, each with its instalments. Instalments & Payments watches the instalments
+# from every contract and pays them.
+id: app_production_contracts
+name: Production Contracts
+description: Contracts with cast, crew and vendors, and the instalments each one owes.
+icon: file-text
+color: blue
+summary_machine: mch_contract
+roles:
+  - admin
+  - production_manager
+  - member
+machines:
+  - mch_category
+  - mch_contract
+  - mch_contract_term
+navigation:
+  # Overview (K01a): four figures, overdue instalments, value by category, and every contract.
+  - id: nav_contracts_overview
+    label: Overview
+    title: Overview
+    description: Contract value, instalments falling due, and every contract by category.
+    route: /pages/nav_contracts_overview
+    priority: 1
+    icon: dashboard
+    home_card: true
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - layout: grid
+          gap: default
+          columns: 4
+          mobile: 2
+          children:
+            - component: Metric
+              label: Active contract value
+              binding: { dataset: ds_contract_figures, measure: msr_active_value, rows: total }
+            - component: Metric
+              label: Active contracts
+              binding: { dataset: ds_contract_figures, measure: msr_active_count, rows: total }
+            - component: Metric
+              label: Due within 7 days
+              hint: unpaid, not yet overdue
+              tone: warn
+              binding: { dataset: ds_instalment_figures, measure: msr_due_soon_count, rows: total }
+            - component: Metric
+              label: Overdue instalments
+              tone: bad
+              binding: { dataset: ds_instalment_figures, measure: msr_overdue_count, rows: total }
+        - component: Collection
+          heading: Overdue instalments
+          hint: flagged by the schedule, not by whoever opens this page
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_instalments_overdue, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: container }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: caption
+                      from: { text: money }
+                    - static: caption
+                      from: { text: "date:label" }
+                    - component: StatusBadge
+                      from: { label: "date:relative", tone: "date:tone" }
+        - component: Table
+          label: Contracts by category
+          empty: No contracts yet. Add a category under Settings, then a contract.
+          framed: true
+          columns:
+            - { header: Category, from: "row:label", total_label: Total }
+            - { header: Kind, from: "row:fld_cat_kind" }
+            - { header: Contracts, from: "measure:msr_category_count", align: end, total: sum }
+            - { header: Instalments, from: "measure:msr_category_terms_paid", of: msr_category_terms, total: sum }
+            - { header: Contract value, from: "measure:msr_category_value", align: end, total: sum }
+            - { header: Paid, from: "measure:msr_category_paid", align: end, total: sum }
+            - { header: Outstanding, from: "measure:msr_category_outstanding", align: end, total: sum }
+          binding: { dataset: ds_contracts_by_category, rows: dimension }
+        - component: Table
+          label: Contracts
+          empty: No contracts yet.
+          framed: true
+          columns:
+            - { header: Contract no., from: title, href: record }
+            - { header: Contracted party, from: subtitle }
+            - { header: Type, from: detail }
+            - { header: Category, from: container }
+            - { header: Contract value, from: money, align: end }
+            - { header: Payment, from: status }
+          binding: { dataset: ds_contracts_table, rows: records }
+  # Contracts (K01b): chips by type with their counts and an Overdue chip, a search over number and party, a category
+  # drop-down, and the contracts by the columns the board draws. A contract opens on its own page, with its instalments.
+  - id: nav_contracts
+    label: Contracts
+    title: Contracts
+    route: /pages/nav_contracts
+    priority: 2
+    icon: file-text
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Contract actions
+          children:
+            - static: link
+              to: nav_new_contract
+              text: + New contract
+              variant: primary
+        - layout: row
+          gap: tight
+          align: center
+          justify: spread
+          children:
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: FilterChips
+                  label: Contract type
+                  query: kind
+                  all: All
+                  binding: { dataset: ds_contracts_by_kind, measure: msr_contracts_by_kind, rows: dimension }
+                - component: FilterChips
+                  label: Payment
+                  query: payment
+                  options: Overdue=Overdue
+                  binding: { dataset: ds_contracts_by_payment, measure: msr_contracts_by_payment, rows: dimension }
+            - layout: row
+              gap: tight
+              align: center
+              children:
+                - component: SearchBox
+                  label: Search contracts
+                  query: q
+                  placeholder: Search name or number
+                - component: FilterSelect
+                  label: Category
+                  query: category
+                  all: All categories
+                  binding: { dataset: ds_contracts_by_category, measure: msr_category_count, rows: dimension }
+        - component: Table
+          label: Contracts
+          empty: No contract matches.
+          framed: true
+          complete: true
+          columns:
+            - { header: Contract no., field: fld_contract_no, href: record, total: count, total_label: contracts }
+            - { header: Contracted party, field: fld_party_name }
+            - { header: Category, field: fld_category }
+            - { header: Instalments, field: fld_terms_paid, of: fld_terms, total: sum }
+            - { header: Contract value, field: fld_value, align: end, total: sum }
+            - { header: Paid, field: fld_paid, align: end, total: sum }
+            - { header: Outstanding, field: fld_outstanding, align: end, total: sum }
+            - { header: Status, field: fld_status }
+            - { header: Payment, field: fld_payment_status }
+          binding: { dataset: ds_contracts, rows: records }
+          # Row actions (owner decision K1): Edit opens the contract's form in place; Delete is offered only where it
+          # would be taken (admin only, and never for a contract with instalments).
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit contract
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  # What a person edits: not the payment status (the instalments' rollup writes it) and nothing the runtime owns.
+                  fields: [fld_party_name, fld_contract_kind, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this contract?
+              binding: { write: delete }
+  # New contract: the form the list's action opens. Not a menu entry of its own.
+  - id: nav_new_contract
+    label: New contract
+    title: New contract
+    description: The instalments are added on the contract's own page once it is saved.
+    route: /pages/nav_new_contract
+    in_menu: false
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Save contract
+          # What Copy on a contract's page carries over: a start, still a control the person may change (the number is new).
+          starts:
+            fld_party_name: $parameters.fld_party_name
+            fld_contract_kind: $parameters.fld_contract_kind
+            fld_category: $parameters.fld_category
+            fld_value: $parameters.fld_value
+            fld_position: $parameters.fld_position
+            fld_item_desc: $parameters.fld_item_desc
+            fld_description: $parameters.fld_description
+          # K01c: the contract's PDF is read, the values and instalments it holds are proposed here for a person to check (the
+          # page it was read from is printed under each), and only Save writes the contract with the instalments kept.
+          extract:
+            file: fld_doc
+            read: Read document
+            review: needs review
+            instruction: >-
+              A production contract between a film production house and a cast member, a crew member or a vendor. Fees are in
+              rupiah. The instalments are the payment schedule in the contract, one row per payment. A due date the contract gives
+              as a period (for example the last week of May 2026) is the last day of that period, and is marked inferred; a due date
+              given as days after an event (for example 14 working days after signing) is left empty.
+            fields: [fld_party_name, fld_contract_kind, fld_category, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
+            rows:
+              - label: Instalments
+                machine: mch_contract_term
+                via: fld_contract
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_vat, fld_wht]
+          binding: { dataset: ds_contracts, write: create }
+  # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
+  # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.
+  - id: nav_contract
+    label: Contract
+    title: Contract
+    route: /pages/nav_contract
+    record_of: mch_contract
+    back_to: nav_contracts
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_one, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: heading
+                          from: { text: title }
+                        - static: paragraph
+                          from: { text: subtitle }
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from: { label: "field:fld_contract_kind" }
+                        - component: StatusBadge
+                          from: { label: "field:fld_status", tone: "tone:fld_status" }
+                        - component: StatusBadge
+                          from: { label: "field:fld_payment_status", tone: "tone:fld_payment_status" }
+                - component: Stepper
+                  label: Contract status
+                  from: { steps: "steps:fld_status" }
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      variant: primary
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_activate }
+                    - component: Button
+                      variant: secondary
+                      confirm: Close this contract? A closed contract cannot be reopened.
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_close }
+                    - component: Button
+                      variant: secondary
+                      confirm: Cancel this draft contract? A cancelled contract cannot be reopened.
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_cancel_draft }
+                    - component: Button
+                      variant: secondary
+                      confirm: Cancel this contract? A cancelled contract cannot be reopened.
+                      from: { describes: title }
+                      binding: { write: transition, transition: trn_contract_cancel }
+                    - component: Popover
+                      label: Edit
+                      title: Edit contract
+                      trigger: secondary
+                      align: start
+                      density: regular
+                      children:
+                        - component: Form
+                          submit: Save
+                          # What a person edits: not the payment status (the instalments' rollup writes it) and nothing the runtime owns.
+                          fields: [fld_party_name, fld_contract_kind, fld_position, fld_item_desc, fld_value, fld_start_date, fld_description]
+                          binding: { write: update }
+                    - static: link
+                      to: nav_new_contract
+                      text: Copy
+                      variant: secondary
+                      pass:
+                        fld_party_name: "value:fld_party_name"
+                        fld_contract_kind: "value:fld_contract_kind"
+                        fld_category: "value:fld_category"
+                        fld_value: "value:fld_value"
+                        fld_position: "value:fld_position"
+                        fld_item_desc: "value:fld_item_desc"
+                        fld_description: "value:fld_description"
+                    - component: Button
+                      label: Delete
+                      variant: danger
+                      confirm: Delete this contract?
+                      binding: { write: delete }
+                - layout: grid
+                  gap: default
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contracted party
+                        - static: paragraph
+                          from: { text: "field:fld_party_name" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Category
+                        - static: paragraph
+                          from: { text: "field:fld_category" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Type
+                        - static: paragraph
+                          from: { text: "field:fld_contract_kind" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Contract value
+                        - static: paragraph
+                          from: { text: "field:fld_value" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Paid
+                        - static: paragraph
+                          from: { text: "field:fld_paid" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Outstanding
+                        - static: paragraph
+                          from: { text: "field:fld_outstanding" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Start date
+                        - static: paragraph
+                          from: { text: "field:fld_start_date" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Activated on
+                        - static: paragraph
+                          from: { text: "field:fld_activated_on" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Position
+                        - static: paragraph
+                          from: { text: "field:fld_position" }
+                    - layout: stack
+                      gap: micro
+                      children:
+                        - static: caption
+                          text: Item description
+                        - static: paragraph
+                          from: { text: "field:fld_item_desc" }
+                - layout: stack
+                  gap: micro
+                  children:
+                    - static: caption
+                      text: Notes
+                    - static: paragraph
+                      from: { text: "field:fld_description" }
+                - layout: stack
+                  gap: micro
+                  children:
+                    - static: caption
+                      text: Document
+                    - static: link
+                      from: { text: "file:fld_doc", href: "filehref:fld_doc" }
+                # Status (K01d): where the contract stands and where its payment stands, and -- while a move is held back --
+                # why, in the Constraint's own words. Nothing is drawn for a move nothing holds back.
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: subheading
+                      text: Status
+                    - layout: row
+                      gap: default
+                      align: center
+                      children:
+                        - static: caption
+                          text: Contract
+                        - component: StatusBadge
+                          from: { label: "field:fld_status", tone: "tone:fld_status" }
+                        - static: caption
+                          text: Payment
+                        - component: StatusBadge
+                          from: { label: "field:fld_payment_status", tone: "tone:fld_payment_status" }
+                    - component: Callout
+                      tone: info
+                      from: { text: "blocked:trn_contract_close" }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_one, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: subheading
+                  text: Instalments
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - static: link
+                      to: nav_new_term
+                      text: + Add instalment
+                      variant: secondary
+                      pass: { contract: "record:id" }
+                    # Into Instalments & Payments (K01d): drawn only where that Application is installed and this viewer may
+                    # open it; the plan form asks which instalment is being paid.
+                    - static: link
+                      to: nav_new_plan
+                      in: app_instalments_payments
+                      text: Create payment plan
+                      variant: secondary
+        - component: Table
+          label: Instalments
+          empty: No instalment yet. Add the first one above.
+          framed: true
+          columns:
+            - { header: "#", from: "row:number" }
+            - { header: Label, field: fld_term_label, total: count, total_label: instalments }
+            - { header: Due date, field: fld_due_date }
+            - { header: Gross, field: fld_gross, align: end, total: sum }
+            - { header: VAT, field: fld_vat, align: end, total: sum }
+            - { header: WHT, field: fld_wht, align: end, total: sum }
+            - { header: Net, field: fld_net, align: end, total: sum }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_contract_terms, rows: records }
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit instalment
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this instalment?
+              binding: { write: delete }
+  # The instalment form "Add instalment" opens: the contract comes from the request and is shown, not offered; the
+  # instalments already entered for it are listed under the form, so several are added one after another.
+  - id: nav_new_term
+    label: New instalment
+    title: New instalment
+    route: /pages/nav_new_term
+    in_menu: false
+    page:
+      layout: stack
+      gap: comfortable
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_of_form, rows: records }
+          children:
+            - static: link
+              from: { text: title, href: record }
+        - component: Form
+          submit: Save instalment
+          values: { fld_contract: $parameters.contract }
+          binding: { dataset: ds_terms_of_contract, write: create }
+        - component: Table
+          label: Instalments of this contract
+          empty: None yet.
+          framed: true
+          columns:
+            - { header: Label, field: fld_term_label }
+            - { header: Due date, field: fld_due_date }
+            - { header: Gross, field: fld_gross, align: end }
+            - { header: Status, field: fld_term_status }
+          binding: { dataset: ds_terms_of_contract, rows: records }
+  # Every instalment as the runtime's own Machine screen. Not in the menu (owner, 2026-10-18; mockup K01 has Overview,
+  # Contracts, Settings): an instalment is added from its contract's page, and the unpaid ones are worked in
+  # Instalments & Payments.
+  - id: nav_contract_instalments
+    label: Instalments
+    title: Instalments
+    description: One row per instalment of every contract.
+    route: /machines/mch_contract_term
+    priority: 3
+    icon: calendar
+    in_menu: false
+  # Settings (K01e): the runtime's own hub; Categories is master data, so it sits here rather than in the menu.
+  - id: nav_contracts_settings
+    label: Settings
+    title: Production Contracts settings
+    description: Applies to this application only.
+    route: /settings/nav_contracts_settings
+    icon: settings
+    settings_hub: true
+  # Categories (K01e's first row): the master data contracts are grouped by -- a new one from the action, each one's name,
+  # kind and how many contracts name it, with Edit and Delete on the row. Delete is admin-only and refused while a contract
+  # still names the category.
+  - id: nav_contract_categories
+    label: Categories
+    title: Categories
+    description: Departments, cost accounts, cast groups -- whatever contracts are grouped by.
+    route: /pages/nav_contract_categories
+    icon: settings
+    settings_hub_member: true
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: ActionBar
+          label: Category actions
+          children:
+            - component: Popover
+              label: + New category
+              title: New category
+              trigger: filled
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Add category
+                  binding: { dataset: ds_categories, write: create }
+        - component: Table
+          label: Categories
+          empty: No category yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Name, field: fld_cat_name, total: count, total_label: categories }
+            - { header: Kind, field: fld_cat_kind }
+            - { header: Contracts, field: fld_cat_contracts, align: end, total: sum }
+          binding: { dataset: ds_categories, rows: records }
+          children:
+            - component: Popover
+              label: Edit
+              title: Edit category
+              trigger: secondary
+              align: end
+              density: regular
+              children:
+                - component: Form
+                  submit: Save
+                  binding: { write: update }
+            - component: Button
+              label: Delete
+              variant: danger
+              confirm: Delete this category?
+              binding: { write: delete }

@@ -1,0 +1,182 @@
+# Instalment -- one payment owed under a contract (canvas K01d/K02a). Entered by hand, one row per instalment (owner's
+# decision; generates: on trn_contract_activate is the documented alternative, K01f). The milestone is written into the
+# label ("Signing -- 30%"): the runtime cannot act on a milestone yet (K-8). Four figures, all typed: nothing keeps
+# net = gross - VAT - WHT until compute can subtract (K-9, plan direction A1).
+id: mch_contract_term
+name: Instalment
+fields:
+  # A contract with instalments cannot be deleted from under them (K-13).
+  - { id: fld_contract, name: Contract, type: relation, machine: mch_contract, required: true, on_parent_delete: restrict }
+  - { id: fld_term_label, name: Label, type: text, required: true }
+  # What an instalment says of its contract, kept on it by the runtime so the instalments of every contract can be listed,
+  # searched and filtered by them (K02a): the contract's party, number and category (inherited fields), and the instalment
+  # as people name it, "Dimas Prayoga -- Week 2".
+  - { id: fld_party, name: Contracted party, type: text, compute: { parent: fld_contract.fld_party_name } }
+  - { id: fld_contract_ref, name: Contract no., type: text, compute: { parent: fld_contract.fld_contract_no } }
+  - { id: fld_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_contract.fld_category } }
+  - { id: fld_term_title, name: Instalment, type: text, compute: { join: { with: " — ", of: [fld_party, fld_term_label] } } }
+  # A paid instalment's figures are the record of a payment: they stay as they were paid (owner decision K1).
+  - { id: fld_gross, name: Gross, type: money, currency: IDR, required: true, locked_when: { field: fld_term_status, equals: Paid } }
+  - { id: fld_vat, name: VAT, type: money, currency: IDR, locked_when: { field: fld_term_status, equals: Paid } }
+  - { id: fld_wht, name: WHT, type: money, currency: IDR, locked_when: { field: fld_term_status, equals: Paid } }
+  # Net is gross less VAT and WHT, kept by the runtime (plan A1, K-9): nobody types it.
+  - { id: fld_net, name: Net, type: money, currency: IDR, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
+  - { id: fld_due_date, name: Due date, type: date, required: true }
+  # Two writers: the schedule below marks an unpaid instalment Overdue; a paid payment plan marks it Paid. Invoiced is
+  # set by hand.
+  - { id: fld_term_status, name: Status, type: status, default: Scheduled, options: [Scheduled, Invoiced, Overdue, Paid] }
+  # How many payment plans name this instalment (Instalments & Payments): what "No plan" and "Create plan" read.
+  # A rejected plan is not a plan (owner, 2026-10-18): every plan naming this instalment, less the rejected ones.
+  - id: fld_plans
+    name: Payment plans
+    type: number
+    compute:
+      subtract:
+        - { count_children: { machine: mch_payment_plan, via: fld_term } }
+        - { count_children: { machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, equals: Rejected } } }
+
+card_fields:
+  - { field: fld_term_title, role: title }
+  - { field: fld_contract, role: container }
+  - { field: fld_gross, role: money }
+  - { field: fld_term_status, role: status }
+  - { field: fld_due_date, role: date }
+
+sla_field: fld_due_date
+completion: { field: fld_term_status, done: Paid }
+status_categories:
+  field: fld_term_status
+  values: { Scheduled: start, Invoiced: active, Overdue: attention, Paid: done }
+
+# The instalments of a closed contract can no longer change.
+frozen_when: { via: fld_contract, field: fld_status, equals: Closed }
+
+# The instalments of one contract may not add up past its value (K-1): the bound is that contract's own value.
+ensure:
+  - id: ens_terms_within_value
+    sum_of: fld_gross
+    per: fld_contract
+    at_most: { parent: fld_contract.fld_value }
+    reason: The instalments of a contract may not add up past its value.
+
+permissions:
+  - { id: prm_term_delete, action: delete, roles: [admin] }
+
+deletable_unless:
+  - { field: fld_term_status, equals: Paid, reason: A paid instalment is the record of a payment and cannot be deleted. }
+
+views:
+  - { id: vw_term_table, name: Table, type: table }
+
+events:
+  # Past due and not paid: logged (the scheduler's once-per-instalment marker), flagged, and the production manager told.
+  - id: evt_term_overdue_logged
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_term_status, guard_not_equals: Paid }
+    then: { service: log_activity, summary: 'Instalment "{fld_term_label}" is overdue' }
+  - id: evt_term_overdue
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_term_status, guard_not_equals: Paid }
+    then: { service: set_field, target_field: fld_term_status, value: Overdue }
+  - id: evt_term_overdue_notify
+    schedule: { date_field: fld_due_date, when: overdue, guard_field: fld_term_status, guard_not_equals: Paid }
+    then:
+      service: send_notification
+      recipient_role: production_manager
+      preference_key: sla_breach
+      summary: 'Instalment "{fld_term_label}" is overdue'
+  # The contract's payment status follows its instalments.
+  - id: evt_term_rollup
+    on: fld_term_status
+    then:
+      service: rollup_parent_status
+      parent_field: fld_contract
+      target_field: fld_payment_status
+      any: { value: Overdue, set: Overdue }
+      all: { value: Paid, set: Settled }
+      default: In progress
+
+datasets:
+  - id: ds_instalment_figures
+    measures:
+      - { id: msr_overdue_count, aggregate: count, where: { field: fld_term_status, op: equals, value: Overdue } }
+      - { id: msr_overdue_gross, aggregate: sum, field: fld_gross, where: { field: fld_term_status, op: equals, value: Overdue } }
+      - id: msr_due_soon_count
+        aggregate: count
+        where:
+          all:
+            - { field: fld_term_status, op: not_equals, value: Paid }
+            - { field: fld_term_status, op: not_equals, value: Overdue }
+            - { field: fld_due_date, op: lte, value: $today+7 }
+      - id: msr_due_soon_gross
+        aggregate: sum
+        field: fld_gross
+        where:
+          all:
+            - { field: fld_term_status, op: not_equals, value: Paid }
+            - { field: fld_term_status, op: not_equals, value: Overdue }
+            - { field: fld_due_date, op: lte, value: $today+7 }
+      - { id: msr_unpaid_count, aggregate: count, where: { field: fld_term_status, op: not_equals, value: Paid } }
+      - id: msr_no_plan_count
+        aggregate: count
+        where:
+          all:
+            - { field: fld_term_status, op: not_equals, value: Paid }
+            - { field: fld_plans, op: equals, value: "0" }
+      - { id: msr_unpaid_gross, aggregate: sum, field: fld_gross, where: { field: fld_term_status, op: not_equals, value: Paid } }
+  - id: ds_instalments_overdue
+    select: records
+    where: { field: fld_term_status, op: equals, value: Overdue }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 200
+  - id: ds_instalments_due_soon
+    select: records
+    where:
+      all:
+        - { field: fld_term_status, op: not_equals, value: Paid }
+        - { field: fld_term_status, op: not_equals, value: Overdue }
+        - { field: fld_due_date, op: lte, value: $today+7 }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 200
+  # Every unpaid instalment (K02a), narrowed by the view a chip chooses, with the payment plan each has.
+  - id: ds_instalments_unpaid
+    select: records
+    where:
+      all:
+        - { field: fld_term_status, op: not_equals, value: Paid }
+        - { field: fld_category, op: equals, value: $parameters.category, optional: true }
+        - { field: fld_term_status, op: equals, value: Overdue, if_param: view=overdue }
+        - { field: fld_term_status, op: not_equals, value: Overdue, if_param: view=due }
+        - { field: fld_due_date, op: lte, value: $today+7, if_param: view=due }
+        - { field: fld_plans, op: equals, value: "0", if_param: view=noplan }
+      any:
+        - { field: fld_party, op: contains, value: $parameters.q, optional: true }
+        - { field: fld_contract_ref, op: contains, value: $parameters.q, optional: true }
+    relations:
+      - { id: rel_term_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 200
+  # A contract's own page (record_of): its instalments, the contract the route names being their parent.
+  - id: ds_contract_terms
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.id }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100
+  # The instalment form opened from a contract: the instalments already entered for it, below the form.
+  - id: ds_terms_of_contract
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.contract }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100
+  # The category dropdown of the instalment list (K02a): the unpaid instalments by their contract's category.
+  - id: ds_instalments_by_category
+    dimension: fld_category
+    measures:
+      - { id: msr_unpaid_by_category, aggregate: count, where: { field: fld_term_status, op: not_equals, value: Paid } }
+  # The instalments of the contract a record page's record names (a PO's, K02e), with the plan each has: the record's own contract is
+  # read as $parameters.record.fld_contract, which the runtime sets and a query string cannot.
+  - id: ds_terms_of_po_contract
+    select: records
+    where: { field: fld_contract, op: equals, value: $parameters.record.fld_contract }
+    relations:
+      - { id: rel_po_term_plans, machine: mch_payment_plan, via: fld_term, where: { field: fld_plan_status, op: not_equals, value: Rejected } }
+    sort: [{ field: fld_due_date, direction: asc }]
+    limit: 100

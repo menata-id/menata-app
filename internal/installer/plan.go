@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -28,6 +29,27 @@ type Plan struct {
 	// Refusals are collisions this package will not resolve. Non-empty means Install refuses, and each
 	// entry says which id and why -- see Plan's own "what may be renamed" reasoning below.
 	Refusals []string
+	// Companions are the plans for the template's companions (Template.Companions), made against this Workspace as it will be
+	// once the template itself is in. A companion's refusals are also in Refusals, so one OK() answers for the whole install.
+	Companions []Plan
+	// inherited are the renames of the template this plan is a companion of: a companion's Machines relate to its template's,
+	// so a Machine id renamed there must be renamed in the companion's files too. Never set on the template's own plan.
+	inherited map[string]string
+}
+
+// fileRenames is every rename a copied file is rewritten with: this plan's own, and for a companion those it inherits.
+func (p Plan) fileRenames() map[string]string {
+	if len(p.inherited) == 0 {
+		return p.Renames
+	}
+	all := map[string]string{}
+	for from, to := range p.inherited {
+		all[from] = to
+	}
+	for from, to := range p.Renames {
+		all[from] = to
+	}
+	return all
 }
 
 // OK reports whether this plan can be installed.
@@ -74,7 +96,50 @@ func (p Plan) RenamedMachineID(machineID string) string {
 // would otherwise expose the ambiguity domain.MachineInWorkflowRole's own doc comment names (the
 // submit wizard's routes belong to no Application, so nothing could say which one they meant).
 func PlanInstall(tmpl Template, ws domain.Workspace) Plan {
-	p := Plan{Template: tmpl, Renames: map[string]string{}}
+	p := planOne(tmpl, ws, nil)
+	after := ws
+	for _, c := range tmpl.Companions {
+		after = withInstalled(after, p)
+		cp := planOne(c, after, p.Renames)
+		for _, r := range cp.Refusals {
+			p.Refusals = append(p.Refusals, c.Application.Name+": "+r)
+		}
+		p.Companions = append(p.Companions, cp)
+		p = withShared(p, cp)
+	}
+	return p
+}
+
+// withShared notes in p the shared references cp adds that p does not already add, so a bundle shows its whole change once.
+func withShared(p, cp Plan) Plan {
+	for _, id := range cp.AddShared {
+		if !slices.Contains(p.AddShared, id) {
+			p.AddShared = append(p.AddShared, id)
+		}
+	}
+	return p
+}
+
+// withInstalled is ws as it will be once p is installed -- the Machines and Application p brings, under the ids it gives them --
+// so the next plan of a bundle sees them taken. Only what PlanInstall reads is carried over.
+func withInstalled(ws domain.Workspace, p Plan) domain.Workspace {
+	out := ws
+	out.MachineIDs = slices.Clone(ws.MachineIDs)
+	out.Machines = slices.Clone(ws.Machines)
+	for _, tm := range p.Template.Machines {
+		m := *tm.Machine
+		m.ID = p.RenamedMachineID(m.ID)
+		out.MachineIDs = append(out.MachineIDs, m.ID)
+		out.Machines = append(out.Machines, &m)
+	}
+	app := *p.Template.Application
+	app.ID = p.ApplicationID()
+	out.Applications = append(slices.Clone(ws.Applications), app)
+	return out
+}
+
+func planOne(tmpl Template, ws domain.Workspace, inherited map[string]string) Plan {
+	p := Plan{Template: tmpl, Renames: map[string]string{}, inherited: inherited}
 
 	taken := map[string]bool{}
 	for _, id := range ws.MachineIDs {
