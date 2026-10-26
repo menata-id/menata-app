@@ -1,0 +1,20 @@
+# Created with this Workspace. Installing an Application adds to the lists below.
+workspace: sample-design-requests
+
+machines:
+  - ../activity.yaml
+  - ../notification.yaml
+  - ../user.yaml
+  - sample-design-requests/project.yaml
+  - sample-design-requests/list.yaml
+  - sample-design-requests/label.yaml
+  - sample-design-requests/task.yaml
+  - sample-design-requests/card_label.yaml
+  - sample-design-requests/attachment.yaml
+  - sample-design-requests/comment.yaml
+  - sample-design-requests/checklist_item.yaml
+  - sample-design-requests/design_request.yaml
+
+applications:
+  - sample-design-requests/applications/project-management.yaml
+  - sample-design-requests/applications/design_request.yaml

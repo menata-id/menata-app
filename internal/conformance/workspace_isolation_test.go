@@ -48,7 +48,19 @@ var sharedMachineIDs = map[string]bool{
 // but not which file each came from, and "which file" is the entire question here -- two
 // Workspaces pointing at one path is precisely the shape being forbidden.
 func TestInstalledApplicationsAreCopiesNotSharedFiles(t *testing.T) {
-	dir := filepath.Join(repoRoot(), "metadata", "workspaces")
+	checked := 0
+	for _, dir := range []string{filepath.Join(repoRoot(), "metadata", "workspaces"), filepath.Join(repoRoot(), "metadata", "samples")} {
+		checked += checkInstalledAreCopies(t, dir)
+	}
+	if checked == 0 {
+		t.Fatal("no workspace manifests were checked -- this gate would pass an empty metadata/workspaces/ silently")
+	}
+}
+
+// checkInstalledAreCopies runs TestInstalledApplicationsAreCopiesNotSharedFiles over one directory of manifests and returns how
+// many it checked.
+func checkInstalledAreCopies(t *testing.T, dir string) int {
+	t.Helper()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("read workspace manifests: %v", err)
@@ -97,9 +109,7 @@ func TestInstalledApplicationsAreCopiesNotSharedFiles(t *testing.T) {
 			}
 		}
 	}
-	if checked == 0 {
-		t.Fatal("no workspace manifests were checked -- this gate would pass an empty metadata/workspaces/ silently")
-	}
+	return checked
 }
 
 // TestTwoWorkspacesCanHoldDifferentMachinesUnderOneID is the property the isolation exists to

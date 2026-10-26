@@ -5,3 +5,10 @@
 /uploads/
 /backups/
 /.menata-stage-*/
+
+# metadata/workspaces/ is what people build through the UI (a Workspace, an Application generated or installed into it): data,
+# kept with the database and backups, not code. Only `default` stays as the worked example; the tests' own Workspaces are the
+# tracked copies under metadata/samples/.
+/metadata/workspaces/*
+!/metadata/workspaces/default/
+!/metadata/workspaces/default.yaml

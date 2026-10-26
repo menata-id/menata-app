@@ -3,7 +3,7 @@
 # every Workspace has, and its Home page shows no Applications at all.
 #
 # Adding a path under `applications:` below is what makes an Application appear here.
-workspace: dokter-kecil
+workspace: sample-contracts
 
 # mch_user is not optional: a Workspace's members each have a record in it (that is what a
 # membership row points at), so it is present before any Application is. mch_activity is the same
@@ -12,26 +12,26 @@ workspace: dokter-kecil
 machines:
   - ../user.yaml
   - ../activity.yaml
-  - dokter-kecil/document.yaml
-  - dokter-kecil/document_item.yaml
-  - dokter-kecil/document_approval.yaml
-  - dokter-kecil/approval_step.yaml
-  - dokter-kecil/signature.yaml
-  - dokter-kecil/approval_flow_template.yaml
-  - dokter-kecil/approval_flow_template_step.yaml
+  - sample-contracts/document.yaml
+  - sample-contracts/document_item.yaml
+  - sample-contracts/document_approval.yaml
+  - sample-contracts/approval_step.yaml
+  - sample-contracts/signature.yaml
+  - sample-contracts/approval_flow_template.yaml
+  - sample-contracts/approval_flow_template_step.yaml
   - ../notification.yaml
-  - dokter-kecil/category.yaml
-  - dokter-kecil/contract.yaml
-  - dokter-kecil/contract_term.yaml
-  - dokter-kecil/payment_plan.yaml
-  - dokter-kecil/purchase_order.yaml
+  - sample-contracts/category.yaml
+  - sample-contracts/contract.yaml
+  - sample-contracts/contract_term.yaml
+  - sample-contracts/payment_plan.yaml
+  - sample-contracts/purchase_order.yaml
 
 applications:
-  - dokter-kecil/applications/document_tracking.yaml
-  - dokter-kecil/applications/document_review.yaml
-  - dokter-kecil/applications/document-approval.yaml
+  - sample-contracts/applications/document_tracking.yaml
+  - sample-contracts/applications/document_review.yaml
+  - sample-contracts/applications/document-approval.yaml
   # Production Contracts and Instalments & Payments (2026-10-17): written into this Workspace rather than installed
   # from the template library, because the second relates to the first's Machines and an install cannot yet declare
   # that dependency (K-6, menata-app-document audits/2026-10-17-rencana-dokter-kecil-kontrak-produksi.md).
-  - dokter-kecil/applications/production-contracts.yaml
-  - dokter-kecil/applications/instalments-payments.yaml
+  - sample-contracts/applications/production-contracts.yaml
+  - sample-contracts/applications/instalments-payments.yaml

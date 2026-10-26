@@ -97,7 +97,7 @@ func readGeneric(t *testing.T, p string) any {
 
 // TestUpdate_keepsEveryKeyOfAHandWrittenApplication is roadmap stage 1, W1: the assistant is shown
 // only the projection DescribeApplication expresses, so the question is whether a real Application
-// written by hand (Desain Request in menata-indonesia: datasets, card_fields, views, completion,
+// written by hand (Desain Request in the sample-design-requests Workspace: datasets, card_fields, views, completion,
 // send_notification events, `page:` menu items) loses anything when the assistant renames things,
 // adds a field and a status option, and rewords a menu item. A key present before and absent after
 // is a defect that was alive in production.
@@ -105,8 +105,8 @@ func TestUpdate_keepsEveryKeyOfAHandWrittenApplication(t *testing.T) {
 	src := filepath.Join("..", "..", "metadata")
 	root := t.TempDir()
 	copyTree(t, src, root)
-	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
-	wsDir := filepath.Join(root, "workspaces", "menata-indonesia")
+	manifest := filepath.Join(root, "samples", "sample-design-requests.yaml")
+	wsDir := filepath.Join(root, "samples", "sample-design-requests")
 	files := []string{
 		filepath.Join(wsDir, "design_request.yaml"),
 		filepath.Join(wsDir, "applications", "design_request.yaml"),
@@ -162,7 +162,7 @@ func TestUpdate_keepsEveryKeyOfAHandWrittenApplication(t *testing.T) {
 func TestUpdate_refusesToDropAPageMenuItem(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, filepath.Join("..", "..", "metadata"), root)
-	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
+	manifest := filepath.Join(root, "samples", "sample-design-requests.yaml")
 	state, _ := stateOf(t, manifest)
 	desired := DescribeApplication("app_design_request", state.Applications["app_design_request"])
 	var kept []GeneratedMenuItem
@@ -191,7 +191,7 @@ func TestUpdate_refusesToDropAPageMenuItem(t *testing.T) {
 func TestDesainRequestRoundTripsThroughTheAssistant(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, filepath.Join("..", "..", "metadata"), root)
-	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
+	manifest := filepath.Join(root, "samples", "sample-design-requests.yaml")
 	state, _ := stateOf(t, manifest)
 	current := DescribeApplication("app_design_request", state.Applications["app_design_request"])
 	if plan := PlanUpdate(current, current); len(plan.Items) != 0 || len(plan.Refusals) != 0 {
@@ -233,7 +233,7 @@ var desainRequestHandOnly = map[string]string{
 func TestDesainRequestTwinLacksOnlyWhatIsListed(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, filepath.Join("..", "..", "metadata"), root)
-	manifest := filepath.Join(root, "workspaces", "menata-indonesia.yaml")
+	manifest := filepath.Join(root, "samples", "sample-design-requests.yaml")
 	state, _ := stateOf(t, manifest)
 	desc := DescribeApplication("app_design_request", state.Applications["app_design_request"])
 	desc.ID = "app_design_request_twin"
@@ -262,8 +262,8 @@ func TestDesainRequestTwinLacksOnlyWhatIsListed(t *testing.T) {
 	change := GeneratedChange{Kind: KindNewApplication, Application: &desc}
 	publish(t, manifest, change)
 
-	hand := readGeneric(t, filepath.Join(root, "workspaces", "menata-indonesia", "design_request.yaml")).(map[string]any)
-	twin := readGeneric(t, filepath.Join(root, "workspaces", "menata-indonesia", "design_request_twin.yaml")).(map[string]any)
+	hand := readGeneric(t, filepath.Join(root, "samples", "sample-design-requests", "design_request.yaml")).(map[string]any)
+	twin := readGeneric(t, filepath.Join(root, "samples", "sample-design-requests", "design_request_twin.yaml")).(map[string]any)
 	// Compared at every depth, not only at the top: a step's roles or an event's recipient lost inside a kept block
 	// would show here as a path.
 	got := map[string]bool{}
@@ -288,8 +288,8 @@ func TestDesainRequestTwinLacksOnlyWhatIsListed(t *testing.T) {
 func TestUpdate_keepsATreeComputeAndAParentBound(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, filepath.Join("..", "..", "metadata"), root)
-	manifest := filepath.Join(root, "workspaces", "dokter-kecil.yaml")
-	wsDir := filepath.Join(root, "workspaces", "dokter-kecil")
+	manifest := filepath.Join(root, "samples", "sample-contracts.yaml")
+	wsDir := filepath.Join(root, "samples", "sample-contracts")
 	files := []string{filepath.Join(wsDir, "contract.yaml"), filepath.Join(wsDir, "contract_term.yaml")}
 	before := make([]any, len(files))
 	for i, f := range files {

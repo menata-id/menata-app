@@ -98,7 +98,7 @@ func TestClosedRegistryMembersAreAcceptedByTheLoader(t *testing.T) {
 //
 // Read from the real installed Workspaces, so a member kept alive only by a fixture does not count.
 func TestClosedRegistryMembersAreActivatedByMetadata(t *testing.T) {
-	installed, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	installed, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

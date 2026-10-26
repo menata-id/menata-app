@@ -19,17 +19,17 @@ import (
 )
 
 // TestDeclaredPageRendersItsBindingAsRows serves `/pages/nav_documents_by_status` end to end in a Workspace
-// that declares it (nana-2-workspace; `default` declares no page, which is why the per-record sweep can only
+// that declares it (sample-approval; `default` declares no page, which is why the per-record sweep can only
 // hold the refusals). The page is a Metric bound to ds_document_by_status's Dimension, so what must reach the
 // response is **one Metric per declared status, with a count that matches the records**, and not a number any
 // file typed.
 func TestDeclaredPageRendersItsBindingAsRows(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredpage", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredpage", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	var statusField *domain.Field
 	for i := range doc.Fields {
@@ -61,7 +61,7 @@ func TestDeclaredPageRendersItsBindingAsRows(t *testing.T) {
 // into one node per Dimension value, and the shape that would break this is a per-row read. Query cost is
 // the number of distinct Datasets, because the Loader memoises within a request.
 func TestDeclaredPageQueryCostIsFlatInRecordCount(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredcost", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredcost", "sample-approval")
 	seeded := seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	measure := func() int {
@@ -97,12 +97,12 @@ func TestDeclaredPageQueryCostIsFlatInRecordCount(t *testing.T) {
 // record's title as the Machine's own Projection resolves it, and the newest first. Titles are read out of the
 // records through the Machine's `card_fields`, so no Field id appears here either.
 func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredlist", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredlist", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	var titleField string
 	for _, cf := range doc.CardFields {
@@ -132,12 +132,12 @@ func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
 // the Field behind it is a reference to a member. The page draws the member's display name, never the stored id,
 // and a person who is no longer a member is drawn as nothing rather than as their user id.
 func TestDeclaredPageNamesThePersonARecordBelongsTo(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredperson", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredperson", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	titleField, personField := doc.CardFieldFor(domain.CardFieldRoleTitle), doc.CardFieldFor(domain.CardFieldRolePerson)
 	if titleField == "" || personField == "" {
@@ -169,10 +169,10 @@ func TestDeclaredPageNamesThePersonARecordBelongsTo(t *testing.T) {
 // approved one, a future date, today's own date and a document with no date at all are not. The dates are
 // built from the clock the handler reads, so the test states the property and not a calendar day.
 func TestDeclaredPagePastDueListsOnlyWhatIsInReviewAndLate(t *testing.T) {
-	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredpastdue", "nana-2-workspace")
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredpastdue", "sample-approval")
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil || doc.SLAField == "" || doc.StatusField() == "" {
-		t.Fatal("nana-2-workspace casts no document role with a due date and a status")
+		t.Fatal("sample-approval casts no document role with a due date and a status")
 	}
 	titleField := doc.CardFieldFor(domain.CardFieldRoleTitle)
 	day := func(offset int) string { return time.Now().AddDate(0, 0, offset).Format("2006-01-02") }
@@ -215,7 +215,7 @@ func TestDeclaredPagePastDueListsOnlyWhatIsInReviewAndLate(t *testing.T) {
 // else, so the href and the words must be what the Application's own navigation declares. Expected values are
 // read out of the loaded navigation rather than typed, which is the property under test.
 func TestDeclaredPageLinkComesFromNavigationNotFromTheYAML(t *testing.T) {
-	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlink", "nana-2-workspace")
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlink", "sample-approval")
 	var route, label string
 	for _, app := range ws.Applications {
 		for _, item := range app.AllNavigation {
@@ -225,7 +225,7 @@ func TestDeclaredPageLinkComesFromNavigationNotFromTheYAML(t *testing.T) {
 		}
 	}
 	if route == "" || label == "" {
-		t.Fatal("nana-2-workspace declares no nav_approval_inbox with a route and a label")
+		t.Fatal("sample-approval declares no nav_approval_inbox with a route and a label")
 	}
 	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
 	want := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(route) + `"[^>]*>` + regexp.QuoteMeta(label) + `</a>`)
@@ -239,11 +239,11 @@ func TestDeclaredPageLinkComesFromNavigationNotFromTheYAML(t *testing.T) {
 // followed (Tahap 0 of 2b: the handler's name was no proof it was not a fragment) and refuses a request with no
 // session. The expected route is built from the seeded record's own ids, not read back out of the page.
 func TestDeclaredPageRecordLinkOpensTheRecordsOwnFullPage(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredrecordlink", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredrecordlink", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	titleField := doc.CardFieldFor(domain.CardFieldRoleTitle)
 	if titleField == "" {
@@ -279,7 +279,7 @@ func TestDeclaredPageRecordLinkOpensTheRecordsOwnFullPage(t *testing.T) {
 // the loaded Dataset's own source, so the property under test is "the Dataset, not the YAML, names the Machine",
 // and the route it points at must be one that renders and refuses an anonymous request.
 func TestDeclaredPageListOfLinkOpensTheMachinesOwnListPage(t *testing.T) {
-	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlistof", "nana-2-workspace")
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlistof", "sample-approval")
 	var source string
 	for _, m := range ws.Machines {
 		for _, ds := range m.Datasets {
@@ -289,7 +289,7 @@ func TestDeclaredPageListOfLinkOpensTheMachinesOwnListPage(t *testing.T) {
 		}
 	}
 	if source == "" {
-		t.Fatal("nana-2-workspace declares no ds_recent_documents")
+		t.Fatal("sample-approval declares no ds_recent_documents")
 	}
 	route := domain.MachineListRoute(source)
 	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
@@ -340,7 +340,7 @@ func countByStatus(t *testing.T, ctx context.Context, store *data.Store, machine
 // expected text is read out of the loaded navigation, so the property under test is "the page's own words
 // reach the screen", not a literal.
 func TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredempty", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredempty", "sample-approval")
 
 	var words string
 	var find func(n domain.PageNode)
@@ -361,7 +361,7 @@ func TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty(t *testing.T) {
 		}
 	}
 	if words == "" {
-		t.Fatal("nana-2-workspace's page declares no `empty:` on its Collection")
+		t.Fatal("sample-approval's page declares no `empty:` on its Collection")
 	}
 
 	if body := getPage(t, h, cookie, "/pages/nav_documents_by_status"); !strings.Contains(body, words) {
@@ -546,12 +546,12 @@ func TestDeclaredPageSaysHowManyCardsCarryEachLabel(t *testing.T) {
 // compared as data. The Field and its values are read out of the Dataset's own `where:` and the Machine's
 // options, so the test names neither.
 func TestDeclaredPageTakesItsFilterFromTheQueryString(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredparam", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredparam", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	var statusField, titleField string
 	for _, ds := range doc.Datasets {
@@ -594,12 +594,12 @@ func TestDeclaredPageTakesItsFilterFromTheQueryString(t *testing.T) {
 // the row's own status as ?status=, and following one lists exactly the Documents in it -- the two ends of
 // `$parameters.status` joined through a real request, which neither page's own test can show.
 func TestDeclaredPageStatusTilesOpenTheDocumentsInThatStatus(t *testing.T) {
-	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredtile", "nana-2-workspace")
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredtile", "sample-approval")
 	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
 	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	if doc == nil {
-		t.Fatal("nana-2-workspace casts no document role")
+		t.Fatal("sample-approval casts no document role")
 	}
 	var statusField, titleField string
 	for _, ds := range doc.Datasets {

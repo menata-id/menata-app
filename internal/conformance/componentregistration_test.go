@@ -32,7 +32,7 @@ var componentsWithoutInstalledUse = map[string]string{}
 // changing a Field's inputs breaks every installed Form whether or not a manifest names a Field.
 func installedComponentUse(t *testing.T) (written, lowered map[string]int, pages int) {
 	t.Helper()
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

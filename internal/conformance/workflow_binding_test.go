@@ -121,7 +121,7 @@ workflow:
 // comparison met it two pages panicked. Here it is the control: same id, no binding, correctly not
 // the engine's.
 func TestUnboundMachinesAreNotTheEngines(t *testing.T) {
-	installed, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	installed, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

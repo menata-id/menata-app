@@ -1,0 +1,18 @@
+# Created with this Workspace. Installing an Application adds to the lists below.
+workspace: sample-approval
+
+machines:
+  - ../activity.yaml
+  - ../notification.yaml
+  - ../user.yaml
+  - sample-approval/cabang.yaml
+  - sample-approval/pencatatan_sampah.yaml
+  - sample-approval/document.yaml
+  - sample-approval/approval_step.yaml
+  - sample-approval/signature.yaml
+  - sample-approval/approval_flow_template.yaml
+  - sample-approval/approval_flow_template_step.yaml
+
+applications:
+  - sample-approval/applications/pengelolaan_sampah.yaml
+  - sample-approval/applications/document-approval.yaml

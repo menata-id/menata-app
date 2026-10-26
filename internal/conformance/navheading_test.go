@@ -21,7 +21,7 @@ import (
 // (TestInstalledCastsExplainWithoutDefects) cover workflow derivations and the Machine-side one covers
 // Machines; navigation had neither, which is exactly the silent class 001 #6's second clause exists over.
 func TestInstalledNavigationExplainsItsHeadings(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

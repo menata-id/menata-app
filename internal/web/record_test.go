@@ -181,7 +181,7 @@ func loadRealMachines(t *testing.T) (map[string]*domain.Machine, domain.Workspac
 // loadRealMachinesFrom loads one installed Workspace's manifest by file stem.
 func loadRealMachinesFrom(t *testing.T, manifest string) (map[string]*domain.Machine, domain.Workspace) {
 	t.Helper()
-	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", manifest+".yaml"))
+	app, err := metadata.LoadApplication(installedManifest(manifest))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
@@ -444,4 +444,14 @@ func TestMaxUploadBytesDefaultsWhenUnsetOrNonsense(t *testing.T) {
 	if got := (config.Config{MaxUploadMB: 50}).MaxUploadBytes(); got != 50<<20 {
 		t.Errorf("MaxUploadMB 50 gives %d bytes", got)
 	}
+}
+
+// installedManifest is the path of one Workspace's manifest by file stem: under metadata/workspaces/ (what people build, git-ignored
+// except `default`) or, for a `sample-` one, under the tracked metadata/samples/.
+func installedManifest(stem string) string {
+	dir := "workspaces"
+	if strings.HasPrefix(stem, "sample-") {
+		dir = "samples"
+	}
+	return filepath.Join("..", "..", "metadata", dir, stem+".yaml")
 }

@@ -25,6 +25,13 @@ func allInstalledWorkspaces(t *testing.T) map[string]domain.Workspace {
 	if err != nil {
 		t.Fatalf("LoadWorkspaces: %v", err)
 	}
+	samples, err := metadata.LoadWorkspaces(filepath.Join("..", "..", "metadata", "samples"))
+	if err != nil {
+		t.Fatalf("LoadWorkspaces (samples): %v", err)
+	}
+	for slug, ws := range samples {
+		installed[slug] = ws
+	}
 	out := make(map[string]domain.Workspace, len(installed))
 	for slug, ws := range installed {
 		out[slug] = ws.Workspace
@@ -125,9 +132,13 @@ var installedRoutesRatchet = map[string]string{}
 // A route an Application owns, in a Workspace that did not install it, must be 404. Anything else
 // must neither panic nor answer 5xx (a 503 is the assistant being unconfigured, an environment fact).
 func TestNoRouteBreaksInAWorkspaceThatDidNotInstallItsApplication(t *testing.T) {
-	entries, err := os.ReadDir(filepath.Join("..", "..", "metadata", "workspaces"))
-	if err != nil {
-		t.Fatal(err)
+	var entries []os.DirEntry
+	for _, dir := range []string{"workspaces", "samples"} {
+		got, err := os.ReadDir(filepath.Join("..", "..", "metadata", dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries = append(entries, got...)
 	}
 	owned := applicationOwnedRoutes(allInstalledWorkspaces(t), realLibraryApplications(t))
 	routes := authenticatedGetRoutes(t)

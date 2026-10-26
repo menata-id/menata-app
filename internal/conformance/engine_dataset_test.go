@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
-	"menata.app/internal/metadata"
 	"menata.app/internal/registry"
 )
 
@@ -72,7 +71,7 @@ func TestEveryEngineDatasetIsNamedByComposition(t *testing.T) {
 // five of dokter-kecil's declared routes were checked by nothing for days. This sweeps every manifest in
 // the directory, the way the loader scans it, and fails if the set is empty.
 func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

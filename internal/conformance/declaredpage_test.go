@@ -36,7 +36,7 @@ import (
 // call. This holds the *outcome* against the real manifests -- and fails if no Workspace declares a page, so
 // it cannot pass by measuring nothing.
 func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestDeclaredPagePipelineHasNoPerScreenBranch(t *testing.T) {
 // of the same id. A Machine that is not a library one (generated, or renamed on install) is skipped, and it
 // does not check that the library *also* offers the page -- only that nothing the page needs is missing.
 func TestInstalledPageDatasetsExistInTheLibraryTemplate(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -454,7 +454,7 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 // leaning on `ir.Lower`'s refusals, so it still fails if Lower stopped checking, and it fails when no installed
 // page holds a link, so it cannot pass by measuring nothing.
 func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -596,7 +596,7 @@ var windowDatasets = map[string]string{
 // Collection is bound to a window. It also fails if nothing claims completeness at all (a gate measuring
 // nothing) and if an entry names a Dataset no installed Workspace declares (a stale reason).
 func TestNoPageClaimsCompletenessOverAWindow(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -652,7 +652,7 @@ func TestNoPageClaimsCompletenessOverAWindow(t *testing.T) {
 // measuring nothing. It does **not** require the Dataset to select records: the loader treats a write binding's
 // Dataset as a handle to its Machine, and inventing a stricter rule here would be a gate ahead of the primitive.
 func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -760,7 +760,7 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 // `ir.lowerDeleteButton`'s or `ir.lowerMoveButton`'s refusals, and fails when no installed page holds a delete or
 // a move, so neither half can pass by measuring nothing.
 func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -967,7 +967,7 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 // Normalize replaces it with the Machine's `completion:` value, so one that survived would be compared as the
 // text "$done" and count nothing, which reads exactly like a page with no finished work.
 func TestEveryInstalledTotalNamesAMeasureItsDatasetDeclares(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -1090,7 +1090,7 @@ func datasetDeclaresMeasure(ds domain.Dataset, id string) bool {
 // 0% at request time, not an error, so every installed Workspace's and every library template's percentages are
 // re-checked here, independently of metadata.percentageIssues.
 func TestEveryPercentageNamesTwoCountedMeasures(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -1277,7 +1277,7 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 		t.Errorf("the library's sort/limit = %+v / %d, want fld_due_date asc first and a limit", lib.Sort, lib.Limit)
 	}
 
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -1324,7 +1324,7 @@ func TestPageParametersAreTheExpressionOnes(t *testing.T) {
 // Datasets the Workspace declares, and sits at /pages/<id>. It fails if no Workspace declares one, so it cannot pass by
 // measuring nothing.
 func TestEveryInstalledWorkspacePageLowersAndValidates(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}

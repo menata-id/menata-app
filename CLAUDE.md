@@ -63,6 +63,7 @@ An Application is **installed into** a Workspace. `metadata/workspaces/<slug>.ya
 installation (by **slug**; the `ws_...` id is generated). The directory is scanned: a file installs, deleting it
 uninstalls; `applications: []` is valid and normal.
 
+- **`metadata/workspaces/` is data, not code, and is git-ignored** except `default` (the worked example). What a gate or test needs from a real Workspace comes from the tracked copies in `metadata/samples/` (`sample-*`), never from a developer's own Workspaces.
 - **Creating a Workspace writes its empty manifest** (`installer.EnsureWorkspaceManifest`, without a reload —
   reloading resets `/register`'s rate limiter). A handler writing into a Workspace goes through
   `internal/web.workspaceInstallation`. **Never build a manifest path from `rendering.CurrentWorkspace(ctx).Slug`.**

@@ -99,6 +99,11 @@ func declaredWorkspaces(t *testing.T) []declaredWorkspace {
 	if err != nil {
 		t.Fatalf("scan metadata/workspaces: %v", err)
 	}
+	samples, err := filepath.Glob(filepath.Join(repoRoot(), "metadata", "samples", "*.yaml"))
+	if err != nil {
+		t.Fatalf("scan metadata/samples: %v", err)
+	}
+	manifests = append(manifests, samples...)
 	if len(manifests) == 0 {
 		t.Fatal("no Workspace manifests found -- these gates would check nothing")
 	}

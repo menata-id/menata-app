@@ -35,7 +35,7 @@ import (
 // a template. An earlier attempt to gate these numbers without that distinction produced noise, which
 // is why registry.WorkflowEngineSpec.Answers exists at all.
 func TestInstalledCastsExplainWithoutDefects(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -346,7 +346,7 @@ var unflaggedViewerPredicates = map[string]string{}
 // the flag (deleting the flag and the predicate together would otherwise make it silently everyone's), and a
 // Dataset that scopes by `$current_user` must say so, or sit in unflaggedViewerPredicates.
 func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -567,7 +567,7 @@ func TestWholeMachineReadsOnlyShrink(t *testing.T) {
 // 2026-09-29, 18 of 31 installed Machines are referenced by nothing and 13 declare their own views:.
 // Both are ordinary, correct states.
 func TestInstalledMachinesExplainTheirNormalization(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
@@ -604,7 +604,7 @@ func TestInstalledMachinesExplainTheirNormalization(t *testing.T) {
 // catch a constant declared and then never emitted -- a question nothing answers, which is exactly
 // what the engine half's own gate exists to prevent on its side.
 func TestEveryNormalizationDerivationIsProduced(t *testing.T) {
-	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	wss, err := loadInstalledWorkspaces()
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
