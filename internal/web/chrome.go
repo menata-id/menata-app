@@ -13,7 +13,7 @@ import (
 )
 
 // shellChrome is what rendering.appShell needs beyond the page's own content: the Workspace name
-// for its breadcrumb (Fase 2 of the ui-sample/case-03-flow1 port), and the viewer's own Name/
+// for its breadcrumb (Fase 2 of the the retired case-03-flow1 mockups port), and the viewer's own Name/
 // Email/Initials for the Account menu (added Account menu port, 2026-09-21) -- all three read
 // from the one mch_user record this function already loads, so Email costs nothing new and Name
 // is exposed rather than only its derived Initials.

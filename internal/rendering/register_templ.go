@@ -15,7 +15,7 @@ import "menata.app/internal/domain"
 // -- there is no path to a bare user account with nowhere to go. errorMsg is shown when a prior
 // attempt failed; empty renders no message.
 //
-// Ported onto the shared authShell kit (Fase 1, 2026-09-20). ui-sample/case-03-flow1 has no
+// Ported onto the shared authShell kit (Fase 1, 2026-09-20). the retired case-03-flow1 mockups has no
 // registration board of its own, so this follows board 01's own control sizing and card shape
 // rather than inventing a second visual language for the one screen the design skipped.
 //

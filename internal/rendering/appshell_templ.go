@@ -88,7 +88,7 @@ func headMeta(title string) templ.Component {
 }
 
 // appShell is the chrome every Workspace-level screen shares, ported from
-// ui-sample/case-03-flow1's own boards (03 Workspace home, 04 Workspace members, 05 Edit member):
+// the retired case-03-flow1 mockups's own boards (03 Workspace home, 04 Workspace members, 05 Edit member):
 // a 9-dot application launcher, a "Workspace / Page" breadcrumb, and the viewer's avatar.
 //
 // It is the third shell, alongside authShell (no Workspace chosen yet) and pageShell (the
@@ -712,7 +712,7 @@ func tabParam(rawQuery string) string {
 }
 
 // bottomBarItems is appShell's mobile row: the menu's own first three entries (owner spec,
-// ui-sample/README.md: "dengan 3-4 icon"), in the same Priority order the desktop row already
+// the retired mockup README.md: "dengan 3-4 icon"), in the same Priority order the desktop row already
 // uses -- not a separate declaration, so the two rows can never disagree about which items lead.
 //
 // THREE, not four, since 2026-09-24: the fourth column is always "More" (applicationBottomBar's
@@ -761,7 +761,7 @@ func anyActive(items []navMenuItem) bool {
 
 // applicationMenuRow is appShell's header, second row: the current Application's own menu,
 // `hidden` below `sm` where applicationBottomBar takes over instead (owner spec,
-// ui-sample/README.md's "Menu Navigasi" -- see appShell's own doc comment above).
+// the retired mockup README.md's "Menu Navigasi" -- see appShell's own doc comment above).
 //
 // It opens on the Application naming itself -- its own declared icon tile and name, then a rule --
 // which is the Flow 2 mockup's board 07 and is not decoration: with the Workspace name one row up
@@ -2004,7 +2004,7 @@ func sheetPanelClasses(ctx context.Context, desktop string) string {
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from
-// ui-sample/nav-chrome.js's accountHTML): identity, Profile, Security, Notifications, Sign out. Page-internal --
+// the retired mockup nav-chrome.js's accountHTML): identity, Profile, Security, Notifications, Sign out. Page-internal --
 // capabilities.md's own promotion rule ("earns a row here only once a second... Page needs the
 // identical shape") -- since appShell is its only caller; it does not yet get a "Shared rendering
 // components" row of its own.
@@ -2016,7 +2016,7 @@ func sheetPanelClasses(ctx context.Context, desktop string) string {
 //
 // Its panel is positioned bottom-sheet-style on mobile (pinned to the viewport bottom, rounded top
 // corners) and as a right-anchored dropdown at `sm` and up, via Tailwind classes alone -- ported
-// from ui-sample/nav-chrome.js's sheetPanelClasses(). `sm:top-17` rather than CSS anchor positioning:
+// from the retired mockup nav-chrome.js's sheetPanelClasses(). `sm:top-17` rather than CSS anchor positioning:
 // the header is a fixed 60px and sticky at top-0, so the panel's own offset is knowable without a
 // feature that is still Chromium-only.
 //
@@ -2486,7 +2486,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 }
 
 // appLauncher is the 9-dot menu at the head of the bar (redesigned 2026-09-20, by owner request,
-// from a flat list of every declared item to ui-sample/nav-chrome.js's own card shape). Three
+// from a flat list of every declared item to the retired mockup nav-chrome.js's own card shape). Three
 // parts, top to bottom:
 //
 //  1. A header row -- "WORKSPACE" eyebrow + the Workspace's own name, linking to Workspace Home

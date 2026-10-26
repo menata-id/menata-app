@@ -173,7 +173,7 @@ func (w Workspace) ApplicationForRoute(route string) (Application, bool) {
 // runtime. An open set would mean building names, which fails silently in the browser rather than
 // at load (capabilities.md, "two scanner rules").
 //
-// The tokens are Tailwind's own scale names, matching ui-sample/nav-metadata.js's `color` field.
+// The tokens are Tailwind's own scale names, matching the retired mockup nav-metadata.js's `color` field.
 var KnownApplicationColors = map[string]bool{
 	"blue":    true,
 	"emerald": true,
@@ -203,7 +203,7 @@ type Application struct {
 	//
 	// Icon must be one of KnownIcons and Color one of KnownApplicationColors -- two closed sets
 	// for the same reason, since both are names the renderer must recognize to draw anything at
-	// all. Icon was a single literal character until 2026-09-24, the ui-sample/nav-metadata.js
+	// all. Icon was a single literal character until 2026-09-24, the the retired mockup nav-metadata.js
 	// placeholder its own comment called "not-yet-scoped" for a real SVG set; KnownIcons is that
 	// set arriving.
 	//
@@ -237,7 +237,7 @@ type Application struct {
 	// and therefore worth giving ids, in ROADMAP.md's Case 03 Fase 7.
 	Roles []string
 	// ShowNav reports whether this Application renders persistent menu chrome. False is
-	// ui-sample/nav-metadata.js's own `showNav: false` (owner request, 2026-09-19, for Document
+	// the retired mockup nav-metadata.js's own `showNav: false` (owner request, 2026-09-19, for Document
 	// Approval), and replaces what app.yaml used to express as a `hidden_nav_groups` entry naming
 	// a group label. It suppresses the *menu* only: every route stays a valid destination,
 	// reachable from contextual in-page links and from the launcher, which is uniform and never

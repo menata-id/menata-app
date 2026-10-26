@@ -1,6 +1,6 @@
 # Ubuntu (vendored)
 
-The typeface `ui-sample/case-03-flow1`'s boards are designed in, self-hosted rather than loaded
+The typeface the retired case-03-flow1 mockups's boards are designed in, self-hosted rather than loaded
 from Google Fonts — the same reason htmx, hyperscript and Tailwind are vendored here:
 `secureheaders.go`'s CSP is `default-src 'self'`, and `font-src` falls back to it, so a
 cross-origin font would simply be refused.

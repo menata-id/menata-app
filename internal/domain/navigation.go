@@ -43,7 +43,7 @@ type NavigationItem struct {
 	Label string
 	Route string
 	// Group is the per-Application submenu this item belongs to (e.g. "Document Approval"),
-	// matching ui-sample/nav-metadata.js's own per-Application nav list. Empty means the item
+	// matching the retired mockup nav-metadata.js's own per-Application nav list. Empty means the item
 	// renders flat at the top level (e.g. "Home"), not inside a dropdown.
 	Group string
 	// Priority orders items within their own Group (and orders ungrouped items among
@@ -126,7 +126,7 @@ type NavigationItem struct {
 	// literal character until 2026-09-24 -- see KnownIcons for why that convention ended and what
 	// a name buys over a glyph.
 	//
-	// Rendered by appShell's mobile bottom bar (owner spec, ui-sample/README.md's "Menu Navigasi":
+	// Rendered by appShell's mobile bottom bar (owner spec, the retired mockup README.md's "Menu Navigasi":
 	// "untuk mobile ada di bagian bawah berupa bottom bar menu, dengan 3-4 icon") -- the desktop
 	// row stays plain text links, so an item with no Icon still renders fully there. Optional:
 	// only the items a bottom bar actually shows (appshell.templ's bottomBarItems) need one.

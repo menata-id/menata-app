@@ -8,7 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// CreateWorkspacePage is /switch-workspace's own "Add workspace" affordance (ui-sample/
+// CreateWorkspacePage is /switch-workspace's own "Add workspace" affordance (the retired mockups
 // choose-workspace.html's dashed-border row, comment: "Admin-only: shown when the signed-in user
 // is an admin of at least one workspace, so they can create a new one").
 //

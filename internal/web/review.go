@@ -18,7 +18,7 @@ import (
 	"menata.app/internal/storage"
 )
 
-// showReviewDocument serves board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b):
+// showReviewDocument serves board 10 (the retired mockup 10-review-document.html, Fase 6b):
 // one Approval Step, seen by whoever has to decide it -- or, since 2026-09-24, one Document, seen
 // by whoever opened it from a list of Documents. See reviewStep below for why both.
 //

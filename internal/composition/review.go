@@ -15,7 +15,7 @@ import (
 	"menata.app/internal/storage"
 )
 
-// ReviewDocument composes board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b):
+// ReviewDocument composes board 10 (the retired mockup 10-review-document.html, Fase 6b):
 // one Approval Step, seen by the person who has to decide it, with the Document it belongs to.
 //
 // This function exists because the screen it feeds may contain no field reads of its own. A new

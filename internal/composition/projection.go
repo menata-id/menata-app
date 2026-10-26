@@ -85,7 +85,7 @@ func projectedFieldDisplay(f domain.Field, value any, relations rendering.Relati
 //
 // It exists because Projection and cards are not the same thing (007 §7.6 declares a record's display
 // shape; §12 governs how a Page arranges it). The Case 19 screens each render a bespoke layout matched
-// to a ui-sample mockup, and pushing them through a card component to stop them reading
+// to a retired mockup, and pushing them through a card component to stop them reading
 // Values["fld_title"] would have been a visual change disguised as a refactor. What they needed was
 // the *declaration* -- which Field is the title, which the status, which the date -- and their own
 // markup around it.

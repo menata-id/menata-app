@@ -78,7 +78,7 @@ func submitProfile(store *data.Store, cfg config.Config) http.HandlerFunc {
 }
 
 // showAccountNotifications renders the signed-in identity's own email-notification preferences
-// (Flow 2 gap study Tahap 6, ports ui-sample/account-notifications.html's two real rows) -- an
+// (Flow 2 gap study Tahap 6, ports the retired mockup account-notifications.html's two real rows) -- an
 // identity-level credential, the same "Account" placement Profile/Security already establish.
 //
 // credentialFor, not a second store.GetCredential: resolveChrome's own identity already read this

@@ -101,7 +101,7 @@ func modeFieldFor(stepMachine *domain.Machine) string {
 	return stepMachine.Sequencing.ModeField
 }
 
-// showDocumentSubmit serves board 08 (ui-sample/case-03-flow1/08-submit-document.html).
+// showDocumentSubmit serves board 08 (the retired mockup 08-submit-document.html).
 //
 // Every option list on this screen comes from metadata: fld_document_type's since the Field was
 // added, and fld_mode's since Fase 6c-2 -- it was the last hardcoded pair in the wizard, two

@@ -22,7 +22,7 @@ import "menata.app/internal/domain"
 // validation, so the admin value still works in a field that now honestly describes what
 // everyone else types there.
 //
-// Ported to ui-sample/case-03-flow1/01-signin.html (Fase 1, 2026-09-20), with two deliberate
+// Ported to the retired mockup 01-signin.html (Fase 1, 2026-09-20), with two deliberate
 // differences from that board:
 //
 //   - The board's "Keep me signed in" checkbox is not rendered. It is a behavior change (session

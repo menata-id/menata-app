@@ -494,3 +494,65 @@ func TestInstallApplication_theInstallerChoosesTheirRoleAndIsGrantedIt(t *testin
 		t.Errorf("the installer holds %q in the Application they installed, want the role they chose", m.AppRoles["app_document_approval"])
 	}
 }
+
+// A companion rides along with its parent: one POST puts both Applications in the Workspace, the installer
+// holds a role in each, and both Applications' first screens answer -- the whole path a person takes from
+// "Start from the library" to Production Contracts and Instalments & Payments.
+func TestInstallApplication_aCompanionInstallsWithItsParentAndBothScreensAnswer(t *testing.T) {
+	s := newInstallTestSetup(t, "install_companion")
+
+	get := func(path string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: s.cookie})
+		rec := httptest.NewRecorder()
+		s.handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	listing := get("/install-application").Body.String()
+	if !strings.Contains(listing, "Production Contracts") {
+		t.Fatal("the library does not offer Production Contracts")
+	}
+	if strings.Contains(listing, `value="app_instalments_payments"`) {
+		t.Error("the companion is offered as an entry of its own -- the library lists one entry for the pair")
+	}
+	if !strings.Contains(listing, "Installs together with") {
+		t.Error("the entry does not say it brings a second Application")
+	}
+
+	if rec := s.post(t, url.Values{"template": {"app_production_contracts"}, "role": {"production_manager"}}); rec.Code != http.StatusSeeOther {
+		t.Fatalf("install = %d: %s", rec.Code, rec.Body.String())
+	}
+	s.reloadWorkspace(t)
+
+	after, err := metadata.LoadApplication(s.manifestPath)
+	if err != nil {
+		t.Fatalf("the Workspace no longer loads after the install: %v", err)
+	}
+	installed := map[string]bool{}
+	for _, a := range after.Workspace.Applications {
+		installed[a.ID] = true
+	}
+	if !installed["app_production_contracts"] || !installed["app_instalments_payments"] {
+		t.Fatalf("installed Applications = %v, want both Production Contracts and Instalments & Payments", installed)
+	}
+
+	m := s.membershipOf(t)
+	if m.AppRoles["app_production_contracts"] != "production_manager" {
+		t.Errorf("role in Production Contracts = %q, want the one chosen", m.AppRoles["app_production_contracts"])
+	}
+	if m.AppRoles["app_instalments_payments"] == "" {
+		t.Error("the installer holds no role in the companion, so its screens would refuse them")
+	}
+
+	for _, path := range []string{"/pages/nav_contracts_overview", "/pages/nav_instalments_due"} {
+		if rec := get(path); rec.Code != http.StatusOK {
+			t.Errorf("GET %s = %d, want 200", path, rec.Code)
+		}
+	}
+
+	// Once it is in, neither is offered again.
+	if rec := s.post(t, url.Values{"template": {"app_production_contracts"}, "role": {"production_manager"}}); rec.Code == http.StatusSeeOther {
+		t.Error("a second install of the same pair was accepted")
+	}
+}

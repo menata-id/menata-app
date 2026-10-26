@@ -9,7 +9,7 @@
 
 /* source(none) turns OFF Tailwind's automatic content detection, so the only inputs are the
    @source lines below. This is load-bearing, not tidiness: auto-detection walks the whole repo,
-   which here means it also read every ui-sample/*.html mockup -- thousands of Tailwind utility
+   which here means it also read every retired mockup -- thousands of Tailwind utility
    classes belonging to design references that are explicitly "never current-code intent"
    (router.go). That made app.css both bloated and *non-deterministic*: the first CI run of this
    pipeline failed because a local build had scanned another session's uncommitted edits to four
@@ -103,7 +103,7 @@
 	--color-rose-800: oklch(45.5% 0.188 13.697);
 
 	/* The brand mark's own blue (the rounded "M" lockup). Deliberately not a Tailwind scale
-	   value -- ui-sample/case-03-flow1's boards use #2f80ff here and blue-600 for links, and
+	   value -- the retired case-03-flow1 mockups's boards use #2f80ff here and blue-600 for links, and
 	   they are genuinely different colors. */
 	--color-brand: #2f80ff;
 

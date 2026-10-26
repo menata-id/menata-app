@@ -24,7 +24,7 @@ var recordActions = []string{domain.ActionCreate, domain.ActionEdit, domain.Acti
 // a richer view.
 //
 // This used to be RoleMatrix's single-Application half, called once per Application by a
-// Workspace-wide overview page at /authorization-matrix (ui-sample/case-03-flow1/
+// Workspace-wide overview page at /authorization-matrix (the retired case-03-flow1 mockups/
 // 06b-authorization-matrix.html) that also drew a Workspace-level section (workspaceSection,
 // deleted with it). That overview was deleted 2026-09-27 (Q1 of the Flow 2 canvas re-audit,
 // ROADMAP.md, confirmed board-06-new -- this page -- supersedes board-06-old, the deleted one) --

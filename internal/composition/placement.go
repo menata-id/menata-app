@@ -11,7 +11,7 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// SignaturePlacement composes board 09 (ui-sample/case-03-flow1/09-signature-positions.html,
+// SignaturePlacement composes board 09 (the retired mockup 09-signature-positions.html,
 // Fase 6c-3): one Document's page, and every Approval Step's signature marker on it.
 //
 // Same split as ReviewDocument (review.go): this does the reads, buildPlacement does the

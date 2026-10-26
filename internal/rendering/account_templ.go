@@ -388,7 +388,7 @@ func ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspa
 }
 
 // AccountNotificationsPage is the signed-in identity's own email-notification preferences (Flow 2
-// gap study Tahap 6, ports ui-sample/account-notifications.html) -- identity-level, like Profile,
+// gap study Tahap 6, ports the retired mockup account-notifications.html) -- identity-level, like Profile,
 // not per-Workspace. The mockup's own "step overdue" row is the third one here now (the Flow 2
 // canvas re-audit's SLA-breach reminder, 2026-09-27, domain.Event's schedule shape); its separate
 // Workspace-level rows (weekly summary, new member) are a different, still-unbuilt trigger
@@ -792,7 +792,7 @@ func notificationToggle(name, label string, checked bool) templ.Component {
 // tracking at all, so a fabricated single "This device" row would be exactly the "mockup draws
 // data the app doesn't have" pattern menata-app-document's development-history.md already calls
 // out repeatedly. Two-factor authentication stays marked "(planned)", matching
-// ui-sample/nav-chrome.js's own convention for a menu item with no primitive behind it yet.
+// the retired mockup nav-chrome.js's own convention for a menu item with no primitive behind it yet.
 func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

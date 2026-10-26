@@ -75,7 +75,7 @@ type PlacementFields struct {
 	Width string
 }
 
-// SignaturePlacementPage is board 09 (ui-sample/case-03-flow1/09-signature-positions.html,
+// SignaturePlacementPage is board 09 (the retired mockup 09-signature-positions.html,
 // Fase 6c-3): place one signature box per approval step on the Document's own rendered page.
 //
 // FOUR BOARD ELEMENTS ARE DELIBERATELY NOT RENDERED, each for a reason in ROADMAP.md's deferral

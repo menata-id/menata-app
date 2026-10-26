@@ -12,7 +12,7 @@ import (
 )
 
 // showCreateWorkspace renders /switch-workspace's own "Add workspace" affordance
-// (ui-sample/choose-workspace.html's dashed-border row, comment: "Admin-only: shown when the
+// (the retired mockup choose-workspace.html's dashed-border row, comment: "Admin-only: shown when the
 // signed-in user is an admin of at least one workspace, so they can create a new one"). Gated
 // server-side the same way the mockup states, not just by the button's own visibility -- the same
 // defense-in-depth posture requireWorkspaceAdmin gives the existing Workspace-administration

@@ -102,7 +102,7 @@ type ReviewSignatureBox struct {
 	Width     float64
 }
 
-// ReviewDocumentPage is board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b): the
+// ReviewDocumentPage is board 10 (the retired mockup 10-review-document.html, Fase 6b): the
 // screen an approver decides on, which until now was the *generic* record-detail page every
 // Machine shares.
 //

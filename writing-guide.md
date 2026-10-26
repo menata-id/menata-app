@@ -880,7 +880,7 @@ permissions:
 
 `admin` is the only value (`member` would be a rule every member passes and every admin fails).
 It is a separate key rather than a word inside `roles:` because the two namespaces genuinely
-overlap: an Application may declare `admin` in its own vocabulary — `ui-sample/member-role-detail.
+overlap: an Application may declare `admin` in its own vocabulary — the retired member-role-detail mockups.
 html` shows exactly that for HR — and a single list would make `roles: [admin, approver]` read as
 one alternation across two different meanings.
 

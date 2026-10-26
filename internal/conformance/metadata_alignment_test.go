@@ -819,7 +819,7 @@ func TestCapabilitiesComponentsTableMatchesTempl(t *testing.T) {
 // `menata-app-document` companion repo (`guides/ui-composition-decomposition-criteria.md`,
 // grounded in `references/ui-composition-decomposition-frameworks.md`'s world-class survey), a
 // separate repo this test cannot read -- so this only checks that capabilities.md still names it,
-// the same cross-repo citation-by-name posture CLAUDE.md already uses for `ui-sample/*.html`.
+// the same cross-repo citation-by-name posture CLAUDE.md already uses for the retired mockups.
 func TestCapabilitiesComponentsTableCitesPromotionGuide(t *testing.T) {
 	doc, err := os.ReadFile(filepath.Join(repoRoot(), "capabilities.md"))
 	if err != nil {

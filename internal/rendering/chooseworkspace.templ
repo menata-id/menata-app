@@ -36,10 +36,10 @@ type WorkspaceChoice struct {
 // an identity belongs to more than one Workspace -- a single-Workspace identity skips straight
 // past it) at action="/choose-workspace", and the mid-session switcher at
 // action="/switch-workspace" (the Workspace Home eyebrow's switch icon, matching
-// ui-sample/workspace-home.html's own three-dot affordance). backHref/backLabel differ the same
+// the retired mockup workspace-home.html's own three-dot affordance). backHref/backLabel differ the same
 // way: "back to signing in" pre-session, "back to the Workspace" mid-session.
 //
-// Ported to ui-sample/case-03-flow1/02-choose-workspace.html (Fase 1, 2026-09-20). The board's
+// Ported to the retired mockup 02-choose-workspace.html (Fase 1, 2026-09-20). The board's
 // own rows carry a second line ("dokter-kecil · 24 members") -- closed 2026-09-27 (Flow 2 canvas
 // re-audit gap): Slug/MemberCount above are real data.Workspace/workspace_members values now,
 // not invented, so a live row renders it. Not a metadata-hardcoding violation under CLAUDE.md's
@@ -64,7 +64,7 @@ type WorkspaceChoice struct {
 // already resolve an email before calling this (showChooseWorkspace from the pending-login
 // cookie, showSwitchWorkspace from the real session), so this is plumbing, not a new read.
 //
-// canCreateWorkspace adds ui-sample/choose-workspace.html's dashed-border "Add workspace" row
+// canCreateWorkspace adds the retired mockup choose-workspace.html's dashed-border "Add workspace" row
 // (2026-09-21), linking to /create-workspace -- CreateWorkspacePage, a runtime-level screen like
 // this one (routed by a fixed router.go literal, not by any Application's metadata). The mockup's
 // own comment gates it to an identity that is already Admin of at least one Workspace, so only

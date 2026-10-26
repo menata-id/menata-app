@@ -380,7 +380,7 @@ type applicationDoc struct {
 	// CompanionOf names the template Application this one is installed together with -- see domain.Application.CompanionOf.
 	CompanionOf string `yaml:"companion_of"`
 	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
-	// Application that says nothing about its menu keeps it (ui-sample/nav-metadata.js's own
+	// Application that says nothing about its menu keeps it (the retired mockup nav-metadata.js's own
 	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
 	// to false and silently suppress every Application's menu.
 	ShowNav    *bool        `yaml:"show_nav"`

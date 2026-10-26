@@ -27,7 +27,7 @@ import "menata.app/internal/domain"
 // resolved yet at this point in the flow, so there is no app.yaml label to read them from.
 //
 // Styling is Tailwind (static/css/app.css, built by `make css`), matching
-// ui-sample/case-03-flow1's boards 01 and 02. One deliberate deviation: board 02 centers its card
+// the retired case-03-flow1 mockups's boards 01 and 02. One deliberate deviation: board 02 centers its card
 // vertically while board 01 sits 110px from the top, and this frame top-aligns both. Centering
 // would move the card up and down as the workspace list grows, which the fixed-height board
 // cannot show.
@@ -708,7 +708,7 @@ func authPasswordField(id, name, label, autocomplete string, autofocus bool) tem
 //   - The moment authShell loads any <script> of its own, the reason above expires and this
 //     should move to hyperscript for consistency with documentsubmit.templ.
 //   - The moment script-src 'unsafe-inline' is tightened. secureheaders.go ties that header to
-//     machine.templ's inline blocks, and pageStyles shrinks with every ui-sample/case-03-flow1
+//     machine.templ's inline blocks, and pageStyles shrinks with every the retired case-03-flow1 mockups
 //     port phase (capabilities.md, "Styling: two systems, on purpose") -- when those blocks are
 //     gone, this onclick is the one thing left holding 'unsafe-inline' open.
 //
