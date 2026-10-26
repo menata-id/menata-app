@@ -134,3 +134,21 @@ func TestPromptNamesEveryGapClass(t *testing.T) {
 		t.Errorf("the prompt does not list the classes as %q", strings.Join(GapClasses, ", "))
 	}
 }
+
+// The 2026-10-22 and 2026-10-25 logs: a person asked for "a menu to add a status" and the model said the runtime
+// could not, four times, though an update adds an option; and it recorded a gap for an answer it had given
+// correctly (install the ready-made application). The prompt must say both things in words, so a model reading it
+// cannot reach either conclusion from silence. This holds the sentences, not the model's behaviour (that is
+// `make aieval`, not run without the owner's say-so).
+func TestPromptSeparatesWhatAConversationCanDoFromWhatNeedsAScreen(t *testing.T) {
+	prompt := SystemPromptFor(nil, nil)
+	for _, want := range []string{
+		"adding a status option or a field is something you CAN do",
+		"a screen where an admin does it",
+		"Do not record a gap for something you answered by pointing at a feature",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the prompt lacks %q", want)
+		}
+	}
+}

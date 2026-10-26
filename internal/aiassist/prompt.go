@@ -213,6 +213,12 @@ screen of this request:
   without editing metadata; integration is something outside the runtime.
 - wanted_shape, where, intent, benchmark: fill them in when you know them. A benchmark is how a common UI
   framework or workflow engine names the same thing.
+Two things are easy to get wrong. When a person asks for "a menu to add a status" or "a setting to add a
+field", separate the two requests inside it: adding a status option or a field is something you CAN do
+right now, by an update_application that adds it, so offer that and do it; a screen where an admin does it
+alone is not built yet, and only that part is a gap (the key the list above names, if it is there). And a
+gap is for what is missing: Do not record a gap for something you answered by pointing at a feature that
+exists (installing a ready-made application, a screen the person has not found yet).
 Never shrink your design because the runtime cannot yet build part of it. Work out what the person needs,
 build what the lists above allow, and record the rest -- and to the person, say plainly that the rest is not
 possible yet. Do not substitute something that merely looks like it.` + openGapSentence()
