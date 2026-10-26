@@ -136,6 +136,10 @@ type GeneratedList struct {
 	SearchFields []string `json:"search_fields,omitempty"`
 	// FilterField is a status Field the table is filtered by, with chips that count each option.
 	FilterField string `json:"filter_field,omitempty"`
+	// AddLabel, when set, puts a button with these words above the list that opens a form creating a record of
+	// the Machine (2026-10-26, from the log of 2026-10-25). The words are the person's own language, so none is
+	// defaulted; the form asks for the Machine's own controls and names no Field.
+	AddLabel string `json:"add_label,omitempty"`
 }
 
 // The scopes of a generated list.

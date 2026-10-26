@@ -92,6 +92,10 @@ func composableSurface() string {
   scope is "all", "filter_field" (a status field: chips above the table filter by each of its options and count
   them). Offer a table when the person wants to scan records by several attributes, search them or filter them
   by status; ask which columns they want. File and group fields cannot be columns.
+  A list (plain or table) may carry "add_label": the words of a button above it that opens a form to add a
+  record of that machine. A list without it only shows records. When the person asks for an add/new button
+  on a list, set it; do not name a menu entry "Add ..." when it carries no add_label and no form, and do not
+  say the form "already exists" without having checked the menu entry you would point at.
 - A menu entry may instead be a status filter ("by_status" on a NEW menu item): a page of one tile per
   option of a STATUS field ("status_field"), each tile showing how many records are in that status and
   opening a second page of the records in it (at most "limit", 1 to 200). Give "detail_label", the menu

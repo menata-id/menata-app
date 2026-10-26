@@ -103,6 +103,9 @@ type pageNodeDoc struct {
 	Mobile      int               `yaml:"mobile,omitempty"`
 	To          string            `yaml:"to,omitempty"`
 	Param       string            `yaml:"param,omitempty"`
+	Title       string            `yaml:"title,omitempty"`
+	Trigger     string            `yaml:"trigger,omitempty"`
+	Density     string            `yaml:"density,omitempty"`
 	Layout      string            `yaml:"layout,omitempty"`
 	Static      string            `yaml:"static,omitempty"`
 	Component   string            `yaml:"component,omitempty"`
@@ -290,11 +293,11 @@ func pageFor(l listed, m GeneratedMachine) pageNodeDoc {
 	if roles["person"] {
 		row.Children = append(row.Children, pageNodeDoc{Static: "caption", From: map[string]string{"text": "person"}})
 	}
-	return pageNodeDoc{Layout: "stack", Gap: "default", Children: []pageNodeDoc{{
+	return pageNodeDoc{Layout: "stack", Gap: "default", Children: withAddForm(l, []pageNodeDoc{{
 		Component: "Collection", Gap: "tight", Empty: listEmptyWords,
 		Binding:  &pageBindingDoc{Dataset: l.DatasetID, Rows: "records"},
 		Children: []pageNodeDoc{row},
-	}}}
+	}})}
 }
 
 // validateLists holds what a list needs from the Machine it lists. The loader would refuse most of this
@@ -350,6 +353,9 @@ func validateLists(app *GeneratedApplication) []string {
 		}
 		if l.Direction != "" && l.Direction != "asc" && l.Direction != "desc" {
 			issues = append(issues, fmt.Sprintf("%s: direction must be \"asc\" or \"desc\"", where))
+		}
+		if l.AddLabel != "" && !oneLine(l.AddLabel) {
+			issues = append(issues, fmt.Sprintf("%s: add_label must be words on one line, or left out", where))
 		}
 		if l.isTable() {
 			issues = append(issues, validateTable(where, l, fields)...)
@@ -505,7 +511,21 @@ func tablePage(l listed, m GeneratedMachine) pageNodeDoc {
 	}
 	children = append(children, pageNodeDoc{Component: "Table", Label: l.Item.Label, Empty: listEmptyWords, Framed: true,
 		Columns: cols, Binding: &pageBindingDoc{Dataset: l.DatasetID, Rows: "records"}})
-	return pageNodeDoc{Layout: "stack", Gap: "default", Children: children}
+	return pageNodeDoc{Layout: "stack", Gap: "default", Children: withAddForm(l, children)}
+}
+
+// withAddForm puts the "add" button of a list (ActionBar > Popover > create Form, the shape a hand-written list
+// page declares) before its other children. The Form names no Field: it asks for the Machine's own controls, and
+// the Dataset only names the Machine it writes to.
+func withAddForm(l listed, children []pageNodeDoc) []pageNodeDoc {
+	if l.Item.List == nil || l.Item.List.AddLabel == "" {
+		return children
+	}
+	label := l.Item.List.AddLabel
+	bar := pageNodeDoc{Component: "ActionBar", Label: label, Children: []pageNodeDoc{{
+		Component: "Popover", Label: label, Title: label, Trigger: "filled", Align: "end", Density: "regular",
+		Children: []pageNodeDoc{{Component: "Form", Submit: label, Binding: &pageBindingDoc{Dataset: l.DatasetID, Write: "create"}}}}}}
+	return append([]pageNodeDoc{bar}, children...)
 }
 
 // datasetsFor is every Dataset an entry's page needs: one for a list or a tile page, two for a table with chips,

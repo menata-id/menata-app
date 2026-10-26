@@ -368,7 +368,7 @@ var generatedApplicationSchema = geminiSchema{
 }
 
 var generatedListSchema = geminiSchema{
-	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit", "columns", "search_fields", "filter_field"},
+	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit", "columns", "search_fields", "filter_field", "add_label"},
 	Type:             "OBJECT",
 	Required:         []string{"scope", "limit"},
 	Properties: map[string]geminiSchema{
@@ -380,6 +380,7 @@ var generatedListSchema = geminiSchema{
 		"columns":       {Type: "ARRAY", Items: &stringSchema, Description: "Optional: makes the page a table instead of a plain list of titles. The fields of that machine to show as columns, 1 to 8, in order; the first column links to the record. Choose the fields a person scanning the list needs; ask when unsure."},
 		"search_fields": {Type: "ARRAY", Items: &stringSchema, Description: "Only with columns: text fields (type text or long_text) a search box above the table looks in, at most 4."},
 		"filter_field":  {Type: "STRING", Description: "Only with columns, and only with scope \"all\": a status field of that machine; chips above the table filter by its options and count each one."},
+		"add_label":     {Type: "STRING", Description: "Optional: the words on a button above the list (in the person's language, e.g. \"Tambah tugas\") that opens a form to add a record of that machine. Set it whenever the person asked for an add/new button, or the list is where they would expect to add. Never name a menu entry \"Add ...\" unless it carries this."},
 	},
 }
 
