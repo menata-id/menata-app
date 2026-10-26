@@ -3,6 +3,7 @@ package installer
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"menata.app/internal/metadata"
@@ -84,7 +85,7 @@ func TestCompanion_inheritsARenameOfTheTemplatesMachines(t *testing.T) {
 		t.Fatal(err)
 	}
 	squatter := "id: mch_contract\nname: Squatter\nfields:\n  - { id: fld_s, name: S, type: text }\ncard_fields:\n  - { field: fld_s, role: title }\n"
-	_, loaded := freshWorkspace(t, library, map[string]string{"squatter.yaml": squatter})
+	manifestPath, loaded := freshWorkspace(t, library, map[string]string{"squatter.yaml": squatter})
 	plan := PlanInstall(tmpl, loaded.Workspace)
 	if !plan.OK() {
 		t.Fatalf("refused: %v", plan.Refusals)
@@ -96,8 +97,13 @@ func TestCompanion_inheritsARenameOfTheTemplatesMachines(t *testing.T) {
 	if plan.Companions[0].inherited["mch_contract"] != renamed {
 		t.Fatalf("the companion does not inherit the rename: %v", plan.Companions[0].inherited)
 	}
-	// Not installed here: rewriteIDs follows `key: id` lines only, so an id inside an inline `{ machine: mch_x }` is not renamed
-	// for any template, and a Workspace already holding one of this bundle's Machine ids cannot take it by rename yet.
+	if _, err := Install(plan, library, manifestPath); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	copied := read(t, filepath.Join(filepath.Dir(manifestPath), "fresh", "payment_plan.yaml"))
+	if !strings.Contains(copied, renamed) {
+		t.Errorf("the companion's payment plan copy does not point at %s", renamed)
+	}
 }
 
 // TestCompanion_asecondInstallIsRefusedForBothApplications: screen ids and routes are never renamed, so the whole bundle refuses.
@@ -121,5 +127,16 @@ func TestCompanion_aSecondInstallIsRefusedForBothApplications(t *testing.T) {
 	}
 	if len(plan.Companions) != 1 || plan.Companions[0].OK() {
 		t.Error("the companion's own plan must carry its refusals too")
+	}
+}
+
+// TestRewriteIDs_followsAnIdInsideAnInlineMapping: an id is renamed wherever it stands as a whole word -- in a `key: id` line, a
+// list item, and inside `{ ... }` -- but never inside a longer id, a comment, or a trailing comment.
+func TestRewriteIDs_followsAnIdInsideAnInlineMapping(t *testing.T) {
+	src := "id: mch_a\n# mch_a stays in prose\nfields:\n  - { id: fld_x, type: relation, related_machine: mch_a, via: mch_a_term } # mch_a\n  - mch_a\n"
+	got, hits := rewriteIDs([]byte(src), map[string]string{"mch_a": "mch_a_two"})
+	want := "id: mch_a_two\n# mch_a stays in prose\nfields:\n  - { id: fld_x, type: relation, related_machine: mch_a_two, via: mch_a_term } # mch_a\n  - mch_a_two\n"
+	if string(got) != want || hits != 3 {
+		t.Errorf("hits = %d, got:\n%s\nwant:\n%s", hits, got, want)
 	}
 }

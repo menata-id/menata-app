@@ -197,18 +197,20 @@ func sharedFileFor(machineID string) string {
 	return strings.TrimPrefix(machineID, "mch_") + ".yaml"
 }
 
-// idReference matches one line that *references* an id by value: "key: mch_x", "- mch_x", with an
-// optional trailing comment. Value-based rather than key-based on purpose -- ids in this metadata are
-// distinctive (mch_*, app_*), so a line whose value is exactly one of them is a reference to it, and
-// enumerating which keys may hold one (id, machine, summary_machine, a workflow role name, a
-// machines: entry) would be a list to keep in step with every future key that can hold an id.
-//
-// Comment lines are left alone: the prose in a copied template still explains the original, and
-// rewriting English is not this function's business. The provenance header says so out loud.
-var idReference = regexp.MustCompile(`^(\s*(?:-\s+|[a-z_]+:\s+))([a-z_]+)(\s*(?:#.*)?)$`)
+// idToken matches one identifier-shaped word. Underscore is part of a word, so mch_contract never matches inside
+// mch_contract_term.
+var idToken = regexp.MustCompile(`[a-z][a-z0-9_]*`)
 
-// rewriteIDs applies a plan's renames to one file's bytes, touching only reference lines, and reports
-// how many it changed.
+// rewriteIDs applies a plan's renames to one file's bytes and reports how many lines it changed.
+//
+// It replaces every word that is exactly a renamed id, wherever it stands on a line: "key: mch_x", "- mch_x", and an id inside an
+// inline mapping -- `{ id: rel_x, machine: mch_x, via: fld_y }`, `related_machine: mch_x` inside a Field's braces -- which an
+// earlier version missed (it followed whole `key: id` lines only), so a template with an inline reference could not be renamed
+// into a Workspace that already used the id. Value-based rather than key-based on purpose: ids in this metadata are distinctive
+// (mch_*, app_*), and enumerating the keys that may hold one would be a list to keep in step with every future key that can.
+//
+// Comments are left alone, whole-line and trailing: the prose in a copied template still explains the original, and rewriting
+// English is not this function's business. The provenance header says so out loud.
 //
 // The count matters because zero is sometimes right and sometimes a bug, and only the caller knows
 // which: a Machine file that mentions none of the renamed ids is ordinary (signature.yaml when only
@@ -226,12 +228,20 @@ func rewriteIDs(src []byte, renames map[string]string) ([]byte, int) {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
 		}
-		m := idReference.FindStringSubmatch(line)
-		if m == nil {
-			continue
+		code, comment := line, ""
+		if at := strings.Index(line, " #"); at >= 0 {
+			code, comment = line[:at], line[at:]
 		}
-		if renamed, ok := renames[m[2]]; ok {
-			lines[i] = m[1] + renamed + m[3]
+		changed := false
+		out := idToken.ReplaceAllStringFunc(code, func(word string) string {
+			if renamed, ok := renames[word]; ok {
+				changed = true
+				return renamed
+			}
+			return word
+		})
+		if changed {
+			lines[i] = out + comment
 			hits++
 		}
 	}
