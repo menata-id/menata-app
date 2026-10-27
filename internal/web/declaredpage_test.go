@@ -450,7 +450,7 @@ func TestDeclaredPageNumbersTheBoardListsInColumnOrder(t *testing.T) {
 	}
 
 	body := getPage(t, h, cookie, "/pages/nav_board_settings")
-	if !strings.Contains(body, `<ol class="m-0 list-none overflow-hidden p-0 rounded-lg`) {
+	if !regexp.MustCompile(`<ol[^>]*class="m-0 list-none overflow-hidden p-0 rounded-lg`).MatchString(body) {
 		t.Fatalf("the Collection did not draw an <ol>:\n%s", body)
 	}
 	nums := regexp.MustCompile(`aria-hidden="true">(\d+)</span>`).FindAllStringSubmatch(body, -1)
@@ -882,11 +882,12 @@ func TestMoveTarget(t *testing.T) {
 	}
 }
 
-// TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage: `write: move` inside a records template. The first
-// list has no "Move up" and the last no "Move down"; the route finds the neighbour itself, so the page names only
-// a direction; the answer to a request from a declared page is HX-Refresh, and the order the page redraws is the
-// order the board's columns follow (both read the Machine's `sort_order`).
-func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
+// TestDeclaredPageGripReordersTheListAndRefreshesThePage: `reorder: true` on a Collection over a Machine's records. Every row
+// the viewer may move names its record route (`data-reorder-url`) and has a grip; the old Move up/Move down buttons are gone.
+// A drop posts the 1-based place the record now holds (`?to=`), the route finds the neighbour itself, the answer to a request
+// from a declared page is HX-Refresh, and the order the page redraws is the order the board's columns follow (both read the
+// Machine's `sort_order`).
+func TestDeclaredPageGripReordersTheListAndRefreshesThePage(t *testing.T) {
 	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredmove", "default")
 	var list *domain.Machine
 	for _, m := range ws.Machines {
@@ -899,10 +900,6 @@ func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
 	if list == nil {
 		t.Fatal("default installs no Machine providing ds_board_lists")
 	}
-	existing, err := store.ListRecords(ctx, list.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
 	nameField := list.CardFieldFor(domain.CardFieldRoleTitle)
 	mk := func(name string) *data.Record {
 		rec, err := store.CreateRecord(ctx, list.ID, map[string]any{nameField: name})
@@ -913,19 +910,33 @@ func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
 		return rec
 	}
 	first, second := mk("Move-probe-first"), mk("Move-probe-second")
-	route := func(rec *data.Record, dir string) string {
-		return "/machines/" + list.ID + "/records/" + rec.ID + "/move?direction=" + dir
+	recordRoute := func(rec *data.Record) string { return "/machines/" + list.ID + "/records/" + rec.ID }
+	placeOf := func(rec *data.Record) int {
+		records, err := store.ListRecords(ctx, list.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, r := range records {
+			if r.ID == rec.ID {
+				return i + 1
+			}
+		}
+		t.Fatalf("%s is not in the Machine's records", rec.ID)
+		return 0
 	}
 
 	body := getPage(t, h, cookie, "/pages/nav_board_settings")
-	if !strings.Contains(body, `hx-post="`+route(first, "down")+`"`) || !strings.Contains(body, `hx-post="`+route(second, "up")+`"`) {
-		t.Fatal("the page draws no Move buttons for the records it lists")
+	for _, rec := range []*data.Record{first, second} {
+		if !strings.Contains(body, `data-reorder-url="`+recordRoute(rec)+`"`) {
+			t.Fatalf("the page names no drag route for %s", rec.ID)
+		}
 	}
-	if strings.Contains(body, `hx-post="`+route(second, "down")+`"`) {
-		t.Error("the last list is offered Move down")
+	if !strings.Contains(body, "data-reorder-grip") {
+		t.Error("no row has a grip")
 	}
-	if len(existing) == 0 && strings.Contains(body, `hx-post="`+route(first, "up")+`"`) {
-		t.Error("the first list is offered Move up")
+	// The grip's keyboard script names that URL too, so only a button posting it counts.
+	if strings.Contains(body, `hx-post="`+recordRoute(first)+`/move`) {
+		t.Error("the page still draws Move up / Move down buttons")
 	}
 
 	post := func(path string) *httptest.ResponseRecorder {
@@ -940,22 +951,31 @@ func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
 		h.ServeHTTP(rec, req)
 		return rec
 	}
-	if got := post(route(second, "up")); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
-		t.Fatalf("a move from the declared page answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
+	move := func(rec *data.Record, query string) string { return recordRoute(rec) + "/move?" + query }
+	if got := post(move(second, "to="+strconv.Itoa(placeOf(first)))); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("a drop from the declared page answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
 	}
 	after := getPage(t, h, cookie, "/pages/nav_board_settings")
 	if strings.Index(after, "Move-probe-second") > strings.Index(after, "Move-probe-first") {
-		t.Error("moving the second list up did not put it before the first")
+		t.Error("dropping the second list on the first's place did not put it before the first")
 	}
-	// Past the end: nothing moves, and the answer is still a refresh so a stale page redraws.
-	if got := post(route(second, "down")); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
-		t.Errorf("a move past the end answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
+	// Past the end: a record already last moves nothing, and the answer is still a refresh so a stale page redraws.
+	if got := post(move(first, "to=999")); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
+		t.Errorf("a drop past the end answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
 	}
-	if got := post(route(first, "sideways")); got.Code != http.StatusBadRequest {
-		t.Errorf("a direction that is neither up nor down answered %d, want 400", got.Code)
+	for name, query := range map[string]string{
+		"a place below 1":                 "to=0",
+		"a place that is not a number":    "to=x",
+		"a place sent with a direction":   "to=1&direction=up",
+		"a direction that is not a step":  "direction=sideways",
+		"neither a place nor a direction": "",
+	} {
+		if got := post(move(first, query)); got.Code != http.StatusBadRequest {
+			t.Errorf("%s answered %d, want 400", name, got.Code)
+		}
 	}
-	if got := post("/machines/" + list.ID + "/records/rec_nope/move?direction=up"); got.Code != http.StatusNotFound {
-		t.Errorf("a move of a record that does not exist answered %d, want 404", got.Code)
+	if got := post("/machines/" + list.ID + "/records/rec_nope/move?to=1"); got.Code != http.StatusNotFound {
+		t.Errorf("a drop of a record that does not exist answered %d, want 404", got.Code)
 	}
 }
 
