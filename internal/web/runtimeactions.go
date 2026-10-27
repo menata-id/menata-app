@@ -36,6 +36,8 @@ type actionEnv struct {
 	// reload re-reads one Workspace's manifest from disk and swaps its routes (web.Deps.ReloadMetadata); nil in a process
 	// with no hook, which an action that needs it reports rather than ignores.
 	reload func(slug string) error
+	// now is the clock the undo window is read against; nil means time.Now.
+	now func() time.Time
 }
 
 // runtimeActionRunners are the executors, one per registry.RuntimeActions entry (TestRuntimeActionsAndRunnersAgree).
@@ -57,6 +59,7 @@ var runtimeActionRunners = map[string]actionRunner{
 	"discard_file_draft":     runDiscardFileDraft,
 	"deactivate_application": runDeactivateApplication,
 	"reactivate_application": runReactivateApplication,
+	"undo_publish":           runUndoPublish,
 	"reload_workspace":       runReloadWorkspace,
 	"restore_snapshot":       runRestoreSnapshot,
 	"archive_workspace":      runArchiveWorkspace,

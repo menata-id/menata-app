@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"menata.app/internal/config"
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
@@ -92,7 +93,7 @@ func TestWorkspaceApplicationsListsTheSwitchedOffOnesToo(t *testing.T) {
 		{ID: "app_off", Name: "Off", Machines: []string{"mch_b", "mch_c"}, Inactive: true},
 	}}
 	ctx := rendering.WithCurrentWorkspace(context.Background(), ws, "W", false)
-	rows, err := workspaceApplicationsProvider()(ctx, nil, domain.Actor{})
+	rows, err := workspaceApplicationsProvider(data.NewStore(authTestPool(t)))(ctx, nil, domain.Actor{})
 	if err != nil || len(rows) != 2 {
 		t.Fatalf("rows=%d err=%v, want both Applications", len(rows), err)
 	}

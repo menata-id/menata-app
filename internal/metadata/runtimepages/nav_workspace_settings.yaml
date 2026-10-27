@@ -89,6 +89,12 @@ page:
                       confirm: Switch this application off? Nobody can open it until you switch it on again; its data is kept.
                       binding: { write: action, action: deactivate_application }
                     - component: Button
+                      label: Take back
+                      variant: secondary
+                      when: { role: detail, is: Undo }
+                      confirm: Take this application back? Its files and roles are removed, and the proposal opens for review again. This is only possible until the ten minutes are up and before anyone adds a record.
+                      binding: { write: action, action: undo_publish }
+                    - component: Button
                       label: Switch on
                       variant: secondary
                       when: { role: status, is: Inactive }

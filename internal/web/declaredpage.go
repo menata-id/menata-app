@@ -264,7 +264,7 @@ func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]compos
 		"snapshots":              snapshotsProvider(store, cfg),
 		"templates":              templatesProvider(cfg),
 		"applications":           applicationsProvider(store, cfg),
-		"workspace_applications": workspaceApplicationsProvider(),
+		"workspace_applications": workspaceApplicationsProvider(store),
 		"current_workspace":      currentWorkspaceProvider(store),
 	}
 }
