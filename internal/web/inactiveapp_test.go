@@ -1,10 +1,12 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"menata.app/internal/config"
@@ -80,5 +82,41 @@ func TestInactiveApplicationIsGoneFromEveryRouteAndTheMenuButItsDataStays(t *tes
 	}
 	if len(ws.Machines) < 3 {
 		t.Errorf("the Workspace holds %d Machines; switching an Application off must not remove its Machines", len(ws.Machines))
+	}
+}
+
+// The admin's list keeps what the menu leaves out: every installed Application, each with the state its switch would change.
+func TestWorkspaceApplicationsListsTheSwitchedOffOnesToo(t *testing.T) {
+	ws := domain.Workspace{Applications: []domain.Application{
+		{ID: "app_on", Name: "On", Machines: []string{"mch_a"}},
+		{ID: "app_off", Name: "Off", Machines: []string{"mch_b", "mch_c"}, Inactive: true},
+	}}
+	ctx := rendering.WithCurrentWorkspace(context.Background(), ws, "W", false)
+	rows, err := workspaceApplicationsProvider()(ctx, nil, domain.Actor{})
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("rows=%d err=%v, want both Applications", len(rows), err)
+	}
+	if rows[0].Values["fld_state"] != "Active" || rows[1].Values["fld_state"] != "Inactive" || rows[1].ID != "app_off" {
+		t.Errorf("states: %v / %v", rows[0].Values, rows[1].Values)
+	}
+	if d, _ := rows[1].Values["fld_detail"].(string); !strings.Contains(d, "2 machines") || !strings.Contains(d, "kept") {
+		t.Errorf("the switched-off row does not say its data is kept: %q", d)
+	}
+}
+
+// The Workspace settings page offers an admin the switch for each Application, posting to the action with the Application's id.
+func TestWorkspaceSettingsOffersTheApplicationSwitch(t *testing.T) {
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "appswitchpage", "default")
+	body := getPage(t, h, cookie, "/workspace-settings")
+	if len(ws.Applications) == 0 {
+		t.Fatal("default installs no Application")
+	}
+	for _, app := range ws.Applications {
+		if !strings.Contains(body, "/runtime-actions/deactivate_application?record="+app.ID) {
+			t.Errorf("no Switch off for %s on the settings page", app.ID)
+		}
+	}
+	if strings.Contains(body, "/runtime-actions/reactivate_application") {
+		t.Error("an active Application is offered Switch on")
 	}
 }

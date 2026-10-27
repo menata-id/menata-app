@@ -1,12 +1,17 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
+	"menata.app/internal/composition"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/installer"
+	"menata.app/internal/rendering"
 )
 
 // runDeactivateApplication and runReactivateApplication are the Workspace admin's switch for an Application (registry
@@ -52,4 +57,31 @@ func switchApplication(w http.ResponseWriter, req *http.Request, env actionEnv, 
 		return "", false
 	}
 	return "", true
+}
+
+// workspaceApplicationsProvider is the reader of the `workspace_applications` source: every Application installed in the current
+// Workspace in its installation's order, with whether it is switched off and what its Machines amount to. It is the admin's
+// list, which is why it keeps the Applications the menu and Home leave out.
+func workspaceApplicationsProvider() composition.RuntimeProvider {
+	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		apps := rendering.CurrentWorkspace(ctx).Applications
+		out := make([]*data.Record, 0, len(apps))
+		for _, app := range apps {
+			state, detail := "Active", plural2(len(app.Machines), "machine")
+			if app.Inactive {
+				state, detail = "Inactive", "Switched off: nobody can open it. Its "+plural2(len(app.Machines), "machine")+" and records are kept."
+			}
+			out = append(out, &data.Record{ID: app.ID, MachineID: "mch_workspace_application", WorkspaceID: workspaceID,
+				Values: map[string]any{"fld_id": app.ID, "fld_title": app.Name, "fld_detail": detail, "fld_state": state}})
+		}
+		return out, nil
+	}
+}
+
+func plural2(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return strconv.Itoa(n) + " " + noun + "s"
 }

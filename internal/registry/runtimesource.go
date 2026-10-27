@@ -41,6 +41,8 @@ var RuntimeSources = map[string]RuntimeSource{
 		Doc: "every member of the Workspace once for each Application that declares roles, keyed by the Application's settings hub id: who they are, the roles a Group adds, and the one role they hold directly there; for the Workspace's admins"},
 	"applications": {ID: "applications", Provides: []string{"fld_id", "fld_title"}, Provider: "web",
 		Doc: "the Applications the viewer can open in this Workspace, each with their role there, where it opens and its pending count or summary count; for any member (it is the viewer's own). A Workspace's admins also get the Applications the assistant has generated and nobody has published, as `Draft` rows with where to review each"},
+	"workspace_applications": {ID: "workspace_applications", Provides: []string{"fld_id", "fld_title"}, Provider: "web",
+		Doc: "every Application installed in this Workspace, switched off or not, one record each: its name, what it holds and whether it is Active or Inactive; the rows the Workspace settings page switches on and off; for the Workspace's admins"},
 	"application_suggestions": {ID: "application_suggestions", Provides: []string{"fld_id", "fld_title"},
 		Doc: "the Workspace's own example prompts for the assistant (`suggested_applications:` in its manifest), each with where it starts a conversation"},
 	"current_workspace": {ID: "current_workspace", Provides: []string{"fld_id", "fld_title"}, Provider: "web",

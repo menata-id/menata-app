@@ -51,6 +51,50 @@ page:
                   binding: { write: action, action: restore_snapshot }
     - layout: section
       gap: default
+      anchor: applications
+      children:
+        - static: panel-heading
+          text: Applications
+        - static: caption
+          text: Switching an application off removes it from the menu and Home and closes every address it owns; its data is kept, and switching it on brings it back as it was.
+        - component: Collection
+          gap: tight
+          divided: true
+          block: true
+          empty: No application is installed in this workspace yet.
+          binding: { dataset: ds_runtime_workspace_applications, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: hair
+                  children:
+                    - static: paragraph
+                      from: { text: title }
+                    - static: caption
+                      from: { text: subtitle }
+                - layout: row
+                  gap: default
+                  align: center
+                  children:
+                    - component: StatusBadge
+                      from: { label: status, tone: "status:tone" }
+                    - component: Button
+                      label: Switch off
+                      variant: secondary
+                      when: { role: status, is: Active }
+                      confirm: Switch this application off? Nobody can open it until you switch it on again; its data is kept.
+                      binding: { write: action, action: deactivate_application }
+                    - component: Button
+                      label: Switch on
+                      variant: secondary
+                      when: { role: status, is: Inactive }
+                      binding: { write: action, action: reactivate_application }
+    - layout: section
+      gap: default
       anchor: danger-zone
       children:
         - static: panel-heading

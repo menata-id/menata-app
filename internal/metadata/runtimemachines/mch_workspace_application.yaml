@@ -1,0 +1,22 @@
+# Every Application installed in this Workspace, switched off or not (registry.RuntimeSources: workspace_applications): its name, what it
+# holds and whether it is Active or Inactive. Read by the Workspace settings page, which offers each row the switch that fits its state.
+id: mch_workspace_application
+name: Installed application
+runtime: workspace_applications
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_title, name: Name, type: text, required: true }
+  - { id: fld_detail, name: What it holds, type: text }
+  - { id: fld_state, name: State, type: status, options: [Active, Inactive] }
+# An Application that is switched off needs a look; one that is on is as it should be.
+status_categories:
+  field: fld_state
+  values: { Active: done, Inactive: attention }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_detail, role: subtitle }
+  - { field: fld_state, role: status }
+datasets:
+  - id: ds_runtime_workspace_applications
+    select: records
+    limit: 200
