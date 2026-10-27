@@ -97,3 +97,30 @@ func names(ms []*Machine) []string {
 	}
 	return out
 }
+
+// An Application that is switched off is not the one a request means by a workflow role: not when the request is in it, and not through the
+// "sole Machine in that role" fallback the routes that belong to no Application use (the submit wizard, the pending count).
+func TestMachineInWorkflowRoleIgnoresAnApplicationThatIsSwitchedOff(t *testing.T) {
+	doc := &Machine{ID: "mch_document", WorkflowEngine: WorkflowEngineDocumentApproval, WorkflowRole: WorkflowRoleDocument}
+	other := &Machine{ID: "mch_other_document", WorkflowEngine: WorkflowEngineDocumentApproval, WorkflowRole: WorkflowRoleDocument}
+	app := Application{ID: "app_da", Machines: []string{"mch_document"}, Workflow: &Workflow{Engine: WorkflowEngineDocumentApproval, Roles: map[string]string{WorkflowRoleDocument: "mch_document"}}}
+	ws := Workspace{Machines: []*Machine{doc}, Applications: []Application{app}}
+	if got := ws.MachineInWorkflowRole(WorkflowEngineDocumentApproval, WorkflowRoleDocument, ""); got != doc {
+		t.Fatalf("an active Application's Machine is not found by the fallback: %v", got)
+	}
+	app.Inactive = true
+	ws.Applications = []Application{app}
+	if got := ws.MachineInWorkflowRole(WorkflowEngineDocumentApproval, WorkflowRoleDocument, ""); got != nil {
+		t.Errorf("the fallback reaches into a switched-off Application: %v", got.ID)
+	}
+	if got := ws.MachineInWorkflowRole(WorkflowEngineDocumentApproval, WorkflowRoleDocument, "app_da"); got != nil {
+		t.Errorf("a request in a switched-off Application still gets its Machine: %v", got.ID)
+	}
+	// With a second, active approval Application the fallback is unambiguous again: the switched-off one no longer makes it two.
+	second := Application{ID: "app_db", Machines: []string{"mch_other_document"}, Workflow: &Workflow{Engine: WorkflowEngineDocumentApproval, Roles: map[string]string{WorkflowRoleDocument: "mch_other_document"}}}
+	ws.Machines = []*Machine{doc, other}
+	ws.Applications = []Application{app, second}
+	if got := ws.MachineInWorkflowRole(WorkflowEngineDocumentApproval, WorkflowRoleDocument, ""); got != other {
+		t.Errorf("the fallback with one active and one switched-off Application = %v, want the active one's", got)
+	}
+}

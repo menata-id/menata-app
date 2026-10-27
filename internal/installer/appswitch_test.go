@@ -234,3 +234,21 @@ func TestRemoveApplication_theLastOneLeavesAnEmptyListTheNextCanBeAppendedTo(t *
 		t.Errorf("machines still lists ../user.yaml, but was written as empty:\n%s", m)
 	}
 }
+
+// A manifest line is dropped only when the item is that file: another item that merely begins the same way is left alone, and a trailing comment does not hide it.
+func TestDropManifestLineMatchesTheWholeItem(t *testing.T) {
+	m := []byte("machines:\n  - ../user.yaml\n  - acme/note.yaml   # the notes\n  - acme/note.yaml.bak\n  - 'acme/notes.yaml'\n")
+	got, ok := dropManifestLine(m, "acme/note.yaml")
+	if !ok {
+		t.Fatal("the item was not found")
+	}
+	if want := "machines:\n  - ../user.yaml\n  - acme/note.yaml.bak\n  - 'acme/notes.yaml'\n"; string(got) != want {
+		t.Errorf("after dropping acme/note.yaml:\n%s\nwant:\n%s", got, want)
+	}
+	if _, ok := dropManifestLine([]byte("machines:\n  - acme/note.yaml.bak\n"), "acme/note.yaml"); ok {
+		t.Error("an item that only begins with the name was dropped")
+	}
+	if got, ok := dropManifestLine([]byte("machines:\n  - acme/note.yaml"), "acme/note.yaml"); !ok || string(got) != "machines:\n" {
+		t.Errorf("the last item with no final newline: %q, %v", got, ok)
+	}
+}

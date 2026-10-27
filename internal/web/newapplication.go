@@ -324,6 +324,12 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			recordError(w, err)
 			return
 		}
+		if session.Status == data.AISessionStatusPublished {
+			// A second press (a double click, a second admin): it is already published, and answering it as a failed proposal would hand the
+			// assistant a "correction" and reopen the session, which loses the way to take the publication back.
+			redirectTo(w, req, publishedLanding())
+			return
+		}
 		change, _, err := latestChange(session)
 		if err != nil {
 			serverError(w, err)

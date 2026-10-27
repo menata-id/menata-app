@@ -98,7 +98,7 @@ page:
             - static: subheading
               text: This workspace has no applications yet.
             - static: paragraph
-              text: A workspace is a set of applications. Describe what your team does; Menata asks a few questions, then builds it as a draft only you can see.
+              text: A workspace is a set of applications. Describe what your team does; Menata asks a few questions, then builds it as a draft only you can see. Applications that are switched off are listed, with their switch, in Workspace settings.
     - layout: section
       gap: default
       when: { viewer: workspace_role, is: admin }

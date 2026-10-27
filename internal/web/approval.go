@@ -205,6 +205,9 @@ func pendingApprovalTotal(ctx context.Context, store *data.Store, userID string)
 	total := 0
 	for _, steps := range ws.MachinesInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep) {
 		documents := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, steps.ApplicationID)
+		if documents == nil {
+			continue // its Application is switched off: nothing of it is pending for anyone
+		}
 		n, err := composition.PendingApprovalCount(ctx, l, userID, steps, documents)
 		if err != nil {
 			return 0, err

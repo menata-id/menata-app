@@ -148,3 +148,71 @@ func TestUndoPublishTakesBackOnlyWhatIsRecentUnusedAndTheAssistants(t *testing.T
 		pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, ws.ID)
 	})
 }
+
+// A second Publish of a session that is already published (a double click, a second admin) changes nothing: the session stays published, so the
+// publication can still be taken back, and the assistant is not handed a "correction" for a proposal that was published.
+func TestPublishingASessionTwiceLeavesItPublishedAndTakeBackAlive(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "double_publish_test@example.com"
+	ws, err := store.CreateWorkspace(ctx, "Double Publish Test", "double-publish-test-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_email": email})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	dir := filepath.Join(root, "workspaces")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
+	manifest := filepath.Join(dir, ws.Slug+".yaml")
+	os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644)
+	cfg := config.Config{SessionSecret: "double-publish-secret", MetadataPath: dir}
+
+	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{
+		ID: "app_dbl", Name: "Laporan", Roles: []string{"staf"}, PublisherRole: "staf",
+		Navigation: []aiassist.GeneratedMenuItem{{Label: "Laporan", MachineID: "mch_dbl"}},
+		Machines:   []aiassist.GeneratedMachine{{ID: "mch_dbl", Name: "Laporan", Fields: []aiassist.GeneratedField{{ID: "fld_judul", Name: "Judul", Type: "text", Required: true}}}},
+	}}
+	content, _ := json.Marshal(aiassist.Reply{Message: "ok", Change: &change})
+	session, err := store.CreateAISession(wsCtx, ws.ID, user.ID, aiassist.KindNewApplication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content))
+	store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated)
+	post := func() *httptest.ResponseRecorder {
+		loaded, err := metadata.LoadApplication(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := chi.NewRouter()
+		r.Post("/new-application/{session}/publish", publishNewApplication(store, nil, cfg, func(string) error { return nil }))
+		req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req.WithContext(rendering.WithCurrentWorkspace(wsCtx, loaded.Workspace, "Double Publish Test", false)))
+		return rec
+	}
+	if rec := post(); rec.Code != http.StatusSeeOther {
+		t.Fatalf("first publish = %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := post(); rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/home" {
+		t.Errorf("second publish = %d to %q, want the same landing", rec.Code, rec.Header().Get("Location"))
+	}
+	s, err := store.GetAISession(wsCtx, ws.ID, session.ID)
+	if err != nil || s.Status != data.AISessionStatusPublished || len(s.Turns) != 1 {
+		t.Errorf("after the second publish: %+v, %v -- want published, one turn, nothing appended", s, err)
+	}
+	if _, ok, err := store.AIApplicationOrigin(wsCtx, ws.ID, "app_dbl"); err != nil || !ok {
+		t.Errorf("the publication can no longer be taken back: ok=%v err=%v", ok, err)
+	}
+}

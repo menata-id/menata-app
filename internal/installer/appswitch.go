@@ -204,7 +204,8 @@ func RemoveApplication(workspaceManifestPath, appID string) (RemovedApplication,
 
 // dropManifestLine removes the one list item naming rel from the manifest text, whatever quoting it has.
 func dropManifestLine(manifest []byte, rel string) ([]byte, bool) {
-	re := regexp.MustCompile(`(?m)^[ \t]*-[ \t]*["']?` + regexp.QuoteMeta(filepath.ToSlash(rel)) + `["']?[ \t]*\r?\n?`)
+	// The item ends where its value does: a quote, spaces and a comment may follow, nothing else, so "acme/note.yaml" never matches the front of "acme/note.yaml.bak".
+	re := regexp.MustCompile(`(?m)^[ \t]*-[ \t]*["']?` + regexp.QuoteMeta(filepath.ToSlash(rel)) + `["']?[ \t]*(?:#[^\n]*)?\r?(?:\n|\z)`)
 	if !re.Match(manifest) {
 		return manifest, false
 	}

@@ -90,6 +90,9 @@ func (w Workspace) MachineInWorkflowRole(engine, role, applicationID string) *Ma
 			if app.ID != applicationID || app.Workflow == nil || app.Workflow.Engine != engine {
 				continue
 			}
+			if app.Inactive {
+				return nil
+			}
 			id := app.Workflow.MachineForRole(role)
 			for _, m := range w.Machines {
 				if m.ID == id {
@@ -99,10 +102,33 @@ func (w Workspace) MachineInWorkflowRole(engine, role, applicationID string) *Ma
 			return nil
 		}
 	}
-	if candidates := w.MachinesInWorkflowRole(engine, role); len(candidates) == 1 {
+	// A Machine of an Application that is switched off is not the one a request means: the routes that belong to no Application (the submit
+	// wizard, the pending count) must not reach into it, or switching an Application off would leave its engine reachable by name.
+	var candidates []*Machine
+	for _, m := range w.MachinesInWorkflowRole(engine, role) {
+		if !w.inactiveMachine(m.ID) {
+			candidates = append(candidates, m)
+		}
+	}
+	if len(candidates) == 1 {
 		return candidates[0]
 	}
 	return nil
+}
+
+// inactiveMachine says whether an Application that is switched off (Application.Inactive) claims the Machine.
+func (w Workspace) inactiveMachine(machineID string) bool {
+	for _, app := range w.Applications {
+		if !app.Inactive {
+			continue
+		}
+		for _, id := range app.Machines {
+			if id == machineID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WorkflowEngineDocumentApproval is the sequential/parallel multi-step approval engine
