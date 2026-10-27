@@ -52,13 +52,13 @@ func lowerTree(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(items) == 0 {
+			continue // a template that draws nothing for this record (a `when:` that does not hold) leaves the row out, as a Collection does
+		}
 		if len(items) != 1 {
 			return nil, fmt.Errorf("%s: a Tree row is one node, and record %d's item template drew %d", path, i, len(items))
 		}
-		folder := ""
-		if j := strings.LastIndex(rec["title"], "/"); j >= 0 {
-			folder = rec["title"][:j]
-		}
+		folder := treeFolder(rec["title"])
 		current := "0"
 		if selected != "" && rec[domain.PageRecordIDRole] == selected {
 			current = "1"
@@ -68,4 +68,20 @@ func lowerTree(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	}
 	props[treeOutlineProp] = strings.Join(outline, "\n")
 	return []UINode{out}, nil
+}
+
+// treeFolder is the folder part of a title read as a path: the segments before the last slash, empty segments left out (a leading, trailing or
+// doubled slash names no folder) and a tab or newline read as a space, so a title can neither add a line to the outline nor forge its marker.
+func treeFolder(title string) string {
+	j := strings.LastIndex(title, "/")
+	if j < 0 {
+		return ""
+	}
+	var segs []string
+	for _, seg := range strings.Split(title[:j], "/") {
+		if seg = strings.TrimSpace(strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(seg)); seg != "" {
+			segs = append(segs, seg)
+		}
+	}
+	return strings.Join(segs, "/")
 }

@@ -78,3 +78,32 @@ func TestLowerTree_refusesWhatLoweringAloneKnows(t *testing.T) {
 		t.Error("two item templates: want a refusal")
 	}
 }
+
+// A title cannot bend the outline: tabs, newlines and empty segments are read out of the folder, and a record whose template draws nothing
+// (a `when:` that does not hold for it) leaves its row out instead of failing the screen.
+func TestLowerTree_oddTitlesAndEmptyRowsDoNotBendTheOutline(t *testing.T) {
+	bad := treeFile("a\nb/c.yaml")
+	bad["kind"] = "file"
+	forged := treeFile("x\t1\ny//z/q.yaml")
+	forged["kind"] = "file"
+	empty := map[string]string{"title": "d/", domain.PageTitleLeafRole: "", domain.PageRecordIDRole: "d/", "link": "/f", "kind": "dir"}
+	r := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{bad, forged, empty, withKind(treeFile("/top.yaml"))}}, nil
+	}, Query: func(string) string { return "" }}
+	node := treeBound(map[string]string{"label": "Files", "query": "path"})
+	node.Children = []domain.PageNode{{Kind: "static", Type: "link", When: &domain.PageCondition{Role: "kind", Is: "file"}, From: node.Children[0].From}}
+	out, err := lowerTree(node, r, "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := out[0]
+	lines := strings.Split(tree.Props["outline"], "\n")
+	if len(lines) != len(tree.Children) || len(lines) != 3 {
+		t.Fatalf("one outline line per drawn row: %q for %d rows", tree.Props["outline"], len(tree.Children))
+	}
+	if want := "a b\t0\nx 1 y/z\t0\n\t0"; tree.Props["outline"] != want {
+		t.Errorf("outline = %q", tree.Props["outline"])
+	}
+}
+
+func withKind(m map[string]string) map[string]string { m["kind"] = "file"; return m }

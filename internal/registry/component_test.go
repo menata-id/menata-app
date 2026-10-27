@@ -779,3 +779,22 @@ func TestATableHidesOnlyColumnsItHas(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateTree_refusesAnOutlineThatIsNotFolderAndMarker(t *testing.T) {
+	ok := map[string]string{"label": "Files", "query": "path", "outline": "a\t0\n\t1"}
+	if issues := ValidateComponentUse(domain.ComponentTree, ok); len(issues) != 0 {
+		t.Fatalf("a well-formed outline is refused: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"no query":           {"label": "Files"},
+		"a line with no tab": {"label": "Files", "query": "p", "outline": "a"},
+		"a marker of 2":      {"label": "Files", "query": "p", "outline": "a\t2"},
+		"two selected":       {"label": "Files", "query": "p", "outline": "a\t1\nb\t1"},
+		"an extra field":     {"label": "Files", "query": "p", "outline": "a\tb\t0"},
+		"an unknown input":   {"label": "Files", "query": "p", "class": "x"},
+	} {
+		if len(ValidateComponentUse(domain.ComponentTree, in)) == 0 {
+			t.Errorf("%s: want a refusal", name)
+		}
+	}
+}
