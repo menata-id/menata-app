@@ -140,14 +140,22 @@ func columnWord(v domain.View, col experience.Column) string {
 	return strings.ToLower(strings.TrimSpace(col.Machine.Name))
 }
 
-// addColumnTile is the dashed tile at the end of a board that leads to where lanes are made. It is a link to a navigation item, never a typed
+// addColumnTile is the dashed tile at the end of a board where lanes are made. Where the lane's own Machine is known and the viewer may create
+// one, it opens that Machine's own create form in a dialog -- the "New list" of the Lists screen, written through the same generic record route --
+// and otherwise (no lane yet to name the Machine, or no permission to create) it is a link to the navigation item the View declared, never a typed
 // route, with the words the View declared about what that place is for.
-templ addColumnTile(a domain.AddColumn) {
+templ addColumnTile(a domain.AddColumn, list *domain.Machine, canCreate bool) {
 	<div role="group" aria-label={ a.Label } class={ "flex w-37 shrink-0 flex-col", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusSurface), "border border-dashed p-2", borderClass(ctx, domain.BorderControl), backgroundClass(ctx, domain.BackgroundBase) }>
-		<a href={ templ.URL(routeByID(ctx, a.To)) } class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody), inkHoverClass(ctx, domain.InkStrong) }>
-			@icon("plus", "size-3.5")
-			{ a.Label }
-		</a>
+		if list != nil && canCreate {
+			@popover(a.Label, a.Label, domain.PopoverTriggerSecondary, domain.PopoverAlignStart, domain.PopoverDensityRegular) {
+				@createForm(list, RelationOptions{}, GroupOptions{}, nil, a.Label, false)
+			}
+		} else {
+			<a href={ templ.URL(routeByID(ctx, a.To)) } class={ "flex items-center", layoutGap(ctx, domain.GapXtight), textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkBody), inkHoverClass(ctx, domain.InkStrong) }>
+				@icon("plus", "size-3.5")
+				{ a.Label }
+			</a>
+		}
 		if a.Note != "" {
 			@staticText(domain.StaticNote, a.Note)
 		}
@@ -155,3 +163,20 @@ templ addColumnTile(a domain.AddColumn) {
 }
 
 
+
+// addColumnMachine is the Machine the board's lanes are records of -- the first lane that is one names it. Nil when no lane is (an empty board,
+// or a status board), where the tile can only lead to the screen the View declared.
+func addColumnMachine(columns []experience.Column) *domain.Machine {
+	for _, c := range columns {
+		if c.Machine != nil {
+			return c.Machine
+		}
+	}
+	return nil
+}
+
+// addColumnAllowed is whether the viewer may create a record of the lanes' Machine -- its own Permissions, as the create route reads them.
+func addColumnAllowed(columns []experience.Column, actor domain.Actor) bool {
+	m := addColumnMachine(columns)
+	return m != nil && authorization.AllowsAction(m, domain.ActionCreate, nil, actor)
+}

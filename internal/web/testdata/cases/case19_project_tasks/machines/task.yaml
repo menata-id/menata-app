@@ -279,7 +279,7 @@ views:
     add_column:
       to: nav_board_settings
       label: Add list
-      note: Lists are shared by every project in this workspace. Opens Board settings, where they are renamed, reordered and removed.
+      note: Lists are shared by every project in this workspace.
   - id: vw_task_table
     name: Table
     type: table

@@ -316,7 +316,7 @@ func TestBoardScreen_columnMenuAddTileAndTheLeftoverLane(t *testing.T) {
 		`hx-post="/machines/mch_list/records/lst_a/move?direction=down"`, `hx-post="/machines/mch_list/records/lst_b/move?direction=up"`,
 		`hx-patch="/machines/mch_list/records/lst_a"`,
 		`hx-headers="{&#34;` + domain.RefreshAnswerHeader + `&#34;:&#34;true&#34;}"`, `pattern=".*\S.*"`,
-		`href="/machines/mch_list"`, "Add list", "Lists are shared.",
+		`hx-post="/machines/mch_list/records"`, `role="dialog" aria-label="Add list"`, "Lists are shared.",
 		"border-dashed", "Tasks with no list land here.",
 	} {
 		if !strings.Contains(got, want) {

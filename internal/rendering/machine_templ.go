@@ -2303,7 +2303,7 @@ func boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relat
 			}
 		}
 		if v.AddColumn != nil && hasNavItem(ctx, v.AddColumn.To) {
-			templ_7745c5c3_Err = addColumnTile(*v.AddColumn).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = addColumnTile(*v.AddColumn, addColumnMachine(columns), addColumnAllowed(columns, actor)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

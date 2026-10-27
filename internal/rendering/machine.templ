@@ -922,7 +922,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 			@boardColumn(m, v, col, columnPlace{First: i == first, Last: i == last}, actor, byRecord, targets, preset, relations, groups)
 		}
 		if v.AddColumn != nil && hasNavItem(ctx, v.AddColumn.To) {
-			@addColumnTile(*v.AddColumn)
+			@addColumnTile(*v.AddColumn, addColumnMachine(columns), addColumnAllowed(columns, actor))
 		}
 	</div>
 }
