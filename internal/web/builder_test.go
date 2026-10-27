@@ -21,7 +21,14 @@ import (
 
 // The builder's plan route answers what a list of operations would do, refuses what the policy refuses with the
 // assistant's words, and writes nothing.
-func TestPlanBuilderOperations_reviewsAndWritesNothing(t *testing.T) {
+// builderFixture installs a small Application in a throwaway Workspace on its own metadata directory and returns
+// what a request to the builder routes needs.
+type builderFixture struct {
+	root, manifest string
+	post           func(path, body string) *httptest.ResponseRecorder
+}
+
+func newBuilderFixture(t *testing.T, reload func(string) error) builderFixture {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
 	ctx := context.Background()
@@ -60,15 +67,25 @@ func TestPlanBuilderOperations_reviewsAndWritesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := dirContents(t, root)
-
 	r := chi.NewRouter()
 	r.Post("/builder/{app}/plan", planBuilderOperations(store, cfg))
-	post := func(app, body string) (*httptest.ResponseRecorder, builderPlanView) {
-		req := httptest.NewRequest(http.MethodPost, "/builder/"+app+"/plan", strings.NewReader(body))
+	r.Post("/builder/{app}/apply", applyBuilderOperations(store, cfg, reload))
+	return builderFixture{root: root, manifest: manifest, post: func(path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 		req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, loaded.Workspace, "Builder Plan Test", false))
 		rec := httptest.NewRecorder()
 		r.ServeHTTP(rec, req)
+		return rec
+	}}
+}
+
+func TestPlanBuilderOperations_reviewsAndWritesNothing(t *testing.T) {
+	fx := newBuilderFixture(t, nil)
+	root := fx.root
+	before := dirContents(t, root)
+
+	post := func(app, body string) (*httptest.ResponseRecorder, builderPlanView) {
+		rec := fx.post("/builder/"+app+"/plan", body)
 		var view builderPlanView
 		_ = json.Unmarshal(rec.Body.Bytes(), &view)
 		return rec, view
@@ -107,4 +124,54 @@ func dirContents(t *testing.T, dir string) string {
 		return nil
 	})
 	return b.String()
+}
+
+// The apply route writes the reviewed plan once, behind the version it was made against and the owner's tick on a removal,
+// and reloads the Workspace.
+func TestApplyBuilderOperations_writesBehindVersionAndTick(t *testing.T) {
+	var reloaded []string
+	fx := newBuilderFixture(t, func(slug string) error { reloaded = append(reloaded, slug); return nil })
+	plan := func(ops string) builderPlanView {
+		var v builderPlanView
+		_ = json.Unmarshal(fx.post("/builder/app_bp/plan", `{"ops":`+ops+`}`).Body.Bytes(), &v)
+		return v
+	}
+	rename := `[{"kind":"rename_field","machine":"mch_bp_laporan","field":"fld_judul","value":"Judul laporan"}]`
+	remove := `[{"kind":"remove_field","machine":"mch_bp_laporan","field":"fld_judul"}]`
+	apply := func(ops, version, confirm string) *httptest.ResponseRecorder {
+		return fx.post("/builder/app_bp/apply", `{"ops":`+ops+`,"version":"`+version+`","confirm":`+confirm+`}`)
+	}
+
+	reviewed := plan(rename)
+	if reviewed.Version == "" {
+		t.Fatal("a plan carries no version")
+	}
+	if rec := fx.post("/builder/app_bp/apply", `{"ops":`+rename+`}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("an apply with no version = %d, want 400", rec.Code)
+	}
+	if rec := apply(rename, reviewed.Version, `[]`); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"applied":true`) {
+		t.Fatalf("apply = %d %s", rec.Code, rec.Body.String())
+	}
+	if len(reloaded) != 1 || reloaded[0] != "builder-plan-test-workspace" {
+		t.Errorf("the Workspace was reloaded %v, want once", reloaded)
+	}
+	if b, _ := os.ReadFile(filepath.Join(fx.root, "workspaces", "builder-plan-test-workspace", "bp_laporan.yaml")); !strings.Contains(string(b), "Judul laporan") {
+		t.Errorf("the Machine file lacks the rename:\n%s", b)
+	}
+	// The same plan again is stale: the installation moved.
+	if rec := apply(rename, reviewed.Version, `[]`); rec.Code != http.StatusConflict {
+		t.Errorf("a stale apply = %d, want 409", rec.Code)
+	}
+	// A removal waits for the tick named in the plan.
+	fresh := plan(remove)
+	if len(fresh.Items) != 1 || fresh.Items[0].Confirm == "" {
+		t.Fatalf("a removal's plan names no confirmation: %+v", fresh.Items)
+	}
+	before := dirContents(t, fx.root)
+	if rec := apply(remove, fresh.Version, `[]`); rec.Code != http.StatusUnprocessableEntity || dirContents(t, fx.root) != before {
+		t.Errorf("an unticked removal = %d (files changed: %v)", rec.Code, dirContents(t, fx.root) != before)
+	}
+	if rec := apply(remove, fresh.Version, `["`+fresh.Items[0].Confirm+`"]`); rec.Code != http.StatusOK {
+		t.Errorf("a ticked removal = %d %s", rec.Code, rec.Body.String())
+	}
 }

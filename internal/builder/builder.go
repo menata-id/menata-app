@@ -1,8 +1,11 @@
 package builder
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
+	"sync"
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/installer"
@@ -150,6 +153,8 @@ type Plan struct {
 	Plan aiassist.Plan
 	// Files is the writer's own output diffed with the live files (the Code tab).
 	Files []aiassist.FileChange
+	// Version names the installation the plan was made against (Version); Commit refuses a plan whose version is no longer the live one.
+	Version string
 }
 
 // Review applies ops to the installed Application and returns the plan and the diff. It writes nothing. A refused
@@ -165,13 +170,18 @@ func Review(workspaceManifestPath, appID string, ops []Op) (Plan, error) {
 		return Plan{}, installer.Rejected(fmt.Errorf("application %q is not installed in this workspace", appID))
 	}
 	current := aiassist.DescribeApplication(appID, cur)
+	version, err := Version(workspaceManifestPath)
+	if err != nil {
+		return Plan{}, err
+	}
 	desired, err := Apply(current, ops)
 	if err != nil {
 		return Plan{}, installer.Rejected(err)
 	}
 	out := Plan{
-		Change: aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: appID, Application: &desired},
-		Plan:   aiassist.PlanUpdate(current, desired),
+		Version: version,
+		Change:  aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: appID, Application: &desired},
+		Plan:    aiassist.PlanUpdate(current, desired),
 	}
 	if err := aiassist.Validate(out.Change, state); err != nil {
 		return out, installer.Rejected(err)
@@ -180,4 +190,38 @@ func Review(workspaceManifestPath, appID string, ops []Op) (Plan, error) {
 		return out, err
 	}
 	return out, nil
+}
+
+// ErrStale is a plan made against an installation that has since changed (another admin saved, or the assistant published).
+// The person sees the plan again against what is there now; the edit is not applied blind.
+var ErrStale = errors.New("the application changed since this plan was made; review it again")
+
+// lock serialises Commit per Workspace manifest, so the version check and the write are one step within the process.
+var lock sync.Map
+
+// Commit writes the plan Review made for the same ops, if the installation is still the one it was made against
+// (version) and every removal the plan asks for is among confirmed. It is the single write path: aiassist.Write, the
+// same writer a published conversation uses, which load-verifies and rolls back. Snapshot and reload belong to the caller.
+func Commit(workspaceManifestPath, appID string, ops []Op, version string, confirmed []string) error {
+	mu, _ := lock.LoadOrStore(workspaceManifestPath, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+
+	live, err := Version(workspaceManifestPath)
+	if err != nil {
+		return err
+	}
+	if live != version {
+		return ErrStale
+	}
+	plan, err := Review(workspaceManifestPath, appID, ops)
+	if err != nil {
+		return err
+	}
+	if open := plan.Plan.Unconfirmed(confirmed); len(open) > 0 {
+		return installer.Rejected(fmt.Errorf("this update removes something the owner has not confirmed: %s", strings.Join(open, ", ")))
+	}
+	plan.Change.ConfirmedRemovals = confirmed
+	_, err = aiassist.Write(workspaceManifestPath, plan.Change, aiassist.FileMachineResolver{WorkspaceManifestPath: workspaceManifestPath})
+	return err
 }

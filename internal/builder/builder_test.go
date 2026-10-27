@@ -209,3 +209,98 @@ func equal(a, b map[string]string) bool {
 	}
 	return true
 }
+
+func fieldNames(t *testing.T, manifest string) []string {
+	t.Helper()
+	var out []string
+	for _, f := range current(t, manifest).Machines[0].Fields {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+// Commit writes what Review showed, through the assistant's writer, and the installation's version moves.
+func TestCommitWritesThePlanAndMovesTheVersion(t *testing.T) {
+	manifest := installed(t)
+	ops := []Op{{Kind: OpRenameField, Machine: "mch_catat", Field: "fld_judul", Value: "Judul laporan"}}
+	plan, err := Review(manifest, appID, ops)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Commit(manifest, appID, ops, plan.Version, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := fieldNames(t, manifest); got[0] != "Judul laporan" {
+		t.Errorf("fields after commit: %v", got)
+	}
+	if v, _ := Version(manifest); v == plan.Version {
+		t.Error("the version did not move after a write")
+	}
+}
+
+// A plan made before someone else wrote is not applied.
+func TestCommitRefusesAStalePlan(t *testing.T) {
+	manifest := installed(t)
+	plan, _ := Review(manifest, appID, []Op{{Kind: OpRenameField, Machine: "mch_catat", Field: "fld_judul", Value: "A"}})
+	if err := Commit(manifest, appID, []Op{{Kind: OpRenameMachine, Machine: "mch_catat", Value: "Lain"}}, plan.Version, nil); err != nil {
+		t.Fatal(err)
+	}
+	before := tree(t, manifest)
+	err := Commit(manifest, appID, []Op{{Kind: OpRenameField, Machine: "mch_catat", Field: "fld_judul", Value: "A"}}, plan.Version, nil)
+	if !errors.Is(err, ErrStale) {
+		t.Fatalf("got %v, want ErrStale", err)
+	}
+	if !equal(before, tree(t, manifest)) {
+		t.Error("a stale commit wrote")
+	}
+}
+
+// A removal needs the owner's tick, by the key the plan names; a policy refusal writes nothing.
+func TestCommitHoldsRemovalsAndRefusalsBack(t *testing.T) {
+	manifest := installed(t)
+	remove := []Op{{Kind: OpRemoveField, Machine: "mch_catat", Field: "fld_judul"}}
+	plan, _ := Review(manifest, appID, remove)
+	before := tree(t, manifest)
+	if err := Commit(manifest, appID, remove, plan.Version, nil); err == nil || !strings.Contains(err.Error(), "the owner has not confirmed") { // Commit's own check, made before anything is staged; the writer's wording differs
+		t.Fatalf("an unticked removal: %v", err)
+	}
+	refused := []Op{{Kind: OpRemoveOption, Machine: "mch_catat", Field: "fld_status", Value: "sent"}}
+	if err := Commit(manifest, appID, refused, plan.Version, nil); err == nil {
+		t.Fatal("a refused edit was committed")
+	}
+	if !equal(before, tree(t, manifest)) {
+		t.Fatal("a held-back commit wrote")
+	}
+	if err := Commit(manifest, appID, remove, plan.Version, []string{aiassist.RemovalKey("mch_catat", "fld_judul")}); err != nil {
+		t.Fatal(err)
+	}
+	if got := fieldNames(t, manifest); len(got) != 1 || got[0] != "Status" {
+		t.Errorf("fields after a confirmed removal: %v", got)
+	}
+}
+
+// Two admins applying against the same version: one wins, the other is stale -- not both written.
+func TestCommitAdmitsOneOfTwoConcurrentApplies(t *testing.T) {
+	manifest := installed(t)
+	plan, _ := Review(manifest, appID, []Op{{Kind: OpRenameMachine, Machine: "mch_catat", Value: "X"}})
+	results := make(chan error, 2)
+	for _, name := range []string{"Satu", "Dua"} {
+		go func() {
+			results <- Commit(manifest, appID, []Op{{Kind: OpRenameMachine, Machine: "mch_catat", Value: name}}, plan.Version, nil)
+		}()
+	}
+	var ok, stale int
+	for range 2 {
+		switch err := <-results; {
+		case err == nil:
+			ok++
+		case errors.Is(err, ErrStale):
+			stale++
+		default:
+			t.Error(err)
+		}
+	}
+	if ok != 1 || stale != 1 {
+		t.Errorf("applied %d, stale %d; want 1 and 1", ok, stale)
+	}
+}

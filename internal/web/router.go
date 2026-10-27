@@ -358,6 +358,7 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 			// Apps Builder (Fase 1): review a list of edit operations on an installed Application. Writes nothing.
 			ar.Post("/builder/{app}/plan", planBuilderOperations(d.Store, d.Cfg))
+			ar.Post("/builder/{app}/apply", applyBuilderOperations(d.Store, d.Cfg, d.ReloadMetadata))
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas
 			// re-audit, ROADMAP.md, 2026-09-27) -- same admin gate as the section that triggers it.
 
