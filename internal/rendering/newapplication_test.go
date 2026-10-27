@@ -19,7 +19,7 @@ func TestNewApplicationReviewPage_draftBadgeKeepsItsContentWidth(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{Name: "Acme"}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := resolveColourRoles(t, ctx, buf.String())
@@ -51,7 +51,7 @@ func TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePubli
 		{Op: "remove", What: "Option Gone"},
 	}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, plan, GeneratedFilesView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, plan, GeneratedFilesView{}, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()
@@ -74,7 +74,7 @@ func TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereI
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication}
 	render := func(v GeneratedFilesView) string {
 		var buf bytes.Buffer
-		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
 		return resolveColourRoles(t, ctx, buf.String())
@@ -95,5 +95,37 @@ func TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereI
 
 	if none := render(GeneratedFilesView{}); strings.Contains(none, "The files this would write") {
 		t.Error("with no preview the page must not draw an empty files panel")
+	}
+}
+
+// The review of a new Application with roles asks who else can open it with the Form controls every screen shares: a select of the three
+// choices, the role they get, and the members to tick; an Application with no roles is asked nothing, and an update never is.
+func TestReviewAsksWhoCanOpenANewApplicationWithRoles(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
+	render := func(change aiassist.GeneratedChange, access AccessView) string {
+		var buf bytes.Buffer
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, access, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	fresh := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{Name: "Laporan", Roles: []string{"staf", "lihat"}, PublisherRole: "staf"}}
+	access := AccessView{Roles: []string{"staf", "lihat"}, DefaultRole: "lihat", People: []AccessPerson{{ID: "usr_1", Label: "Bea"}, {ID: "usr_2", Label: "Cai"}}}
+
+	body := render(fresh, access)
+	for _, want := range []string{`name="access"`, `value="only_me"`, `value="some"`, `value="everyone"`, `name="people_role"`, `name="people"`, `value="usr_1"`, `Bea`, `Cai`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the review lacks %q", want)
+		}
+	}
+	if !strings.Contains(body, `<option value="lihat" selected>`) {
+		t.Error("the role the others start with is not preselected")
+	}
+	if strings.Contains(render(fresh, AccessView{}), `name="access"`) {
+		t.Error("the question is asked of an Application that declares no roles")
+	}
+	update := aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_x", Application: fresh.Application}
+	if strings.Contains(render(update, access), `name="access"`) {
+		t.Error("an update asks who can open it")
 	}
 }

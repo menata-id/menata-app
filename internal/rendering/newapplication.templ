@@ -1,5 +1,7 @@
 package rendering
 
+import "strings"
+
 import "menata.app/internal/aiassist"
 import "menata.app/internal/domain"
 
@@ -260,7 +262,7 @@ templ generatedFiles(v GeneratedFilesView) {
 // NewApplicationReviewPage is NewAppReview.dc.html's shape: what will be built, and -- for
 // new_application only, the mockup's own scope -- who gets access before publishing. An
 // update_application review shows its plan instead: what is added, changed and removed.
-templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, access AccessView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← Back to conversation</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
@@ -287,7 +289,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			<aside class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
-					<p class={ "m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
+					<p class={ "m-0", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Choose below who else can open it; you can change that later in the application's Members & roles.</p>
 				} else if change.Kind == aiassist.KindNewApplication {
 					@staticText(domain.StaticNote, "This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.")
 				} else {
@@ -295,6 +297,9 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				}
 				<form id={ publishFormID } method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					@csrfHiddenInput()
+					if change.Kind == aiassist.KindNewApplication && access.Offered() {
+						@accessChoice(access)
+					}
 					@button("Publish to workspace", domain.ButtonPrimary, "", "")
 				</form>
 				// The draft is already stored (Home lists it as a row), so this is a way out that says so, not
@@ -313,4 +318,56 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			</aside>
 		}
 	}
+}
+
+// AccessView is what the review offers for who else can open a new Application: the Workspace's other members, the roles the
+// Application declares, and the role the others start with. It is offered only for an Application that declares roles -- one that
+// declares none gates nothing, so there is nobody to choose between.
+type AccessView struct {
+	People      []AccessPerson
+	Roles       []string
+	DefaultRole string
+}
+
+// AccessPerson is one member the review can give a role to.
+type AccessPerson struct{ ID, Label string }
+
+// Offered says whether the review asks the question at all.
+func (a AccessView) Offered() bool { return len(a.Roles) > 0 }
+
+// The values the "access" control carries; the publish handler reads the same words (web.accessChoice).
+const (
+	AccessOnlyMe   = "only_me"
+	AccessSome     = "some"
+	AccessEveryone = "everyone"
+)
+
+// accessChoice is the review's "Who can open it": only the publisher, the people ticked, or every member. The people and the role are read only
+// for "Some people"; the controls are the ones every bound Form draws, so a Theme change moves them with the rest.
+templ accessChoice(a AccessView) {
+	@staticText(domain.StaticOverline, "Who can open it")
+	@formInput("access", "access", string(domain.InputSelect), accessChoices(), AccessOnlyMe, "Who can open it", false, false, false)
+	@staticText(domain.StaticNote, "Some people: tick them below and pick the role they get. Everyone: every active member gets that role.")
+	@formInput("people_role", "people_role", string(domain.InputSelect), roleChoices(a.Roles), a.DefaultRole, "Role they get", false, false, false)
+	if len(a.People) > 0 {
+		@formInput("people", "people", string(domain.InputMultiSelect), peopleChoices(a.People), "", "People who can open it", false, false, false)
+	}
+}
+
+func accessChoices() string {
+	return strings.Join([]string{
+		AccessOnlyMe + domain.InputChoiceSep + "Only me",
+		AccessSome + domain.InputChoiceSep + "Some people",
+		AccessEveryone + domain.InputChoiceSep + "Everyone in this workspace",
+	}, domain.InputOptionsSep)
+}
+
+func roleChoices(roles []string) string { return strings.Join(roles, domain.InputOptionsSep) }
+
+func peopleChoices(people []AccessPerson) string {
+	lines := make([]string, 0, len(people))
+	for _, p := range people {
+		lines = append(lines, p.ID+"="+p.Label)
+	}
+	return strings.Join(lines, domain.InputOptionsSep)
 }

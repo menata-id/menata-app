@@ -281,7 +281,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 		}
 		actorID := currentActor(req, store, cfg).ID
 		_, switchHref := viewerWorkspaceContext(ctx, store, actorID)
-		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), generatedFiles(ctx, store, cfg, *change), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), generatedFiles(ctx, store, cfg, *change), reviewAccess(ctx, store, *change), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
 }
 
@@ -346,6 +346,10 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 		if !confirmRemovals(w, req, change, ws) {
 			return
 		}
+		access, ok := readAccess(w, req, store, workspaceID, change.Application)
+		if !ok {
+			return
+		}
 		plan, isUpdate := publishedPlan(*change, existingStateFor(ws))
 		snapshotBeforeWrite(cfg, manifestPath)
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
@@ -366,23 +370,35 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			return
 		}
 
-		// Grants the conversation's own answer to "which role will you hold yourself"
-		// (aiassist.GeneratedApplication.PublisherRole, validated to be one of the Application's
-		// own roles) -- without this, nobody held any role in a brand-new Application the moment
-		// it existed, including its own creator, and the redirect below sent them straight into
-		// requireApplicationAccess's 403 (found 2026-09-27 chasing a real conversation that hit
-		// exactly that). Skipped when the Application declares no roles at all, matching
-		// validateNewApplication's own reasoning: nothing gates on holding one there.
-		if newAppID != "" && change.Application != nil && change.Application.PublisherRole != "" {
-			actor := currentActor(req, store, cfg)
-			if err := store.SetMemberAppRole(ctx, workspaceID, actor.ID, newAppID, change.Application.PublisherRole); err != nil {
-				serverError(w, fmt.Errorf("metadata was published but granting your own role failed -- add it yourself from this application's Settings: %w", err))
-				return
-			}
+		if !grantPublishedRoles(ctx, w, req, store, cfg, workspaceID, *change, newAppID, access) {
+			return
 		}
 
 		redirectTo(w, req, publishedLanding(*change, newAppID))
 	}
+}
+
+// grantPublishedRoles gives, once an Application is published, the publisher the role the conversation asked them to hold and then the
+// others the access the review chose (grantPublishedAccess). It answers the failure itself and returns false.
+func grantPublishedRoles(ctx context.Context, w http.ResponseWriter, req *http.Request, store *data.Store, cfg config.Config, workspaceID string, change aiassist.GeneratedChange, newAppID string, access accessGrant) bool {
+	actor := currentActor(req, store, cfg)
+	// The conversation's own answer to "which role will you hold yourself" (aiassist.GeneratedApplication.PublisherRole, validated to be
+	// one of the Application's own roles). Without it nobody held any role in a brand-new Application the moment it existed, its creator
+	// included, and the redirect after publishing sent them straight into requireApplicationAccess's 403 (found 2026-09-27). Skipped when
+	// the Application declares no roles at all, matching validateNewApplication: nothing gates on holding one there.
+	if newAppID != "" && change.Application != nil && change.Application.PublisherRole != "" {
+		if err := store.SetMemberAppRole(ctx, workspaceID, actor.ID, newAppID, change.Application.PublisherRole); err != nil {
+			serverError(w, fmt.Errorf("metadata was published but granting your own role failed -- add it yourself from this application's Settings: %w", err))
+			return false
+		}
+	}
+	if newAppID != "" {
+		if err := grantPublishedAccess(ctx, store, workspaceID, newAppID, actor.ID, access); err != nil {
+			serverError(w, fmt.Errorf("metadata was published but giving the others their role failed -- set it from this application's Members & roles: %w", err))
+			return false
+		}
+	}
+	return true
 }
 
 // publishedLanding is where a publication leaves the person: a new Application opens at its first Machine,
