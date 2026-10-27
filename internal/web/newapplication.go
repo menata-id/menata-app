@@ -281,7 +281,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 		}
 		actorID := currentActor(req, store, cfg).ID
 		_, switchHref := viewerWorkspaceContext(ctx, store, actorID)
-		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), generatedFiles(ctx, store, cfg, *change), reviewAccess(ctx, store, *change), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), generatedFiles(ctx, store, cfg, *change), reviewAccess(ctx, store, *change), unsupportedOf(session), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
 }
 
@@ -568,6 +568,7 @@ func buildConversationView(session *data.AISession) (rendering.ConversationView,
 		}
 		view.Turns[len(view.Turns)-1].CapabilityGap = strings.Join(named, "; ")
 	}
+	view.Unsupported = unsupportedOf(session)
 	change, hasChange, err := latestChange(session)
 	if err != nil {
 		return rendering.ConversationView{}, err
@@ -622,4 +623,28 @@ func confirmRemovals(w http.ResponseWriter, req *http.Request, change *aiassist.
 		return false
 	}
 	return true
+}
+
+// unsupportedOf is every capability gap the assistant named across a conversation, once each and in the order they came: what the person asked for
+// that Menata cannot build yet. It reads the same stored replies the gap log is written from, so the screen and the log cannot disagree.
+func unsupportedOf(session *data.AISession) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, t := range session.Turns {
+		if t.Role == "user" {
+			continue
+		}
+		var reply aiassist.Reply
+		if json.Unmarshal([]byte(t.Content), &reply) != nil {
+			continue
+		}
+		for _, g := range reply.Gaps() {
+			key := strings.ToLower(strings.TrimSpace(g.Requested))
+			if key != "" && !seen[key] {
+				seen[key] = true
+				out = append(out, strings.TrimSpace(g.Requested))
+			}
+		}
+	}
+	return out
 }

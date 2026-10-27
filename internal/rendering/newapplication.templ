@@ -12,6 +12,8 @@ type ConversationView struct {
 	SessionID     string
 	Turns         []ConversationTurn
 	ReadyToReview bool
+	// Unsupported is what the person asked for and Menata cannot build yet, every gap the conversation named, once each (N01 "Yang belum bisa").
+	Unsupported []string
 	Summary       aiassist.GeneratedChange
 	// PrefillIdea pre-fills the first message when this conversation has not started yet (Workspace
 	// Home's own "Add an application" box/chips, Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) --
@@ -105,6 +107,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 						Review →
 					</a>
 				}
+				@unsupportedBlock(view.Unsupported)
 				if view.SessionID != "" {
 					<form method="post" action={ templ.SafeURL("/new-application/" + view.SessionID + "/discard") }>
 						@csrfHiddenInput()
@@ -262,7 +265,7 @@ templ generatedFiles(v GeneratedFilesView) {
 // NewApplicationReviewPage is NewAppReview.dc.html's shape: what will be built, and -- for
 // new_application only, the mockup's own scope -- who gets access before publishing. An
 // update_application review shows its plan instead: what is added, changed and removed.
-templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, access AccessView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, access AccessView, unsupported []string, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← Back to conversation</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
@@ -279,6 +282,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
 			@panelLayout(domain.PanelRegular) {
+				@unsupportedBlock(unsupported)
 				if change.Kind == aiassist.KindUpdateApplication {
 					@updatePlan(plan)
 				} else {
@@ -370,4 +374,18 @@ func peopleChoices(people []AccessPerson) string {
 		lines = append(lines, p.ID+"="+p.Label)
 	}
 	return strings.Join(lines, domain.InputOptionsSep)
+}
+
+// unsupportedBlock is "what it can't do yet": the requests the conversation named that Menata cannot build, said before the person publishes and not
+// discovered afterwards (N01/N02 "Yang belum bisa"). Nothing is drawn when there are none. It is the same list in the panel of the conversation and on
+// the review, so a request does not vanish between the two steps.
+templ unsupportedBlock(items []string) {
+	if len(items) > 0 {
+		@stackLayout(domain.GapTight) {
+			@staticText(domain.StaticOverline, "What it can't do yet")
+			for _, it := range items {
+				@callout(it, domain.ToneWarn)
+			}
+		}
+	}
 }

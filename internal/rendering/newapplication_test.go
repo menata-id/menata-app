@@ -19,7 +19,7 @@ func TestNewApplicationReviewPage_draftBadgeKeepsItsContentWidth(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{Name: "Acme"}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, AccessView{}, nil, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := resolveColourRoles(t, ctx, buf.String())
@@ -51,7 +51,7 @@ func TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePubli
 		{Op: "remove", What: "Option Gone"},
 	}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, plan, GeneratedFilesView{}, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, plan, GeneratedFilesView{}, AccessView{}, nil, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()
@@ -74,7 +74,7 @@ func TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereI
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication}
 	render := func(v GeneratedFilesView) string {
 		var buf bytes.Buffer
-		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, AccessView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, AccessView{}, nil, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
 		return resolveColourRoles(t, ctx, buf.String())
@@ -104,7 +104,7 @@ func TestReviewAsksWhoCanOpenANewApplicationWithRoles(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
 	render := func(change aiassist.GeneratedChange, access AccessView) string {
 		var buf bytes.Buffer
-		if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, access, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, access, nil, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
 		return buf.String()
@@ -127,5 +127,33 @@ func TestReviewAsksWhoCanOpenANewApplicationWithRoles(t *testing.T) {
 	update := aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_x", Application: fresh.Application}
 	if strings.Contains(render(update, access), `name="access"`) {
 		t.Error("an update asks who can open it")
+	}
+}
+
+// What Menata cannot build yet is said on both steps, from the same list, and nothing is drawn when the list is empty.
+func TestUnsupportedBlockIsOnTheConversationAndTheReview(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
+	var conv, review bytes.Buffer
+	view := ConversationView{SessionID: "s1", Unsupported: []string{"Half-day leave", "Quota refilled each 1 January"}}
+	if err := NewApplicationPage(view, "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &conv); err != nil {
+		t.Fatal(err)
+	}
+	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{Name: "Laporan"}}
+	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, AccessView{}, view.Unsupported, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &review); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"conversation": conv.String(), "review": review.String()} {
+		for _, want := range []string{"What it can&#39;t do yet", "Half-day leave", "Quota refilled each 1 January"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("the %s lacks %q", name, want)
+			}
+		}
+	}
+	var none bytes.Buffer
+	if err := NewApplicationPage(ConversationView{SessionID: "s1"}, "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &none); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(none.String(), "What it can&#39;t do yet") {
+		t.Error("the block is drawn with nothing to say")
 	}
 }
