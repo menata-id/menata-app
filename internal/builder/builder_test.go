@@ -304,3 +304,38 @@ func TestCommitAdmitsOneOfTwoConcurrentApplies(t *testing.T) {
 		t.Errorf("applied %d, stale %d; want 1 and 1", ok, stale)
 	}
 }
+
+// Every supported key the assistant has no slot for belongs to an editor, or is named as one the builder never edits: a
+// key added to the catalogue without that decision fails here, and so does an entry left behind once its key gains a slot.
+func TestEveryKeyWithoutASlotHasAnEditor(t *testing.T) {
+	editors := map[string]bool{EditorField: true, EditorMenu: true, EditorView: true, EditorWorkflow: true, EditorAutomation: true, EditorNone: true}
+	owed := map[string]bool{}
+	for _, c := range registry.Capabilities {
+		if c.Stage != registry.StageSupported || c.AIWritable {
+			continue
+		}
+		owed[c.ID] = true
+		o, ok := Ownership[c.ID]
+		switch {
+		case !ok:
+			t.Errorf("%s has no assistant slot (%s) and no editor in builder.Ownership", c.ID, c.AIReason)
+		case !editors[o.Editor] || strings.TrimSpace(o.Why) == "":
+			t.Errorf("%s: editor %q, why %q -- name one of the editors and say why", c.ID, o.Editor, o.Why)
+		}
+	}
+	for id := range Ownership {
+		if !owed[id] {
+			t.Errorf("builder.Ownership lists %s, which is not a supported key without a slot -- remove the entry", id)
+		}
+	}
+}
+
+// uncoveredFloor is how many writable keys no operation names yet. It only goes down: an operation for a key lowers it
+// (and the number here), a new writable key raises it and fails until someone decides.
+const uncoveredFloor = 43
+
+func TestUncoveredWritableKeysOnlyShrink(t *testing.T) {
+	if got := len(Uncovered()); got != uncoveredFloor {
+		t.Errorf("%d writable keys have no operation (floor %d): %v", got, uncoveredFloor, Uncovered())
+	}
+}
