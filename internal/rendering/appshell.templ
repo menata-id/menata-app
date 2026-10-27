@@ -350,6 +350,8 @@ type navMenuItem struct {
 	// pageShell's own navLink already draws. Empty for an item that declares none.
 	Badge  string
 	Active bool
+	// Fallback marks the entry made active only because no entry matched the page (the first one stands in), so it is not what the page is.
+	Fallback bool
 }
 
 // defaultAppMenu turns an Application's own declared navigation into appShell's menu, sorted by
@@ -400,7 +402,7 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 		menu[i] = navMenuItem{ID: item.ID, Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
 	}
 	if matched == -1 && len(menu) > 0 {
-		menu[0].Active = true
+		menu[0].Active, menu[0].Fallback = true, true
 	}
 	return menu
 }
@@ -1018,7 +1020,7 @@ templ sectionHeaderRow(title, linkHref, linkLabel string) {
 // activeMenuNode is the metadata path of the page being drawn: the navigation item whose menu entry is the active one, "" when the Application has no menu.
 func activeMenuNode(menu []navMenuItem) string {
 	for _, item := range menu {
-		if item.Active && item.ID != "" {
+		if item.Active && !item.Fallback && item.ID != "" {
 			return "navigation/" + item.ID
 		}
 	}
@@ -1032,6 +1034,13 @@ func activeMenuNode(menu []navMenuItem) string {
 templ builderPreviewScript() {
 	<script>
 		(function () {
+			if (window.parent === window) return;
+			// A picture of the page, never a way to change it: no write leaves the preview, whichever gesture asks (a form, a drag, a key, an htmx request).
+			document.addEventListener("htmx:beforeRequest", function (e) { e.preventDefault(); }, true);
+			["dragstart", "drop", "keydown", "change"].forEach(function (type) {
+				document.addEventListener(type, function (e) { e.stopImmediatePropagation(); if (type !== "keydown") e.preventDefault(); }, true);
+			});
+			HTMLFormElement.prototype.submit = function () {};
 			document.addEventListener("click", function (e) {
 				var hit = e.target.closest("[data-node-path]");
 				e.preventDefault();

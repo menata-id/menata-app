@@ -104,7 +104,9 @@ func builderMode(store *data.Store, cfg config.Config) func(http.Handler) http.H
 			if req.Method == http.MethodGet && req.URL.Query().Get("builder") == "1" {
 				userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 				workspaceID, _ := data.WorkspaceScope(req.Context())
-				if m, err := membershipFor(req.Context(), store, workspaceID, userID); err == nil && m != nil && m.WorkspaceRole == "admin" {
+				m, err := membershipFor(req.Context(), store, workspaceID, userID)
+				// The same admission as requireWorkspaceAdmin: an admin's membership, or the configured admin identity that has none.
+				if err == nil && ((m != nil && m.WorkspaceRole == "admin") || (m == nil && userID != "" && userID == cfg.AdminUserID)) {
 					req = req.WithContext(rendering.WithBuilderMode(req.Context()))
 				}
 			}

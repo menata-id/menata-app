@@ -1,10 +1,14 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // frame is the registered renderer for `domain.ComponentFrame`: an <iframe> on a path of this host, as wide as the column and as tall as a screen. The
 // listener that follows is the frame's other half: when the page inside reports a part (`builderPreviewScript`), this page is requested again with
 // `query` set to it, so the Tree beside the frame marks that part and the inspector reads it. Only a message from this origin and from this frame is
 // believed.
 templ frame(label, src, query string) {
+	// A path the runtime produced, whatever role fed it: anything else (another site, a javascript: address) draws nothing.
+	if domain.SafeInAppPath(src) {
 	<iframe
 		title={ label }
 		src={ src }
@@ -25,4 +29,5 @@ templ frame(label, src, query string) {
 			});
 		})();
 	</script>
+}
 }

@@ -10,6 +10,7 @@ import (
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // The builder's screen lists an Application's parts as a tree -- Machines with their Fields, its screens, its menu -- marks the part the request
@@ -64,7 +65,7 @@ func TestBuilderPreviewNamesItsPartsOnlyForAnAdminWhoAsks(t *testing.T) {
 	if strings.Count(page, want) != 2 {
 		t.Errorf("want the menu entry and the page itself to name navigation/nav_document_tracking once each, got %d:\n%s", strings.Count(page, want), page)
 	}
-	if !strings.Contains(page, "menataNode") {
+	if !strings.Contains(page, "menataNode") || !strings.Contains(page, "htmx:beforeRequest") {
 		t.Error("the preview does not report a click to its frame")
 	}
 	plain := s.getAs(t, "/machines/mch_document").Body.String()
@@ -109,7 +110,7 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 				}
 			}
 			for _, id := range app.Machines {
-				if strings.HasPrefix(path, "machines/"+id) {
+				if path == "machines/"+id || strings.HasPrefix(path, "machines/"+id+"/") {
 					return true
 				}
 			}
@@ -140,5 +141,30 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 	}
 	if swept < 2 || named < swept {
 		t.Fatalf("swept %d Applications and %d named parts -- the sweep measures too little", swept, named)
+	}
+}
+
+// The preview is the one response that may be framed, and only by this origin; every other response still refuses a frame. (Without this the
+// browser shows "refused to connect" in the builder and no click ever reaches it.)
+func TestBuilderPreviewMayBeFramedByThisOriginOnly(t *testing.T) {
+	s := newInstallTestSetup(t, "bframe")
+	for path, want := range map[string][2]string{
+		"/machines/mch_document?builder=1": {"SAMEORIGIN", "frame-ancestors 'self'"},
+		"/machines/mch_document":           {"DENY", "frame-ancestors 'none'"},
+		"/builder/app_document_tracking":   {"DENY", "frame-ancestors 'none'"},
+	} {
+		h := s.getAs(t, path).Header()
+		if h.Get("X-Frame-Options") != want[0] || !strings.Contains(h.Get("Content-Security-Policy"), want[1]) {
+			t.Errorf("%s: X-Frame-Options %q, CSP %q; want %q and %q", path, h.Get("X-Frame-Options"), h.Get("Content-Security-Policy"), want[0], want[1])
+		}
+	}
+}
+
+// The address the builder frames keeps whatever query the home route already has.
+func TestBuilderPreviewRouteKeepsTheHomeRoutesOwnQuery(t *testing.T) {
+	for route, want := range map[string]string{"/machines/x": "/machines/x?builder=1", "/a?tab=mine": "/a?builder=1&tab=mine", "": ""} {
+		if got := builderPreviewRoute(domain.Application{HomeRoute: route}); got != want {
+			t.Errorf("%q -> %q, want %q", route, got, want)
+		}
 	}
 }

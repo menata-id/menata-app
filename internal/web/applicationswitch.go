@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -183,5 +184,12 @@ func builderPreviewRoute(app domain.Application) string {
 	if app.HomeRoute == "" {
 		return ""
 	}
-	return app.HomeRoute + "?builder=1"
+	u, err := url.Parse(app.HomeRoute)
+	if err != nil {
+		return ""
+	}
+	q := u.Query()
+	q.Set("builder", "1")
+	u.RawQuery = q.Encode()
+	return u.String()
 }

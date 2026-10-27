@@ -23,8 +23,15 @@ import "net/http"
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		// The Application Builder frames the application's own screen, asked for with `?builder=1`: that request alone may be framed, and only by this
+		// origin ('self'), so the page stays unframeable by any other site. (Whether the request gets builder markup is builderMode's decision, for an
+		// admin; the framing rule does not depend on it because a frame of this origin cannot be made by anyone but this origin.)
+		frameAncestors, frameOptions := "'none'", "DENY"
+		if r.Method == http.MethodGet && r.URL.Query().Get("builder") == "1" {
+			frameAncestors, frameOptions = "'self'", "SAMEORIGIN"
+		}
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Frame-Options", frameOptions)
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; "+
@@ -32,7 +39,7 @@ func secureHeaders(next http.Handler) http.Handler {
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self'; "+
 				"object-src 'none'; "+
-				"frame-ancestors 'none'")
+				"frame-ancestors "+frameAncestors)
 		next.ServeHTTP(w, r)
 	})
 }
