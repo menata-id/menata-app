@@ -730,25 +730,17 @@ navigation:
               children:
                 - static: subheading
                   text: Lists
-                - layout: row
-                  gap: tight
-                  align: center
+                - component: Popover
+                  label: + New list
+                  title: New list
+                  trigger: link
+                  align: end
+                  density: regular
                   children:
-                    - component: Popover
-                      label: New list
-                      title: New list
-                      trigger: secondary
-                      align: end
-                      density: regular
-                      children:
-                        - component: Form
-                          submit: Add list
-                          fields: [fld_name]
-                          binding: { dataset: ds_board_lists, write: create }
-                    - static: link
-                      list_of: ds_board_lists
-                      text: Manage lists →
-                      variant: quiet
+                    - component: Form
+                      submit: Add list
+                      fields: [fld_name]
+                      binding: { dataset: ds_board_lists, write: create }
             - component: Collection
               gap: tight
               ordered: true
@@ -759,35 +751,45 @@ navigation:
                 dataset: ds_board_lists
                 rows: records
               children:
-                - layout: stack
+                - layout: row
                   gap: tight
+                  align: center
+                  tracks: fill fit
                   children:
                     - static: link
                       from:
                         text: title
                         href: record
-                    - component: Button
-                      label: Move up
-                      variant: secondary
-                      direction: up
-                      binding:
-                        write: move
-                    - component: Button
-                      label: Move down
-                      variant: secondary
-                      direction: down
-                      binding:
-                        write: move
-                    - component: Form
-                      submit: Rename
-                      binding:
-                        write: update
-                    - component: Button
-                      label: Delete
-                      variant: secondary
-                      confirm: Delete this list? This cannot be undone.
-                      binding:
-                        write: delete
+                      variant: plain
+                    - component: Popover
+                      label: Rename
+                      title: Edit list
+                      trigger: link
+                      align: end
+                      density: regular
+                      children:
+                        - component: Form
+                          submit: Rename
+                          binding:
+                            write: update
+                        - component: Button
+                          label: Move up
+                          variant: secondary
+                          direction: up
+                          binding:
+                            write: move
+                        - component: Button
+                          label: Move down
+                          variant: secondary
+                          direction: down
+                          binding:
+                            write: move
+                        - component: Button
+                          label: Delete
+                          variant: secondary
+                          confirm: Delete this list? This cannot be undone.
+                          binding:
+                            write: delete
             - static: note
               text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
         - layout: stack
@@ -800,25 +802,17 @@ navigation:
               children:
                 - static: subheading
                   text: Labels
-                - layout: row
-                  gap: tight
-                  align: center
+                - component: Popover
+                  label: + New label
+                  title: New label
+                  trigger: link
+                  align: end
+                  density: regular
                   children:
-                    - component: Popover
-                      label: New label
-                      title: New label
-                      trigger: secondary
-                      align: end
-                      density: regular
-                      children:
-                        - component: Form
-                          submit: Add label
-                          fields: [fld_name, fld_color]
-                          binding: { dataset: ds_board_labels, write: create }
-                    - static: link
-                      list_of: ds_board_labels
-                      text: Manage labels →
-                      variant: quiet
+                    - component: Form
+                      submit: Add label
+                      fields: [fld_name, fld_color]
+                      binding: { dataset: ds_board_labels, write: create }
             - component: Collection
               gap: tight
               empty: No labels yet.
@@ -828,32 +822,44 @@ navigation:
                 dataset: ds_labels_with_cards
                 rows: records
               children:
-                - layout: stack
+                - layout: row
                   gap: tight
+                  align: center
+                  tracks: fit fill fit
                   children:
+                    - component: Tag
+                      from:
+                        label: title
+                        color: color
                     - layout: row
-                      gap: tight
+                      gap: xtight
                       align: center
                       children:
-                        - component: Tag
+                        - static: caption
                           from:
-                            label: title
-                            color: color
+                            text: color
                         - static: caption
                           count:
                             of: rel_label_cards
-                            one: used on {n} card
-                            other: used on {n} cards
-                    - component: Form
-                      submit: Save
-                      binding:
-                        write: update
-                    - component: Button
-                      label: Delete
-                      variant: secondary
-                      confirm: Delete this label? This cannot be undone.
-                      binding:
-                        write: delete
+                            one: "· used on {n} card"
+                            other: "· used on {n} cards"
+                    - component: Popover
+                      label: Edit
+                      title: Edit label
+                      trigger: link
+                      align: end
+                      density: regular
+                      children:
+                        - component: Form
+                          submit: Save
+                          binding:
+                            write: update
+                        - component: Button
+                          label: Delete
+                          variant: secondary
+                          confirm: Delete this label? This cannot be undone.
+                          binding:
+                            write: delete
             - static: note
               text: Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.
 

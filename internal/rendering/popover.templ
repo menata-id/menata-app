@@ -116,6 +116,9 @@ func popoverTriggerClasses(ctx context.Context, trigger domain.PopoverTrigger) s
 	if trigger == domain.PopoverTriggerPill {
 		return "inline-flex cursor-pointer list-none items-center border px-2.5 py-1 " + layoutGap(ctx, domain.GapMicro) + " " + radiusClass(ctx, domain.RadiusPill) + " " + borderClass(ctx, domain.BorderControl) + " " + backgroundClass(ctx, domain.BackgroundRaised) + " " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkSecondary) + " " + hoverWashClass(ctx)
 	}
+	if trigger == domain.PopoverTriggerLink {
+		return "cursor-pointer list-none whitespace-nowrap " + textClass(ctx, domain.RoleMeta) + " " + inkClass(ctx, domain.InkAccent) + " " + accentHoverClass(ctx)
+	}
 	if trigger == domain.PopoverTriggerQuiet {
 		return "grid size-5.5 cursor-pointer list-none place-items-center " + radiusClass(ctx, domain.RadiusControl) + " " + inkClass(ctx, domain.InkSecondary) + " " + sunkenHoverClass(ctx) + " " + inkHoverClass(ctx, domain.InkBody) + " " + touchTargetClass()
 	}

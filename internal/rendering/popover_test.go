@@ -166,3 +166,18 @@ func TestPopover_pillTriggerIsWordsAndAChevronInASmallOutline(t *testing.T) {
 		t.Errorf("a pill is not a button's height:\n%s", summary)
 	}
 }
+
+// `trigger: link` is the trigger's words as a small accent link: no outline, no fill, no chevron -- "+ New list" beside a section's title, a
+// row's "Rename".
+func TestPopover_linkTriggerIsWordsInTheAccentWithNoOutline(t *testing.T) {
+	got := renderPopover(t, context.Background(), "+ New list", "New list", domain.PopoverTriggerLink, domain.PopoverAlignEnd, domain.PopoverDensityRegular, "BODY")
+	summary := got[strings.Index(got, "<summary"):strings.Index(got, "</summary>")]
+	if !strings.Contains(summary, "+ New list") || !strings.Contains(summary, "text-accent") {
+		t.Errorf("the link trigger lacks its words or the accent:\n%s", summary)
+	}
+	for _, absent := range []string{"<svg", "border", "rounded"} {
+		if strings.Contains(summary, absent) {
+			t.Errorf("a link trigger draws %q:\n%s", absent, summary)
+		}
+	}
+}

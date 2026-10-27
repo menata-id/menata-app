@@ -615,10 +615,13 @@ const (
 	// PopoverTriggerPill is its words in a small outlined pill with a chevron after them: a choice among a few ("Switch project"), which a full
 	// button would make the loudest thing on the screen it only qualifies.
 	PopoverTriggerPill PopoverTrigger = "pill"
+	// PopoverTriggerLink is its words as a small accent link with no outline: an action that belongs to a section or a row ("+ New list", a row's
+	// "Rename"), which a bordered button would make louder than the thing it acts on (Case 19 PM06).
+	PopoverTriggerLink PopoverTrigger = "link"
 )
 
 // KnownPopoverTriggers is the closed set.
-var KnownPopoverTriggers = map[PopoverTrigger]bool{PopoverTriggerSecondary: true, PopoverTriggerFilled: true, PopoverTriggerQuiet: true, PopoverTriggerPill: true}
+var KnownPopoverTriggers = map[PopoverTrigger]bool{PopoverTriggerSecondary: true, PopoverTriggerFilled: true, PopoverTriggerQuiet: true, PopoverTriggerPill: true, PopoverTriggerLink: true}
 
 // PopoverAlign is the side of its trigger a Popover's panel lines up with: `start` opens toward the right from the
 // trigger's left edge, `end` toward the left from its right edge.
