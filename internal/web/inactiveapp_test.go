@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -93,7 +94,7 @@ func TestWorkspaceApplicationsListsTheSwitchedOffOnesToo(t *testing.T) {
 		{ID: "app_off", Name: "Off", Machines: []string{"mch_b", "mch_c"}, Inactive: true},
 	}}
 	ctx := rendering.WithCurrentWorkspace(context.Background(), ws, "W", false)
-	rows, err := workspaceApplicationsProvider(data.NewStore(authTestPool(t)))(ctx, nil, domain.Actor{})
+	rows, err := workspaceApplicationsProvider()(ctx, composition.NewLoader(data.NewStore(authTestPool(t)), nil), domain.Actor{})
 	if err != nil || len(rows) != 2 {
 		t.Fatalf("rows=%d err=%v, want both Applications", len(rows), err)
 	}
@@ -119,5 +120,36 @@ func TestWorkspaceSettingsOffersTheApplicationSwitch(t *testing.T) {
 	}
 	if strings.Contains(body, "/runtime-actions/reactivate_application") {
 		t.Error("an active Application is offered Switch on")
+	}
+}
+
+// An Application the assistant published a moment ago is offered to the admin on Workspace Home with Take back, and is not once the
+// window has passed: the door N02 promises beside "Publish".
+func TestHomeOffersTakeBackForARecentPublicationOnly(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "homeundo", "default")
+	wsID, _ := data.WorkspaceScope(ctx)
+	if len(ws.Applications) == 0 {
+		t.Fatal("default installs no Application")
+	}
+	app := ws.Applications[0]
+	if body := getPage(t, h, cookie, "/home"); strings.Contains(body, "undo_publish") {
+		t.Fatal("Take back is offered with nothing published")
+	}
+	session, err := store.CreateAISession(ctx, wsID, "usr_test_actor", "new_application")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkAISessionPublished(ctx, wsID, session.ID, app.ID); err != nil {
+		t.Fatal(err)
+	}
+	body := getPage(t, h, cookie, "/home")
+	if !strings.Contains(body, "/runtime-actions/undo_publish?record="+app.ID) || !strings.Contains(body, "Take back") {
+		t.Errorf("a publication of a moment ago is not offered a Take back on Home")
+	}
+	if _, err := authTestPool(t).Exec(ctx, `UPDATE ai_sessions SET published_at = NOW() - interval '11 minutes' WHERE id = $1`, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	if body := getPage(t, h, cookie, "/home"); strings.Contains(body, "undo_publish") {
+		t.Error("Take back is still offered after the ten minutes")
 	}
 }

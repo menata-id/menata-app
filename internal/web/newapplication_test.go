@@ -19,6 +19,7 @@ import (
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -841,7 +842,7 @@ func TestBuildConversationView_offersReviewOnlyForAValidatedChange(t *testing.T)
 func draftRowsText(t *testing.T, ctx context.Context, store *data.Store) string {
 	t.Helper()
 	workspaceID, _ := data.WorkspaceScope(ctx)
-	drafts, err := draftApplications(ctx, store, workspaceID)
+	drafts, err := draftApplications(ctx, store, composition.NewLoader(store, nil), workspaceID)
 	if err != nil {
 		t.Fatalf("draftApplications: %v", err)
 	}

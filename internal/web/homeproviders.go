@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 
-	"menata.app/internal/aiassist"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -23,7 +22,7 @@ import (
 // Machine's record count labelled by that Machine's name. A counting failure degrades to no count and not to no screen: Home's
 // job is to list the Applications, and losing one number is not worth losing it.
 func applicationsProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
-	return func(ctx context.Context, _ *composition.Loader, viewer domain.Actor) ([]*data.Record, error) {
+	return func(ctx context.Context, l *composition.Loader, viewer domain.Actor) ([]*data.Record, error) {
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		membership, err := membershipFor(ctx, store, workspaceID, viewer.ID)
 		if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
@@ -81,7 +80,7 @@ func applicationsProvider(store *data.Store, cfg config.Config) composition.Runt
 		// A Workspace's admins also see the drafts the assistant has generated, as rows of the same list: a draft is an Application
 		// that is not published yet, and Home lists Applications. Only an admin can review one, so only an admin is offered it.
 		if viewer.WorkspaceRole == domain.WorkspaceRoleAdmin {
-			drafts, err := draftApplications(ctx, store, workspaceID)
+			drafts, err := draftApplications(ctx, store, l, workspaceID)
 			if err != nil {
 				return nil, err
 			}
@@ -135,13 +134,16 @@ type draftApplication struct{ id, name, reviewRoute string }
 // draftApplications is every assistant session of this Workspace whose status is "generated" (a validated proposal exists, not yet
 // published or discarded), resolved by latestChange, the same pure decode of already-stored turns the review screen uses -- no model
 // call. Home reads it for a Workspace's admins only (applicationsProvider).
-func draftApplications(ctx context.Context, store *data.Store, workspaceID string) ([]draftApplication, error) {
-	sessions, err := store.ListAISessionsByStatus(ctx, workspaceID, aiassist.KindNewApplication, data.AISessionStatusGenerated)
+func draftApplications(ctx context.Context, store *data.Store, l *composition.Loader, workspaceID string) ([]draftApplication, error) {
+	sessions, err := l.AISessionsForHome(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]draftApplication, 0, len(sessions))
 	for _, s := range sessions {
+		if s.Status != data.AISessionStatusGenerated {
+			continue
+		}
 		full, err := store.GetAISession(ctx, workspaceID, s.ID)
 		if err != nil {
 			return nil, err

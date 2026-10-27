@@ -11,6 +11,30 @@ page:
     - component: Collection
       gap: default
       block: true
+      hide_empty: true
+      when: { viewer: workspace_role, is: admin }
+      binding: { dataset: ds_runtime_recent_publications, rows: records }
+      children:
+        - layout: row
+          gap: default
+          align: center
+          justify: spread
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: paragraph
+                  from: { text: title }
+                - static: caption
+                  from: { text: subtitle }
+            - component: Button
+              label: Take back
+              variant: secondary
+              confirm: Take this application back? Its files and roles are removed, and the proposal opens for review again. This is only possible until the ten minutes are up and before anyone adds a record.
+              binding: { write: action, action: undo_publish }
+    - component: Collection
+      gap: default
+      block: true
       divided: true
       density: roomy
       empty: No application to open here yet. An application appears once it is installed into this workspace and you hold a role in it; ask a workspace admin for one.

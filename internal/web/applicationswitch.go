@@ -64,13 +64,21 @@ func switchApplication(w http.ResponseWriter, req *http.Request, env actionEnv, 
 // workspaceApplicationsProvider is the reader of the `workspace_applications` source: every Application installed in the current
 // Workspace in its installation's order, with whether it is switched off and what its Machines amount to. It is the admin's
 // list, which is why it keeps the Applications the menu and Home leave out.
-func workspaceApplicationsProvider(store *data.Store) composition.RuntimeProvider {
-	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+func workspaceApplicationsProvider() composition.RuntimeProvider {
+	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		apps := rendering.CurrentWorkspace(ctx).Applications
-		origins, err := store.AIApplicationOrigins(ctx, workspaceID)
+		sessions, err := l.AISessionsForHome(ctx)
 		if err != nil {
 			return nil, err
+		}
+		origins := map[string]time.Time{}
+		for _, s := range sessions {
+			if s.Status == data.AISessionStatusPublished && s.ApplicationID != "" && s.PublishedAt != nil {
+				if at, seen := origins[s.ApplicationID]; !seen || s.PublishedAt.Before(at) {
+					origins[s.ApplicationID] = *s.PublishedAt
+				}
+			}
 		}
 		now := time.Now()
 		out := make([]*data.Record, 0, len(apps))
@@ -79,9 +87,9 @@ func workspaceApplicationsProvider(store *data.Store) composition.RuntimeProvide
 			if app.Inactive {
 				state, detail = "Inactive", "Switched off: nobody can open it. Its "+plural2(len(app.Machines), "machine")+" and records are kept."
 			}
-			if at, ok := origins[app.ID]; ok && now.Sub(at) <= publishUndoWindow {
+			if at, ok := origins[app.ID]; ok && now.Sub(at) <= domain.PublishUndoWindow {
 				undo = "Undo"
-				detail += ". Published by the assistant just now: you can take it back until " + at.Add(publishUndoWindow).Local().Format("15:04") + "."
+				detail += ". Published by the assistant just now: you can take it back until " + at.Add(domain.PublishUndoWindow).Local().Format("15:04") + "."
 			}
 			out = append(out, &data.Record{ID: app.ID, MachineID: "mch_workspace_application", WorkspaceID: workspaceID,
 				Values: map[string]any{"fld_id": app.ID, "fld_title": app.Name, "fld_detail": detail, "fld_state": state, "fld_undo": undo}})
@@ -97,10 +105,6 @@ func plural2(n int, noun string) string {
 	return strconv.Itoa(n) + " " + noun + "s"
 }
 
-// publishUndoWindow is how long after the assistant publishes a new Application it can be taken back. Past it, the Application is switched off instead:
-// people may be relying on it by then.
-const publishUndoWindow = 10 * time.Minute
-
 func (e actionEnv) clock() time.Time {
 	if e.now != nil {
 		return e.now()
@@ -108,7 +112,7 @@ func (e actionEnv) clock() time.Time {
 	return time.Now()
 }
 
-// runUndoPublish takes back an Application the assistant published within publishUndoWindow: it removes the Application's files and its own
+// runUndoPublish takes back an Application the assistant published within domain.PublishUndoWindow: it removes the Application's files and its own
 // Machines' files from the Workspace (installer.RemoveApplication), then what the database holds for it (roles, grants), and reopens the
 // proposal for review. It refuses an Application the assistant did not publish, one past the window, and one any of whose Machines holds a
 // record -- those are people's work, and the way back for them is Switch off.
@@ -126,7 +130,7 @@ func runUndoPublish(w http.ResponseWriter, req *http.Request, env actionEnv, app
 		return "", false
 	case !ok:
 		return refuse("only an application the assistant published can be taken back")
-	case env.clock().Sub(published) > publishUndoWindow:
+	case env.clock().Sub(published) > domain.PublishUndoWindow:
 		return refuse("the ten minutes to take this back have passed; switch it off instead")
 	}
 	app, found := rendering.CurrentWorkspace(ctx).ApplicationByID(appID)

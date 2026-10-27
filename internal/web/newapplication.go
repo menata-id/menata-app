@@ -374,7 +374,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			return
 		}
 
-		redirectTo(w, req, publishedLanding(*change, newAppID))
+		redirectTo(w, req, publishedLanding())
 	}
 }
 
@@ -401,14 +401,10 @@ func grantPublishedRoles(ctx context.Context, w http.ResponseWriter, req *http.R
 	return true
 }
 
-// publishedLanding is where a publication leaves the person: a new Application opens at its first Machine,
-// an update returns to Workspace Home.
-func publishedLanding(change aiassist.GeneratedChange, newAppID string) string {
-	if newAppID != "" {
-		return "/machines/" + firstMachineOf(change)
-	}
-	return "/home"
-}
+// publishedLanding is where a publication leaves the person: Workspace Home, where the new Application is the first of the list and, for ten
+// minutes, a "Take back" is offered beside it (N02: a publication can be undone). It used to open the new Application's first Machine, which left
+// no place to say that.
+func publishedLanding() string { return "/home" }
 
 // failPublish routes a failed aiassist.Write by whose problem it is. A rejection goes back to the
 // assistant to correct -- Write rolled its own writes back, so the tree is untouched. Anything else
@@ -601,13 +597,6 @@ func latestChange(session *data.AISession) (*aiassist.GeneratedChange, bool, err
 		}
 	}
 	return nil, false, nil
-}
-
-func firstMachineOf(change aiassist.GeneratedChange) string {
-	if change.Application != nil && len(change.Application.Machines) > 0 {
-		return change.Application.Machines[0].ID
-	}
-	return ""
 }
 
 // confirmRemovals reads the removals the owner ticked at review into the change and answers 422 itself when

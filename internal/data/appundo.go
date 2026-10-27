@@ -6,28 +6,36 @@ import (
 	"time"
 )
 
-// AIApplicationOrigins is AIApplicationOrigin for every Application of a Workspace at once: when the assistant first published each, keyed by
-// application id. One statement, so a list of Applications does not cost one read each.
-func (s *Store) AIApplicationOrigins(ctx context.Context, workspaceID string) (map[string]time.Time, error) {
-	readLogFrom(ctx).record("ai application origins")
+// AISessionBrief is what Workspace Home needs of an assistant session of a new Application: whether it is a draft awaiting review (generated) or
+// was published, which Application it published and when.
+type AISessionBrief struct {
+	ID            string
+	Status        string
+	ApplicationID string
+	PublishedAt   *time.Time
+}
+
+// ListAISessionsForHome is every new-Application session Home may show, in one statement: the drafts (generated) and the publications since
+// `since` (those can still be taken back). Home's draft rows and its Take back rows both read it, through the Loader's memo, so the page pays once.
+func (s *Store) ListAISessionsForHome(ctx context.Context, workspaceID string, since time.Time) ([]AISessionBrief, error) {
+	readLogFrom(ctx).record("ai sessions for home")
 	rows, err := s.pool.Query(ctx, `
-		SELECT application_id, min(published_at) FROM ai_sessions
-		 WHERE workspace_id = $1 AND application_id IS NOT NULL AND published_at IS NOT NULL
-		   AND target = 'new_application' AND status = 'published'
-		 GROUP BY application_id
-	`, workspaceID)
+		SELECT id, status, COALESCE(application_id, ''), published_at FROM ai_sessions
+		 WHERE workspace_id = $1 AND target = 'new_application'
+		   AND (status = 'generated' OR (status = 'published' AND published_at >= $2))
+		 ORDER BY created_at
+	`, workspaceID, since)
 	if err != nil {
-		return nil, fmt.Errorf("ai application origins: %w", err)
+		return nil, fmt.Errorf("list ai sessions for home: %w", err)
 	}
 	defer rows.Close()
-	out := map[string]time.Time{}
+	var out []AISessionBrief
 	for rows.Next() {
-		var id string
-		var at time.Time
-		if err := rows.Scan(&id, &at); err != nil {
+		var b AISessionBrief
+		if err := rows.Scan(&b.ID, &b.Status, &b.ApplicationID, &b.PublishedAt); err != nil {
 			return nil, err
 		}
-		out[id] = at
+		out = append(out, b)
 	}
 	return out, rows.Err()
 }

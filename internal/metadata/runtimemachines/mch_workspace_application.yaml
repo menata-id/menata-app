@@ -22,3 +22,8 @@ datasets:
   - id: ds_runtime_workspace_applications
     select: records
     limit: 200
+  # What the assistant published in the last ten minutes and can still be taken back (Workspace Home offers it to admins, N02 "Urungkan").
+  - id: ds_runtime_recent_publications
+    select: records
+    where: { field: fld_undo, op: equals, value: Undo }
+    limit: 20

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -74,10 +75,13 @@ type Loader struct {
 	// groups and members carry their own "already read" flags rather than relying on a nil
 	// check: both legitimately come back nil for a Workspace that has none, and a memo that
 	// cannot tell that from "not read yet" would read again every time.
-	groups      []data.Group
-	groupsRead  bool
-	members     []data.Membership
-	membersRead bool
+	groups     []data.Group
+	groupsRead bool
+	// homeSessions memoizes AISessionsForHome (a nil slice is a real answer, hence the flag).
+	homeSessions     []data.AISessionBrief
+	homeSessionsRead bool
+	members          []data.Membership
+	membersRead      bool
 
 	reads  int
 	served int
@@ -567,6 +571,23 @@ func (l *Loader) PersonNames(ctx context.Context) (map[string]string, error) {
 	l.reads++
 	l.personNames = names
 	return names, nil
+}
+
+// AISessionsForHome is the Workspace's assistant sessions Home may show -- drafts awaiting review and publications still inside
+// domain.PublishUndoWindow -- read once per request however many providers ask (Home's draft rows and its Take back rows both do).
+func (l *Loader) AISessionsForHome(ctx context.Context) ([]data.AISessionBrief, error) {
+	if l.homeSessionsRead {
+		l.served++
+		return l.homeSessions, nil
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	sessions, err := l.store.ListAISessionsForHome(ctx, workspaceID, time.Now().Add(-domain.PublishUndoWindow))
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.homeSessions, l.homeSessionsRead = sessions, true
+	return sessions, nil
 }
 
 // Groups memoizes this Workspace's Groups for the request.

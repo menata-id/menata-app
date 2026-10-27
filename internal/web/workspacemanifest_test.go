@@ -115,8 +115,8 @@ func TestPublishNewApplication_healsAWorkspaceCreatedWithoutAManifest(t *testing
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("publish = %d, want 303; body: %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("Location"); got != "/machines/mch_branch" {
-		t.Errorf("Location = %q, want the new Application's first Machine", got)
+	if got := rec.Header().Get("Location"); got != "/home" {
+		t.Errorf("Location = %q, want Workspace Home, where a publication can be taken back", got)
 	}
 	loaded, err := metadata.LoadWorkspaces(metadataDir)
 	if err != nil {

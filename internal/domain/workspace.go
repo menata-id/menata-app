@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // Workspace is the highest organizational boundary (001-design-principles.md Principle #9,
 // 004-runtime-metadata.md "Workspace"). It owns the Machines and the Applications inside it.
 //
@@ -84,6 +86,10 @@ type ApplicationSuggestion struct {
 	Label  string
 	Prompt string
 }
+
+// PublishUndoWindow is how long after the assistant publishes a new Application it can be taken back (the undo_publish runtime action). Past it the
+// Application is switched off instead: people may be relying on it by then.
+const PublishUndoWindow = 10 * time.Minute
 
 // ApplicationByID returns the Application with the given id. Applications are few and this is
 // called once per request at most, so a linear scan beats maintaining a parallel map.
