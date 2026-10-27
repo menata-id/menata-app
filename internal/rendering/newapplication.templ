@@ -282,13 +282,19 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
 			@panelLayout(domain.PanelRegular) {
-				@unsupportedBlock(unsupported)
 				if change.Kind == aiassist.KindUpdateApplication {
+					@unsupportedBlock(unsupported)
 					@updatePlan(plan)
+					@generatedFiles(files)
 				} else {
-					@changeSummary(change)
+					// N02 opens with the one thing that is new at this step, the screens it built; the rest was agreed in step 1 and is folded, not removed.
+					@screensBuilt(change)
+					@unsupportedBlock(unsupported)
+					@disclosure("More about what was built") {
+						@changeSummary(change)
+						@generatedFiles(files)
+					}
 				}
-				@generatedFiles(files)
 			}
 			<aside class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
@@ -306,6 +312,9 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 					}
 					@button("Publish to workspace", domain.ButtonPrimary, "", "")
 				</form>
+				if change.Kind == aiassist.KindNewApplication {
+					@staticText(domain.StaticNote, "Published by mistake? For ten minutes after publishing, Workspace settings > Applications has Take back, which removes it and reopens this draft. After that you can switch it off there.")
+				}
 				// The draft is already stored (Home lists it as a row), so this is a way out that says so, not
 				// a save: it only leaves.
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center " + backgroundClass(ctx, domain.BackgroundRaised) + " px-4 " + textClass(ctx, domain.RoleBody) + " " + inkClass(ctx, domain.InkStrong), hoverWashClass(ctx) }>Keep as draft</a>
@@ -350,20 +359,57 @@ const (
 // for "Some people"; the controls are the ones every bound Form draws, so a Theme change moves them with the rest.
 templ accessChoice(a AccessView) {
 	@staticText(domain.StaticOverline, "Who can open it")
-	@formInput("access", "access", string(domain.InputSelect), accessChoices(), AccessOnlyMe, "Who can open it", false, false, false)
-	@staticText(domain.StaticNote, "Some people: tick them below and pick the role they get. Everyone: every active member gets that role.")
+	@accessCard(AccessOnlyMe, "Only me", "Try it yourself first. This is the default.", true)
+	@accessCard(AccessSome, "Some people", "Tick them below, then pick the role they get. Try it with a few colleagues before everyone.", false)
+	@accessCard(AccessEveryone, "Everyone in this workspace", "Every active member gets the role you pick below.", false)
 	@formInput("people_role", "people_role", string(domain.InputSelect), roleChoices(a.Roles), a.DefaultRole, "Role they get", false, false, false)
 	if len(a.People) > 0 {
 		@formInput("people", "people", string(domain.InputMultiSelect), peopleChoices(a.People), "", "People who can open it", false, false, false)
 	}
 }
 
-func accessChoices() string {
-	return strings.Join([]string{
-		AccessOnlyMe + domain.InputChoiceSep + "Only me",
-		AccessSome + domain.InputChoiceSep + "Some people",
-		AccessEveryone + domain.InputChoiceSep + "Everyone in this workspace",
-	}, domain.InputOptionsSep)
+// accessCard is one of the three answers to "who can open it": a radio in a tile, the same tile the multiselect draws for each of its choices.
+templ accessCard(value, title, note string, checked bool) {
+	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3" }>
+		<input type="radio" name="access" value={ value } checked?={ checked } class={ "mt-1 size-4", controlAccentClass(ctx) }/>
+		@stackLayout(domain.GapHair) {
+			<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ title }</span>
+			@staticText(domain.StaticNote, note)
+		}
+	</label>
+}
+
+// screensBuilt is what the person has not seen yet at the review: the screens of the new Application, each with what it holds. A menu entry names
+// a Machine, so its note is that Machine's own Fields; an entry opening nothing the model can name (an inbox, a hub) has no note.
+templ screensBuilt(change aiassist.GeneratedChange) {
+	if change.Kind == aiassist.KindNewApplication && change.Application != nil && len(change.Application.Navigation) > 0 {
+		@stackLayout(domain.GapDefault) {
+			@staticText(domain.StaticOverline, "Screens it built")
+			for _, item := range change.Application.Navigation {
+				@stackLayout(domain.GapHair) {
+					<span class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ item.Label }</span>
+					if note := screenNote(change.Application, item); note != "" {
+						@staticText(domain.StaticCaption, note)
+					}
+				}
+			}
+		}
+	}
+}
+
+// screenNote says what a menu entry's screen holds: its Machine's Fields, by name, in order.
+func screenNote(app *aiassist.GeneratedApplication, item aiassist.GeneratedMenuItem) string {
+	for _, m := range app.Machines {
+		if m.ID != item.MachineID {
+			continue
+		}
+		names := make([]string, 0, len(m.Fields))
+		for _, f := range m.Fields {
+			names = append(names, f.Name)
+		}
+		return m.Name + ": " + strings.Join(names, ", ")
+	}
+	return ""
 }
 
 func roleChoices(roles []string) string { return strings.Join(roles, domain.InputOptionsSep) }

@@ -157,3 +157,39 @@ func TestUnsupportedBlockIsOnTheConversationAndTheReview(t *testing.T) {
 		t.Error("the block is drawn with nothing to say")
 	}
 }
+
+// The review of a new Application opens with its screens, names what each holds, folds the rest rather than dropping it, and offers the three
+// answers to who can open it as radios with "only me" chosen. An update keeps its plan and shows no screens.
+func TestReviewOpensWithTheScreensItBuilt(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
+	render := func(change aiassist.GeneratedChange) string {
+		var buf bytes.Buffer
+		access := AccessView{Roles: []string{"staf", "lihat"}, DefaultRole: "lihat"}
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, access, nil, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	fresh := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{
+		Name: "Laporan", Roles: []string{"staf", "lihat"}, PublisherRole: "staf",
+		Navigation: []aiassist.GeneratedMenuItem{{Label: "Catat sampah", MachineID: "mch_sampah"}},
+		Machines:   []aiassist.GeneratedMachine{{ID: "mch_sampah", Name: "Sampah", Fields: []aiassist.GeneratedField{{ID: "fld_a", Name: "Berat"}, {ID: "fld_b", Name: "Tanggal"}}}},
+	}}
+	body := render(fresh)
+	screens, folded := strings.Index(body, "Screens it built"), strings.Index(body, "More about what was built")
+	if screens < 0 || folded < 0 || screens > folded {
+		t.Fatalf("screens at %d, folded details at %d -- the screens must come first", screens, folded)
+	}
+	for _, want := range []string{"Catat sampah", "Sampah: Berat, Tanggal", `type="radio" name="access" value="only_me" checked`, `value="some"`, `value="everyone"`, "Take back"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the review lacks %q", want)
+		}
+	}
+	if strings.Contains(body, `value="some" checked`) || strings.Contains(body, `value="everyone" checked`) {
+		t.Error("something other than 'only me' is chosen by default")
+	}
+	update := aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_x", Application: fresh.Application}
+	if strings.Contains(render(update), "Screens it built") {
+		t.Error("an update lists screens")
+	}
+}
