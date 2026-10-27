@@ -24,7 +24,7 @@ kept in a private companion repository.
 
 **Workspaces and people**
 - Accounts with registration, email verification, login and password reset.
-- Workspaces with members, invitations, roles per application, groups, archive and restore.
+- Workspaces with members, invitations, roles per application, groups, archive and restore; an application can be switched off and on again without losing its data.
 - Applications are installed into a Workspace as its own copy, so each Workspace can change its applications
   without affecting another. A broken Workspace no longer stops the others.
 - Notifications in the app and by email; scheduled reminders.
@@ -35,7 +35,7 @@ kept in a private companion repository.
 - **Project Management**: boards with lists and labels (each list has a menu to rename, move or delete it, and an Add list tile; a dragged card tilts and shows where it will land, and cards can be moved from the keyboard), a table of tasks in the board's order (completion circle, list, labels, due date, assignee), a calendar by week or month where a task card can be dragged to another day, one header over all three (the project's name, task counts, switch between Board, Table and Calendar, and a Switch project menu that narrows them), My Tasks, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders.
 
 **AI Metadata Assistant**
-- Describe an application in plain words; review, edit and install the generated metadata into a Workspace.
+- Describe an application in plain words; the review opens with the screens it built, says what it cannot do yet and asks who else can open it, then installs the generated metadata into a Workspace. A publication can be taken back for ten minutes, and an empty Workspace opens on a welcome to build or install its first application.
 
 **Design system**
 - A theme a Workspace can adjust (radius, weight, text size, spacing, colours, padding and more), light and dark
