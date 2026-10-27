@@ -42,8 +42,10 @@ build: generate
 run: build
 	./bin/server
 
+# -timeout: the default is 10 minutes per package, and internal/web alone takes about 13 under -race on this host's single CPU
+# (measured 2026-10-27: 794 s, of which the slowest test is 56 s); it passed the pre-push gate only while it stayed under the default.
 test:
-	go test -race ./...
+	go test -race -timeout 30m ./...
 
 # internal/conformance's own executable checks for architectural obligations 001-007 and
 # CLAUDE.md state in prose (plane boundaries, handler size, and -- since this session -- that
