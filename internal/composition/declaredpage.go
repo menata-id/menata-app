@@ -159,7 +159,7 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 	}
 	spec := ir.FormSpec{
 		Route:     domain.FormRoute(src.ID),
-		Permitted: authorization.AllowsAction(src, domain.ActionCreate, nil, viewer),
+		Permitted: createPermitted(src, viewer),
 		Inputs:    inputs,
 		Number:    numberFormatOf(ctx),
 	}
@@ -169,6 +169,17 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 		}
 	}
 	return spec, nil
+}
+
+// createPermitted is whether the viewer may create a record of m, asked the way the create route asks it: of the values about to be
+// written, after the defaults and the stamps (web.writeFromValues). A Permission naming an actor Field therefore holds when that
+// Field is stamped with the viewer; against no record at all it could never hold and the form would be hidden for the very person
+// the route lets in. It stays a courtesy: the route decides on the real values.
+func createPermitted(m *domain.Machine, viewer domain.Actor) bool {
+	values := map[string]any{}
+	data.ApplyDefaults(m, values)
+	data.ApplyStamps(m, values, viewer.ID)
+	return authorization.AllowsAction(m, domain.ActionCreate, values, viewer)
 }
 
 // extractSpec adds to a create Form what its `extract:` brings: the reader that sends a document, and -- when the page was

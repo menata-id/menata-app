@@ -1013,3 +1013,28 @@ func TestDragPermittedIsPerRecordAndRefusesWhatTheRouteWouldRefuse(t *testing.T)
 		t.Error("an append-only Machine's record is offered to move")
 	}
 }
+
+// A `create` Permission that names an actor Field is judged by the create route on the values it is about to write -- after the
+// defaults and the stamps. The page's form must be offered on the same footing: on 2026-10-26 Dokter Kecil's "Add Task" opened an
+// empty dialog, because the courtesy check ran against no record, so `actor_field: fld_task_owner` could never hold -- though the
+// Owner is stamped with the viewer and the route accepts the write.
+func TestCreateFormIsOfferedWhenTheStampedActorFieldWillBeTheViewer(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_task",
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText, Required: true},
+			{ID: "fld_owner", Type: domain.FieldTypePerson, Required: true, Stamp: domain.FieldStampCurrentUser},
+		},
+		Permissions: []domain.Permission{{ID: "perm_create", Action: domain.ActionCreate, ActorField: "fld_owner"}},
+	}
+	if !createPermitted(m, domain.Actor{ID: "usr_me"}) {
+		t.Error("the owner is stamped with the viewer, so the viewer may create: the form is hidden")
+	}
+	if createPermitted(m, domain.Actor{}) {
+		t.Error("an unidentified viewer is offered a create form")
+	}
+	m.Fields[1].Stamp = ""
+	if createPermitted(m, domain.Actor{ID: "usr_me"}) {
+		t.Error("with no stamp the owner is whoever the form names, so nothing says it is the viewer: fail closed")
+	}
+}
