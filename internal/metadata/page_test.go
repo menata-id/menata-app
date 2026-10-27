@@ -1699,3 +1699,33 @@ func TestAnEditFormsFieldsAreOnesItAsksFor(t *testing.T) {
 		}
 	}
 }
+
+func TestPage_aWorkspaceConditionIsReadAndHeldToItsRules(t *testing.T) {
+	var doc pageNodeDoc
+	if err := yaml.Unmarshal([]byte("static: paragraph\ntext: x\nwhen: { workspace: applications, is: none }\n"), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if w := doc.toDomain().When; w == nil || w.Workspace != "applications" || w.Is != "none" {
+		t.Errorf("the condition = %+v", w)
+	}
+	for name, src := range map[string]string{
+		"a workspace and a viewer": "static: paragraph\nwhen: { workspace: applications, viewer: workspace_role, is: none }\n",
+		"a workspace and a role":   "static: paragraph\nwhen: { workspace: applications, role: status, is: none }\n",
+		"no operand":               "static: paragraph\nwhen: { workspace: applications }\n",
+		"both operands":            "static: paragraph\nwhen: { workspace: applications, is: none, is_not: some }\n",
+	} {
+		var d pageNodeDoc
+		if err := yaml.Unmarshal([]byte(src), &d); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// Through the loader, on a Workspace's own page: a fact or value that does not exist is a load error, a valid one loads.
+	bad := strings.Replace(validWorkspacePage, "        - static: link\n          to: nav_docs", "        - static: link\n          to: nav_docs\n          when: { workspace: applications, is: many }", 1)
+	if err := workspacePageFixture(t, bad); err == nil || !strings.Contains(err.Error(), "is neither") {
+		t.Errorf("an unknown value on a Workspace page: %v", err)
+	}
+	good := strings.Replace(validWorkspacePage, "        - static: link\n          to: nav_docs", "        - static: link\n          to: nav_docs\n          when: { workspace: applications, is_not: none }", 1)
+	if err := workspacePageFixture(t, good); err != nil {
+		t.Errorf("a workspace condition on a Workspace page was refused: %v", err)
+	}
+}

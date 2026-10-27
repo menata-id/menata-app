@@ -370,3 +370,58 @@ func TestFormatTotalFollowsTheWorkspacesMarks(t *testing.T) {
 		t.Errorf("a plain number was written as money: %q", got)
 	}
 }
+
+func TestLowerWorkspaceConditionShowsANodeOnlyWhileTheWorkspaceHoldsOrLacksApplications(t *testing.T) {
+	none := domain.PageCondition{Workspace: domain.PageWorkspaceApplications, Is: domain.PageApplicationsNone}
+	some := domain.PageCondition{Workspace: domain.PageWorkspaceApplications, IsNot: domain.PageApplicationsNone}
+	for name, tc := range map[string]struct {
+		c     domain.PageCondition
+		fact  string
+		shown int
+	}{
+		"none, with none":        {none, domain.PageApplicationsNone, 2},
+		"none, with some":        {none, domain.PageApplicationsSome, 1},
+		"is_not none, with some": {some, domain.PageApplicationsSome, 2},
+		"is_not none, with none": {some, domain.PageApplicationsNone, 1},
+	} {
+		tree, err := Lower(viewerNode(tc.c), Resolver{Workspace: func(string) string { return tc.fact }})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(tree.Children) != tc.shown {
+			t.Errorf("%s: %d nodes, want %d", name, len(tree.Children), tc.shown)
+		}
+	}
+	// The load-time placeholder has no Workspace: the node is kept, so a hidden node is still validated.
+	if tree, err := Lower(viewerNode(none), Resolver{}); err != nil || len(tree.Children) != 2 {
+		t.Errorf("the placeholder lowered to %d nodes, %v, want both", len(tree.Children), err)
+	}
+	// A node the condition hides is never lowered, so what it binds is never read for that Workspace.
+	reads := 0
+	bound := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+		Kind: "component", Type: "Metric", Props: map[string]string{"label": "N"}, When: &none,
+		Binding: &domain.PageBinding{Dataset: "ds_x", Measure: "m", Rows: domain.PageRowsTotal}}}}
+	_, _ = Lower(bound, Resolver{Workspace: func(string) string { return domain.PageApplicationsSome }, Total: func(domain.PageBinding) (string, error) { reads++; return "1", nil }})
+	if reads != 0 {
+		t.Errorf("a hidden Metric still read its Dataset %d time(s)", reads)
+	}
+}
+
+func TestLowerWorkspaceConditionRefusesEachMisuseForItsOwnReason(t *testing.T) {
+	for name, tc := range map[string]struct {
+		c    domain.PageCondition
+		want string
+	}{
+		"an unknown fact":          {domain.PageCondition{Workspace: "members", Is: "none"}, "not a fact a page may test"},
+		"a value that is not one":  {domain.PageCondition{Workspace: domain.PageWorkspaceApplications, Is: "many"}, "is neither"},
+		"no operand":               {domain.PageCondition{Workspace: domain.PageWorkspaceApplications}, "exactly one of is:"},
+		"both operands":            {domain.PageCondition{Workspace: domain.PageWorkspaceApplications, Is: "none", IsNot: "some"}, "exactly one of is:"},
+		"a workspace and a viewer": {domain.PageCondition{Workspace: domain.PageWorkspaceApplications, Viewer: domain.PageViewerWorkspaceRole, Is: "none"}, "not more than one"},
+		"a workspace and a role":   {domain.PageCondition{Workspace: domain.PageWorkspaceApplications, Role: "status", Is: "none"}, "not more than one"},
+	} {
+		_, err := Lower(viewerNode(tc.c), Resolver{Workspace: func(string) string { return "none" }})
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want an error containing %q", name, err, tc.want)
+		}
+	}
+}

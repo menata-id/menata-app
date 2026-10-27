@@ -286,9 +286,27 @@ type PageCondition struct {
 	// PageViewerWorkspaceRole, and only with Is, never IsNot: a viewer the runtime cannot place (no membership row) holds
 	// no role, and `is_not: member` would have shown such a viewer what only an admin should see. `is` fails closed.
 	Viewer string
-	Is     string
-	IsNot  string
+	// Workspace is the fourth kind: a statement about the Workspace the page is drawn in (`when: {workspace: applications, is: none}`), valid anywhere on a
+	// page. Exactly one of Role, Parameter, Viewer and Workspace is set. The only fact a page may ask is PageWorkspaceApplications, and it is always
+	// answerable, so both Is and IsNot are allowed: Workspace Home draws its empty-Workspace welcome only while the Workspace holds no Application.
+	Workspace string
+	Is        string
+	IsNot     string
 }
+
+// PageWorkspaceApplications is the one fact about the Workspace a page may test: whether any Application that is switched on is installed in it.
+// Its value is PageApplicationsNone or PageApplicationsSome.
+const PageWorkspaceApplications = "applications"
+
+// The two values of PageWorkspaceApplications. An Application switched off (Application.Inactive) does not count: a Workspace whose every Application is
+// off has, to the person looking, none.
+const (
+	PageApplicationsNone = "none"
+	PageApplicationsSome = "some"
+)
+
+// KnownPageApplicationsValues is the closed set `is:` and `is_not:` may take for PageWorkspaceApplications.
+var KnownPageApplicationsValues = map[string]bool{PageApplicationsNone: true, PageApplicationsSome: true}
 
 // PageViewerWorkspaceRole is the one fact about the viewer a page may test: their role in the Workspace, "admin" or
 // "member". An Application role is not offered: a Workspace page has no Application to hold one in, and the first

@@ -266,6 +266,31 @@ func parameterHolds(c domain.PageCondition, r Resolver, path string) (bool, erro
 	return (r.Parameter(c.Parameter) == operand) != negate, nil
 }
 
+// workspaceHolds answers a `when: {workspace: applications, is: none}`. It is a statement about the Workspace the page is drawn in, so it needs no
+// record and is valid anywhere; a node it hides is not lowered, so the Datasets it binds are not read. Both `is:` and `is_not:` are allowed: the
+// fact is always answerable, unlike a viewer the runtime cannot place.
+func workspaceHolds(c domain.PageCondition, r Resolver, path string) (bool, error) {
+	switch {
+	case c.Role != "" || c.Parameter != "" || c.Viewer != "":
+		return false, fmt.Errorf("%s: when: tests a record's role, a request parameter, the viewer or the workspace, not more than one", path)
+	case c.Workspace != domain.PageWorkspaceApplications:
+		return false, fmt.Errorf("%s: when: workspace: %q is not a fact a page may test (%s)", path, c.Workspace, domain.PageWorkspaceApplications)
+	case (c.Is == "") == (c.IsNot == ""):
+		return false, fmt.Errorf("%s: when: takes exactly one of is: and is_not:", path)
+	}
+	operand, negate := c.Is, false
+	if c.IsNot != "" {
+		operand, negate = c.IsNot, true
+	}
+	if !domain.KnownPageApplicationsValues[operand] {
+		return false, fmt.Errorf("%s: when: workspace: applications is %s or %s, and %q is neither -- it would never (or always) hold", path, domain.PageApplicationsNone, domain.PageApplicationsSome, operand)
+	}
+	if r.Workspace == nil {
+		return true, nil
+	}
+	return (r.Workspace(c.Workspace) == operand) != negate, nil
+}
+
 // viewerHolds answers a `when: {viewer: workspace_role, is: admin}`. It is a statement about the request's viewer, so it
 // needs no record and is valid anywhere. A node it hides is not lowered at all, so the Dataset it binds is not read for a
 // viewer who would not see it. A viewer the resolver cannot place gets "", which equals no declared role: the condition
@@ -421,6 +446,9 @@ type Resolver struct {
 	// runtime cannot place them. Nil in the load-time placeholder, for which there is no viewer -- and every viewer
 	// condition then holds, so the nodes a real viewer would not see are still validated.
 	Viewer ViewerResolver
+	// Workspace answers a `when: {workspace: ...}`: the Workspace's value for the named fact (whether it holds an Application that is on). Nil in the
+	// load-time placeholder, for which there is no Workspace -- and every workspace condition then holds, as the viewer's do.
+	Workspace WorkspaceResolver
 	// Step answers a link's `step:`: the value of the parameter `by` steps on from the request's own, "" when that is
 	// the value a request without the parameter already means (so a step back to this week links to the plain
 	// route, not to `?week=0`).
@@ -440,6 +468,7 @@ type Resolver struct {
 // the packages that do.
 type ParameterResolver func(name string) string
 type ViewerResolver func(name string) string
+type WorkspaceResolver func(name string) string
 type StepResolver func(name string, by int) string
 type WindowResolver func(datasetID string) (string, error)
 
@@ -509,7 +538,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.When != nil {
 		var show bool
 		var err error
-		if n.When.Viewer != "" {
+		if n.When.Workspace != "" {
+			show, err = workspaceHolds(*n.When, r, path)
+		} else if n.When.Viewer != "" {
 			show, err = viewerHolds(*n.When, r, path)
 		} else if n.When.Parameter != "" {
 			show, err = parameterHolds(*n.When, r, path)

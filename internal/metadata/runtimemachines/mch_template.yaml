@@ -24,3 +24,10 @@ datasets:
     sort:
       - { field: fld_title, direction: asc }
     limit: 100
+  # The first few ready-made applications, offered on an empty Workspace's Home beside "describe it yourself" (N03): only those that can be installed here.
+  - id: ds_runtime_template_picks
+    select: records
+    where: { field: fld_status, op: equals, value: Ready }
+    sort:
+      - { field: fld_title, direction: asc }
+    limit: 3

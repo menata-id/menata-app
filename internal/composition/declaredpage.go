@@ -99,6 +99,17 @@ func DeclaredPageCarrying(ctx context.Context, l *Loader, viewer domain.Actor, p
 			}
 			return ""
 		},
+		Workspace: func(name string) string {
+			if name != domain.PageWorkspaceApplications {
+				return ""
+			}
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if !app.Inactive {
+					return domain.PageApplicationsSome
+				}
+			}
+			return domain.PageApplicationsNone
+		},
 		Parameter: func(name string) string {
 			switch name {
 			case domain.PageParameterWeek:

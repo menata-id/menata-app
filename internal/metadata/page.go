@@ -508,22 +508,24 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 			c.Parameter = val.Value
 		case "viewer":
 			c.Viewer = val.Value
+		case "workspace":
+			c.Workspace = val.Value
 		case "is":
 			c.Is = val.Value
 		case "is_not":
 			c.IsNot = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key when declares (role, parameter or viewer, is, is_not)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key when declares (role, parameter, viewer or workspace, is, is_not)", key.Line, key.Value)
 		}
 	}
 	named := 0
-	for _, v := range []string{c.Role, c.Parameter, c.Viewer} {
+	for _, v := range []string{c.Role, c.Parameter, c.Viewer, c.Workspace} {
 		if v != "" {
 			named++
 		}
 	}
 	if named != 1 || (c.Is == "") == (c.IsNot == "") {
-		return nil, fmt.Errorf("line %d: when: names a role, a parameter or a viewer fact (not both of any two) and exactly one of is: and is_not:", n.Line)
+		return nil, fmt.Errorf("line %d: when: names a role, a parameter, a viewer fact or a workspace fact (not both of any two) and exactly one of is: and is_not:", n.Line)
 	}
 	if c.Parameter != "" {
 		operand := c.Is + c.IsNot
@@ -980,7 +982,7 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			}
 		}
 	}
-	if n.When != nil && n.When.Parameter == "" && n.When.Viewer == "" {
+	if n.When != nil && n.When.Parameter == "" && n.When.Viewer == "" && n.When.Workspace == "" {
 		issues = append(issues, conditionIssues(*n.When, item, where)...)
 	}
 	if n.Window != "" {

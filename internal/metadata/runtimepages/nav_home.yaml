@@ -37,6 +37,7 @@ page:
       block: true
       divided: true
       density: roomy
+      when: { workspace: applications, is_not: none }
       empty: No application to open here yet. An application appears once it is installed into this workspace and you hold a role in it; ask a workspace admin for one.
       binding: { dataset: ds_runtime_home_applications, rows: records }
       children:
@@ -76,6 +77,28 @@ page:
             - component: StatusBadge
               when: { role: status, is_not: None }
               from: { label: summary, tone: "status:tone" }
+    # An empty Workspace (N03): for an admin the page is the way to make the first application, with the box as its body, the library beside it and
+    # what happens next; for a member it is the one sentence that says why there is nothing, and who to ask.
+    - layout: stack
+      gap: comfortable
+      when: { workspace: applications, is: none }
+      children:
+        - layout: stack
+          gap: comfortable
+          when: { viewer: workspace_role, is: member }
+          children:
+            - static: paragraph
+              text: No application to open here yet. An application appears once it is installed into this workspace and you hold a role in it; ask a workspace admin for one.
+        - layout: stack
+          gap: tight
+          when: { viewer: workspace_role, is: admin }
+          children:
+            - static: overline
+              text: New workspace
+            - static: subheading
+              text: This workspace has no applications yet.
+            - static: paragraph
+              text: A workspace is a set of applications. Describe what your team does; Menata asks a few questions, then builds it as a draft only you can see.
     - layout: section
       gap: default
       when: { viewer: workspace_role, is: admin }
@@ -122,6 +145,47 @@ page:
                 - static: link
                   to: nav_install_application
                   text: start from the library
+    - layout: stack
+      gap: comfortable
+      when: { workspace: applications, is: none }
+      children:
+        - layout: stack
+          gap: comfortable
+          when: { viewer: workspace_role, is: admin }
+          children:
+            - static: overline
+              text: Or start from one that is ready, then change what you need
+            - component: Collection
+              gap: tight
+              block: true
+              divided: true
+              hide_empty: true
+              binding: { dataset: ds_runtime_template_picks, rows: records }
+              children:
+                - layout: stack
+                  gap: hair
+                  children:
+                    - static: link
+                      variant: plain
+                      to: nav_install_application
+                      from: { text: title }
+                    - static: caption
+                      from: { text: subtitle }
+                    - static: caption
+                      from: { text: detail }
+            - static: link
+              to: nav_install_application
+              text: See the whole library
+            - static: overline
+              text: What happens next
+            - static: paragraph
+              text: "1. Menata asks one to three things that are not clear."
+            - static: paragraph
+              text: "2. You see the plan, including what it cannot do yet, and can strike things out."
+            - static: paragraph
+              text: "3. The draft opens for review. Nothing is published, and nobody else sees it."
+            - static: caption
+              text: Only your description and the application's structure are sent to the AI, never the contents of your documents.
     - static: divider
       when: { viewer: workspace_role, is: admin }
     - component: Collection

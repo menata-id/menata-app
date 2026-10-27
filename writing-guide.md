@@ -2553,6 +2553,21 @@ Used by the Helpdesk's All tickets page, which links to the Workspace overview f
           when: { viewer: workspace_role, is: admin }
 ```
 
+**A node drawn only while the Workspace holds no Application (N03, 2026-10-27).** A node anywhere on a page may carry
+`when: {workspace: applications, is: none}` (or `is_not: none`, or `is: some`): it, and everything under it, is drawn only while the Workspace
+holds -- or lacks -- an Application that is switched on. The one fact is `applications` and the values are `none` and `some`; a Workspace whose every Application
+is `inactive: true` has, to whoever looks, none. Unlike the viewer's, this fact is always answerable, so `is_not:` is allowed. Like the others it decides what is drawn,
+not what may be opened, and a node it hides is not lowered, so the Datasets it binds are not read. Workspace Home uses it to be a welcome while the Workspace is empty
+(for an admin the box, the library and what happens next; for a member one sentence) and the list of Applications once there is one.
+
+```yaml
+- layout: stack
+  when: { workspace: applications, is: none }
+  children:
+    - static: subheading
+      text: This workspace has no applications yet.
+```
+
 An Application's page may link (`to:`) to its own menu and to the Workspace's own pages, never into another Application.
 
 **One node per tag of the record (`each: tags`, K15, 2026-10-10).** Inside a records Collection's item template,
