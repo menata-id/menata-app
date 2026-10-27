@@ -319,7 +319,7 @@ func popover(label, title string, trigger domain.PopoverTrigger, align domain.Po
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var21 = []any{"fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg"}
+			var templ_7745c5c3_Var21 = []any{"fixed z-30 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

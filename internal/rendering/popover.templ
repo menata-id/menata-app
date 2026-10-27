@@ -58,7 +58,7 @@ templ popover(label, title string, trigger domain.PopoverTrigger, align domain.P
 			// The panel is `fixed`, so a table's scrolling box (a row's Edit) cannot cut it, and sits where it would have been in the
 			// flow because it names no offset: its place is that of a zero-size anchor under the trigger, flush with the side `align:` names.
 			<div class={ "absolute top-full h-0 w-0", popoverAnchorClass(align) }>
-				<div class={ "fixed z-10 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg" }>
+				<div class={ "fixed z-30 mt-1.5 w-72", popoverSideClass(align), popoverPhoneClasses, surfaceClasses(ctx), "shadow-lg" }>
 					<div class={ popoverBodyClasses(ctx, density) }>
 						{ children... }
 					</div>
