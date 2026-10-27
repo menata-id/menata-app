@@ -26,6 +26,10 @@ import (
 type builderFixture struct {
 	root, manifest string
 	post           func(path, body string) *httptest.ResponseRecorder
+	// ctx carries the Workspace (scope and current Workspace), store and cfg are what a runtime action's env needs.
+	ctx   context.Context
+	store *data.Store
+	cfg   config.Config
 }
 
 func newBuilderFixture(t *testing.T, reload func(string) error) builderFixture {
@@ -70,7 +74,7 @@ func newBuilderFixture(t *testing.T, reload func(string) error) builderFixture {
 	r := chi.NewRouter()
 	r.Post("/builder/{app}/plan", planBuilderOperations(store, cfg))
 	r.Post("/builder/{app}/apply", applyBuilderOperations(store, cfg, reload))
-	return builderFixture{root: root, manifest: manifest, post: func(path, body string) *httptest.ResponseRecorder {
+	return builderFixture{root: root, manifest: manifest, store: store, cfg: cfg, ctx: rendering.WithCurrentWorkspace(wsCtx, loaded.Workspace, "Builder Plan Test", false), post: func(path, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 		req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, loaded.Workspace, "Builder Plan Test", false))
 		rec := httptest.NewRecorder()
@@ -173,5 +177,35 @@ func TestApplyBuilderOperations_writesBehindVersionAndTick(t *testing.T) {
 	}
 	if rec := apply(remove, fresh.Version, `["`+fresh.Items[0].Confirm+`"]`); rec.Code != http.StatusOK {
 		t.Errorf("a ticked removal = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// The two runtime actions switch an Application off and on through its file, reload exactly when something changed, and
+// answer 422 for an Application that is not installed here.
+func TestApplicationSwitchActions(t *testing.T) {
+	var reloads int
+	fx := newBuilderFixture(t, func(string) error { reloads++; return nil })
+	env := actionEnv{store: fx.store, cfg: fx.cfg, reload: func(string) error { reloads++; return nil }}
+	run := func(runner actionRunner, app string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		runner(rec, httptest.NewRequest(http.MethodPost, "/runtime-actions/x?record="+app, nil).WithContext(fx.ctx), env, app)
+		return rec
+	}
+	fileOf := func() string {
+		b, _ := os.ReadFile(filepath.Join(fx.root, "workspaces", "builder-plan-test-workspace.yaml"))
+		a, _ := os.ReadFile(filepath.Join(fx.root, "workspaces", "builder-plan-test-workspace", "applications", "bp.yaml"))
+		return string(b) + string(a)
+	}
+	if rec := run(runDeactivateApplication, "app_bp"); rec.Code != http.StatusOK || reloads != 1 || !strings.Contains(fileOf(), "inactive: true") {
+		t.Fatalf("deactivate = %d, reloads %d, file switched: %v", rec.Code, reloads, strings.Contains(fileOf(), "inactive: true"))
+	}
+	if rec := run(runDeactivateApplication, "app_bp"); rec.Code != http.StatusOK || reloads != 1 {
+		t.Errorf("deactivating twice = %d with %d reloads, want a no-op", rec.Code, reloads)
+	}
+	if rec := run(runReactivateApplication, "app_bp"); rec.Code != http.StatusOK || reloads != 2 || strings.Contains(fileOf(), "inactive") {
+		t.Errorf("reactivate = %d, reloads %d, key gone: %v", rec.Code, reloads, !strings.Contains(fileOf(), "inactive"))
+	}
+	if rec := run(runDeactivateApplication, "app_nope"); rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("an Application not installed here = %d, want 422", rec.Code)
 	}
 }
