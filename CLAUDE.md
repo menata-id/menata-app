@@ -50,6 +50,11 @@ Before concluding that something 001–007 directs should not be built yet, read
    name it. Never dress an operating limit as an architectural finding. Warning sign: *"better not to start than
    to start half"*.
 
+**Receiving a request that aims at a mockup** (a board, a screen, a flow): follow `menata-app-document`'s
+`guides/membangun-menuju-mockup.md` first (intake, classify each element a–e, slice vertically, red case from the board),
+then the per-item cycle in `guides/pola-pengembangan-per-butir.md`. The target is the mockup; what the runtime or the
+AI assistant can do today is a work list, never the bound.
+
 The two principles most often violated by an unreviewed edit:
 
 - **001 #3, Metadata First** — evolution happens by changing Runtime Metadata. If a route, label or nav entry
