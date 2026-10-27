@@ -153,6 +153,11 @@ var rules = []rule{
 		because:   "internal/aiassist doc.go: proposes Runtime Metadata and calls an external AI API; it holds no pool, renders nothing, and never touches internal/data directly -- internal/web owns persistence and hands this package only the state it needs",
 	},
 	{
+		pkg:       "builder",
+		forbidden: []string{postgres, sqlPkg, httpPkg, templ, internalPkg("data"), internalPkg("db"), internalPkg("rendering"), internalPkg("web")},
+		because:   "internal/builder doc.go: the Authoring Layer's edit operations turn into one desired state and go through aiassist's Validate/PlanUpdate/Preview; it adds no write path of its own, holds no pool, renders nothing and speaks no HTTP -- internal/web hands it the Workspace manifest path",
+	},
+	{
 		pkg: "installer",
 		// internal/metadata is allowed, one-way and for one reason: an install is only finished when
 		// the real loader accepts the result (installer doc.go, "nothing survives a failure"). A
