@@ -718,6 +718,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			rec[domain.PageDateRelativeRole] = "x"
 			rec[domain.PageGroupLabelRole] = "x"
 			rec[domain.PagePersonInitialsRole] = "x"
+			rec[domain.PageTitleLeafRole] = "x"
 			rec[domain.PageCreatedLabelRole] = "x"
 			rec[domain.PageStatusToneRole] = string(domain.ToneNeutral)
 			// The Fields a Table names by id: whether each is a Field of the real Machine is `recordsBindingIssues`'.

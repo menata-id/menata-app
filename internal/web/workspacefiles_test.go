@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestWorkspaceFilesScreenPicksOnlyOwnedFilesAndReadsOnlyThose(t *testing.T) 
 	if picker.Code != http.StatusOK {
 		t.Fatalf("GET = %d: %s", picker.Code, picker.Body.String())
 	}
-	for _, want := range []string{"document.yaml", "applications/tracking.yaml", "path=applications%2Ftracking.yaml"} {
+	for _, want := range []string{"document.yaml", ">applications</summary>", ">tracking.yaml<", "path=applications%2Ftracking.yaml"} {
 		if !strings.Contains(picker.Body.String(), want) {
 			t.Errorf("the picker does not offer %q", want)
 		}
@@ -142,5 +143,27 @@ func TestWorkspaceFilesScreenAnswers503WithoutAMetadataDirectory(t *testing.T) {
 	}
 	if code, _ := s.review(t, "document.yaml", "x: 1\n"); code != http.StatusServiceUnavailable {
 		t.Errorf("review = %d, want 503", code)
+	}
+}
+
+// The picker is a Tree: a file under a folder sits beneath that folder's heading and says its last segment, and the file the request opened is the
+// one row marked current. A request naming none marks none.
+func TestWorkspaceFilesScreenListsFilesUnderTheirFoldersAndMarksTheOpenOne(t *testing.T) {
+	s := newInstallTestSetup(t, "wftree")
+
+	none := s.getAs(t, "/workspace-settings/files").Body.String()
+	if !strings.Contains(none, "<summary") || !strings.Contains(none, ">applications</summary>") {
+		t.Errorf("the picker does not draw the applications folder as a heading:\n%s", none)
+	}
+	if strings.Contains(none, `aria-current="true"`) {
+		t.Error("no file was opened and a row is marked current")
+	}
+	row := regexp.MustCompile(`(?s)<li[^>]*aria-current="true"[^>]*>(.*?)</li>`).FindAllStringSubmatch(
+		s.getAs(t, "/workspace-settings/files?path=applications%2Ftracking.yaml").Body.String(), -1)
+	if len(row) != 1 {
+		t.Fatalf("want exactly the opened file's row marked current, got %d", len(row))
+	}
+	if !regexp.MustCompile(`>tracking\.yaml<`).MatchString(row[0][1]) || strings.Contains(row[0][1], "applications/tracking.yaml<") {
+		t.Errorf("the marked row names the file by its last segment only: %s", row[0][1])
 	}
 }

@@ -585,10 +585,14 @@ const PageGroupLabelRole = "group:label"
 // the record has no person, and a node reading it is then not drawn -- a circle of "?" for nobody is a defect, not a design.
 const PagePersonInitialsRole = "person:initials"
 
+// PageTitleLeafRole is the fifth derived role: the last segment of a record's `title` read as a path ("applications/doc.yaml" -> "doc.yaml"), what a
+// Tree's row says once the folders above it are drawn as headings. The whole title when it holds no slash.
+const PageTitleLeafRole = "title:leaf"
+
 // PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
 // the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PagePersonInitialsRole || role == PageCreatedLabelRole || role == PageStatusToneRole
+	return PageBlockedRole(role) || role == PageDateLabelRole || role == PageDateToneRole || role == PageDateRelativeRole || role == PageGroupLabelRole || role == PagePersonInitialsRole || role == PageTitleLeafRole || role == PageCreatedLabelRole || role == PageStatusToneRole
 }
 
 // ForeignLinkID is how another Application's navigation item is named in a link-target list: "<application id>/<item id>".
@@ -628,6 +632,7 @@ var BindableComponents = map[ComponentType][]string{
 	ComponentMetric:       {PageRowsDimension, PageRowsTotal},
 	ComponentCollection:   {PageRowsRecords, PageRowsDimension},
 	ComponentTable:        {PageRowsRecords, PageRowsDimension},
+	ComponentTree:         {PageRowsRecords},
 }
 
 // TransitionAllRoute is the runtime's route for a `write: transition` Binding with `all: true`: the Machine, the Dataset

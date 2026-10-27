@@ -29,6 +29,7 @@ var segmentedControlExempt = map[string]struct {
 	why string
 }{
 	"appshell.templ": {1, "menuLink: one row of a menu (the account menu's, a view group's scope menu), the viewer's current choice marked for assistive technology. A column of links in a panel, not a row of exclusive choices drawn side by side on a track"},
+	"tree.templ":     {1, "treeBranch: the selected row of a Tree, one row among a nested list of rows that each open something, marked for assistive technology; a tree is not a row of exclusive choices on a track"},
 	"filter.templ":   {1, "filterChipLink: a pill with a count, one per filter (the Approval Inbox's SLA chips, gap-plan P3a, and every declared FilterChips); the active one is marked for assistive technology. Folding it into the control would change its look and its count"},
 }
 

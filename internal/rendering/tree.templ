@@ -1,0 +1,86 @@
+package rendering
+
+import (
+	"strings"
+
+	"menata.app/internal/domain"
+)
+
+// treeNode is one place in a Tree: a folder holding more places, or one row (an index into the composed items).
+type treeNode struct {
+	Name    string
+	Item    int
+	Current bool
+	Kids    []*treeNode
+}
+
+// treeNodes builds the folders from the outline lowering wrote (`folder<TAB>selected`, one line per item, in item order). A folder is found among
+// the last place's siblings by name, so rows of one folder that arrive together stay together and a folder named twice apart is drawn twice, in the
+// order it was given: the Tree reorders nothing. An item without a line is a row at the top.
+func treeNodes(outline string, count int) []*treeNode {
+	lines := strings.Split(outline, "\n")
+	var root treeNode
+	for i := 0; i < count; i++ {
+		folder, current := "", false
+		if i < len(lines) {
+			folder, current = lines[i], false
+			if f, sel, ok := strings.Cut(lines[i], "\t"); ok {
+				folder, current = f, sel == "1"
+			}
+		}
+		at := &root
+		if folder != "" {
+			for _, seg := range strings.Split(folder, "/") {
+				if n := len(at.Kids); n > 0 && at.Kids[n-1].Item < 0 && at.Kids[n-1].Name == seg {
+					at = at.Kids[n-1]
+					continue
+				}
+				next := &treeNode{Name: seg, Item: -1}
+				at.Kids = append(at.Kids, next)
+				at = next
+			}
+		}
+		at.Kids = append(at.Kids, &treeNode{Item: i, Current: current})
+	}
+	return root.Kids
+}
+
+// tree is the registered renderer for `domain.ComponentTree`: the rows under their folders, a folder a native `<details>` that starts open, the
+// selected row marked with `aria-current` and a fill (never colour alone). Rows arrive composed, as a Collection's do; the fill is the Workspace
+// Settings sidebar's current row (`sunken`), so a selection reads the same on both. `query` is the request parameter that carries the selection;
+// it travels on the <nav> as `data-selection` for the builder's preview (Fase 3c), which selects by writing that same parameter.
+templ tree(label, query, empty, outline string, items []templ.Component) {
+	<nav aria-label={ label } data-selection={ query }>
+		if len(items) == 0 && empty != "" {
+			@staticText(domain.StaticMessage, empty)
+		} else {
+			@treeBranch(treeNodes(outline, len(items)), items)
+		}
+	</nav>
+}
+
+templ treeBranch(kids []*treeNode, items []templ.Component) {
+	<ul class={ "m-0 flex list-none flex-col p-0", layoutGap(ctx, domain.GapHair) }>
+		for _, k := range kids {
+			if k.Item >= 0 {
+				<li
+					if k.Current {
+						aria-current="true"
+					}
+					class={ "px-3 py-1.5", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), k.Current), templ.KV(weightClass(ctx, domain.WeightEmphasis), k.Current) }
+				>
+					@items[k.Item]
+				</li>
+			} else {
+				<li>
+					<details open>
+						<summary class={ "cursor-pointer px-3 py-1.5", textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkSecondary) }>{ k.Name }</summary>
+						<div class="pl-4">
+							@treeBranch(k.Kids, items)
+						</div>
+					</details>
+				</li>
+			}
+		}
+	</ul>
+}

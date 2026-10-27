@@ -70,6 +70,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentStepper:          {Contract: stepperContract, Validate: validateStepper},
 	domain.ComponentToggle:           {Contract: toggleContract, Validate: validateToggle},
 	domain.ComponentIconTile:         {Contract: iconTileContract, Validate: validateIconTile},
+	domain.ComponentTree:             {Contract: treeContract, Validate: validateTree},
 }
 
 // toggleContract is a record's completion circle (mockup PM01 and PM08): open (a ring) or finished (a filled circle with a
@@ -1375,6 +1376,54 @@ func validateIconTile(inputs map[string]string) []string {
 	}
 	if inputs["state"] != "" && inputs["color"] != "" {
 		issues = append(issues, "IconTile color is an Application's tint, and a tile in a state (draft, assistant) is drawn in the generated-draft indigo, so it takes none")
+	}
+	return issues
+}
+
+// treeContract is §12.3's Selection and Tree in one Component: records listed under the folders their title names, the row the request chose
+// marked. Its first reader is the Workspace files screen (a file's path is its place in the tree, `?path=` its selection); the Application
+// Builder's tree of an application (Machine → Field, views, menu, workflow) is its next, and nothing about either is in the Component.
+//
+// **Rows arrive composed** (`item` slot), as a Collection's do, so a row may be a link, a link and a Tag, anything the page can draw. **The
+// outline is not written**: lowering reads each record's `title` as a path and writes one line per row, `folder<TAB>selected`, and the
+// Component draws a folded group per folder, the rows beneath it, and `aria-current` on the selected one. What forces a contract here that a
+// reviewer would not have asked for: a Tree that names no `query` has no selection to mark, and an outline that marks two rows would
+// announce two current places, so both are refused.
+var treeContract = domain.ComponentContract{
+	Type:   domain.ComponentTree,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+		{Name: "outline", Kind: "string"},
+		{Name: "empty", Kind: "string"},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"item"},
+	Actions:          nil,
+	Accessibility:    "a <nav> named by `label` holding nested <ul>/<li>; a folder is a native <details> whose <summary> names it, open by default, so the keyboard folds and unfolds it and the list's depth is announced by the nesting; the selected row's <li> carries aria-current=\"true\" and is also marked by weight and fill, never by colour alone; with no rows and an `empty` text it draws that text in place of an empty list",
+	Renderer:         "tree",
+}
+
+// validateTree checks a use against the declared inputs and that the outline, when present, is a folder and a 0 or 1 per line with at most one 1.
+func validateTree(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(treeContract, inputs, "Tree")
+	selected := 0
+	for _, line := range strings.Split(inputs["outline"], "\n") {
+		if line == "" {
+			continue
+		}
+		p := strings.Split(line, "\t")
+		if len(p) != 2 || (p[1] != "0" && p[1] != "1") {
+			issues = append(issues, fmt.Sprintf("Tree outline line %q is not a folder and a 0 or 1", line))
+			continue
+		}
+		if p[1] == "1" {
+			selected++
+		}
+	}
+	if selected > 1 {
+		issues = append(issues, "Tree outline marks more than one row as selected")
 	}
 	return issues
 }

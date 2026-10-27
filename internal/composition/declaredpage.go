@@ -345,6 +345,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		item[domain.PageRecordIDRole] = r.ID
 		fillDerivedGroup(item, src, r, people)
 		fillDerivedPerson(item)
+		item[domain.PageTitleLeafRole] = titleLeaf(item[string(domain.CardFieldRoleTitle)])
 		edit, del := recordEditForm(src, r, viewer), recordDeleteAction(src, r, viewer)
 		move, transition := recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated), recordTransition(src, r, viewer)
 		// What the routes would refuse for a reason outside the record itself is not offered either: a record frozen by
@@ -583,6 +584,11 @@ func fillDerivedGroup(item map[string]string, src *domain.Machine, r *data.Recor
 		value = rendering.RelationLabel(relations, f.RelatedMachine, value)
 	}
 	item[domain.PageGroupLabelRole] = value
+}
+
+// titleLeaf is the last segment of a title read as a path, the whole title when it holds no slash: what a Tree's row says once its folders are headings.
+func titleLeaf(title string) string {
+	return title[strings.LastIndex(title, "/")+1:]
 }
 
 // fillDerivedPerson puts the initials of the person a record's `person` role names under `person:initials`, the circle an

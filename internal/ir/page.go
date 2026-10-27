@@ -1204,6 +1204,8 @@ func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	switch {
 	case n.Type == string(domain.ComponentTable):
 		return lowerTable(n, r, path)
+	case n.Type == string(domain.ComponentTree):
+		return lowerTree(n, r, path)
 	case b.Rows == domain.PageRowsRecords:
 		return lowerRecords(n, r, path)
 	case b.Rows == domain.PageRowsTotal:

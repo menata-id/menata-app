@@ -252,6 +252,7 @@ var allowedProps = map[string][]string{
 	"component/Popover":          {"label", "title", "trigger", "align", "density"},
 	"component/Table":            {"label", "empty", "headers", "aligns", "hidden", "truncated", "framed", "footer"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
+	"component/Tree":             {"label", "query", "outline", "empty"},
 	"component/SearchBox":        {"label", "query", "placeholder", "value", "action", "submit", "keep"},
 	"component/Diff":             {"label", "text"},
 	"component/FilterChips":      {"label", "query", "options", "all", "chips"},

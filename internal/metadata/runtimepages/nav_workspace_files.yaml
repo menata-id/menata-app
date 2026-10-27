@@ -11,10 +11,9 @@ page:
       text: "← Workspace settings"
     - static: caption
       text: Choose the file to replace. Only a file this workspace already has can be replaced here.
-    - component: Collection
-      gap: tight
-      divided: true
-      block: true
+    - component: Tree
+      label: Workspace files
+      query: path
       empty: This workspace has no files of its own yet.
       binding: { dataset: ds_runtime_workspace_files, rows: records }
       children:
@@ -24,7 +23,7 @@ page:
           justify: spread
           children:
             - static: link
-              from: { text: title, href: link }
+              from: { text: "title:leaf", href: link }
             - component: StatusBadge
               tone: warn
               when: { role: status, is: Draft }

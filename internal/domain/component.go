@@ -231,6 +231,12 @@ const (
 	// its own rather than a Button because what it says is a *state* (aria-pressed), not an action's name; the Field it writes and
 	// the value are the Machine's, derived by lowering, never typed.
 	ComponentToggle ComponentType = "Toggle"
+
+	// ComponentTree is a list whose rows sit under the folders their title names, folded or open, the row the request selected marked
+	// (007 §12.3's Selection and Tree, first read by the Workspace files screen: a file's path is its place in the tree, `?path=` its
+	// selection). It is a records-bound Component with an `item` slot, as Collection is: the rows arrive composed, and lowering alone
+	// produces the outline that says which folder each sits under and which one is selected.
+	ComponentTree ComponentType = "Tree"
 )
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action
