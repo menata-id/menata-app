@@ -2,11 +2,14 @@ package web
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
@@ -89,4 +92,23 @@ func statusFieldOf(m *domain.Machine) *domain.Field {
 		}
 	}
 	return nil
+}
+
+// builderMode turns on the builder preview for a request that asks for it (`?builder=1`) and comes from a Workspace admin: the page is then drawn as
+// always, with each part that is one piece of the Application's metadata naming itself (rendering.NodePathAttr) and its clicks reported to the frame.
+// For anyone else the parameter is ignored, so a member who adds it to a link sees the ordinary page. It reads the membership the request already
+// resolved (`membershipFor`), so it costs no query.
+func builderMode(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && req.URL.Query().Get("builder") == "1" {
+				userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+				workspaceID, _ := data.WorkspaceScope(req.Context())
+				if m, err := membershipFor(req.Context(), store, workspaceID, userID); err == nil && m != nil && m.WorkspaceRole == "admin" {
+					req = req.WithContext(rendering.WithBuilderMode(req.Context()))
+				}
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
 }

@@ -237,6 +237,7 @@ func Routes(d Deps) http.Handler {
 		pr.Use(blockUnavailableWorkspace(d.Store, d.UnavailableWorkspaces))
 		pr.Use(currentWorkspace(d.Store, d.Workspaces))
 		pr.Use(currentApplication())
+		pr.Use(builderMode(d.Store, d.Cfg))
 		pr.Use(requireInstalledApplication(ownedRoutes))
 		// Immediately after, and never before: it reads the Application currentApplication just
 		// resolved. Every route inside an Application passes through both, which is what makes

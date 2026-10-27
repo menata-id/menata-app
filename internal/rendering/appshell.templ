@@ -318,7 +318,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 					@applicationMenuRow(menu, currentApp)
 				}
 			</header>
-			<main class={ pageColumnClasses, "flex flex-col", layoutGap(ctx, domain.GapComfortable), "pt-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
+			<main { nodeAttrs(ctx, activeMenuNode(menu))... } class={ pageColumnClasses, "flex flex-col", layoutGap(ctx, domain.GapComfortable), "pt-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
 				{ children... }
 			</main>
 			if hasAppMenu {
@@ -328,6 +328,9 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 				@leaveWorkspaceGuard(workspaceName, viewer.WorkspaceRole, switchWorkspaceHref)
 			}
 			@pwaRegistrationScript()
+			if BuilderMode(ctx) {
+				@builderPreviewScript()
+			}
 		</body>
 	</html>
 }
@@ -337,6 +340,8 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 // presentation decision (which item matches the current request) that neither belongs on the
 // declared metadata shape nor need be recomputed by each of the two renderers separately.
 type navMenuItem struct {
+	// ID is the navigation item's id, the part of the Application's metadata this entry is (the builder preview names it).
+	ID    string
 	Label string
 	Href  string
 	Icon  string
@@ -392,7 +397,7 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 		if active && matched == -1 {
 			matched = i
 		}
-		menu[i] = navMenuItem{Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
+		menu[i] = navMenuItem{ID: item.ID, Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
 	}
 	if matched == -1 && len(menu) > 0 {
 		menu[0].Active = true
@@ -508,6 +513,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		for _, item := range tabs {
 			<a
 				href={ templ.SafeURL(item.Href) }
+				{ nodeAttrs(ctx, "navigation/"+item.ID)... }
 				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !item.Active) }
 				if item.Active {
 					aria-current="page"
@@ -530,6 +536,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				for _, item := range overflow {
 					<a
 						href={ templ.SafeURL(item.Href) }
+						{ nodeAttrs(ctx, "navigation/"+item.ID)... }
 						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2", textClass(ctx, domain.RoleBody), hoverWashClass(ctx), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkBody), !item.Active) }
 						if item.Active {
 							aria-current="page"
@@ -1007,3 +1014,30 @@ templ sectionHeaderRow(title, linkHref, linkLabel string) {
 // red *text* with no pill and everything else a slate pill a half-step tighter than `statusBadge`'s; overdue
 // is now a red pill, which is what `domain.ToneBad` already meant everywhere else. Two markups for one
 // semantic state is the same accident as `split`'s four aside widths, and a Component is where it stops.
+
+// activeMenuNode is the metadata path of the page being drawn: the navigation item whose menu entry is the active one, "" when the Application has no menu.
+func activeMenuNode(menu []navMenuItem) string {
+	for _, item := range menu {
+		if item.Active && item.ID != "" {
+			return "navigation/" + item.ID
+		}
+	}
+	return ""
+}
+
+// builderPreviewScript makes the builder's preview a picture that can be pointed at: a click on any part that names itself (`data-node-path`) tells
+// the frame around the page which part, and nothing else happens -- no link is followed, no form is sent -- so choosing a part never changes the
+// Application. It is the fourth named vanilla-JS exception (beside signature placement, the drag scripts and the frame's own listener): a click
+// that reports where it landed has no declarative form until 007 §12.3's `actions` carries a payload.
+templ builderPreviewScript() {
+	<script>
+		(function () {
+			document.addEventListener("click", function (e) {
+				var hit = e.target.closest("[data-node-path]");
+				e.preventDefault();
+				if (hit && window.parent !== window) window.parent.postMessage({ menataNode: hit.getAttribute("data-node-path") }, location.origin);
+			}, true);
+			document.addEventListener("submit", function (e) { e.preventDefault(); }, true);
+		})();
+	</script>
+}

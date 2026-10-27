@@ -3845,6 +3845,11 @@ func uiNodeBody(n ir.UINode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			case domain.ComponentFrame:
+				templ_7745c5c3_Err = frame(n.Props["label"], n.Props["src"], n.Props["query"]).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			case domain.ComponentTree:
 				templ_7745c5c3_Err = tree(n.Props["label"], n.Props["query"], n.Props["empty"], n.Props["outline"], uiChildComponents(n)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {

@@ -34,20 +34,32 @@ page:
           children:
             - static: link
               from: { text: "title:leaf", href: link }
-        - component: Collection
+        - layout: stack
           gap: comfortable
-          block: true
-          empty: Choose a part of the application to read it.
-          binding: { dataset: ds_runtime_builder_node, rows: records }
           children:
-            - layout: stack
-              gap: default
+            - component: Collection
+              gap: tight
+              block: true
+              binding: { dataset: ds_runtime_workspace_application, rows: records }
               children:
-                - static: overline
-                  from: { text: subtitle }
-                - static: heading
-                  from: { text: "title:leaf" }
-                - static: paragraph
-                  from: { text: detail }
-                - static: caption
-                  from: { text: summary }
+                - component: Frame
+                  label: The application as it runs
+                  query: node
+                  from: { src: link }
+            - component: Collection
+              gap: comfortable
+              block: true
+              empty: Choose a part of the application to read it.
+              binding: { dataset: ds_runtime_builder_node, rows: records }
+              children:
+                - layout: stack
+                  gap: default
+                  children:
+                    - static: overline
+                      from: { text: subtitle }
+                    - static: heading
+                      from: { text: "title:leaf" }
+                    - static: paragraph
+                      from: { text: detail }
+                    - static: caption
+                      from: { text: summary }

@@ -1,10 +1,15 @@
 package web
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
+
+	"menata.app/internal/authorization"
+	"menata.app/internal/data"
 )
 
 // The builder's screen lists an Application's parts as a tree -- Machines with their Fields, its screens, its menu -- marks the part the request
@@ -37,5 +42,103 @@ func TestBuilderScreenListsTheApplicationsPartsAndReadsTheSelectedOne(t *testing
 
 	if rec := s.getAs(t, "/builder/app_nobody"); rec.Code != http.StatusNotFound {
 		t.Errorf("an Application the Workspace does not have: %d, want 404", rec.Code)
+	}
+}
+
+// The builder frames the Application's own screen in builder mode, and that screen names its parts: the menu entry and the page it is on carry
+// `data-node-path`, "<Application>/<metadata path>", the very id the tree gives the part. Without `?builder=1`, or for a member who adds it, the
+// page is the ordinary one and carries no such attribute.
+func TestBuilderPreviewNamesItsPartsOnlyForAnAdminWhoAsks(t *testing.T) {
+	s := newInstallTestSetup(t, "bpreview")
+
+	shell := s.getAs(t, "/builder/app_document_tracking").Body.String()
+	if m := regexp.MustCompile(`<iframe[^>]*src="([^"]*)"`).FindStringSubmatch(shell); m == nil || !strings.Contains(m[1], "builder=1") || !strings.HasPrefix(m[1], "/") {
+		t.Fatalf("the builder does not frame the application's screen in builder mode: %v", m)
+	}
+	if !strings.Contains(shell, `data-frame-query="node"`) {
+		t.Error("the frame does not say which parameter a chosen part is carried in")
+	}
+
+	page := s.getAs(t, "/machines/mch_document?builder=1").Body.String()
+	want := `data-node-path="app_document_tracking/navigation/nav_document_tracking"`
+	if strings.Count(page, want) != 2 {
+		t.Errorf("want the menu entry and the page itself to name navigation/nav_document_tracking once each, got %d:\n%s", strings.Count(page, want), page)
+	}
+	if !strings.Contains(page, "menataNode") {
+		t.Error("the preview does not report a click to its frame")
+	}
+	plain := s.getAs(t, "/machines/mch_document").Body.String()
+	if strings.Contains(plain, "data-node-path") || strings.Contains(plain, "menataNode") {
+		t.Error("an ordinary request carries builder markup")
+	}
+
+	memberID, err := s.store.CreateRecord(data.WithWorkspaceScope(context.Background(), s.wsID), "mch_user", map[string]any{"fld_email": "bpreview-member@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.AddMember(context.Background(), s.wsID, memberID.ID, "bpreview-member@example.com", "member", ""); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/machines/mch_document?builder=1", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.deps.Cfg, memberID.ID, 0)})
+	rec := httptest.NewRecorder()
+	s.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the member could not open the ordinary page (%d), so the check below measures nothing", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "data-node-path") {
+		t.Errorf("a member got builder markup (status %d)", rec.Code)
+	}
+}
+
+// The sweep behind Fase 3's "every visible part maps to exactly one metadata path": every installed Application's home screen, drawn in builder
+// mode, names only parts the builder's own tree lists for that Application -- the same ids, so a click in the preview always finds its row.
+func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "bsweep")
+	listed := func(appID, path string) bool {
+		for _, app := range fx.ws.Applications {
+			if app.ID != appID {
+				continue
+			}
+			if path == "navigation" {
+				return true
+			}
+			for _, item := range app.AllNavigation {
+				if path == "navigation/"+item.ID {
+					return true
+				}
+			}
+			for _, id := range app.Machines {
+				if strings.HasPrefix(path, "machines/"+id) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	pattern := regexp.MustCompile(`data-node-path="([^"]*)"`)
+	swept, named := 0, 0
+	for _, app := range fx.ws.Applications {
+		if app.Inactive || app.HomeRoute == "" {
+			continue
+		}
+		req := httptest.NewRequest(http.MethodGet, builderPreviewRoute(app), nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			continue // a screen that does not draw for this fixture is the route sweep's business
+		}
+		swept++
+		for _, m := range pattern.FindAllStringSubmatch(rec.Body.String(), -1) {
+			named++
+			appID, path, ok := strings.Cut(m[1], "/")
+			if !ok || appID != app.ID || !listed(appID, path) {
+				t.Errorf("%s names %q, which the builder's tree does not list for that Application", app.HomeRoute, m[1])
+			}
+		}
+	}
+	if swept < 2 || named < swept {
+		t.Fatalf("swept %d Applications and %d named parts -- the sweep measures too little", swept, named)
 	}
 }

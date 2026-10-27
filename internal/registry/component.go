@@ -71,6 +71,7 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentToggle:           {Contract: toggleContract, Validate: validateToggle},
 	domain.ComponentIconTile:         {Contract: iconTileContract, Validate: validateIconTile},
 	domain.ComponentTree:             {Contract: treeContract, Validate: validateTree},
+	domain.ComponentFrame:            {Contract: frameContract, Validate: validateFrame},
 }
 
 // toggleContract is a record's completion circle (mockup PM01 and PM08): open (a ring) or finished (a filled circle with a
@@ -1424,6 +1425,37 @@ func validateTree(inputs map[string]string) []string {
 	}
 	if selected > 1 {
 		issues = append(issues, "Tree outline marks more than one row as selected")
+	}
+	return issues
+}
+
+// frameContract is another page of this host drawn inside the page: the Application Builder's preview of an Application's own screen, the page
+// the person is building, shown as it runs. **It is bounded to this host**: `src` must be a path on it (one slash, not two, no scheme), so the
+// Component cannot be made to draw another site, and a page that sets it from a record reads a route the runtime produced, not text a person typed.
+// `query` names the parameter the frame's own page reports a choice in (a click on a part that names itself, `data-node-path`), and the Component's
+// listener turns that report into a request to this page with the parameter set -- the selection of a Tree beside it.
+// What the contract forces that a reviewer would not have asked for: the frame has a required accessible title, an address that leaves the host is
+// refused, and a `query` is required because a frame that reports nothing back is a picture.
+var frameContract = domain.ComponentContract{
+	Type:   domain.ComponentFrame,
+	Status: domain.ComponentStatusStable,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "src", Kind: "string", Required: true},
+		{Name: "query", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "an <iframe> titled by `label`, so a screen reader announces what it holds; the frame's own page is an ordinary page, reached by the keyboard like any other, and a part chosen inside it is chosen again in the list beside it, which is a real list of links",
+	Renderer:         "frame",
+}
+
+// validateFrame checks the inputs and that `src` stays on this host.
+func validateFrame(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(frameContract, inputs, "Frame")
+	if src := inputs["src"]; src != "" && (!strings.HasPrefix(src, "/") || strings.HasPrefix(src, "//") || strings.Contains(src, "\\")) {
+		issues = append(issues, fmt.Sprintf("Frame src %q is not a path on this host", src))
 	}
 	return issues
 }

@@ -237,6 +237,11 @@ const (
 	// selection). It is a records-bound Component with an `item` slot, as Collection is: the rows arrive composed, and lowering alone
 	// produces the outline that says which folder each sits under and which one is selected.
 	ComponentTree ComponentType = "Tree"
+
+	// ComponentFrame is another page of this application drawn inside this one, for a screen that shows the thing it is about (the Application
+	// Builder's preview of an Application's own page). It holds no content of its own: `src` is an address on this host, and a page that wants the
+	// frame's contents chosen from inside it names the request parameter (`query`) the choice is carried in.
+	ComponentFrame ComponentType = "Frame"
 )
 
 // KnownLinkVariants is how a `static: link` may be drawn besides as a link: as a button, for a link that is an action

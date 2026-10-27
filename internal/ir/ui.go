@@ -253,6 +253,7 @@ var allowedProps = map[string][]string{
 	"component/Table":            {"label", "empty", "headers", "aligns", "hidden", "truncated", "framed", "footer"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
 	"component/Tree":             {"label", "query", "outline", "empty"},
+	"component/Frame":            {"label", "src", "query"},
 	"component/SearchBox":        {"label", "query", "placeholder", "value", "action", "submit", "keep"},
 	"component/Diff":             {"label", "text"},
 	"component/FilterChips":      {"label", "query", "options", "all", "chips"},

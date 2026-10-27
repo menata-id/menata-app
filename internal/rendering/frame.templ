@@ -1,0 +1,28 @@
+package rendering
+
+// frame is the registered renderer for `domain.ComponentFrame`: an <iframe> on a path of this host, as wide as the column and as tall as a screen. The
+// listener that follows is the frame's other half: when the page inside reports a part (`builderPreviewScript`), this page is requested again with
+// `query` set to it, so the Tree beside the frame marks that part and the inspector reads it. Only a message from this origin and from this frame is
+// believed.
+templ frame(label, src, query string) {
+	<iframe
+		title={ label }
+		src={ src }
+		loading="lazy"
+		data-frame-query={ query }
+		class={ "block h-[70vh] w-full", tileClasses(ctx) }
+	></iframe>
+	<script>
+		(function () {
+			if (window.menataFrameListener) return;
+			window.menataFrameListener = true;
+			window.addEventListener("message", function (e) {
+				var frame = document.querySelector("iframe[data-frame-query]");
+				if (e.origin !== location.origin || !frame || e.source !== frame.contentWindow || !e.data || typeof e.data.menataNode !== "string") return;
+				var next = new URL(location.href);
+				next.searchParams.set(frame.getAttribute("data-frame-query"), e.data.menataNode);
+				location.href = next.toString();
+			});
+		})();
+	</script>
+}

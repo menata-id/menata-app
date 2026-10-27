@@ -1684,6 +1684,8 @@ templ uiNodeBody(n ir.UINode) {
 					}
 				case domain.ComponentCollection:
 					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", domain.ListDensity(n.Props["density"]), truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n), strings.Fields(n.Props[ir.CollectionMoveRoutesProp]))
+				case domain.ComponentFrame:
+					@frame(n.Props["label"], n.Props["src"], n.Props["query"])
 				case domain.ComponentTree:
 					@tree(n.Props["label"], n.Props["query"], n.Props["empty"], n.Props["outline"], uiChildComponents(n))
 				case domain.ComponentMetric:

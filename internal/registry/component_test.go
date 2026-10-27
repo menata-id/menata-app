@@ -798,3 +798,19 @@ func TestValidateTree_refusesAnOutlineThatIsNotFolderAndMarker(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateFrame_staysOnThisHost(t *testing.T) {
+	ok := map[string]string{"label": "Preview", "src": "/machines/mch_x?builder=1", "query": "node"}
+	if issues := ValidateComponentUse(domain.ComponentFrame, ok); len(issues) != 0 {
+		t.Fatalf("a path on this host is refused: %v", issues)
+	}
+	for name, src := range map[string]string{"another site": "https://example.com/", "protocol-relative": "//example.com/x", "a scheme": "javascript:alert(1)", "relative": "x", "backslash": "/\\example.com", "empty": ""} {
+		in := map[string]string{"label": "Preview", "src": src, "query": "node"}
+		if len(ValidateComponentUse(domain.ComponentFrame, in)) == 0 {
+			t.Errorf("%s (%q): want a refusal", name, src)
+		}
+	}
+	if len(ValidateComponentUse(domain.ComponentFrame, map[string]string{"label": "P", "src": "/x"})) == 0 {
+		t.Error("a frame that names no query reports nothing back: want a refusal")
+	}
+}

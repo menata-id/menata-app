@@ -9,6 +9,7 @@ fields:
   - { id: fld_detail, name: What it holds, type: text }
   - { id: fld_state, name: State, type: status, options: [Active, Inactive] }
   - { id: fld_undo, name: Can be taken back, type: text }
+  - { id: fld_open, name: Preview address, type: text }
 # An Application that is switched off needs a look; one that is on is as it should be.
 status_categories:
   field: fld_state
@@ -18,6 +19,7 @@ card_fields:
   - { field: fld_detail, role: subtitle }
   - { field: fld_state, role: status }
   - { field: fld_undo, role: detail }
+  - { field: fld_open, role: link }
 datasets:
   - id: ds_runtime_workspace_applications
     select: records
