@@ -332,10 +332,72 @@ func TestEveryKeyWithoutASlotHasAnEditor(t *testing.T) {
 
 // uncoveredFloor is how many writable keys no operation names yet. It only goes down: an operation for a key lowers it
 // (and the number here), a new writable key raises it and fails until someone decides.
-const uncoveredFloor = 43
+const uncoveredFloor = 10
 
 func TestUncoveredWritableKeysOnlyShrink(t *testing.T) {
 	if got := len(Uncovered()); got != uncoveredFloor {
 		t.Errorf("%d writable keys have no operation (floor %d): %v", got, uncoveredFloor, Uncovered())
+	}
+}
+
+// A field added from an operation reaches the file with its type, options and requiredness; a default and a new permission
+// likewise; a field id already taken is an error and not an overwrite.
+func TestAddFieldSetDefaultAndAddPermission(t *testing.T) {
+	manifest := installed(t)
+	plan, err := Review(manifest, appID, []Op{
+		{Kind: OpAddField, Machine: "mch_catat", Field: "fld_prioritas", Value: "Prioritas", Type: "status", Options: []string{"rendah", "tinggi"}},
+		{Kind: OpSetDefault, Machine: "mch_catat", Field: "fld_status", Value: "draft"},
+		{Kind: OpAddPermission, Machine: "mch_catat", Permission: "prm_catat_edit", Action: "edit", Roles: []string{"approver"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diff string
+	for _, f := range plan.Files {
+		diff += f.Diff
+	}
+	for _, want := range []string{"fld_prioritas", "Prioritas", "rendah", "tinggi", "prm_catat_edit", "default: draft"} {
+		if !strings.Contains(diff, want) {
+			t.Errorf("the diff lacks %q:\n%s", want, diff)
+		}
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddField, Machine: "mch_catat", Field: "fld_judul", Value: "Lain", Type: "text"}}); err == nil {
+		t.Error("a field id already taken was accepted")
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddPermission, Machine: "mch_catat", Permission: "prm_catat_create", Action: "create", Roles: []string{"approver"}}}); err == nil {
+		t.Error("a permission id already taken was accepted")
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddField, Machine: "mch_catat", Field: "fld_x", Value: "X", Type: "no-such-type"}}); err == nil {
+		t.Error("an unknown field type was accepted")
+	}
+}
+
+// Unchanged is a claim about the update policy, so it is probed against PlanUpdate itself: one key of each shape is changed
+// in the whole desired state, and the plan must refuse it.
+func TestUnchangedKeysAreRefusedByThePolicy(t *testing.T) {
+	manifest := installed(t)
+	base := current(t, manifest)
+	// give the Machine one of each thing so there is something to change
+	base.Machines[0].Transitions = []aiassist.GeneratedTransition{{ID: "trn_a", Name: "Kirim", Field: "fld_status", From: "draft", To: "sent", Roles: []string{"approver"}}}
+	base.Machines[0].Events = []aiassist.GeneratedEvent{{ID: "evt_a", On: "create", Summary: "dibuat"}}
+	probes := map[string]func(m *aiassist.GeneratedMachine){
+		"fieldDoc.type":          func(m *aiassist.GeneratedMachine) { m.Fields[0].Type = "number" },
+		"fieldDoc.stamp":         func(m *aiassist.GeneratedMachine) { m.Fields[0].Stamp = "current_user" },
+		"permissionDoc.action":   func(m *aiassist.GeneratedMachine) { m.Permissions[0].Action = "delete" },
+		"transitionDoc.roles":    func(m *aiassist.GeneratedMachine) { m.Transitions[0].Roles = []string{"submitter"} },
+		"eventDoc.on":            func(m *aiassist.GeneratedMachine) { m.Events[0].On = "update" },
+		"machineDoc.transitions": func(m *aiassist.GeneratedMachine) { m.Transitions = nil },
+	}
+	for key, change := range probes {
+		if Unchanged[key] == "" {
+			t.Errorf("%s is probed but not in Unchanged", key)
+		}
+		desired := clone(base)
+		desired.Machines[0].Transitions = slices.Clone(base.Machines[0].Transitions)
+		desired.Machines[0].Events = slices.Clone(base.Machines[0].Events)
+		change(&desired.Machines[0])
+		if plan := aiassist.PlanUpdate(base, desired); len(plan.Refusals) == 0 {
+			t.Errorf("%s: PlanUpdate accepted a change that Unchanged says is refused: %v", key, plan.Items)
+		}
 	}
 }

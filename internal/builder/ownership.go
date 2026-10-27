@@ -78,7 +78,33 @@ var Ownership = map[string]Owner{
 	"applicationDoc.companion_of":     {EditorNone, "the library's own packaging"},
 }
 
-// Uncovered lists the supported keys the assistant can write that no operation names yet (an id is never edited), in
+// Why a writable key has no change operation, taken from the update policy (aiassist/plan.go): the plan lets it be added and
+// refuses to change or remove it, or refuses to change it at all. Neither is a gap in the builder; an addition is an
+// operation on its container (add_field, add_permission), and a change is, by design, "add a new one instead".
+const (
+	ClassOnlyAdded = "added once, never changed or removed" // PlanUpdate refuses an edit of what was written
+	ClassFixed     = "never changes"                        // PlanUpdate refuses it on a Field that holds records
+)
+
+// Unchanged classes the writable keys whose change PlanUpdate refuses, so they are not counted as work the builder owes.
+// TestUnchangedKeysAreRefusedByThePolicy probes a representative of each shape against PlanUpdate itself.
+var Unchanged = map[string]string{
+	"fieldDoc.type": ClassFixed, "fieldDoc.machine": ClassFixed, "fieldDoc.stamp": ClassFixed,
+	"fieldDoc.required_when": ClassOnlyAdded, "fieldDoc.default_from": ClassOnlyAdded,
+	"permissionDoc.action": ClassOnlyAdded, "permissionDoc.actor_field": ClassOnlyAdded, "permissionDoc.parent_actor": ClassOnlyAdded,
+	"parentActorDoc.via": ClassOnlyAdded, "parentActorDoc.field": ClassOnlyAdded,
+	"transitionDoc.name": ClassOnlyAdded, "transitionDoc.field": ClassOnlyAdded, "transitionDoc.from": ClassOnlyAdded,
+	"transitionDoc.to": ClassOnlyAdded, "transitionDoc.roles": ClassOnlyAdded, "transitionDoc.actor_field": ClassOnlyAdded,
+	"transitionDoc.sets": ClassOnlyAdded, "transitionDoc.balanced": ClassOnlyAdded, "transitionDoc.generates": ClassOnlyAdded,
+	"machineDoc.transitions": ClassOnlyAdded,
+	"eventDoc.on":            ClassOnlyAdded, "eventDoc.when_equals": ClassOnlyAdded, "eventDoc.on_create": ClassOnlyAdded, "eventDoc.then": ClassOnlyAdded,
+	"machineDoc.events":   ClassOnlyAdded,
+	"completionDoc.field": ClassOnlyAdded, "completionDoc.done": ClassOnlyAdded, "machineDoc.completion": ClassOnlyAdded,
+	"machineDoc.status_categories": ClassOnlyAdded, "machineDoc.ensure": ClassOnlyAdded, "machineDoc.frozen_when": ClassOnlyAdded,
+}
+
+// Uncovered lists the supported keys the assistant can write that no operation names yet and whose change the policy allows
+// (an id is never edited, and Unchanged keys are refused), in
 // catalogue order. It is computed, not written: adding an operation for a key removes it, and the worklist of the editor
 // phases is whatever remains. TestUncoveredWritableKeysOnlyShrink holds its size.
 func Uncovered() []string {
@@ -88,7 +114,7 @@ func Uncovered() []string {
 	}
 	var out []string
 	for _, c := range registry.Capabilities {
-		if c.Stage != registry.StageSupported || !c.AIWritable || covered[c.ID] || slices.Equal(c.Keys, []string{"id"}) {
+		if c.Stage != registry.StageSupported || !c.AIWritable || covered[c.ID] || Unchanged[c.ID] != "" || slices.Equal(c.Keys, []string{"id"}) {
 			continue
 		}
 		out = append(out, c.ID)

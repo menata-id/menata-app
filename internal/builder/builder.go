@@ -21,6 +21,9 @@ const (
 	OpRemoveOption       = "remove_option"
 	OpRemoveField        = "remove_field"
 	OpSetPermissionRoles = "set_permission_roles"
+	OpAddField           = "add_field"
+	OpSetDefault         = "set_default"
+	OpAddPermission      = "add_permission"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -33,6 +36,11 @@ type Op struct {
 	Value      string   `json:"value,omitempty"`
 	Flag       bool     `json:"flag,omitempty"`
 	Roles      []string `json:"roles,omitempty"`
+	// Type, Options and Action describe a new thing: add_field takes Field (its id), Value (its name), Type, Flag (required)
+	// and Options; add_permission takes Permission (its id), Action and Roles.
+	Type    string   `json:"type,omitempty"`
+	Options []string `json:"options,omitempty"`
+	Action  string   `json:"action,omitempty"`
 }
 
 // capabilityOf maps each operation to the registry.Capabilities entry of the key it writes.
@@ -44,6 +52,9 @@ var capabilityOf = map[string]string{
 	OpRemoveOption:       "fieldDoc.options",
 	OpRemoveField:        "machineDoc.fields",
 	OpSetPermissionRoles: "permissionDoc.roles",
+	OpAddField:           "machineDoc.fields",
+	OpSetDefault:         "fieldDoc.default",
+	OpAddPermission:      "machineDoc.permissions",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -87,13 +98,23 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			}
 		}
 		return fmt.Errorf("permission %q is not on machine %s", op.Permission, m.ID)
+	case OpAddPermission:
+		if slices.ContainsFunc(m.Permissions, func(x aiassist.GeneratedPermission) bool { return x.ID == op.Permission }) {
+			return fmt.Errorf("permission %q already exists on machine %s", op.Permission, m.ID)
+		}
+		m.Permissions = append(m.Permissions, aiassist.GeneratedPermission{ID: op.Permission, Action: op.Action, Roles: slices.Clone(op.Roles)})
+	case OpAddField:
+		if slices.ContainsFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field }) {
+			return fmt.Errorf("field %q already exists on machine %s", op.Field, m.ID)
+		}
+		m.Fields = append(m.Fields, aiassist.GeneratedField{ID: op.Field, Name: op.Value, Type: op.Type, Required: op.Flag, Options: slices.Clone(op.Options)})
 	case OpRemoveField:
 		i := slices.IndexFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field })
 		if i < 0 {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
 		}
 		m.Fields = slices.Delete(m.Fields, i, i+1)
-	case OpRenameField, OpSetRequired, OpAddOption, OpRemoveOption:
+	case OpRenameField, OpSetRequired, OpSetDefault, OpAddOption, OpRemoveOption:
 		i := slices.IndexFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field })
 		if i < 0 {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
@@ -104,6 +125,8 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			f.Name = op.Value
 		case OpSetRequired:
 			f.Required = op.Flag
+		case OpSetDefault:
+			f.Default = op.Value
 		case OpAddOption:
 			if slices.Contains(f.Options, op.Value) {
 				return fmt.Errorf("option %q already exists on %s", op.Value, f.ID)
