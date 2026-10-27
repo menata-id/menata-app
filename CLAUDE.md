@@ -97,6 +97,7 @@ uninstalls; `applications: []` is valid and normal.
   answers a question, building the declaration *is* the work.
 - **A Workspace's own ids are unique within it** (`metadata.validateMachineIDsAreUnique`; `aiassist.Validate`).
 - **Companions**: an Application whose Machines relate to another's declares `companion_of:`; the library lists the named one once and an install brings both in as two Applications (`installer.Listed`, `Plan.Companions`).
+- **Switching an Application off** is `inactive: true` in its file (`domain.Application.Inactive`): `currentApplication` 404s everything it owns and `openableApplications` hides it; data stays. A Workspace admin's switch, never part of a proposal.
 - **Installing renames colliding Machine/Application ids** (`internal/installer`; no collision ⇒ byte-identical
   copy). A collision on a nav id, nav route or Dataset id is **refused**, not renamed, because Go still names
   those. Installs are load-verified and rolled back on failure.

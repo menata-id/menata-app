@@ -73,6 +73,12 @@ func currentApplication() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			ctx := rendering.WithCurrentPath(req.Context(), req.URL.Path, req.URL.RawQuery)
 			if app, ok := applicationForPath(rendering.CurrentWorkspace(req.Context()), req.URL.Path); ok {
+				if app.Inactive {
+					// Switched off by a Workspace admin: nothing the Application owns is served, not even to an admin (they switch it
+					// back on from the Workspace's own Applications screen). Its data is untouched.
+					http.NotFound(w, req)
+					return
+				}
 				ctx = rendering.WithCurrentApplication(ctx, app)
 			}
 			next.ServeHTTP(w, req.WithContext(ctx))
@@ -215,7 +221,7 @@ func canOpenApplication(app domain.Application, actor domain.Actor, cfg config.C
 func openableApplications(ws domain.Workspace, actor domain.Actor, cfg config.Config) []domain.Application {
 	apps := make([]domain.Application, 0, len(ws.Applications))
 	for _, app := range ws.Applications {
-		if canOpenApplication(app, actor, cfg) {
+		if !app.Inactive && canOpenApplication(app, actor, cfg) {
 			apps = append(apps, app)
 		}
 	}

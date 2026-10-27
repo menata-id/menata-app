@@ -226,6 +226,11 @@ type Application struct {
 	// installer.PlanInstall). Meaningful only in the library; an installed copy keeps the key as a record of where it came from
 	// and the runtime reads nothing from it.
 	CompanionOf string
+	// Inactive switches the Application off in this Workspace (`inactive: true` in its file): it leaves the menu, the launcher and Home,
+	// and every route it owns answers 404, while its Machines, records and files stay exactly as they are. Switching it on again
+	// removes the key. It is the Workspace admin's switch (the deactivate_application / reactivate_application runtime actions), never
+	// something a generated proposal sets, and a key in the file so that a snapshot restores it and the Code tab shows it.
+	Inactive bool
 	// Roles is this Application's own role vocabulary -- what a member may hold *here*, which is a
 	// different question from their Workspace role (admin/member). Declared per Application
 	// because the vocabularies genuinely differ between them; an Application may declare none,

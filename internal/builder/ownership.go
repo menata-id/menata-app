@@ -76,6 +76,7 @@ var Ownership = map[string]Owner{
 	"permissionDoc.workspace_role":    {EditorNone, "a Workspace role is the Workspace's, not an Application's"},
 	"machineDoc.runtime":              {EditorNone, "a runtime-provided Machine belongs to the runtime"},
 	"applicationDoc.companion_of":     {EditorNone, "the library's own packaging"},
+	"applicationDoc.inactive":         {EditorNone, "switched by the deactivate_application / reactivate_application runtime actions, not by an edit operation"},
 }
 
 // Why a writable key has no change operation, taken from the update policy (aiassist/plan.go): the plan lets it be added and

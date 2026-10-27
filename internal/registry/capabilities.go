@@ -146,6 +146,7 @@ var Capabilities = []Capability{
 	// applicationDoc (an Application's own file): a page's arrangement is declared, not generated -- the assistant writes no `page:` either.
 	key("applicationDoc", "view_groups", "presentation", "experience", false, "screens that are arrangements of one Machine's records sharing a header, a switch and a scope; like `page:` (UnwritableByTheAssistant) it is authored, and a generated Application has no Board, Table or Calendar of one Machine to group"),
 	key("applicationDoc", "companion_of", "structure", "experience", false, "ties a template to the one it is installed with; it is about the library's own packaging, which a generated Application is never part of"),
+	key("applicationDoc", "inactive", "structure", "runtime", false, "the Workspace admin's switch for an Application (the deactivate/reactivate runtime actions write it); not part of what a proposal describes, and a generated update must not switch an Application off"),
 	key("navItemDoc", "view_group", "presentation", "experience", false, "makes a screen one arrangement of an Application's view group; authored with the group"),
 	key("navItemDoc", "summary", "presentation", "experience", false, "words a view group's header with its counts; authored with the group"),
 

@@ -272,6 +272,7 @@ type FullApplicationCheckDoc struct {
 	Color          string   `yaml:"color"`
 	SummaryMachine string   `yaml:"summary_machine"`
 	CompanionOf    string   `yaml:"companion_of"`
+	Inactive       bool     `yaml:"inactive"`
 	ShowNav        *bool    `yaml:"show_nav"`
 	Navigation     []any    `yaml:"navigation"`
 	// ViewGroups -- the header the Board, Table and Calendar of one Machine share (domain.ViewGroup, 2026-10-19).

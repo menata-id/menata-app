@@ -379,6 +379,8 @@ type applicationDoc struct {
 	SummaryMachine string `yaml:"summary_machine"`
 	// CompanionOf names the template Application this one is installed together with -- see domain.Application.CompanionOf.
 	CompanionOf string `yaml:"companion_of"`
+	// Inactive -- see domain.Application.Inactive. Absent means active.
+	Inactive bool `yaml:"inactive"`
 	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
 	// Application that says nothing about its menu keeps it (the retired mockup nav-metadata.js's own
 	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
@@ -939,6 +941,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		Color:           doc.Color,
 		SummaryMachine:  doc.SummaryMachine,
 		CompanionOf:     doc.CompanionOf,
+		Inactive:        doc.Inactive,
 		ShowNav:         showNav,
 		Navigation:      navigation,
 		PrimaryNavGroup: primaryNavGroup,
