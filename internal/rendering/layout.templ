@@ -1221,15 +1221,15 @@ func truncationFromProp(limit string) Truncation {
 	return t
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, truncated Truncation, heading string, hint string, items []templ.Component) {
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, truncated Truncation, heading string, hint string, items []templ.Component, move_routes []string) {
 	if heading != "" {
 		@stackLayout(domain.GapTight) {
 			@collectionHeading(heading, hint, len(items))
-			@collectionBody(gap, empty, ordered, divided, block, inline, density, items)
+			@collectionBody(gap, empty, ordered, divided, block, inline, density, items, move_routes)
 			@truncationNotice(truncated)
 		}
 	} else {
-		@collectionBody(gap, empty, ordered, divided, block, inline, density, items)
+		@collectionBody(gap, empty, ordered, divided, block, inline, density, items, move_routes)
 		@truncationNotice(truncated)
 	}
 }
@@ -1255,18 +1255,37 @@ templ collectionHeading(heading string, hint string, count int) {
 	}
 }
 
-templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, items []templ.Component) {
+templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, block bool, inline bool, density domain.ListDensity, items []templ.Component, move_routes []string) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if divided && ordered {
-		<ol class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
+		<ol
+			if reorderRoutes(move_routes) {
+				data-reorder-over={ "ring-2 " + accentRingClass(ctx) + " " + accentEdgeClass(ctx) }
+			}
+			class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }
+		>
 			for i, it := range items {
-				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), listRowPadding(density), textClass(ctx, domain.RoleBody), "last:border-b-0" }>
-					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
+				<li
+					if reorderRoute(move_routes, i) != "" {
+						data-reorder-url={ reorderRoute(move_routes, i) }
+					}
+					class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), listRowPadding(density), textClass(ctx, domain.RoleBody), "last:border-b-0" }
+				>
+					if reorderRoute(move_routes, i) != "" {
+						// The grip is the one place a row is picked up from (script: `reorderScript`); a row with no route is one this viewer may not move.
+						<span data-reorder-grip role="button" tabindex="0" aria-label="Move this row" class={ "grid cursor-grab place-items-center", inkClass(ctx, domain.InkFaint), inkHoverClass(ctx, domain.InkBody), touchTargetClass() }>
+							@icon("grip", "size-4")
+						</span>
+					}
+					<span class={ "grid size-5.5 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundSunken), textClass(ctx, domain.RoleLabel), inkClass(ctx, domain.InkBody) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
 					@it
 				</li>
 			}
 		</ol>
+		if reorderRoutes(move_routes) {
+			@reorderScript()
+		}
 	} else if divided {
 		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
 			for _, it := range items {
@@ -1664,7 +1683,7 @@ templ uiNodeBody(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", domain.ListDensity(n.Props["density"]), truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", n.Props["block"] == "true", n.Props["inline"] == "true", domain.ListDensity(n.Props["density"]), truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n), strings.Fields(n.Props[ir.CollectionMoveRoutesProp]))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
@@ -1829,4 +1848,84 @@ func displayRole(role string) string {
 		return "—"
 	}
 	return role
+}
+
+// reorderRoute is row i's record route when this viewer may drag it, and "" for a row with no grip (a "-" entry, or a list that is not reorderable).
+func reorderRoute(move_routes []string, i int) string {
+	if i >= len(move_routes) || move_routes[i] == "-" {
+		return ""
+	}
+	return move_routes[i]
+}
+
+// reorderRoutes is whether any row of the list can be dragged, so the script is on the page only where it has something to act on.
+func reorderRoutes(move_routes []string) bool {
+	for i := range move_routes {
+		if reorderRoute(move_routes, i) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// reorderScript moves a row of a reorderable list: pick it up by its grip and drop it on another row, or press Up or Down while the grip has focus.
+// Either ends in the one POST of the record's generic move route (`?to=<place>` for a drop, `?direction=` for a key), whose answer to a declared page
+// is a refresh -- nothing is moved in the DOM, so the page that comes back is the proof it saved and a refused write leaves the row where it was.
+// A named vanilla-JS exception beside `bucketMoveScript`: a gesture has no declarative form (007 §12.3's `actions` carries a click, not a gesture).
+templ reorderScript() {
+	<script>
+		(function () {
+			if (window.menataReorder) return;
+			window.menataReorder = true;
+			var dragged = null;
+			function rows(row) { return Array.prototype.slice.call(row.parentNode.children); }
+			// The look of the row a drop would land on is the list's own (`data-reorder-over`, drawn through the Theme's readers).
+			function look(row) { return row.parentNode.dataset.reorderOver.split(" "); }
+			function clear() {
+				document.querySelectorAll("[data-reorder-url]").forEach(function (r) { r.classList.remove.apply(r.classList, look(r)); });
+			}
+			document.addEventListener("pointerdown", function (e) {
+				var grip = e.target.closest && e.target.closest("[data-reorder-grip]");
+				if (grip) grip.closest("[data-reorder-url]").draggable = true;
+			});
+			document.addEventListener("dragstart", function (e) {
+				var row = e.target.closest && e.target.closest("[data-reorder-url]");
+				if (!row || !row.draggable) return;
+				dragged = row;
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/plain", row.dataset.reorderUrl);
+				setTimeout(function () { row.classList.add("opacity-40"); }, 0);
+			});
+			document.addEventListener("dragover", function (e) {
+				if (!dragged) return;
+				var over = e.target.closest("[data-reorder-url]");
+				if (!over || over === dragged || over.parentNode !== dragged.parentNode) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "move";
+				clear();
+				over.classList.add.apply(over.classList, look(over));
+			});
+			document.addEventListener("drop", function (e) {
+				if (!dragged) return;
+				var over = e.target.closest("[data-reorder-url]");
+				if (!over || over === dragged || over.parentNode !== dragged.parentNode) return;
+				e.preventDefault();
+				var row = dragged;
+				clear();
+				htmx.ajax("POST", row.dataset.reorderUrl + "/move?to=" + (rows(over).indexOf(over) + 1), { source: row, swap: "none" });
+			});
+			document.addEventListener("dragend", function () {
+				if (dragged) { dragged.classList.remove("opacity-40"); dragged.draggable = false; }
+				dragged = null;
+				clear();
+			});
+			document.addEventListener("keydown", function (e) {
+				var grip = e.target.closest && e.target.closest("[data-reorder-grip]");
+				if (!grip || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+				e.preventDefault();
+				var row = grip.closest("[data-reorder-url]");
+				htmx.ajax("POST", row.dataset.reorderUrl + "/move?direction=" + (e.key === "ArrowUp" ? "up" : "down"), { source: row, swap: "none" });
+			});
+		})();
+	</script>
 }

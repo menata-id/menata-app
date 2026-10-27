@@ -80,10 +80,10 @@ func TestMultiSelectInput_drawsOneCheckboxPerOptionUnderOneNameTickedFromTheValu
 func TestCollection_blockDrawsEachItemAsOneColumnAndAPlainListStillWrapsInline(t *testing.T) {
 	item := []templ.Component{templ.Raw("<p>x</p>")}
 	var plain, block bytes.Buffer
-	if err := collection(domain.GapTight, "", false, false, false, false, "", Truncation{}, "", "", item).Render(context.Background(), &plain); err != nil {
+	if err := collection(domain.GapTight, "", false, false, false, false, "", Truncation{}, "", "", item, nil).Render(context.Background(), &plain); err != nil {
 		t.Fatal(err)
 	}
-	if err := collection(domain.GapTight, "", false, false, true, false, "", Truncation{}, "", "", item).Render(context.Background(), &block); err != nil {
+	if err := collection(domain.GapTight, "", false, false, true, false, "", Truncation{}, "", "", item, nil).Render(context.Background(), &block); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(plain.String(), `<li class="flex flex-wrap items-center`) || strings.Contains(plain.String(), "flex-col\"><p>") {

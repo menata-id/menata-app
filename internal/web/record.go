@@ -1052,8 +1052,16 @@ func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		if !ok || refusesAppendOnlyWrite(w, machine) {
 			return
 		}
-		direction := req.URL.Query().Get("direction")
-		if direction != domain.MoveUp && direction != domain.MoveDown {
+		direction, to := req.URL.Query().Get("direction"), 0
+		if raw := req.URL.Query().Get("to"); raw != "" {
+			// A drop names the 1-based place the record now has among the Machine's records (a dragged list), not a step from where it was.
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 1 || direction != "" {
+				http.Error(w, "to must be a place from 1, and is not sent with a direction", http.StatusBadRequest)
+				return
+			}
+			to = n
+		} else if direction != domain.MoveUp && direction != domain.MoveDown {
 			http.Error(w, "direction must be up or down", http.StatusBadRequest)
 			return
 		}
@@ -1070,7 +1078,13 @@ func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		for i, r := range records {
 			ids[i] = r.ID
 		}
-		before, found, moves := moveTarget(ids, id, direction)
+		var before string
+		var found, moves bool
+		if to > 0 {
+			before, found, moves = placeTarget(ids, id, to)
+		} else {
+			before, found, moves = moveTarget(ids, id, direction)
+		}
 		if !found {
 			http.Error(w, data.ErrRecordNotFound.Error(), http.StatusNotFound)
 			return
@@ -1085,6 +1099,24 @@ func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 			w.Header().Set("HX-Refresh", "true")
 		}
 	}
+}
+
+// placeTarget answers where id goes when it is dropped at the 1-based place `to` of ids (a place past the end is the end): the id it should sit
+// immediately before, "" meaning last. found is false when id is not in ids; moves is false when it already holds that place.
+func placeTarget(ids []string, id string, to int) (before string, found, moves bool) {
+	i := slices.Index(ids, id)
+	if i < 0 {
+		return "", false, false
+	}
+	rest := slices.Concat(ids[:i], ids[i+1:])
+	at := min(to-1, len(rest))
+	if at == i {
+		return "", true, false
+	}
+	if at == len(rest) {
+		return "", true, true
+	}
+	return rest[at], true, true
 }
 
 // moveTarget answers where id goes when it moves one step in direction through ids (the Machine's order): the id

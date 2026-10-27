@@ -606,7 +606,7 @@ views:
     add_column:                        # the dashed tile at the end of the board, for the place lists are made
       to: nav_board_settings           # a navigation item (never a route) of an Application that installs this Machine
       label: Add list
-      note: Lists are shared by every project in this workspace. Opens Board settings, where they are renamed, reordered and removed.
+      note: Lists are shared by every project in this workspace.
 ```
 
 `rename` writes the List's label Field (the `edit` Permission), `move` moves it one place earlier or later in its Machine's order -- which *is* the order of
@@ -2356,6 +2356,15 @@ disagree with the order. Use it when position is the content, as with a board's 
       from: {text: title, href: record}
 ```
 
+**A list the viewer reorders (2026-10-27).** An ordered, divided Collection may say `reorder: true`: the position numbers become
+small badges and each row the viewer may edit gets a grip before them. Dragging the grip onto another row -- or Up and Down
+while the grip has focus -- moves that record to the place of the row it was dropped on, through the record's generic move route
+(`POST .../move?to=<place>`, the same route `write: move` buttons use with `?direction=`), and the page that comes back is the
+proof it saved. The list **is** the Machine's own order, so its Dataset may declare no `where:` and no `sort:` (a gate checks
+installed pages), the Collection must be `ordered: true` and `divided: true`, and its item template must draw exactly one node.
+`reorder` is consumed by lowering, which writes the per-row routes (`move_routes`, never written by a page). Board Settings' Lists
+use it; the grip's script is on the "Script is the exception" list.
+
 **A form that creates a record (T1, 2026-10-09; 007 §11.3 write side).** A `Form` with
 `binding: {dataset: <id>, write: create}` asks for one new record of the Machine that Dataset reads, and submits it
 through the runtime's own generic create route (`POST /machines/<id>/records`) -- the same route a Machine's list
@@ -3186,6 +3195,7 @@ is added to this list in the same change, or it is not allowed.**
 | **The shell: the money control** (2026-10-18) | **Groups the thousands of a money control as it is typed, stops at two decimals, pads to two decimals when the control is left, and sends the plain decimal** | A `number` control cannot show marks at all, and a `text` control cannot group digits as they are typed without script. The server only ever sees the plain decimal, so it cannot do this for the person typing | **Forms only, and only a `data-money` control** (a money Field of a Form). It reads the Workspace's marks from the control's `data-thousands`/`data-decimal` (the server wrote them from `number_format:`); it names no mark itself. It changes nothing but that control's text, and replaces the value in the request with the plain decimal. Without script the control is a text control holding the plain decimal, and the server accepts it as it always did. Display is never done by script: every table, total, metric and page is written by the server |
 | `leaveguard`, `signatureplacement`, `reviewdocument`, `machine.templ` (board drag, **keyboard move**, quick edit) | Their own screens' interaction (a "leave this page?" guard, placing a signature on a PDF, dragging a card -- or lifting it with Space, moving it with the arrows, dropping it with Space and cancelling with Esc, reporting in the board's status line) | Pointer and focus behaviour; a gesture has no declarative form | Each in its own template, none reads a Workspace's data; the move ends in the same PATCH a drop sends |
 | **`declaredscreen.templ` (a calendar card moved to another day, 2026-10-19)** | **A grouped list that declares `moves: true` draws each card the viewer may edit as draggable, and each day as a drop target: dropping a card on another day -- or Space on its title, the arrows to choose the day (left and right a day, up and down a week), Space to drop, Esc to cancel -- sends one PATCH of the record's own date Field through the generic patch route, whose answer to a declared page is a refresh** | A drag has no declarative form (§12.3's `actions` carries a click, not a gesture); the keyboard path is the same gesture another way | One delegated listener, on a page that has such a card and no other (`treeMovesCards`); writes only the date Field the binding names, only to a day of the window (a day added to fill a week is no drop target), and only for a record the viewer may edit; moves nothing in the DOM; its status line is a live region on the page before anything is lifted |
+| **`layout.templ` (a list row moved to another place, 2026-10-27)** | **A Collection that declares `reorder: true` (ordered and divided, over a Dataset with no `where:` or `sort:`) draws a grip on each row the viewer may edit: dragging it onto another row -- or Up and Down while the grip has focus -- sends one POST of the record's generic move route (`?to=<place>`, or `?direction=`), whose answer to a declared page is a refresh** | A drag has no declarative form (§12.3's `actions` carries a click, not a gesture); the keyboard path is the same gesture another way | One delegated listener, on a page that has such a list and no other; writes only the record's place in its Machine's own order, only for a row the viewer may edit; moves nothing in the DOM, so the page that comes back is the proof it saved |
 
 What this means for an author: you write `type: money` and `number_format:`, never a script. If a screen needs behaviour that none of the
 rows above gives, say so as a gap; do not work around it with a property that smuggles a handler in.

@@ -79,7 +79,7 @@ func TestLinkVariantRow_stretchesOverTheRow(t *testing.T) {
 	// And a Collection's divided item is the positioned ancestor it stretches over.
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "item"); return err })
 	var buf bytes.Buffer
-	if err := collectionBody(domain.GapDefault, "", false, true, true, false, "", []templ.Component{item}).Render(context.Background(), &buf); err != nil {
+	if err := collectionBody(domain.GapDefault, "", false, true, true, false, "", []templ.Component{item}, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(buf.String(), `<li class="relative `) {
@@ -92,7 +92,7 @@ func TestCollectionInline_isARunNotAColumn(t *testing.T) {
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "chip"); return err })
 	render := func(inline bool) string {
 		var buf bytes.Buffer
-		if err := collectionBody(domain.GapTight, "", false, false, false, inline, "", []templ.Component{item, item}).Render(context.Background(), &buf); err != nil {
+		if err := collectionBody(domain.GapTight, "", false, false, false, inline, "", []templ.Component{item, item}, nil).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
 		return strings.TrimSpace(buf.String())
@@ -194,7 +194,7 @@ func TestCollectionDensity_setsADividedRowsPadding(t *testing.T) {
 	item := templ.ComponentFunc(func(_ context.Context, w io.Writer) error { _, err := io.WriteString(w, "row"); return err })
 	render := func(density domain.ListDensity, ordered bool) string {
 		var buf bytes.Buffer
-		if err := collectionBody(domain.GapDefault, "", ordered, true, false, false, density, []templ.Component{item}).Render(context.Background(), &buf); err != nil {
+		if err := collectionBody(domain.GapDefault, "", ordered, true, false, false, density, []templ.Component{item}, nil).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
 		return buf.String()

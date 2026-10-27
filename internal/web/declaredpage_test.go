@@ -2282,3 +2282,29 @@ func TestDashboardProjectOpensItsBoard(t *testing.T) {
 		t.Error("the project's name on the Dashboard is not a link to its board")
 	}
 }
+
+// A dropped row names the place it now holds; the record it should sit before is found from the Machine's own order, and a drop where it already
+// stands, or past the end when it is last, moves nothing.
+func TestPlaceTarget(t *testing.T) {
+	ids := []string{"a", "b", "c", "d"}
+	cases := []struct {
+		id        string
+		to        int
+		before    string
+		wantFound bool
+		wantMoves bool
+	}{
+		{"a", 3, "d", true, true},
+		{"d", 1, "a", true, true},
+		{"b", 2, "", true, false},
+		{"a", 9, "", true, true},
+		{"d", 9, "", true, false},
+		{"zz", 1, "", false, false},
+	}
+	for _, c := range cases {
+		before, found, moves := placeTarget(ids, c.id, c.to)
+		if before != c.before || found != c.wantFound || moves != c.wantMoves {
+			t.Errorf("placeTarget(%s to %d) = %q, %v, %v; want %q, %v, %v", c.id, c.to, before, found, moves, c.before, c.wantFound, c.wantMoves)
+		}
+	}
+}

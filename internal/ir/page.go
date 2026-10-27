@@ -892,6 +892,53 @@ func lowerComplete(n domain.PageNode, set RecordSet, path string) (map[string]st
 	return props, nil
 }
 
+// The two halves of a reorderable list. `reorder` is written by the author: *the rows of this ordered list are the Machine's own order, and the
+// viewer may drag one to another place*. `move_routes` is what lowering produces from it, one entry per row in order -- the record's route when
+// this viewer may move it, `-` when not -- for the renderer's grip; it is never written, since only the resolver knows what the viewer may move.
+const (
+	collectionReorderProp    = "reorder"
+	CollectionMoveRoutesProp = "move_routes"
+)
+
+// lowerReorder consumes `reorder` and, when it is true, puts the rows' routes where the renderer reads them. A list that is not
+// reorderable is returned unchanged.
+func lowerReorder(n domain.PageNode, props map[string]string, set RecordSet, path string) (map[string]string, bool, error) {
+	if _, written := n.Props[CollectionMoveRoutesProp]; written {
+		return nil, false, fmt.Errorf("%s: %s: is produced by the runtime for a %s: true list, and is never written -- a page cannot know what the viewer may move", path, CollectionMoveRoutesProp, collectionReorderProp)
+	}
+	v, written := n.Props[collectionReorderProp]
+	if !written {
+		return props, false, nil
+	}
+	if n.Kind != string(NodeComponent) || n.Type != string(domain.ComponentCollection) {
+		return nil, false, fmt.Errorf("%s: %s: belongs on a Collection bound with rows: %s", path, collectionReorderProp, domain.PageRowsRecords)
+	}
+	if v != "true" && v != "false" {
+		return nil, false, fmt.Errorf("%s: %s: %q is not true or false", path, collectionReorderProp, v)
+	}
+	// Like `complete`, the claim is consumed: the lowered node carries the routes, not the claim.
+	props = withoutKey(props, collectionReorderProp)
+	if v == "false" {
+		return props, false, nil
+	}
+	if n.Props["ordered"] != "true" || n.Props["divided"] != "true" {
+		return nil, false, fmt.Errorf("%s: %s: drags the rows of an ordered, divided list (the position is what is drawn and what is changed), so it needs ordered: true and divided: true", path, collectionReorderProp)
+	}
+	routes := make([]string, len(set.Records))
+	for i := range routes {
+		routes[i] = "-"
+		if i < len(set.Moves) && (set.Moves[i].Up || set.Moves[i].Down) {
+			routes[i] = set.Moves[i].Route
+		}
+	}
+	out := make(map[string]string, len(props)+1)
+	for k, val := range props {
+		out[k] = val
+	}
+	out[CollectionMoveRoutesProp] = strings.Join(routes, " ")
+	return out, true, nil
+}
+
 // errLinkNotDrawn is lowerLink's answer for a link into another Application that this Workspace does not offer this viewer:
 // not an error of the page, a link that is not there.
 var errLinkNotDrawn = errors.New("ir: link into an Application not offered here")
@@ -1390,11 +1437,18 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	if err != nil || hidden {
 		return nil, err
 	}
+	props, reorder, err := lowerReorder(n, props, set, path)
+	if err != nil {
+		return nil, err
+	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i := range set.Records {
 		items, err := lowerRecordItem(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), set, i)
 		if err != nil {
 			return nil, err
+		}
+		if reorder && len(items) != 1 {
+			return nil, fmt.Errorf("%s: reorder: a row is dragged as one, and record %d's item template drew %d nodes", path, i, len(items))
 		}
 		out.Children = append(out.Children, items...)
 	}

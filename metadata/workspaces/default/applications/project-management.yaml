@@ -744,6 +744,7 @@ navigation:
             - component: Collection
               gap: tight
               ordered: true
+              reorder: true
               empty: No lists yet.
               complete: true
               divided: true
@@ -773,25 +774,13 @@ navigation:
                           binding:
                             write: update
                         - component: Button
-                          label: Move up
-                          variant: secondary
-                          direction: up
-                          binding:
-                            write: move
-                        - component: Button
-                          label: Move down
-                          variant: secondary
-                          direction: down
-                          binding:
-                            write: move
-                        - component: Button
                           label: Delete
                           variant: secondary
                           confirm: Delete this list? This cannot be undone.
                           binding:
                             write: delete
             - static: note
-              text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
+              text: Drag a list by its grip to change the order of the columns on the board. Renaming a list keeps every card that sits in it.
         - layout: stack
           gap: default
           children:

@@ -808,6 +808,22 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						}
 					}
 				}
+				if n.Kind == "component" && n.Type == string(domain.ComponentCollection) && n.Props["reorder"] == "true" {
+					// A dragged row is the move write too: the same route, the same Machine order, so the same rules as a move Button.
+					moves++
+					src, ok := source{}, false
+					if n.Binding != nil {
+						src, ok = sourceOf[n.Binding.Dataset]
+					}
+					switch {
+					case !ok:
+						t.Errorf("%s: reorder: on a Collection that is not bound to a records Dataset", where)
+					case src.machine.AppendOnly:
+						t.Errorf("%s: reorder: machine %s is append-only, so no record of it can be moved", where, src.machine.ID)
+					case src.dataset.Where != nil || len(src.dataset.Sort) > 0:
+						t.Errorf("%s: reorder: sits over dataset %s, which declares a where: or sort:, so its list is not the Machine's order", where, src.dataset.ID)
+					}
+				}
 				if n.Kind == "component" && n.Type == string(domain.ComponentButton) {
 					for _, key := range []string{"action", "method", "href", "name", "value"} {
 						if _, typed := n.Props[key]; typed {
