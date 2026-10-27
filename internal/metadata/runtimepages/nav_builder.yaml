@@ -1,0 +1,53 @@
+# The Application Builder for one Application, read only (Fase 3d of the Apps Builder plan): the Application's parts as a tree on one side
+# (its Machines with their Fields, its screens, its menu, the workflow of each Machine with statuses) and the part the request selects
+# (?node=) on the other. Changes go through /builder/{app}/plan and /apply. Admin only (the default).
+id: nav_builder
+page:
+  layout: stack
+  gap: comfortable
+  children:
+    - static: link
+      to: nav_workspace_settings
+      text: "← Workspace settings"
+    - component: Collection
+      gap: tight
+      block: true
+      binding: { dataset: ds_runtime_workspace_application, rows: records }
+      children:
+        - layout: stack
+          gap: hair
+          children:
+            - static: heading
+              from: { text: title }
+            - static: caption
+              from: { text: detail }
+    - layout: split
+      side: start
+      aside: compact
+      gap: loose
+      children:
+        - component: Tree
+          label: Parts of this application
+          query: node
+          empty: This application has no parts to show.
+          binding: { dataset: ds_runtime_builder_nodes, rows: records }
+          children:
+            - static: link
+              from: { text: "title:leaf", href: link }
+        - component: Collection
+          gap: comfortable
+          block: true
+          empty: Choose a part of the application to read it.
+          binding: { dataset: ds_runtime_builder_node, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - static: overline
+                  from: { text: subtitle }
+                - static: heading
+                  from: { text: "title:leaf" }
+                - static: paragraph
+                  from: { text: detail }
+                - static: caption
+                  from: { text: summary }

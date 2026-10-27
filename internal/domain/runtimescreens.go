@@ -62,6 +62,13 @@ var RuntimeScreens = []NavigationItem{
 		ID: "nav_application_members", Label: "Members & roles", Route: "/settings", Title: "Members & roles",
 		RecordSource: "settings_applications", RecordParam: "hub",
 	},
+	// The Application Builder's shell for one Application (Fase 3d): its parts as a tree, the part the request selects (?node=) read in an
+	// inspector. Read only here; the writes go through /builder/{app}/plan and /apply. The route carries the Application's id, which the page
+	// reads as $parameters.app. An admin screen that is not a settings row.
+	{
+		ID: "nav_builder", Label: "Builder", Route: "/builder", Title: "Builder",
+		RecordSource: "workspace_applications", RecordParam: "app", OwnsHeading: true,
+	},
 	// One member's own screen: their Workspace role, their role in each Application, and removing them from the Workspace.
 	// Not a settings row; it sits under Members.
 	{

@@ -308,6 +308,17 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	if !membersCase {
 		t.Fatal("this Workspace installs no Settings hub over an Application with roles -- the 200 arm of /settings/{navID}/members would measure nothing")
 	}
+	// /builder/{app} is the Application Builder's shell: a 200 for every installed Application (switched off or not -- the admin builds one
+	// before switching it on), and a 404 for an id the Workspace does not have.
+	add("/builder/{app}", "/builder/app_does_not_exist", http.StatusNotFound, "an id that names no installed Application is not found")
+	builderCase := false
+	for _, app := range f.ws.Applications {
+		add("/builder/{app}", "/builder/"+app.ID, http.StatusOK, "an installed Application's parts are listed for the admin")
+		builderCase = true
+	}
+	if !builderCase {
+		t.Fatal("this Workspace installs no Application -- the 200 arm of /builder/{app} would measure nothing")
+	}
 	// /new-application/{session}/review is the AI assistant's own review screen, and an unknown session
 	// is the case this sweep covers. Its happy path is covered by
 	// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces, which reuses the

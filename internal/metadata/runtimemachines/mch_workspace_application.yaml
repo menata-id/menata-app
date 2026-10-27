@@ -27,3 +27,8 @@ datasets:
     select: records
     where: { field: fld_undo, op: equals, value: Undo }
     limit: 20
+  # The one Application a screen about a single one (the builder's) is about, by the id its route names ($parameters.app).
+  - id: ds_runtime_workspace_application
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.app }
+    limit: 1

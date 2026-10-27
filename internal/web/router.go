@@ -357,6 +357,7 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Store, d.AIClient, d.Cfg, d.ReloadMetadata))
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 			// Apps Builder (Fase 1): review a list of edit operations on an installed Application. Writes nothing.
+			ar.Get("/builder/{app}", showRuntimeRecordPage(d.Store, d.Cfg, "nav_builder", "app").ServeHTTP)
 			ar.Post("/builder/{app}/plan", planBuilderOperations(d.Store, d.Cfg))
 			ar.Post("/builder/{app}/apply", applyBuilderOperations(d.Store, d.Cfg, d.ReloadMetadata))
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas

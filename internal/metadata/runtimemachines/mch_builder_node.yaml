@@ -1,0 +1,30 @@
+# The parts of every Application the builder lists (registry.RuntimeSources: builder_nodes), one record each: where it sits in the tree (the
+# title is a path: "Data & form/Request/Amount"), what kind of part it is, a line about it and the address that selects it. Read by the builder
+# screen only, which narrows to one Application by `fld_app` and finds the selected part by its id.
+id: mch_builder_node
+name: Builder part
+runtime: builder_nodes
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_app, name: Application, type: text }
+  - { id: fld_title, name: Place, type: text, required: true }
+  - { id: fld_kind, name: Kind, type: text }
+  - { id: fld_detail, name: About it, type: text }
+  - { id: fld_path, name: Metadata path, type: text }
+  - { id: fld_link, name: Select at, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_kind, role: subtitle }
+  - { field: fld_detail, role: detail }
+  - { field: fld_path, role: summary }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_builder_nodes
+    select: records
+    where: { field: fld_app, op: equals, value: $parameters.app }
+    limit: 500
+  # The part the request selects (?node=), by its id.
+  - id: ds_runtime_builder_node
+    select: records
+    where: { field: fld_id, op: equals, value: $parameters.node }
+    limit: 1
