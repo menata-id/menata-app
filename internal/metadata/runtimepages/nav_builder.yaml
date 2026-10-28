@@ -21,6 +21,30 @@ page:
               from: { text: title }
             - static: caption
               from: { text: detail }
+    - component: Collection
+      gap: tight
+      block: true
+      binding: { dataset: ds_runtime_builder_draft, rows: records }
+      children:
+        - layout: row
+          gap: default
+          children:
+            - layout: stack
+              gap: hair
+              children:
+                - static: heading
+                  from: { text: title }
+                - static: caption
+                  from: { text: detail }
+            - component: Button
+              label: Publish
+              variant: primary
+              binding: { write: action, action: publish_draft }
+            - component: Button
+              label: Discard
+              variant: secondary
+              confirm: Discard the changes you have not published? Nothing has been written.
+              binding: { write: action, action: discard_draft }
     - layout: split
       side: start
       aside: compact

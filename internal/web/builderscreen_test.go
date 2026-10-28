@@ -320,6 +320,12 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 	if loc := rec.Header().Get("Location"); !strings.Contains(loc, "/builder/app_document_tracking") || !strings.Contains(loc, "tab=edit") {
 		t.Errorf("saving does not return to the part: %q", loc)
 	}
+	if staged, _ := os.ReadFile(file); strings.Contains(string(staged), "Headline") {
+		t.Error("a form wrote the file: it should only stage the change")
+	}
+	if pub := s.postTo(t, "/runtime-actions/publish_draft?record=app_document_tracking", url.Values{}); pub.Code != http.StatusSeeOther {
+		t.Fatalf("publishing the draft: %d %s", pub.Code, pub.Body.String())
+	}
 	written, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
@@ -331,7 +337,7 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 		t.Errorf("the form does not start from the saved name and requirement:\n%s", body)
 	}
 	// An unticked box is "not required": the Field's own block loses its `required`.
-	if rec := s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Headline"}}); rec.Code != http.StatusSeeOther {
+	if rec := s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Headline"}}); rec.Code != http.StatusSeeOther {
 		t.Fatalf("saving without the tick: status %d: %s", rec.Code, rec.Body.String())
 	}
 	written, _ = os.ReadFile(file)
@@ -349,7 +355,7 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 		"a Field that is not there": {"app_document_tracking/machines/mch_document/fields/fld_nope", url.Values{"name": {"x"}}},
 	} {
 		before, _ := os.ReadFile(file)
-		if rec := s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(post.record), post.form); rec.Code < 400 {
+		if rec := s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(post.record), post.form); rec.Code < 400 {
 			t.Errorf("%s was accepted: %d", name, rec.Code)
 		}
 		if after, _ := os.ReadFile(file); string(after) != string(before) {
@@ -374,7 +380,7 @@ func TestBuilderEditTabEditsTheChoicesOfAField(t *testing.T) {
 		}
 	}
 	post := func(node, lines string) int {
-		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(node), url.Values{"name": {"Kind"}, "options": {lines}}).Code
+		return s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(node), url.Values{"name": {"Kind"}, "options": {lines}}).Code
 	}
 	all := "Draft\r\nUnder Review\r\nApproved\r\nRejected"
 	read := func() string { b, _ := os.ReadFile(file); return string(b) }
@@ -416,7 +422,7 @@ func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
 		t.Errorf("a Machine is offered the form that edits a Field")
 	}
 	add := func(form url.Values) int {
-		return s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
+		return s.postBuilder(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
 	}
 	if code := add(url.Values{"name": {"Reference no."}, "type": {"text"}, "required": {"on"}}); code != http.StatusSeeOther {
 		t.Fatalf("adding a Field: status %d", code)
@@ -452,7 +458,7 @@ func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
 	if after, _ := os.ReadFile(file); string(after) != before {
 		t.Errorf("a refused Field wrote the file")
 	}
-	if code := s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine+"/fields/fld_title"), url.Values{"name": {"Z"}, "type": {"text"}}).Code; code < 400 {
+	if code := s.postBuilder(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine+"/fields/fld_title"), url.Values{"name": {"Z"}, "type": {"text"}}).Code; code < 400 {
 		t.Errorf("a Field was added to a part that is not a Machine: %d", code)
 	}
 }
@@ -465,7 +471,7 @@ func TestBuilderEditTabColoursTheChoicesOfAStatus(t *testing.T) {
 	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
 	read := func() string { b, _ := os.ReadFile(file); return string(b) }
 	add := func(form url.Values) int {
-		return s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
+		return s.postBuilder(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
 	}
 	if code := add(url.Values{"name": {"Stage"}, "type": {"status"}, "options": {"Open | start\r\nClosed | done"}}); code != http.StatusSeeOther {
 		t.Fatalf("adding a coloured status: %d", code)
@@ -478,7 +484,7 @@ func TestBuilderEditTabColoursTheChoicesOfAStatus(t *testing.T) {
 		t.Errorf("the box does not show the colours back:\n%s", body)
 	}
 	edit := func(lines string) int {
-		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Stage"}, "options": {lines}}).Code
+		return s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Stage"}, "options": {lines}}).Code
 	}
 	if code := edit("Open | start\r\nClosed | done\r\nLate | attention"); code != http.StatusSeeOther {
 		t.Fatalf("a new coloured choice: %d", code)
@@ -528,7 +534,7 @@ func TestBuilderEditTabSetsWhoMayDoWhatAPermissionGoverns(t *testing.T) {
 	}
 	read := func() string { b, _ := os.ReadFile(file); return string(b) }
 	save := func(roles ...string) int {
-		return s.postTo(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape(part), url.Values{"roles": roles}).Code
+		return s.postBuilder(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape(part), url.Values{"roles": roles}).Code
 	}
 	if code := save("author"); code != http.StatusSeeOther {
 		t.Fatalf("narrowing who may: %d", code)
@@ -548,7 +554,7 @@ func TestBuilderEditTabSetsWhoMayDoWhatAPermissionGoverns(t *testing.T) {
 	if code := save("author"); code != http.StatusSeeOther || read() != before {
 		t.Errorf("an unchanged form must write nothing (status %d)", code)
 	}
-	if code := s.postTo(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape("app_document_tracking/machines/mch_document/permissions/prm_nope"), url.Values{"roles": {"author"}}).Code; code < 400 {
+	if code := s.postBuilder(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape("app_document_tracking/machines/mch_document/permissions/prm_nope"), url.Values{"roles": {"author"}}).Code; code < 400 {
 		t.Errorf("a Permission that is not there was accepted: %d", code)
 	}
 }
@@ -574,7 +580,7 @@ func TestBuilderEditTabSetsWhoMayChangeAField(t *testing.T) {
 		}
 	}
 	save := func(roles ...string) int {
-		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Title"}, "required": {"on"}, "editable_by": roles}).Code
+		return s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Title"}, "required": {"on"}, "editable_by": roles}).Code
 	}
 	if code := save("reviewer"); code != http.StatusSeeOther || !strings.Contains(read(), "editable_by") {
 		t.Fatalf("setting who may change: %d\n%s", code, read())
@@ -653,5 +659,80 @@ func TestBuilderListsWhatNeedsChecking(t *testing.T) {
 	}
 	if strings.Contains(body, "Role author is named by nothing") {
 		t.Error("a role a permission names is listed as unused")
+	}
+}
+
+// postBuilder submits one Application Builder form and, when it was staged, publishes the draft, so a test that reads the file reads what the person
+// would see after Publish. A refusal at staging comes back as it is; a form that staged nothing (nobody changed it) comes back as the 303 it answered.
+func (s *installTestSetup) postBuilder(t *testing.T, path string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := s.postTo(t, path, form)
+	if rec.Code != http.StatusSeeOther {
+		return rec
+	}
+	pub := s.postTo(t, "/runtime-actions/publish_draft?record=app_document_tracking", url.Values{})
+	if pub.Code == http.StatusConflict {
+		return rec
+	}
+	return pub
+}
+
+// The Builder's forms stage, and Publish writes: nothing reaches the files until then, the page says how many changes are waiting and what the plan says
+// each would do, the draft is the admin's own, Discard drops it without writing, a change the plan refuses is refused at the form and never staged, and
+// two staged changes are written together.
+func TestBuilderFormsStageAndPublishWritesTheDraft(t *testing.T) {
+	s := newInstallTestSetup(t, "bdraft")
+	app := "app_document_tracking"
+	field := app + "/machines/mch_document/fields/fld_title"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	before := read()
+	page := func() string { return s.getAs(t, "/builder/"+app).Body.String() }
+	stage := func(form url.Values) int {
+		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), form).Code
+	}
+	if strings.Contains(page(), "not published") {
+		t.Error("a draft bar is drawn before anything is staged")
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusConflict {
+		t.Errorf("publishing nothing: %d, want 409", code)
+	}
+
+	if stage(url.Values{"name": {"Headline"}, "required": {"on"}}) != http.StatusSeeOther || stage(url.Values{"name": {"Headline"}}) != http.StatusSeeOther {
+		t.Fatal("staging was refused")
+	}
+	if read() != before {
+		t.Fatal("staging wrote the file")
+	}
+	bar := page()
+	for _, want := range []string{"Draft · 3 changes not published", "rename field", "publish_draft", "discard_draft"} {
+		if !strings.Contains(bar, want) {
+			t.Errorf("the draft bar is missing %q:\n%s", want, bar)
+		}
+	}
+	if mine, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, s.actorID); err != nil || mine == nil {
+		t.Errorf("the draft is not kept under the admin who staged it: %v %v", mine, err)
+	}
+	if other, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, "someone-else"); err != nil || other != nil {
+		t.Errorf("another admin sees this draft: %v %v", other, err)
+	}
+
+	if code := s.postTo(t, "/runtime-actions/discard_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Fatalf("discarding: %d", code)
+	}
+	if read() != before || strings.Contains(page(), "not published") {
+		t.Error("Discard wrote the file or left the bar")
+	}
+
+	stage(url.Values{"name": {"Headline"}})
+	stage(url.Values{"name": {"Headline"}, "editable_by": {"janitor"}}) // refused: the Application declares no such role
+	if !strings.Contains(page(), "Draft · 1 change not published") {
+		t.Errorf("a refused form was staged, or the draft was lost:\n%s", page())
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Fatalf("publishing: %d", code)
+	}
+	if !strings.Contains(read(), "Headline") || strings.Contains(page(), "not published") {
+		t.Errorf("Publish did not write the draft or did not clear it:\n%s", read())
 	}
 }

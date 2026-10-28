@@ -268,6 +268,7 @@ func webRuntimeProviders(store *data.Store, cfg config.Config) map[string]compos
 		"current_workspace":      currentWorkspaceProvider(store),
 		"builder_nodes":          builderNodesProvider(store, cfg),
 		"builder_roles":          builderRolesProvider(),
+		"builder_drafts":         builderDraftsProvider(store, cfg),
 	}
 }
 

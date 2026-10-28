@@ -1,0 +1,18 @@
+# The changes the viewer has staged in the Application Builder for one Application and not published (registry.RuntimeSources: builder_drafts): at most one
+# record, with how many changes and what the plan says each would do. Read by the builder screen's draft bar, which holds Publish and Discard.
+id: mch_builder_draft
+name: Builder draft
+runtime: builder_drafts
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_app, name: Application, type: text }
+  - { id: fld_title, name: Draft, type: text, required: true }
+  - { id: fld_about, name: What it would do, type: long_text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_about, role: detail }
+datasets:
+  - id: ds_runtime_builder_draft
+    select: records
+    where: { field: fld_app, op: equals, value: $parameters.app }
+    limit: 1

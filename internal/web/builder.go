@@ -221,7 +221,7 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	if len(ops) == 0 {
 		return back, true
 	}
-	return commitBuilderOps(w, req, env, appID, ops, back)
+	return stageBuilderOps(w, req, env, appID, ops, back)
 }
 
 func fieldOf(m *domain.Machine, id string) *domain.Field {
@@ -332,7 +332,7 @@ func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record
 	}
 	op := builder.Op{Kind: builder.OpAddField, Machine: m.ID, Field: newFieldID(m, name), Value: name, Type: string(typ), Flag: req.PostForm.Get("required") != "", Options: options, Categories: categories}
 	field := record + "/fields/" + op.Field
-	return commitBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {field}, "tab": {"edit"}}.Encode())
+	return stageBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {field}, "tab": {"edit"}}.Encode())
 }
 
 // newFieldID makes a Field's id from its name and keeps it unique within the Machine ("fld_amount", then "fld_amount_2").
@@ -435,7 +435,7 @@ func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionE
 	if slices.Equal(slices.Sorted(slices.Values(roles)), slices.Sorted(slices.Values(current.Roles))) {
 		return back, true
 	}
-	return commitBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpSetPermissionRoles, Machine: parts[1], Permission: parts[3], Roles: roles}}, back)
+	return stageBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpSetPermissionRoles, Machine: parts[1], Permission: parts[3], Roles: roles}}, back)
 }
 
 // runAskAssistantAbout is the Ask AI tab of any part: it opens the assistant's conversation with what the person wants, in words that name the part -- its
