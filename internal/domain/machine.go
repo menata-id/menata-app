@@ -177,6 +177,11 @@ type Field struct {
 	// enforced by the generic update routes, and read by every edit form, which shows a locked Field as text.
 	LockedWhen *FieldCondition
 	SetOnce    bool
+	// EditableBy (`editable_by: [role, ...]`, the "who may change" of the Application Builder's field editor) names the roles of this Machine's
+	// Application that may change the Field after it is first written; everyone else sees it as it is and the generic update routes keep its stored value.
+	// Empty means anyone who may edit the record. A Workspace admin is not held back by it (they could rewrite the declaration). Judged against the actor
+	// of the request (LockedFieldFor), not the stored record, so it is the one rule here that depends on who is asking.
+	EditableBy []string
 	// OnParentDelete is what deleting the record this relation Field points at does to this record (`on_parent_delete:`,
 	// relation Fields only). ParentDeleteRestrict refuses the delete while any record points at it -- a contract with
 	// instalments (gap K-13). Empty leaves the parent free to go, as before.
@@ -216,6 +221,23 @@ func (m *Machine) LockedField(f Field, stored map[string]any) (bool, string) {
 		return true, fmt.Sprintf("%s cannot change once the record is %s", f.Name, c.Equals)
 	}
 	return false, ""
+}
+
+// LockedFieldFor is LockedField for one person: the Field is also kept as it is when it names who may change it (EditableBy) and the actor holds none of
+// those roles in this Machine's Application. A Workspace admin is let through. A zero Actor holds nothing, which fails closed.
+func (m *Machine) LockedFieldFor(f Field, stored map[string]any, actor Actor) (bool, string) {
+	if locked, why := m.LockedField(f, stored); locked {
+		return true, why
+	}
+	if len(f.EditableBy) == 0 || actor.WorkspaceRole == WorkspaceRoleAdmin {
+		return false, ""
+	}
+	for _, role := range f.EditableBy {
+		if actor.HasRole(m.ApplicationID, role) {
+			return false, ""
+		}
+	}
+	return true, fmt.Sprintf("%s can be changed only by %s", f.Name, strings.Join(f.EditableBy, ", "))
 }
 
 // DeleteRefusal is why a record whose values are values may not be deleted under m's `deletable_unless:`, or "".

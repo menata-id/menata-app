@@ -12,7 +12,7 @@ func TestEditFormInputsStartAsTheRecordAndLeaveOutWhatPatchCannotDo(t *testing.T
 		{ID: "fld_file", Name: "File", Type: FieldTypeFile},
 		{ID: "fld_by", Name: "By", Type: FieldTypeText, Stamp: "actor"},
 	}, Transitions: []Transition{{Field: "fld_status", From: "a", To: "b"}}}
-	got := m.EditFormInputs(map[string]any{"fld_name": "alpha", "fld_points": 3.5, "fld_done": true, "fld_status": "a", "fld_color": "rose"})
+	got := m.EditFormInputs(map[string]any{"fld_name": "alpha", "fld_points": 3.5, "fld_done": true, "fld_status": "a", "fld_color": "rose"}, Actor{WorkspaceRole: WorkspaceRoleAdmin})
 	if len(got) != 3 || got[0].FieldID != "fld_name" || got[1].FieldID != "fld_points" || got[2].FieldID != "fld_color" {
 		t.Fatalf("inputs = %+v, want name, points and color (a boolean cannot be cleared by PATCH, a governed status moves along its edges, a file and a stamp are not typed; a status no Transition names is a plain choice)", got)
 	}
@@ -22,7 +22,7 @@ func TestEditFormInputsStartAsTheRecordAndLeaveOutWhatPatchCannotDo(t *testing.T
 	if got[0].Default != "alpha" || !got[0].Required || got[1].Default != "3.5" {
 		t.Errorf("a control must start as the record's value: %+v", got)
 	}
-	if blank := m.EditFormInputs(nil); blank[0].Default != "" {
+	if blank := m.EditFormInputs(nil, Actor{WorkspaceRole: WorkspaceRoleAdmin}); blank[0].Default != "" {
 		t.Errorf("no record, no starting value: %+v", blank)
 	}
 }

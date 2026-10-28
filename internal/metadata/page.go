@@ -1024,13 +1024,13 @@ func updateBindingIssues(b domain.PageBinding, item *domain.Machine, where strin
 		return []string{fmt.Sprintf("%s: page: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageWriteUpdate, domain.PageRowsRecords)}
 	case b.Dataset != "":
 		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it edits the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteUpdate, b.Dataset)}
-	case len(item.EditFormInputs(nil)) == 0:
+	case len(item.EditFormInputs(nil, domain.Actor{WorkspaceRole: domain.WorkspaceRoleAdmin})) == 0:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q has no Field an edit form can ask for (booleans, statuses, references, groups, files, computed and stamped Fields are not drawn)", where, domain.PageWriteUpdate, item.ID)}
 	}
 	// `fields:` names controls the edit form asks for, once each. A Field it leaves out needs no default: the record already holds a value.
 	var issues []string
 	asked := map[string]bool{}
-	for _, in := range item.EditFormInputs(nil) {
+	for _, in := range item.EditFormInputs(nil, domain.Actor{WorkspaceRole: domain.WorkspaceRoleAdmin}) {
 		asked[in.FieldID] = true
 	}
 	listed := map[string]bool{}

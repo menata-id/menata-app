@@ -3008,7 +3008,7 @@ func computedDisplay(current any) string {
 // editInput is one Field of an edit form: its control, or -- when the Machine locks it for this record as stored
 // (`locked_when:`, `set_once:`) -- its value as text with the stored value carried in a hidden input, so the form still
 // sends the record whole and the update route, which refuses a change to it, sees none.
-func editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions) templ.Component {
+func editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -3029,7 +3029,7 @@ func editInput(m *domain.Machine, f domain.Field, r *data.Record, relations Rela
 			templ_7745c5c3_Var172 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if locked, why := m.LockedField(f, r.Values); locked {
+		if locked, why := m.LockedFieldFor(f, r.Values, actor); locked {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 215, "<input type=\"hidden\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

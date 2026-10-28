@@ -24,6 +24,7 @@ const (
 	OpAddField           = "add_field"
 	OpSetDefault         = "set_default"
 	OpAddPermission      = "add_permission"
+	OpSetEditableBy      = "set_editable_by"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -59,6 +60,7 @@ var capabilityOf = map[string]string{
 	OpAddField:           "machineDoc.fields",
 	OpSetDefault:         "fieldDoc.default",
 	OpAddPermission:      "machineDoc.permissions",
+	OpSetEditableBy:      "fieldDoc.editable_by",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -126,7 +128,7 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
 		}
 		m.Fields = slices.Delete(m.Fields, i, i+1)
-	case OpRenameField, OpSetRequired, OpSetDefault, OpAddOption, OpRemoveOption:
+	case OpRenameField, OpSetRequired, OpSetDefault, OpAddOption, OpRemoveOption, OpSetEditableBy:
 		i := slices.IndexFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field })
 		if i < 0 {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
@@ -139,6 +141,8 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			f.Required = op.Flag
 		case OpSetDefault:
 			f.Default = op.Value
+		case OpSetEditableBy:
+			f.EditableBy = slices.Clone(op.Roles)
 		case OpAddOption:
 			if slices.Contains(f.Options, op.Value) {
 				return fmt.Errorf("option %q already exists on %s", op.Value, f.ID)

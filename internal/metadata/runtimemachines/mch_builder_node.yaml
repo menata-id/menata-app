@@ -14,6 +14,7 @@ fields:
   - { id: fld_required, name: Required, type: text }
   - { id: fld_options, name: Choices, type: long_text }
   - { id: fld_roles, name: Roles, type: long_text }
+  - { id: fld_editable_by, name: Who may change, type: long_text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
   - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, Fixed, Code] }

@@ -219,6 +219,9 @@ type GeneratedField struct {
 	// create from a status Field's value plus a number of days ("the priority sets the due date").
 	RequiredWhen *GeneratedRequiredWhen `json:"required_when,omitempty"`
 	DefaultFrom  *GeneratedDefaultFrom  `json:"default_from,omitempty"`
+	// EditableBy names the roles of the Application that may change the Field once it is written ("only the reviewer decides the amount"); nothing
+	// here means anyone who may edit the record. The roles are the Application's own (Roles of the change, or the installed Application's).
+	EditableBy []string `json:"editable_by,omitempty"`
 }
 
 type GeneratedRequiredWhen struct {

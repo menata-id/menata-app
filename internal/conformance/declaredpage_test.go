@@ -689,7 +689,7 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 							t.Errorf("%s: write: update outside the item template of a records Collection", where)
 						case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
 							t.Errorf("%s: write: update edits the Collection's own record and names no dataset, rows or measure", where)
-						case len(item.EditFormInputs(nil)) == 0:
+						case len(item.EditFormInputs(nil, domain.Actor{WorkspaceRole: domain.WorkspaceRoleAdmin})) == 0:
 							t.Errorf("%s: machine %s has no Field an edit form can ask for", where, item.ID)
 						}
 					case n.Binding != nil && n.Binding.Write == domain.PageWriteTransition:

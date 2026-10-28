@@ -67,7 +67,7 @@ func fieldTypeEnum() []string {
 }
 
 var generatedFieldSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp", "required_when", "default_from"},
+	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp", "required_when", "default_from", "editable_by"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "type", "required"},
 	Properties: map[string]geminiSchema{
@@ -91,6 +91,10 @@ var generatedFieldSchema = geminiSchema{
 			Required:         []string{"field", "equals"},
 			PropertyOrdering: []string{"field", "equals"},
 			Properties:       map[string]geminiSchema{"field": stringSchema, "equals": stringSchema},
+		},
+		"editable_by": {
+			Type: "ARRAY", Items: &stringSchema,
+			Description: "Only on a field that just some roles may change after it is written (e.g. only the reviewer sets an amount): roles this application declares. Everyone who may edit the record can still read it. Leave out for a field anyone may change.",
 		},
 		"default_from": {
 			Type:             "OBJECT",

@@ -50,7 +50,9 @@ func TestRowEditorsOwnTheirControlsByFormAttribute(t *testing.T) {
 		render func(*bytes.Buffer) error
 		id     string
 	}{
-		"edit":   {func(b *bytes.Buffer) error { return RecordEditRow(m, r, rel, nil).Render(context.Background(), b) }, "edit-rec_1"},
+		"edit": {func(b *bytes.Buffer) error {
+			return RecordEditRow(m, r, rel, nil, domain.Actor{}).Render(context.Background(), b)
+		}, "edit-rec_1"},
 		"create": {func(b *bytes.Buffer) error { return createFormRow(m, rel, nil).Render(context.Background(), b) }, "create-mch_t"},
 	} {
 		var b bytes.Buffer
@@ -81,7 +83,7 @@ func TestShellScript_oneRowEditorOpenAtATime(t *testing.T) {
 	}
 	var row bytes.Buffer
 	m, r, rel := rowFormFixture()
-	if err := RecordEditRow(m, r, rel, nil).Render(context.Background(), &row); err != nil {
+	if err := RecordEditRow(m, r, rel, nil, domain.Actor{}).Render(context.Background(), &row); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{`data-row-editor`, `data-row-cancel`} {

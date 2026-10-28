@@ -220,7 +220,7 @@ func SelectInputs(inputs []FormInput, ids []string) []FormInput {
 //     records, 007 §20), and costs nothing here: a record that exists already holds its required values.
 //
 // Computed, stamped and file Fields are left out as they are there. A record's values arrive as stored (`any`).
-func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
+func (m *Machine) EditFormInputs(values map[string]any, actor Actor) []FormInput {
 	var inputs []FormInput
 	for _, f := range m.Fields {
 		if f.Compute != nil || f.Stamp != "" || f.Numbering != nil || f.Type == FieldTypeFile || f.Type == FieldTypeGroup ||
@@ -228,7 +228,7 @@ func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 			continue
 		}
 		// A Field the Machine locks for this record (`locked_when:`, `set_once:`) is not asked: the route refuses a change.
-		if locked, _ := m.LockedField(f, values); locked {
+		if locked, _ := m.LockedFieldFor(f, values, actor); locked {
 			continue
 		}
 		in := formInputOf(f)

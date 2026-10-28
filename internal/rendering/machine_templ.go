@@ -4178,7 +4178,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gro
 // refuses; Save needs no gate of its own here for the same reason decideButtons' Approve/Reject
 // doesn't re-check either -- allowsRecordEdit (internal/web/record.go's updateRecordForm) is what
 // actually enforces it, on the PUT this form submits, regardless of how the request got here.
-func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) templ.Component {
+func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -4241,7 +4241,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions,
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = editInput(m, f, r, relations, groups).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = editInput(m, f, r, relations, groups, actor).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

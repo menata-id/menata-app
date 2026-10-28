@@ -179,6 +179,14 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		if f.Default != of.Default {
 			setOrDelete(node, "default", f.Default, of.Default)
 		}
+		if !slices.Equal(sortedCopy(f.EditableBy), sortedCopy(of.EditableBy)) {
+			deleteKey(node, "editable_by")
+			if len(f.EditableBy) > 0 {
+				if err := setEncoded(node, "editable_by", f.EditableBy); err != nil {
+					return err
+				}
+			}
+		}
 		if !sameCompute(of.Compute, f.Compute) {
 			deleteKey(node, "compute")
 			if f.Compute != nil {

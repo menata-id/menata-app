@@ -57,6 +57,9 @@ func composableSurface() string {
   field of the same machine holds that option, e.g. a reference file when the format is a banner; "required"
   stays false). A date that starts as today plus some days chosen by a status field's value ("default_from":
   {field, days: [{value, days}]}, e.g. a due date from the priority; not together with a default).
+- A field that only some roles may change after it is written ("editable_by": [role, ...], roles this application
+  declares; e.g. only the reviewer sets an amount). Everyone who may edit the record still sees it. Leave it out
+  for a field anyone may change.
 - How a machine's records are arranged ("views"): "board" (one column per option of a STATUS field named in
   "group_by"; this is what people usually mean by kanban or papan), "table", or "cards". The first view is
   what opens by default, so put the board first when the person wants one. When updating, a view may be

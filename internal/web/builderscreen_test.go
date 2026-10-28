@@ -552,3 +552,44 @@ func TestBuilderEditTabSetsWhoMayDoWhatAPermissionGoverns(t *testing.T) {
 		t.Errorf("a Permission that is not there was accepted: %d", code)
 	}
 }
+
+// A Field's Edit tab ticks who may change it: the roles of the Application, starting as the Field has them. Saving writes `editable_by`; narrowing or
+// widening is a change, and clearing the last one is refused because it would open to everyone what was held back.
+func TestBuilderEditTabSetsWhoMayChangeAField(t *testing.T) {
+	s := newInstallTestSetup(t, "beditby")
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	appLive, err := os.ReadFile(appFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, appFile, "roles: [author, reviewer]\n"+string(appLive))
+	s.reloadWorkspace(t)
+	field := "app_document_tracking/machines/mch_document/fields/fld_title"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(field)).Body.String()
+	for _, want := range []string{`name="editable_by"`, `value="author"`, `value="reviewer"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Edit tab does not offer %q", want)
+		}
+	}
+	save := func(roles ...string) int {
+		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Title"}, "required": {"on"}, "editable_by": roles}).Code
+	}
+	if code := save("reviewer"); code != http.StatusSeeOther || !strings.Contains(read(), "editable_by") {
+		t.Fatalf("setting who may change: %d\n%s", code, read())
+	}
+	if body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(field)).Body.String(); !strings.Contains(body, `value="reviewer" checked`) {
+		t.Errorf("the form does not start from the roles the Field has:\n%s", body)
+	}
+	before := read()
+	if code := save(); code < 400 || read() != before {
+		t.Errorf("clearing who may change was accepted or wrote (status %d)", code)
+	}
+	if code := save("janitor"); code < 400 || read() != before {
+		t.Errorf("a role the Application lacks was accepted or wrote (status %d)", code)
+	}
+	if code := save("reviewer"); code != http.StatusSeeOther || read() != before {
+		t.Errorf("an unchanged form must write nothing (status %d)", code)
+	}
+}

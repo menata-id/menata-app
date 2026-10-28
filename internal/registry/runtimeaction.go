@@ -100,6 +100,7 @@ var RuntimeActions = map[string]RuntimeAction{
 	"edit_field": {ID: "edit_field", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
 		{Name: "name", Label: "Name", Required: true, Kind: ActionInputRecordLine, Field: "fld_name"},
 		{Name: "required", Label: "Must be filled in", Kind: ActionInputRecordFlag, Field: "fld_required"},
+		{Name: "editable_by", Label: "Who may change it (none ticked: anyone who may edit the record)", Kind: ActionInputPartRoles, Field: "fld_editable_by"},
 		{Name: "options", Label: "Choices, one per line; after a bar the colour a status choice is drawn in (start, active, attention, done, stopped)", Kind: ActionInputRecordLines, Field: "fld_options"}},
 		Doc: "changes the name of a Field, whether it is required and, for a Field that offers choices, which choices (added and removed as the same operations a conversation uses), as the same builder operations the assistant's changes use (reviewed against the installation's version, snapshotted, load-verified); about a part of the builder tree that is a Field"},
 	"add_field": {ID: "add_field", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{

@@ -1370,13 +1370,13 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 // refuses; Save needs no gate of its own here for the same reason decideButtons' Approve/Reject
 // doesn't re-check either -- allowsRecordEdit (internal/web/record.go's updateRecordForm) is what
 // actually enforces it, on the PUT this form submits, regardless of how the request got here.
-templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) {
+templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
 	{{ formID := "edit-" + r.ID }}
 	{{ ctx = withControlForm(ctx, formID) }}
 	<tr id={ "record-" + r.ID } data-row-editor>
 		for _, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
-				@editInput(m, f, r, relations, groups)
+				@editInput(m, f, r, relations, groups, actor)
 			</td>
 		}
 		<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>

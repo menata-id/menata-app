@@ -496,8 +496,8 @@ func computedDisplay(current any) string {
 // editInput is one Field of an edit form: its control, or -- when the Machine locks it for this record as stored
 // (`locked_when:`, `set_once:`) -- its value as text with the stored value carried in a hidden input, so the form still
 // sends the record whole and the update route, which refuses a change to it, sees none.
-templ editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions) {
-	if locked, why := m.LockedField(f, r.Values); locked {
+templ editInput(m *domain.Machine, f domain.Field, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
+	if locked, why := m.LockedFieldFor(f, r.Values, actor); locked {
 		<input type="hidden" name={ f.ID } { controlForm(ctx)... } value={ figureInputValue(r.Values[f.ID]) }/>
 		<span title={ why }>{ valueText(ctx, f, r.Values[f.ID]) }</span>
 	} else {

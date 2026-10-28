@@ -253,10 +253,10 @@ func editRecordRow(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 		if isDetailContext(req) {
-			render(req.Context(), w, rendering.RecordDetailEdit(machine, record, relations, groups))
+			render(req.Context(), w, rendering.RecordDetailEdit(machine, record, relations, groups, actor))
 			return
 		}
-		render(req.Context(), w, rendering.RecordEditRow(machine, record, relations, groups))
+		render(req.Context(), w, rendering.RecordEditRow(machine, record, relations, groups, actor))
 	}
 }
 
@@ -317,7 +317,7 @@ func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.St
 		if !applyTransitionSets(w, req, store, machine, id, values) {
 			return false
 		}
-		if !keepsLockedFields(w, req, store, machine, id, values) {
+		if !keepsLockedFields(w, req, store, machine, id, values, actor) {
 			return false
 		}
 		execution.ApplyComputed(req.Context(), store, machine, id, values)
@@ -1226,10 +1226,10 @@ func sameStoredValue(submitted, stored any) bool {
 // it (the review of step 1 did exactly that to a paid instalment's VAT). It runs before computed Fields are derived, so
 // they are derived from the kept values. A Field sent unchanged is not judged, so a form that sends the record back whole
 // still saves. No read for a Machine that locks nothing.
-func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) bool {
 	locks := false
 	for _, f := range machine.Fields {
-		locks = locks || f.SetOnce || f.LockedWhen != nil
+		locks = locks || f.SetOnce || f.LockedWhen != nil || len(f.EditableBy) > 0
 	}
 	if !locks {
 		return true
@@ -1240,7 +1240,7 @@ func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Sto
 		return false
 	}
 	for _, f := range machine.Fields {
-		locked, why := machine.LockedField(f, existing.Values)
+		locked, why := machine.LockedFieldFor(f, existing.Values, actor)
 		if !locked {
 			continue
 		}

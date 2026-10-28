@@ -464,3 +464,35 @@ func mustVersion(t *testing.T, manifest string) string {
 	}
 	return v
 }
+
+// Who may change a Field is one operation: it writes `editable_by`, a role the Application does not declare is stopped, and clearing it again is refused
+// (it would open to everyone what was held back), exactly as a conversation's update is.
+func TestSetEditableByWritesRolesAndRefusesClearing(t *testing.T) {
+	manifest := installed(t)
+	set := func(roles ...string) []Op {
+		return []Op{{Kind: OpSetEditableBy, Machine: "mch_catat", Field: "fld_judul", Roles: roles}}
+	}
+	plan, err := Review(manifest, appID, set("approver"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diff string
+	for _, f := range plan.Files {
+		diff += f.Diff
+	}
+	if !strings.Contains(diff, "editable_by") || !strings.Contains(diff, "approver") {
+		t.Errorf("the diff does not carry the roles:\n%s", diff)
+	}
+	if _, err := Review(manifest, appID, set("janitor")); err == nil {
+		t.Error("a role the Application does not declare was accepted")
+	}
+	if err := Commit(manifest, appID, set("approver"), mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Review(manifest, appID, set("approver", "submitter")); err != nil {
+		t.Errorf("widening to another role was refused: %v", err)
+	}
+	if _, err := Review(manifest, appID, set()); err == nil || !strings.Contains(err.Error(), "opened to everyone") {
+		t.Errorf("clearing who may change a Field was not refused: %v", err)
+	}
+}

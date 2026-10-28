@@ -711,7 +711,7 @@ func recordEditForm(src *domain.Machine, r *data.Record, viewer domain.Actor) ir
 		Route:     RecordRoute(src.ID, r.ID),
 		Method:    domain.FormMethodPatch,
 		Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer),
-		Inputs:    src.EditFormInputs(r.Values),
+		Inputs:    src.EditFormInputs(r.Values, viewer),
 	}
 }
 

@@ -184,6 +184,15 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	if required := req.PostForm.Get("required") != ""; required != current.Required {
 		ops = append(ops, builder.Op{Kind: builder.OpSetRequired, Machine: parts[1], Field: parts[3], Flag: required})
 	}
+	var editors []string
+	for _, r := range req.PostForm["editable_by"] {
+		if r = strings.TrimSpace(r); r != "" && !slices.Contains(editors, r) {
+			editors = append(editors, r)
+		}
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(editors)), slices.Sorted(slices.Values(current.EditableBy))) {
+		ops = append(ops, builder.Op{Kind: builder.OpSetEditableBy, Machine: parts[1], Field: parts[3], Roles: editors})
+	}
 	want, err := parseChoices(req.PostForm.Get("options"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

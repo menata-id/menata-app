@@ -450,6 +450,12 @@ deletable_unless:
 - `set_once` and `locked_when` (a status Field of the same Machine and one of its options) are judged against the record **as
   stored**: an update that changes the Field is refused (422) with the reason; one that sends it back unchanged is not. Every
   edit form shows a locked Field as text instead of an input. Not on a computed or stamped Field.
+- `editable_by: [role, ...]` (2026-10-28, the builder's "who may change") names the roles of the Machine's Application that may change
+  the Field after it is written; for anyone else the update routes keep the stored value (a change is refused 422 with who may), the
+  edit forms show it as text, a Workspace admin is not held back, and a Field that names no one stays open. It is judged against **who
+  is asking**, which the other two are not. A role the Application does not declare is a load error; clearing it again through a
+  proposal is refused (it would open what was held back). Not on a computed, stamped or numbered Field. Create is not judged: whoever
+  may create sets the first value.
 - `on_parent_delete: restrict` (a relation Field only) refuses deleting the record it points at while any record points at
   it (409: "cannot be deleted while 3 Instalment record(s) point at it"). `cascade` and `clear` are not built and are refused.
 - `deletable_unless` refuses deleting a record while its status Field holds the value, with the reason given.
@@ -2771,6 +2777,7 @@ Workspace's own copy declares; the loader refuses the Workspace otherwise.
 | `default` | string | Always quoted, even for numbers/booleans. Create-only. For a `status` field it must be one of its own `options` |
 | `compute` | `{op, fields[]}` | Makes a `number` field computed (2026-09-30): never an input, recalculated on every save through the generic create/edit routes. `op` ∈ `domain.KnownComputeOps` (`sum`); `fields` are number fields of the same machine that are not computed themselves. Cannot be `required` or have a `default`. Refused at load on a machine a workflow engine casts, or on `mch_user`/`mch_activity`/`mch_notification`, because those are written by Go routes that do not compute |
 | `numbering` | `{pattern, codes}` | A number the runtime assigns (2026-10-18, plan A4) to a `text` Field when the record is created: `CTR/C/026`, `PP-0146`, `PO/2026/0087`. `pattern:` is literal text, `{fld_x}` (a text or status Field of the record: its value, or its `codes:` letters -- `{Cast: C, Crew: K, Item: I}`), `{year}` and exactly one `{seq:N}` last: the counter, N digits wide (1-9), one past the larger of the last number handed out and the highest still used **under the same text before it** -- so `CTR/{fld_contract_kind}/{seq:3}` counts each kind separately, and `PP-{seq:4}` counts every plan. Nobody types it: no form asks for it, a client's value is overwritten on create, an edit leaves it (a change is refused like `set_once`), and a copy gets its own. Two creates at once queue on the Field's lock and never write one number; a number is never handed out again: the counter (`number_counters`) only goes up, so deleting a record does not free its number. Not with `compute`/`stamp`/`default`; refused where Go writes the Machine itself. The loader refuses an unknown Field, a figure Field, a computed one, a missing counter, a counter that is not last |
+| `editable_by` | `[role]` | Roles of the Machine's Application that may change the field once written (2026-10-28); see 3.0b. Others see it as text and the update routes keep its value |
 | `stamp` | `current_user` | Makes a `person` field server-written (2026-10-05): when a record is created through the generic create routes the field is set to the acting user, whatever the request said; it is never an input, and an edit cannot change it. Cannot have a `default` or be `compute`d. Refused at load on a machine a workflow engine casts, or on `mch_user`/`mch_activity`/`mch_notification`. Needed by the `comment` card role, which is how a comment says who wrote it without trusting the client |
 
 ### 12.4 `constraints[]` — one shape

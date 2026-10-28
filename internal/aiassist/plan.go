@@ -63,6 +63,7 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		if f.RequiredWhen != nil {
 			gf.RequiredWhen = &GeneratedRequiredWhen{Field: f.RequiredWhen.Field, Equals: f.RequiredWhen.Equals}
 		}
+		gf.EditableBy = slices.Clone(f.EditableBy)
 		if f.DefaultFrom != nil {
 			df := &GeneratedDefaultFrom{Field: f.DefaultFrom.Field}
 			for value, days := range f.DefaultFrom.Days {
@@ -427,6 +428,15 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	}
 	if !sameRequiredWhen(f.RequiredWhen, of.RequiredWhen) || !sameDefaultFrom(f.DefaultFrom, of.DefaultFrom) {
 		p.refuse("field %s on %s cannot change when it is required or what its date starts as -- the file edit only appends; add a new field instead", f.ID, m.ID)
+	}
+	switch {
+	case slices.Equal(sortedCopy(f.EditableBy), sortedCopy(of.EditableBy)):
+	case len(f.EditableBy) == 0:
+		p.refuse("field %s on %s cannot be opened to everyone again: who may change it was a decision about access, and clearing it would grant what it held back", f.ID, m.ID)
+	case len(of.EditableBy) == 0:
+		p.add("only %s may change field %q on %q", strings.Join(f.EditableBy, ", "), f.Name, m.Name)
+	default:
+		p.change("who may change field %q on %q is now %s", f.Name, m.Name, strings.Join(f.EditableBy, ", "))
 	}
 	if f.Default != of.Default {
 		p.change("field %q on %q now starts at %q (was %q); records already stored keep their value", f.Name, m.Name, f.Default, of.Default)
@@ -851,4 +861,10 @@ func sameSets(a, b []GeneratedSet) bool {
 		}
 	}
 	return true
+}
+
+func sortedCopy(in []string) []string {
+	out := slices.Clone(in)
+	slices.Sort(out)
+	return out
 }

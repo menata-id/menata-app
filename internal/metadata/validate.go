@@ -1640,6 +1640,18 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 		}
 	}
 	for _, m := range machines {
+		for _, f := range m.Fields {
+			for _, role := range f.EditableBy {
+				switch {
+				case m.ApplicationID == "":
+					issues = append(issues, fmt.Sprintf("machine %q: field %q names roles %v in editable_by, but no application claims this machine -- a role word only means something inside one application's own vocabulary", m.ID, f.ID, f.EditableBy))
+				case !vocabulary[m.ApplicationID][role]:
+					issues = append(issues, fmt.Sprintf("machine %q: field %q editable_by names role %q, which application %q does not declare in its roles: vocabulary -- nobody can hold it, so nobody could change this field", m.ID, f.ID, role, m.ApplicationID))
+				}
+			}
+		}
+	}
+	for _, m := range machines {
 		for _, e := range m.Events {
 			role := ""
 			if e.Then.Notify != nil {
@@ -1757,6 +1769,9 @@ func validateLocks(f domain.Field, fieldsByID map[string]domain.Field) []string 
 	}
 	// A checkbox sends nothing when unticked, so a form cannot send a stored false back unchanged: the record could never
 	// be saved again.
+	if len(f.EditableBy) > 0 && (f.Compute != nil || f.Stamp != "" || f.Numbering != nil) {
+		issues = append(issues, fmt.Sprintf("field %q: a computed, stamped or numbered field is written by the runtime, so editable_by would restrict nothing a person writes", f.ID))
+	}
 	if (f.LockedWhen != nil || f.SetOnce) && f.Type == domain.FieldTypeBoolean {
 		issues = append(issues, fmt.Sprintf("field %q: a boolean cannot be locked -- an unticked box sends nothing, so an edit could never carry it back unchanged", f.ID))
 	}

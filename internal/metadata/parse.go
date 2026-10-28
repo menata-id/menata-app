@@ -323,10 +323,12 @@ type fieldDoc struct {
 	// Currency: see domain.Field.Currency.
 	Currency string `yaml:"currency"`
 	// Categories: see domain.Field.Categories.
-	Categories     map[string]string `yaml:"categories"`
-	LockedWhen     *requiredWhenDoc  `yaml:"locked_when"`
-	SetOnce        bool              `yaml:"set_once"`
-	OnParentDelete string            `yaml:"on_parent_delete"`
+	Categories map[string]string `yaml:"categories"`
+	LockedWhen *requiredWhenDoc  `yaml:"locked_when"`
+	SetOnce    bool              `yaml:"set_once"`
+	// EditableBy: see domain.Field.EditableBy.
+	EditableBy     []string `yaml:"editable_by"`
+	OnParentDelete string   `yaml:"on_parent_delete"`
 }
 
 // deleteGuardDoc is one `deletable_unless:` entry: see domain.DeleteGuard.
@@ -664,6 +666,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Categories:     categories,
 			LockedWhen:     lockedWhen,
 			SetOnce:        fd.SetOnce,
+			EditableBy:     fd.EditableBy,
 			OnParentDelete: domain.ParentDelete(fd.OnParentDelete),
 			RequiredWhen:   requiredWhen,
 			DefaultFrom:    defaultFrom,
