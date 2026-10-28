@@ -13,9 +13,10 @@ fields:
   - { id: fld_name, name: Name, type: text }
   - { id: fld_required, name: Required, type: text }
   - { id: fld_options, name: Choices, type: long_text }
+  - { id: fld_roles, name: Roles, type: long_text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
-  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Fixed, Code] }
+  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, Fixed, Code] }
   - { id: fld_code, name: Metadata file, type: long_text }
 card_fields:
   - { field: fld_title, role: title }

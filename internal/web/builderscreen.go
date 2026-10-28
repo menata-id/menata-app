@@ -58,6 +58,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				id := app.ID + "/" + path
 				tab := tab
 				switch {
+				case tab == "Edit" && kind == "Permission":
+					tab = "Access" // a Permission's Edit tab is the roles that may do what it governs
 				case tab == "Edit" && kind == "Machine":
 					tab = "Add" // a Machine's Edit tab is the form that adds a Field to it
 				case tab == "Edit" && kind != "Field":
@@ -88,6 +90,12 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					}
 					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail,
 						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", choiceLines(m, f)})
+				}
+			}
+			for _, m := range owned {
+				for _, p := range m.Permissions {
+					add(builderSectionData+"/"+builderPlaceName(m.Name)+"/Who may "+builderPlaceName(p.Action), "machines/"+m.ID+"/permissions/"+p.ID, "Permission",
+						strings.Join(p.Roles, ", "), [2]string{"fld_roles", strings.Join(p.Roles, "\n")})
 				}
 			}
 			for _, item := range app.AllNavigation {

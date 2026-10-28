@@ -308,7 +308,7 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 	if body := edit("app_document_tracking/machines/mch_document"); strings.Contains(body, "edit_field") {
 		t.Errorf("a part that is not a Field is offered the Field form")
 	}
-	if body := edit("app_document_tracking/navigation"); !strings.Contains(body, "Only a field can be edited") {
+	if body := edit("app_document_tracking/navigation"); !strings.Contains(body, "can be edited so far") {
 		t.Errorf("a part that is not a Field does not say so:\n%s", body)
 	}
 
@@ -499,5 +499,56 @@ func TestBuilderEditTabColoursTheChoicesOfAStatus(t *testing.T) {
 		if read() != before {
 			t.Errorf("%s wrote the file", name)
 		}
+	}
+}
+
+// "Who may" is a part of the tree for each Permission of a Machine, and its Edit tab ticks the Application's roles that may do it. Saving writes the same
+// operation a conversation would; at least one role stays, a role the Application does not declare is stopped, and a form nobody changed writes nothing.
+func TestBuilderEditTabSetsWhoMayDoWhatAPermissionGoverns(t *testing.T) {
+	s := newInstallTestSetup(t, "bperm")
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"permissions:\n  - id: prm_create_doc\n    action: create\n    roles: [author, reviewer]\n")
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	appLive, err := os.ReadFile(appFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, appFile, "roles: [author, reviewer]\n"+string(appLive))
+	s.reloadWorkspace(t)
+	part := "app_document_tracking/machines/mch_document/permissions/prm_create_doc"
+	page := func() string {
+		return s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(part)).Body.String()
+	}
+	body := page()
+	for _, want := range []string{"Who may create", "/runtime-actions/set_permission_roles?record=", `value="author"`, `value="reviewer"`, "Save who may"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Permission's Edit tab is missing %q", want)
+		}
+	}
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	save := func(roles ...string) int {
+		return s.postTo(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape(part), url.Values{"roles": roles}).Code
+	}
+	if code := save("author"); code != http.StatusSeeOther {
+		t.Fatalf("narrowing who may: %d", code)
+	}
+	if got := read(); strings.Contains(got[strings.Index(got, "prm_create_doc"):], "reviewer") {
+		t.Errorf("the role was not taken away:\n%s", got)
+	}
+	before := read()
+	for name, roles := range map[string][]string{"nobody": nil, "a role the Application lacks": {"author", "janitor"}} {
+		if code := save(roles...); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+		if read() != before {
+			t.Errorf("%s wrote the file", name)
+		}
+	}
+	if code := save("author"); code != http.StatusSeeOther || read() != before {
+		t.Errorf("an unchanged form must write nothing (status %d)", code)
+	}
+	if code := s.postTo(t, "/runtime-actions/set_permission_roles?record="+url.QueryEscape("app_document_tracking/machines/mch_document/permissions/prm_nope"), url.Values{"roles": {"author"}}).Code; code < 400 {
+		t.Errorf("a Permission that is not there was accepted: %d", code)
 	}
 }

@@ -387,3 +387,43 @@ func commitBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, a
 	}
 	return back, true
 }
+
+// runSetPermissionRoles is the Edit tab of a Permission: the record is the part ("<app>/machines/<machine>/permissions/<permission>") and the form ticks
+// which of the Application's roles may do what the Permission governs. It is the `set_permission_roles` operation a conversation would make. At least
+// one role stays ticked: a Permission with none would open its action to everyone, which is not an edit of who may but the end of it. A role the
+// Application does not declare is stopped by the plan's validation, as it is in a conversation.
+func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 4 || parts[0] != "machines" || parts[2] != "permissions" || appID == "" {
+		http.Error(w, "this part is not a Permission", http.StatusBadRequest)
+		return "", false
+	}
+	var roles []string
+	for _, r := range req.PostForm["roles"] {
+		if r = strings.TrimSpace(r); r != "" && !slices.Contains(roles, r) {
+			roles = append(roles, r)
+		}
+	}
+	if len(roles) == 0 {
+		http.Error(w, "at least one role must be able to do this: with none, everyone would", http.StatusBadRequest)
+		return "", false
+	}
+	var current *domain.Permission
+	if m := machinesFor(req.Context())[parts[1]]; m != nil {
+		for i := range m.Permissions {
+			if m.Permissions[i].ID == parts[3] {
+				current = &m.Permissions[i]
+			}
+		}
+	}
+	if current == nil {
+		http.Error(w, "this Permission is not in this Workspace", http.StatusNotFound)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
+	if slices.Equal(slices.Sorted(slices.Values(roles)), slices.Sorted(slices.Values(current.Roles))) {
+		return back, true
+	}
+	return commitBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpSetPermissionRoles, Machine: parts[1], Permission: parts[3], Roles: roles}}, back)
+}

@@ -1315,6 +1315,23 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				kind = domain.InputLongText
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: kind, Required: in.Required, Default: text})
+		case registry.ActionInputPartRoles:
+			text, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			appID, _, _ := strings.Cut(recordID, "/")
+			var appRoles []string
+			found := false
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if app.ID == appID {
+					appRoles, found = app.Roles, true
+				}
+			}
+			if !found {
+				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
 		case registry.ActionInputFieldType:
 			var types []string
 			for _, t := range domain.AddableFieldTypes {

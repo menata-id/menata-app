@@ -65,6 +65,8 @@ const (
 	ActionInputFieldType = "field_type"
 	ActionInputLines     = "lines"
 	ActionInputFlag      = "flag"
+	// ActionInputPartRoles is the roles the Application of a builder part declares as ticked choices, starting as the roles the part's `fld_roles` holds.
+	ActionInputPartRoles = "part_roles"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -106,6 +108,9 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "options", Label: "Choices, one per line (for a status); after a bar its colour: start, active, attention, done or stopped", Kind: ActionInputLines},
 		{Name: "required", Label: "Must be filled in", Kind: ActionInputFlag}},
 		Doc: "adds a Field to the Machine the builder part names, as the add_field operation a conversation uses (its id is made from the name, the form, the lists and the boards offer it at once); about a part of the builder tree that is a Machine"},
+	"set_permission_roles": {ID: "set_permission_roles", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "roles", Label: "Who may do this", Required: true, Kind: ActionInputPartRoles, Field: "fld_roles"}},
+		Doc: "sets which of the Application's roles may do what one Permission of a Machine governs, as the set_permission_roles operation a conversation uses; at least one role stays, since a Permission with none would open the action to everyone; about a part of the builder tree that is a Permission"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }
