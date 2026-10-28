@@ -1343,7 +1343,7 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 			if len(parts) == 4 {
 				if m := l.Machine(parts[1]); m != nil {
 					for _, f := range m.Fields {
-						if f.Type != domain.FieldTypeStatus || f.ID == parts[3] || f.ShowWhen != nil {
+						if f.Type != domain.FieldTypeStatus || f.ID == parts[3] || f.ShowWhen != nil || m.GovernsTransitions(f.ID) {
 							continue
 						}
 						for _, o := range f.Options {

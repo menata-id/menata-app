@@ -554,6 +554,14 @@ func runEditMenuItem(w http.ResponseWriter, req *http.Request, env actionEnv, re
 	var ops []builder.Op
 	switch {
 	case req.PostForm.Get("remove") != "":
+		for _, app := range rendering.CurrentWorkspace(req.Context()).Applications {
+			for _, other := range app.AllNavigation {
+				if app.ID == appID && other.Parent == item {
+					http.Error(w, "other menu items hang under this one ("+other.Label+"): move or take them out first", http.StatusUnprocessableEntity)
+					return "", false
+				}
+			}
+		}
 		ops = append(ops, builder.Op{Kind: builder.OpRemoveMenuItem, Item: item})
 		back = "/builder/" + url.PathEscape(appID)
 	default:

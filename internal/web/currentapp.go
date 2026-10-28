@@ -199,7 +199,7 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 				return
 			}
 			// An item that names who may see it (`visible_to:`) is not served to anyone else either, at its address or on its record pages.
-			if item, found := navItemOfRequest(app, req.URL.Path); found && !navItemVisible(app, item, actor, cfg) {
+			if navAddressRefused(app, req.Method, req.URL.Path, req.URL.RawQuery, actor, cfg) {
 				http.Error(w, "this screen is not open to your role in this application", http.StatusForbidden)
 				return
 			}
@@ -211,6 +211,14 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 // navItemVisible is the rule `visible_to:` states, for one item and one viewer: an item that names no roles is everyone's; otherwise the viewer holds one of
 // them in the Application, or is a Workspace admin or the configured admin (who could rewrite the declaration). The menu and the route both ask it.
 func navItemVisible(app domain.Application, item domain.NavigationItem, actor domain.Actor, cfg config.Config) bool {
+	// An item under a parent is offered only where its parent is: a child of a hidden parent would be reachable by its address and listed nowhere.
+	if item.Parent != "" {
+		for _, other := range app.AllNavigation {
+			if other.ID == item.Parent && other.Parent == "" && !navItemVisible(app, other, actor, cfg) {
+				return false
+			}
+		}
+	}
 	if len(item.VisibleTo) == 0 || actor.WorkspaceRole == domain.WorkspaceRoleAdmin || (actor.ID != "" && actor.ID == cfg.AdminUserID) {
 		return true
 	}
@@ -236,20 +244,63 @@ func hiddenNavItems(app domain.Application, actor domain.Actor, cfg config.Confi
 	return hidden
 }
 
-// navItemOfRequest is the navigation item whose address the request path is: the item's route (query dropped), or the list a record's page hangs under
-// (`/pages/<id>/<record>`), so a record page is as visible as its list.
-func navItemOfRequest(app domain.Application, path string) (domain.NavigationItem, bool) {
+// navItemsOfRequest are the navigation items whose address the request is, which is how `visible_to:` finds what to judge:
+//   - a page (`/pages/<id>`, also its record pages and `/pdf`) is the item that declares that route;
+//   - an address is the item's route path **and its `?tab=`**: `/approval-inbox?tab=mine` and `/approval-inbox` are two items;
+//   - a Machine's own **screens** (a GET of `/machines/<id>/...`: its list, a record, an edit form) are every item whose route opens that Machine, so hiding the
+//     menu entry hides the record pages behind it too. Writes (`POST/PUT/PATCH/DELETE`) and the JSON twins (`/api/machines/...`) are not screens: what a person
+//     may write is the Machine's Permissions, and a form on a visible page posts to the Machine's route whatever the Machine's own page offers. `visible_to:` is
+//     which screens are offered, not who may read or write data.
+//
+// Several items may share an address; the caller offers it if any of them is offered.
+func navItemsOfRequest(app domain.Application, method, path, rawQuery string) []domain.NavigationItem {
 	if rest, ok := strings.CutPrefix(path, "/pages/"); ok {
 		if navID, tail, found := strings.Cut(rest, "/"); found && navID != "" && tail != "" {
 			path = "/pages/" + navID
 		}
 	}
+	machineID, onMachine := machineIDFromPath(path)
+	if onMachine && (method != http.MethodGet || strings.HasPrefix(path, "/api/")) {
+		return nil
+	}
+	var out []domain.NavigationItem
 	for _, item := range app.AllNavigation {
-		if route, _, _ := strings.Cut(item.Route, "?"); route == path {
-			return item, true
+		route, query, _ := strings.Cut(item.Route, "?")
+		switch {
+		case onMachine:
+			if m, ok := machineIDFromPath(route); ok && m == machineID {
+				out = append(out, item)
+			}
+		case route == path && requestTab(query) == requestTab(rawQuery):
+			out = append(out, item)
 		}
 	}
-	return domain.NavigationItem{}, false
+	return out
+}
+
+// requestTab is the value of a raw query's `tab`, "" when it has none.
+func requestTab(rawQuery string) string {
+	for _, pair := range strings.Split(rawQuery, "&") {
+		if key, value, _ := strings.Cut(pair, "="); key == "tab" {
+			return value
+		}
+	}
+	return ""
+}
+
+// navAddressRefused says whether the viewer is offered none of the items at the request's address (and so is refused it). An address no item names is not
+// this rule's to judge.
+func navAddressRefused(app domain.Application, method, path, rawQuery string, actor domain.Actor, cfg config.Config) bool {
+	items := navItemsOfRequest(app, method, path, rawQuery)
+	if len(items) == 0 {
+		return false
+	}
+	for _, item := range items {
+		if navItemVisible(app, item, actor, cfg) {
+			return false
+		}
+	}
+	return true
 }
 
 // canOpenApplication is requireApplicationAccess's rule as a predicate, so the lists that offer an

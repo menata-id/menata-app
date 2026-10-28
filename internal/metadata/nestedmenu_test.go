@@ -50,7 +50,7 @@ func TestValidateShowWhen(t *testing.T) {
 	}
 	watched := status("fld_kind", nil)
 	ok := domain.Field{ID: "fld_ref", Type: domain.FieldTypeText, ShowWhen: &domain.FieldCondition{Field: "fld_kind", Equals: "A"}}
-	if issues := validateShowWhen(ok, byID(watched, ok)); len(issues) != 0 {
+	if issues := validateShowWhen(nil, ok, byID(watched, ok)); len(issues) != 0 {
 		t.Errorf("a sound show_when was refused: %v", issues)
 	}
 	chained := status("fld_mid", &domain.FieldCondition{Field: "fld_kind", Equals: "A"})
@@ -66,9 +66,41 @@ func TestValidateShowWhen(t *testing.T) {
 		"a chain":             {domain.Field{ID: "fld_x", ShowWhen: &domain.FieldCondition{Field: "fld_mid", Equals: "A"}}, byID(watched, chained), "one step, no chains"},
 		"with required_when":  {domain.Field{ID: "fld_x", RequiredWhen: &domain.FieldCondition{Field: "fld_kind", Equals: "A"}, ShowWhen: &domain.FieldCondition{Field: "fld_kind", Equals: "A"}}, byID(watched), "show_when and required_when"},
 	} {
-		got := strings.Join(validateShowWhen(tc.f, tc.all), "\n")
+		got := strings.Join(validateShowWhen(nil, tc.f, tc.all), "\n")
 		if !strings.Contains(got, tc.want) {
 			t.Errorf("%s: issues %q lack %q", name, got, tc.want)
 		}
+	}
+}
+
+// A Field cannot wait on a status that moves along transitions: the forms do not ask that control, so the Field would stay hidden with nothing to show it.
+func TestShowWhenCannotWatchAStatusTransitionsGovern(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Transitions: []domain.Transition{{ID: "trn", Field: "fld_kind", From: "A", To: "B"}}}
+	watched := domain.Field{ID: "fld_kind", Type: domain.FieldTypeStatus, Options: []string{"A", "B"}}
+	f := domain.Field{ID: "fld_ref", Type: domain.FieldTypeText, ShowWhen: &domain.FieldCondition{Field: "fld_kind", Equals: "A"}}
+	got := strings.Join(validateShowWhen(m, f, map[string]domain.Field{"fld_kind": watched, "fld_ref": f}), "\n")
+	if !strings.Contains(got, "moves along transitions") {
+		t.Errorf("a governed watcher was accepted: %q", got)
+	}
+}
+
+// Items at one address are one screen offered twice, so they must agree on who is offered it; and a parent is an item the menu lists.
+func TestNavigationItemsAtOneAddressAgreeOnVisibleTo(t *testing.T) {
+	item := func(id, route string, roles ...string) domain.NavigationItem {
+		return domain.NavigationItem{ID: id, Label: id, Route: route, VisibleTo: roles}
+	}
+	if issues := validateNavigation([]domain.NavigationItem{item("nav_a", "/inbox?tab=mine"), item("nav_b", "/inbox?tab=assigned", "manager")}); len(issues) != 0 {
+		t.Errorf("two tabs of one path were refused: %v", issues)
+	}
+	issues := strings.Join(validateNavigation([]domain.NavigationItem{item("nav_a", "/machines/mch_x", "manager"), item("nav_b", "/machines/mch_x")}), "\n")
+	if !strings.Contains(issues, "shares the address") {
+		t.Errorf("two items at one address with different visible_to were accepted: %q", issues)
+	}
+	hidden := item("nav_p", "/p")
+	hidden.NotInMenu = true
+	child := item("nav_c", "/c")
+	child.Parent = "nav_p"
+	if issues := strings.Join(validateNavigation([]domain.NavigationItem{hidden, child}), "\n"); !strings.Contains(issues, "not in the menu") {
+		t.Errorf("a child of an item the menu does not list was accepted: %q", issues)
 	}
 }

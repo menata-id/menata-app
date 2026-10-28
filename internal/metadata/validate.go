@@ -88,6 +88,27 @@ func validateNavigation(items []domain.NavigationItem) []string {
 			}
 		}
 	}
+	// Items at one address (the same route path and `?tab=`) are one screen offered twice: they must agree on who is offered it, or the first would silently
+	// decide for the others.
+	byAddress := map[string][]string{}
+	for _, n := range items {
+		route, query, _ := strings.Cut(n.Route, "?")
+		tab := ""
+		for _, pair := range strings.Split(query, "&") {
+			if k, v, _ := strings.Cut(pair, "="); k == "tab" {
+				tab = v
+			}
+		}
+		key := route + "?tab=" + tab
+		roles := append([]string(nil), n.VisibleTo...)
+		slices.Sort(roles)
+		sig := strings.Join(roles, ",")
+		if prior, ok := byAddress[key]; ok && prior[0] != sig {
+			issues = append(issues, fmt.Sprintf("navigation item %q: shares the address %s with %q but not its visible_to -- one screen is offered to one set of roles", n.ID, n.Route, prior[1]))
+		} else if !ok {
+			byAddress[key] = []string{sig, n.ID}
+		}
+	}
 	// A second level is one level: a parent is another item of this list that has no parent itself (which also rules out a cycle), and a hub is not nested.
 	byID := make(map[string]domain.NavigationItem, len(items))
 	for _, n := range items {
@@ -105,6 +126,8 @@ func validateNavigation(items []domain.NavigationItem) []string {
 			issues = append(issues, fmt.Sprintf("navigation item %q: parent %q is not an item of this list", n.ID, n.Parent))
 		case parent.Parent != "":
 			issues = append(issues, fmt.Sprintf("navigation item %q: parent %q is itself under %q -- the menu has one level under an item, no more", n.ID, n.Parent, parent.Parent))
+		case parent.NotInMenu:
+			issues = append(issues, fmt.Sprintf("navigation item %q: parent %q is not in the menu (in_menu: false), so its children would be listed nowhere", n.ID, n.Parent))
 		case n.SettingsHub || n.SettingsHubMember || parent.SettingsHub || parent.SettingsHubMember:
 			issues = append(issues, fmt.Sprintf("navigation item %q: a settings hub and its members belong to the Settings link and are not nested in the menu", n.ID))
 		}
@@ -176,7 +199,7 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateNumbering(f, fieldsByID)...)
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
-		issues = append(issues, validateShowWhen(f, fieldsByID)...)
+		issues = append(issues, validateShowWhen(m, f, fieldsByID)...)
 		issues = append(issues, validateLocks(f, fieldsByID)...)
 		issues = append(issues, validateFieldCategories(m, f)...)
 		if f.Currency != "" {
@@ -1662,7 +1685,15 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 					continue
 				}
 				for _, ds := range m.Datasets {
-					found = found || (ds.ID == n.Badge && ds.Select == domain.SelectRecords)
+					if ds.ID != n.Badge || ds.Select != domain.SelectRecords {
+						continue
+					}
+					found = true
+					for _, c := range ds.Where.Comparisons() {
+						if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) && !c.Optional && c.IfParam == "" {
+							issues = append(issues, fmt.Sprintf("application %q: navigation item %q badge %q counts a Dataset that needs %s, which no menu can supply -- make the comparison optional or count another Dataset", app.ID, n.ID, n.Badge, c.Value))
+						}
+					}
 				}
 			}
 			if !found {
@@ -1910,7 +1941,7 @@ func validateRequiredWhen(f domain.Field, fieldsByID map[string]domain.Field) []
 
 // validateShowWhen holds a conditionally shown Field to what its form assumes: another status Field of this Machine to watch and one of its own options (a value it
 // can never hold would hide the Field forever), a Field a person writes, and no required_when beside it (one says when it is asked, the other when it is demanded).
-func validateShowWhen(f domain.Field, fieldsByID map[string]domain.Field) []string {
+func validateShowWhen(m *domain.Machine, f domain.Field, fieldsByID map[string]domain.Field) []string {
 	sw := f.ShowWhen
 	if sw == nil {
 		return nil
@@ -1934,6 +1965,8 @@ func validateShowWhen(f domain.Field, fieldsByID map[string]domain.Field) []stri
 		issues = append(issues, fmt.Sprintf("field %q: show_when.equals %q is not one of %q's own options %v -- it would never be shown", f.ID, sw.Equals, sw.Field, other.Options))
 	case other.ShowWhen != nil:
 		issues = append(issues, fmt.Sprintf("field %q: show_when watches %q, which is itself shown conditionally -- one step, no chains", f.ID, sw.Field))
+	case m != nil && m.GovernsTransitions(sw.Field):
+		issues = append(issues, fmt.Sprintf("field %q: show_when watches %q, which moves along transitions and is not a control the forms ask -- watch a status a person chooses", f.ID, sw.Field))
 	}
 	return issues
 }

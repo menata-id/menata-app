@@ -2434,14 +2434,19 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 	for i, in := range spec.Inputs {
 		field := formField(formControlID(path, i), in.FieldID, in)
 		if sw := in.ShowWhen; sw != nil {
-			field.Props["when"], field.Props["watch"] = sw.Equals, sw.Field
-			// It starts hidden unless the control it watches starts holding the value.
-			shown := false
+			// Only a form that asks the watched control can follow it: an edit form that leaves it out (it is locked, it is a reference) shows this control as
+			// it always did, and the record's own values judge what is required.
+			asked, shown := false, false
 			for _, other := range spec.Inputs {
+				asked = asked || other.FieldID == sw.Field
 				shown = shown || (other.FieldID == sw.Field && other.Default == sw.Equals)
 			}
-			if !shown {
-				field.Props["hidden"] = "true"
+			if asked {
+				field.Props["when"], field.Props["watch"] = sw.Equals, sw.Field
+				// It starts hidden unless the control it watches starts holding the value.
+				if !shown {
+					field.Props["hidden"] = "true"
+				}
 			}
 		}
 		if spec.Machine != "" {

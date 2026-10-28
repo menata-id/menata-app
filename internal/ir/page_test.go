@@ -2024,3 +2024,31 @@ func TestLower_formControlsNameTheFieldTheyEdit(t *testing.T) {
 		t.Errorf("a runtime action's control names a Field: %q", node)
 	}
 }
+
+// A control that waits on another (`show_when:`) carries the condition and starts hidden unless the form starts holding the value; where the form does not
+// ask the watched control at all (an edit form leaving a locked Field out) it carries nothing and is drawn as it always was.
+func TestLower_aConditionalControlFollowsOnlyAControlTheFormAsks(t *testing.T) {
+	watch := &domain.FieldCondition{Field: "fld_kind", Equals: "Contract"}
+	build := func(kindDefault string, withKind bool) map[string]string {
+		inputs := []domain.FormInput{}
+		if withKind {
+			inputs = append(inputs, domain.FormInput{FieldID: "fld_kind", Label: "Kind", Kind: domain.InputSelect, Options: []string{"Contract", "Invoice"}, Default: kindDefault})
+		}
+		inputs = append(inputs, domain.FormInput{FieldID: "fld_ref", Label: "Number", Kind: domain.InputText, ShowWhen: watch})
+		got, err := Lower(formPage(formBound(map[string]string{"submit": "Add"})), formResolver(FormSpec{Machine: "mch_x", Route: "/machines/mch_x/records", Permitted: true, Inputs: inputs}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		form := got.Children[0]
+		return form.Children[len(form.Children)-1].Props // the conditional control is the form's last
+	}
+	if p := build("Invoice", true); p["watch"] != "fld_kind" || p["when"] != "Contract" || p["hidden"] != "true" {
+		t.Errorf("a form starting at Invoice: %v, want the condition, hidden", p)
+	}
+	if p := build("Contract", true); p["watch"] != "fld_kind" || p["hidden"] == "true" {
+		t.Errorf("a form starting at Contract: %v, want the condition, shown", p)
+	}
+	if p := build("", false); p["watch"] != "" || p["hidden"] != "" {
+		t.Errorf("a form that does not ask the watched control still carries the condition: %v", p)
+	}
+}

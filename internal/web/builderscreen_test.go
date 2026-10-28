@@ -998,3 +998,18 @@ func TestBuilderEditTabSetsWhenAFieldIsAskedFor(t *testing.T) {
 		t.Errorf("asking always again: %d\n%s", code, read())
 	}
 }
+
+// Taking out a menu item that other items hang under is refused at the form in plain words, not by the loader after the write.
+func TestBuilderMenuRefusesTakingOutAnItemOthersHangUnder(t *testing.T) {
+	s := newInstallTestSetup(t, "bmenuparent")
+	app := "app_document_tracking"
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	text := string(live) + "  - id: nav_child\n    label: Child\n    route: /machines/mch_document?x=1\n    parent: nav_document_tracking\n"
+	writeTestFile(t, appFile, text)
+	s.reloadWorkspace(t)
+	rec := s.postTo(t, "/runtime-actions/edit_menu_item?record="+url.QueryEscape(app+"/navigation/nav_document_tracking"), url.Values{"label": {"Document Tracking"}, "remove": {"on"}})
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "hang under this one") {
+		t.Errorf("taking out a parent: %d %s", rec.Code, rec.Body.String())
+	}
+}
