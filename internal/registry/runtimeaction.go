@@ -54,6 +54,10 @@ const (
 	// ActionInputRecordText is a code box that starts as the text one field of the record holds (a file's content), so a Form can
 	// edit what a source provides without the page naming the field's value.
 	ActionInputRecordText = "record_text"
+	// ActionInputRecordLine is a line of text that starts as what one field of the record holds (a Field's name); ActionInputRecordFlag is a
+	// tick that starts as that field's "true". Both read `Field` of the record, so a Form edits what a source provides without the page naming a value.
+	ActionInputRecordLine = "record_line"
+	ActionInputRecordFlag = "record_flag"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -84,6 +88,10 @@ var RuntimeActions = map[string]RuntimeAction{
 	"discard_file_draft": {ID: "discard_file_draft", Source: "workspace_files", Admin: true, Doc: "drops the viewer's draft of a file"},
 	"set_group_members": {ID: "set_group_members", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "member", Label: "Tick who belongs to this group", Kind: ActionInputMembers}},
 		Doc: "replaces a Group's membership with exactly the members ticked"},
+	"edit_field": {ID: "edit_field", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "name", Label: "Name", Required: true, Kind: ActionInputRecordLine, Field: "fld_name"},
+		{Name: "required", Label: "Must be filled in", Kind: ActionInputRecordFlag, Field: "fld_required"}},
+		Doc: "changes the name of a Field and whether it is required, as the same builder operations the assistant's changes use (reviewed against the installation's version, snapshotted, load-verified); about a part of the builder tree that is a Field"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

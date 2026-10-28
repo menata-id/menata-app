@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -147,4 +149,62 @@ func applyBuilderOperations(store *data.Store, cfg config.Config, reload func(sl
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, map[string]any{"applied": true, "version": version})
 	}
+}
+
+// runEditField is the Edit tab of the builder for a Field: the record is the part the tree names ("<app>/machines/<machine>/fields/<field>"),
+// and the form says the Field's new name and whether it is required. It makes the same two operations a conversation would
+// (rename_field, set_required) and writes them through builder.Commit -- the one write path, which load-verifies and rolls back -- after a
+// snapshot, then reloads the Workspace and returns to the part, so the person sees it renamed in the tree and in the preview.
+func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 4 || parts[0] != "machines" || parts[2] != "fields" || appID == "" {
+		http.Error(w, "this part is not a Field", http.StatusBadRequest)
+		return "", false
+	}
+	name := strings.TrimSpace(req.PostForm.Get("name"))
+	if name == "" {
+		http.Error(w, "a Field needs a name", http.StatusBadRequest)
+		return "", false
+	}
+	if env.reload == nil {
+		serverError(w, errors.New("builder: this process has no reload hook configured"))
+		return "", false
+	}
+	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	version, err := builder.Version(manifestPath)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	ops := []builder.Op{
+		{Kind: builder.OpRenameField, Machine: parts[1], Field: parts[3], Value: name},
+		{Kind: builder.OpSetRequired, Machine: parts[1], Field: parts[3], Flag: req.PostForm.Get("required") != ""},
+	}
+	snapshotBeforeWrite(env.cfg, manifestPath)
+	err = builder.Commit(manifestPath, appID, ops, version, nil)
+	var rejected *installer.RejectedError
+	switch {
+	case errors.Is(err, builder.ErrStale):
+		http.Error(w, err.Error(), http.StatusConflict)
+		return "", false
+	case errors.As(err, &rejected):
+		http.Error(w, rejected.Error(), http.StatusUnprocessableEntity)
+		return "", false
+	case err != nil:
+		serverError(w, err)
+		return "", false
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	log.Printf("BUILDER-APPLY app=%s workspace=%s ops=%d", appID, workspaceID, len(ops))
+	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
+		serverError(w, fmt.Errorf("builder: written, but the live reload failed -- a restart will pick it up: %w", err))
+		return "", false
+	}
+	return "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode(), true
 }

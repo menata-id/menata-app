@@ -64,6 +64,7 @@ var runtimeActionRunners = map[string]actionRunner{
 	"restore_snapshot":       runRestoreSnapshot,
 	"archive_workspace":      runArchiveWorkspace,
 	"revoke_invite":          runRevokeInvite,
+	"edit_field":             runEditField,
 }
 
 // runtimeAction is `POST /runtime-actions/{action}[?record=<id>]`, the one route a runtime page's Form or Button for a

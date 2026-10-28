@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -286,5 +288,72 @@ func TestBuilderPreviewAsARole(t *testing.T) {
 	}
 	if !tested {
 		t.Fatal("no installed Application declares roles and a home screen -- the preview-as-a-role check measures nothing")
+	}
+}
+
+// The inspector's Edit tab is a form for the selected Field -- its name and whether it must be filled in, starting as they are now -- and only for a
+// Field. Saving makes the same builder operations a conversation would: the Field is renamed in its Machine's own file and the tree shows the new name.
+func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
+	s := newInstallTestSetup(t, "bedit")
+	field := "app_document_tracking/machines/mch_document/fields/fld_title"
+	edit := func(node string) string {
+		return s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(node)).Body.String()
+	}
+	body := edit(field)
+	for _, want := range []string{`/runtime-actions/edit_field?record=`, `name="name"`, `name="required"`, "Save field"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Edit tab of a Field is missing %q:\n%s", want, body)
+		}
+	}
+	if body := edit("app_document_tracking/machines/mch_document"); strings.Contains(body, "edit_field") {
+		t.Errorf("a part that is not a Field is offered the Field form")
+	}
+	if body := edit("app_document_tracking/navigation"); !strings.Contains(body, "Only a field can be edited") {
+		t.Errorf("a part that is not a Field does not say so:\n%s", body)
+	}
+
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	rec := s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"  Headline  "}, "required": {"on"}})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("saving a Field: status %d: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); !strings.Contains(loc, "/builder/app_document_tracking") || !strings.Contains(loc, "tab=edit") {
+		t.Errorf("saving does not return to the part: %q", loc)
+	}
+	written, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(written), "Headline") {
+		t.Errorf("the Field's new name is not in its Machine's file:\n%s", written)
+	}
+	if body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(field)).Body.String(); !strings.Contains(body, `value="Headline"`) || !strings.Contains(body, "checked") {
+		t.Errorf("the form does not start from the saved name and requirement:\n%s", body)
+	}
+	// An unticked box is "not required": the Field's own block loses its `required`.
+	if rec := s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Headline"}}); rec.Code != http.StatusSeeOther {
+		t.Fatalf("saving without the tick: status %d: %s", rec.Code, rec.Body.String())
+	}
+	written, _ = os.ReadFile(file)
+	block, _, _ := strings.Cut(string(written)[strings.Index(string(written), "name: Headline"):], "- id:")
+	if strings.Contains(block, "required: true") {
+		t.Errorf("the Field is still required after the tick was removed:\n%s", block)
+	}
+
+	for name, post := range map[string]struct {
+		record string
+		form   url.Values
+	}{
+		"a blank name":              {field, url.Values{"name": {"   "}}},
+		"a part not Field":          {"app_document_tracking/machines/mch_document", url.Values{"name": {"x"}}},
+		"a Field that is not there": {"app_document_tracking/machines/mch_document/fields/fld_nope", url.Values{"name": {"x"}}},
+	} {
+		before, _ := os.ReadFile(file)
+		if rec := s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(post.record), post.form); rec.Code < 400 {
+			t.Errorf("%s was accepted: %d", name, rec.Code)
+		}
+		if after, _ := os.ReadFile(file); string(after) != string(before) {
+			t.Errorf("%s wrote the file", name)
+		}
 	}
 }

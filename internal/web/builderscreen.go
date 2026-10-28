@@ -44,20 +44,30 @@ func builderPlaceName(name string) string {
 func builderNodesProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
 	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
 		selected, tab := l.SourceParam("builder_nodes", "node"), "Details"
-		if l.SourceParam("builder_nodes", "tab") == "code" {
+		switch l.SourceParam("builder_nodes", "tab") {
+		case "code":
 			tab = "Code"
+		case "edit":
+			tab = "Edit"
 		}
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
 		var out []*data.Record
 		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
-			add := func(place, path, kind, detail string) {
+			add := func(place, path, kind, detail string, own ...[2]string) {
 				id := app.ID + "/" + path
+				tab := tab
+				if tab == "Edit" && kind != "Field" {
+					tab = "Fixed" // the Edit tab has a form for a Field only, and says so for anything else
+				}
 				out = append(out, &data.Record{ID: id, MachineID: "mch_builder_node", WorkspaceID: workspaceID, Values: map[string]any{
-					"fld_id": id, "fld_app": app.ID, "fld_title": place, "fld_about": kind + " · " + detail, "fld_path": path,
+					"fld_id": id, "fld_app": app.ID, "fld_title": place, "fld_about": kind + " · " + detail, "fld_kind": kind, "fld_path": path,
 					"fld_link": "/builder/" + url.PathEscape(app.ID) + "?" + url.Values{"node": {id}}.Encode(), "fld_tab": tab,
 					"fld_code": codeOf(wantsCode(id, selected, tab), ctx, store, cfg, app.ID, path),
 				}})
+				for _, kv := range own {
+					out[len(out)-1].Values[kv[0]] = kv[1]
+				}
 			}
 			var owned []*domain.Machine
 			for _, id := range app.Machines {
@@ -73,7 +83,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					if f.Required {
 						detail += ", required"
 					}
-					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail)
+					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail,
+						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)})
 				}
 			}
 			for _, item := range app.AllNavigation {

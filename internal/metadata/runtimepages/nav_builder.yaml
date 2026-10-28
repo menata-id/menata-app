@@ -74,7 +74,7 @@ page:
                     - component: SegmentedControl
                       label: Inspector
                       query: tab
-                      options: "details=Details\ncode=Code"
+                      options: "details=Details\nedit=Edit\ncode=Code"
                     - static: overline
                       from: { text: subtitle }
                     - static: heading
@@ -93,3 +93,10 @@ page:
                           from: { text: summary }
                         - static: code
                           from: { text: detail }
+                    - component: Form
+                      when: { role: status, is: Edit }
+                      submit: Save field
+                      binding: { write: action, action: edit_field }
+                    - static: caption
+                      when: { role: status, is: Fixed }
+                      text: Only a field can be edited here so far.
