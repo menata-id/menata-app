@@ -80,6 +80,20 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 	desired.Navigation = expandMenu(desired.Navigation)
 	navIDs := assignNavIDs(desired.ID, desired.Navigation, currentNav, existing.NavIDs, false)
 	lists := listedItems(desired.Navigation, navIDs, currentNav)
+	// A list that already exists and was changed is written again from the list as it should be: its page and its Datasets are replaced, nothing else of the
+	// entry or its Machine is touched.
+	currentLists := map[string]*GeneratedList{}
+	for _, n := range current.Navigation {
+		currentLists[n.ID] = n.List
+	}
+	relisted := map[string]listed{}
+	for i, n := range desired.Navigation {
+		if old, ok := currentLists[navIDs[i]]; ok && old != nil && n.List != nil && !reflect.DeepEqual(old, n.List) {
+			l := listed{NavID: navIDs[i], DatasetID: listDatasetID(navIDs[i]), Item: n}
+			relisted[navIDs[i]] = l
+			lists = append(lists, l)
+		}
+	}
 	for _, m := range desired.Machines {
 		old, exists := currentMachines[m.ID]
 		if !exists {
@@ -113,12 +127,12 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 		if reflect.DeepEqual(old, m) && !hasList(lists, m.ID) {
 			continue
 		}
-		if err := updateMachineFile(written, workspaceDir, resolve, old, m, listsOn(lists, m.ID)); err != nil {
+		if err := updateMachineFile(written, workspaceDir, resolve, old, m, listsOn(lists, m.ID), relisted); err != nil {
 			return err
 		}
 	}
 
-	if err := rebuildMenu(ensureSeq(app, "navigation"), desired, navIDs, lists); err != nil {
+	if err := rebuildMenu(ensureSeq(app, "navigation"), desired, navIDs, lists, relisted); err != nil {
 		return installer.Rejected(err)
 	}
 
@@ -138,7 +152,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 
 // updateMachineFile edits one installed Machine's file toward its desired state. PlanUpdate has
 // already refused every removal and retyping, so only additions and the permitted changes remain.
-func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve MachineFileResolver, old, m GeneratedMachine, newLists []listed) error {
+func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve MachineFileResolver, old, m GeneratedMachine, newLists []listed, relisted map[string]listed) error {
 	rel, err := resolve.MachineFile(m.ID)
 	if err != nil {
 		return fmt.Errorf("resolve file for machine %s: %w", m.ID, err)
@@ -340,6 +354,10 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		}
 	}
 	for _, l := range newLists {
+		if _, again := relisted[l.NavID]; again {
+			// Its Datasets are written again below; the old ones go first.
+			removeDatasetNodes(doc, listDatasetID(l.NavID), tableFilterDatasetID(l.NavID))
+		}
 		for _, ds := range datasetsFor(l, m) {
 			if err := appendEncoded(ensureSeq(doc, "datasets"), ds); err != nil {
 				return err
@@ -354,7 +372,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 // its new position; a new item is a new node opening its Machine; an item left out is dropped. In a
 // menu ordered by priority (domain.NavigationItem.Priority orders ahead of position) every item is
 // renumbered, or the new order would not show.
-func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lists []listed) error {
+func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lists []listed, relisted map[string]listed) error {
 	byID := map[string]*yaml.Node{}
 	usesPriority := false
 	for _, item := range seq.Content {
@@ -381,6 +399,12 @@ func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lis
 				}
 			}
 			setOrDeleteKey(node, "badge", n.Badge)
+			if l, again := relisted[ids[i]]; again {
+				deleteKey(node, "page")
+				if err := setEncoded(node, "page", pageForEntry(l, machines[n.MachineID])); err != nil {
+					return err
+				}
+			}
 			rebuilt = append(rebuilt, node)
 			delete(byID, ids[i])
 			continue
@@ -682,4 +706,20 @@ func setOrDeleteKey(node *yaml.Node, key, value string) {
 	case mapValue(node, key) != nil:
 		deleteKey(node, key)
 	}
+}
+
+// removeDatasetNodes drops the Datasets of a Machine file with these ids, so a list written again does not leave the old ones beside the new.
+func removeDatasetNodes(doc *yaml.Node, ids ...string) {
+	seq := mapValue(doc, "datasets")
+	if seq == nil {
+		return
+	}
+	kept := seq.Content[:0]
+	for _, ds := range seq.Content {
+		if id := mapValue(ds, "id"); id != nil && slices.Contains(ids, id.Value) {
+			continue
+		}
+		kept = append(kept, ds)
+	}
+	seq.Content = kept
 }

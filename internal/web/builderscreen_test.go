@@ -1100,3 +1100,69 @@ func TestBuilderMenuFormKeepsADeclaredKindOfCount(t *testing.T) {
 		t.Errorf("the picker does not keep the declared kind of count selected:\n%s", body)
 	}
 }
+
+// A list the assistant wrote has a View tab: its columns (by their Field names, in order), how it is ordered, the status its chips count by and the text Fields its search looks
+// in. Saving stages the set_list_* operations; Publish writes the page and its Datasets again, and the screen the runtime draws then shows the new columns. A screen that is not such a
+// list says so; a column that is no Field is refused in words.
+func TestBuilderViewTabChangesAListsColumnsOrderChipsAndSearch(t *testing.T) {
+	s := newInstallTestSetup(t, "bview")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	doc, _ := os.ReadFile(filepath.Join(dir, "document.yaml"))
+	writeTestFile(t, filepath.Join(dir, "document.yaml"), string(doc)+
+		"  - id: fld_note\n    name: Note\n    type: text\n  - id: fld_stage\n    name: Stage\n    type: status\n    options: [Open, Closed]\n"+
+		"card_fields:\n  - { field: fld_title, role: title }\ndatasets:\n  - id: ds_listing_list\n    select: records\n    sort: [{ field: created_at, direction: desc }]\n    limit: 50\n")
+	appFile := filepath.Join(dir, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, string(live)+"  - id: nav_listing\n    label: Listing\n    route: /pages/nav_listing\n    icon: board\n    page:\n      layout: stack\n      gap: default\n      children:\n        - component: Table\n          label: Listing\n          empty: Nothing yet.\n          framed: true\n          columns:\n            - { header: Title, field: fld_title, href: record }\n          binding: { dataset: ds_listing_list, rows: records }\n")
+	s.reloadWorkspace(t)
+	node := app + "/navigation/nav_listing"
+	body := s.getAs(t, "/builder/"+app+"?tab=view&node="+url.QueryEscape(node)).Body.String()
+	for _, want := range []string{"/runtime-actions/edit_list?record=", `name="columns"`, `name="sort"`, `name="direction"`, `name="filter"`, `name="search"`, "Save view"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the View tab of a list is missing %q", want)
+		}
+	}
+	if !strings.Contains(body, `<option value="fld_stage"`) || !strings.Contains(body, `<option value="created_at"`) {
+		t.Errorf("the pickers do not offer the Machine's Fields:\n%s", body)
+	}
+	if body := s.getAs(t, "/builder/"+app+"?tab=view&node="+url.QueryEscape(app+"/navigation/nav_document_tracking")).Body.String(); !strings.Contains(body, "can be edited so far") || strings.Contains(body, "edit_list") {
+		t.Errorf("a screen that is not a list is offered the list form")
+	}
+	save := func(form url.Values) int {
+		return s.postBuilder(t, "/runtime-actions/edit_list?record="+url.QueryEscape(node), form).Code
+	}
+	if code := save(url.Values{"columns": {"Title\nNote\nStage"}, "sort": {"fld_title"}, "direction": {"asc"}, "filter": {"fld_stage"}, "search": {"fld_title", "fld_note"}}); code != http.StatusSeeOther {
+		t.Fatalf("saving the view: %d", code)
+	}
+	pageRec := s.getAs(t, "/pages/nav_listing")
+	page := pageRec.Body.String()
+	if pageRec.Code != http.StatusOK {
+		t.Fatalf("the list page: %d %s", pageRec.Code, page)
+	}
+	for _, want := range []string{"Open", "Closed", `name="q"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the list the runtime draws lacks %q:\n%s", want, page)
+		}
+	}
+	if written, _ := os.ReadFile(appFile); !strings.Contains(string(written), "field: fld_note") || !strings.Contains(string(written), "field: fld_stage") {
+		t.Errorf("the page's columns are not the ones saved:\n%s", written)
+	}
+	read, _ := os.ReadFile(filepath.Join(dir, "document.yaml"))
+	if strings.Count(string(read), "id: ds_listing_list") != 1 {
+		t.Errorf("the old Dataset stayed beside the new:\n%s", read)
+	}
+	before, _ := os.ReadFile(appFile)
+	for name, form := range map[string]url.Values{
+		"a column that is no Field": {"columns": {"Title\nNowhere"}},
+		"no column":                 {"columns": {"  "}},
+		"chips over a text Field":   {"columns": {"Title"}, "filter": {"fld_title"}},
+	} {
+		if code := save(form); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+	}
+	if after, _ := os.ReadFile(appFile); string(after) != string(before) {
+		t.Error("a refused view wrote the file")
+	}
+}

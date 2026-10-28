@@ -63,6 +63,8 @@ func composableSurface() string {
 - A field that only some roles may change after it is written ("editable_by": [role, ...], roles this application
   declares; e.g. only the reviewer sets an amount). Everyone who may edit the record still sees it. Leave it out
   for a field anyone may change.
+- A list the assistant made earlier comes back with its "list"; return it changed (columns, sort_field/direction, search_fields,
+  filter_field, add_label, limit) to change what the page shows. The page and its Datasets are written again from the list.
 - An existing menu item can be hung under another top-level item ("parent": that item's id; one level), offered only to some roles
   ("visible_to": roles this application declares; it cannot be emptied again) and made to show a count ("badge": the id of a Dataset
   of this application that lists records). Never on a new item: add it first.

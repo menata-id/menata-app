@@ -21,9 +21,15 @@ fields:
   - { id: fld_parent, name: Under, type: text }
   - { id: fld_visible_to, name: Offered to, type: long_text }
   - { id: fld_badge, name: Count, type: text }
+  - { id: fld_list_machine, name: List of, type: text }
+  - { id: fld_columns, name: Columns, type: long_text }
+  - { id: fld_sort, name: Ordered by, type: text }
+  - { id: fld_direction, name: Order, type: text }
+  - { id: fld_filter, name: Chips, type: text }
+  - { id: fld_search, name: Search, type: long_text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
-  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, Fixed, Ask, Code] }
+  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, ListEdit, Fixed, Ask, Code] }
   - { id: fld_code, name: Metadata file, type: long_text }
 card_fields:
   - { field: fld_title, role: title }

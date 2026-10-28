@@ -52,6 +52,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			tab = "Edit"
 		case "ask":
 			tab = "Ask"
+		case "view":
+			tab = "View"
 		}
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
@@ -61,7 +63,11 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				id := app.ID + "/" + path
 				tab := tab
 				switch {
-				case tab == "Edit" && (kind == "Screen" || kind == "Declared page"):
+				case tab == "View" && kind == "List":
+					tab = "ListEdit" // a list the assistant wrote: its columns, order, chips and search
+				case tab == "View":
+					tab = "Fixed"
+				case tab == "Edit" && (kind == "Screen" || kind == "Declared page" || kind == "List"):
 					tab = "MenuItem" // a screen the menu lists: its name, its place, taking it out
 				case tab == "Edit" && kind == "Menu":
 					tab = "MenuAdd" // the menu itself: a new item
@@ -110,9 +116,21 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				if item.Page != nil {
 					kind = "Declared page"
 				}
-				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route,
+				listMachine, list := aiassist.ListOf(item.ID, item.Page, machines)
+				own := [][2]string{}
+				if list != nil {
+					kind = "List"
+					if lm := machines[listMachine]; lm != nil {
+						names := map[string]string{}
+						for _, f := range lm.Fields {
+							names[f.ID] = f.Name
+						}
+						own = listValues(lm.ID, names, list)
+					}
+				}
+				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route, append(own,
 					[2]string{"fld_name", item.Label}, [2]string{"fld_position", strconv.Itoa(i + 1)}, [2]string{"fld_count", strconv.Itoa(len(app.AllNavigation))},
-					[2]string{"fld_parent", item.Parent}, [2]string{"fld_visible_to", strings.Join(item.VisibleTo, "\n")}, [2]string{"fld_badge", item.Badge})
+					[2]string{"fld_parent", item.Parent}, [2]string{"fld_visible_to", strings.Join(item.VisibleTo, "\n")}, [2]string{"fld_badge", item.Badge})...)
 			}
 			for i, c := range builderChecks(app, owned) {
 				add(builderSectionChecks+"/"+builderPlaceName(c.Text), "checks/"+strconv.Itoa(i+1), "Check", c.Detail)
@@ -138,6 +156,17 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 								if r.ID == selected {
 									r.Values["fld_name"], r.Values["fld_position"], r.Values["fld_count"] = n.Label, strconv.Itoa(at+1), strconv.Itoa(len(app.Navigation))
 									r.Values["fld_parent"], r.Values["fld_visible_to"], r.Values["fld_badge"] = n.Parent, strings.Join(n.VisibleTo, "\n"), n.Badge
+									if n.List != nil {
+										if sm := stagedMachine(app, n.MachineID); sm != nil {
+											names := map[string]string{}
+											for _, f := range sm.Fields {
+												names[f.ID] = f.Name
+											}
+											for _, kv := range listValues(sm.ID, names, n.List) {
+												r.Values[kv[0]] = kv[1]
+											}
+										}
+									}
 								}
 							}
 						}
@@ -377,4 +406,22 @@ func showWhenText(c *domain.FieldCondition) string {
 		return ""
 	}
 	return c.Field + ":" + c.Equals
+}
+
+// listValues are what the View tab's form starts from for a list: the Machine it lists, its columns by their Field names (one a line, in order), how it is ordered, the status
+// its chips count by and the text Fields its search looks in.
+func listValues(machineID string, names map[string]string, l *aiassist.GeneratedList) [][2]string {
+	var cols []string
+	for _, id := range l.Columns {
+		cols = append(cols, names[id])
+	}
+	dir := l.Direction
+	if dir == "" {
+		dir = "desc"
+	}
+	sort := l.SortField
+	if sort == "" {
+		sort = "created_at"
+	}
+	return [][2]string{{"fld_list_machine", machineID}, {"fld_columns", strings.Join(cols, "\n")}, {"fld_sort", sort}, {"fld_direction", dir}, {"fld_filter", l.FilterField}, {"fld_search", strings.Join(l.SearchFields, "\n")}}
 }

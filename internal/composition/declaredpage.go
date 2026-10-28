@@ -1332,6 +1332,47 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputChoice:
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: in.Extra, Default: here})
+		case registry.ActionInputMachineFields:
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			machineID, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Machine)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			var options []string
+			if in.None != "" {
+				options = append(options, domain.InputChoiceSep+in.None)
+			}
+			if in.Multi {
+				options = nil
+			} else {
+				options = append(options, in.Extra...)
+			}
+			if m := l.Machine(machineID); m != nil {
+				for _, f := range m.Fields {
+					if len(in.Types) > 0 && !slices.Contains(in.Types, string(f.Type)) {
+						continue
+					}
+					if in.Multi {
+						options = append(options, f.ID+"="+f.Name)
+					} else {
+						options = append(options, f.ID+domain.InputChoiceSep+f.Name)
+					}
+				}
+			}
+			kind, def := domain.InputSelect, here
+			if in.Multi {
+				kind, def = domain.InputMultiSelect, strings.ReplaceAll(here, "\n", domain.InputOptionsSep)
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: kind, Options: options, Default: def})
 		case registry.ActionInputMenuParents:
 			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
 			if err != nil {

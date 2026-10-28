@@ -36,6 +36,14 @@ type ActionInput struct {
 	Kind string
 	// Field, with Kind ActionInputRecordText, is the field of the record whose text the input starts as (a file's content).
 	Field string
+	// Machine, Types, Multi, Extra and None describe a Kind ActionInputMachineFields / ActionInputChoice input: Machine is the field of the record holding the id
+	// of the Machine whose Fields are offered; Types limits them to those field types (empty: any); Multi makes it a set of ticks; Extra are choices that come first
+	// ("value<TAB>label", the whole list for ActionInputChoice); None, when set, is the words of an empty choice.
+	Machine string
+	Types   []string
+	Multi   bool
+	Extra   []string
+	None    string
 	// Count, with Kind ActionInputRecordPosition, is the field of the record holding how many places there are to choose from.
 	Count string
 }
@@ -80,7 +88,11 @@ const (
 	// items hang under it), starting as the record's `Field`. ActionInputAppDatasets is a select of "no count" and the Datasets of the Application's Machines
 	// that list records, starting as the record's `Field`.
 	ActionInputMenuParents = "menu_parents"
-	ActionInputAppDatasets = "app_datasets"
+	// ActionInputMachineFields is a select (or a set of ticks) over the Fields of a Machine named by the record; ActionInputChoice is a select over a fixed list. Both start
+	// as the record's `Field`.
+	ActionInputMachineFields = "machine_fields"
+	ActionInputChoice        = "choice"
+	ActionInputAppDatasets   = "app_datasets"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -143,6 +155,13 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "label", Label: "Name in the menu", Required: true},
 		{Name: "machine", Label: "Opens the records of", Required: true, Kind: ActionInputAppMachine}},
 		Doc: "adds a menu item opening a Machine of the Application, as the add_menu_item operation a conversation uses; about the menu part of the builder tree"},
+	"edit_list": {ID: "edit_list", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "columns", Label: "Columns, one field name per line, in order", Required: true, Kind: ActionInputRecordLines, Field: "fld_columns"},
+		{Name: "sort", Label: "Ordered by", Kind: ActionInputMachineFields, Field: "fld_sort", Machine: "fld_list_machine", Extra: []string{"created_at\tWhen it was added", "updated_at\tWhen it last changed"}},
+		{Name: "direction", Label: "Order", Kind: ActionInputChoice, Field: "fld_direction", Extra: []string{"desc\tNewest or largest first", "asc\tOldest or smallest first"}},
+		{Name: "filter", Label: "Chips that filter and count by", Kind: ActionInputMachineFields, Field: "fld_filter", Machine: "fld_list_machine", Types: []string{"status"}, None: "No chips"},
+		{Name: "search", Label: "Search looks in", Kind: ActionInputMachineFields, Field: "fld_search", Machine: "fld_list_machine", Types: []string{"text", "long_text"}, Multi: true}},
+		Doc: "changes what a list the assistant wrote shows -- its columns and their order, how it is ordered, the status its chips count by and the text fields its search looks in -- as the set_list_* operations a conversation uses (the page and its Datasets are written again from the list); about a part of the builder tree that is such a list"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

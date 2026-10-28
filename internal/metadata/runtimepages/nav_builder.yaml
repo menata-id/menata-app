@@ -98,7 +98,7 @@ page:
                     - component: SegmentedControl
                       label: Inspector
                       query: tab
-                      options: "details=Details\nedit=Edit\nask=Ask AI\ncode=Code"
+                      options: "details=Details\nedit=Edit\nview=View\nask=Ask AI\ncode=Code"
                     - static: overline
                       from: { text: subtitle }
                     - static: heading
@@ -133,6 +133,10 @@ page:
                       when: { role: status, is: MenuItem }
                       submit: Save menu item
                       binding: { write: action, action: edit_menu_item }
+                    - component: Form
+                      when: { role: status, is: ListEdit }
+                      submit: Save view
+                      binding: { write: action, action: edit_list }
                     - component: Form
                       when: { role: status, is: MenuAdd }
                       submit: Add to the menu

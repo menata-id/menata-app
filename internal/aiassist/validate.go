@@ -59,6 +59,8 @@ type ExistingNavItem struct {
 	Parent    string
 	VisibleTo []string
 	Badge     string
+	// Page is the item's declared screen, nil for a bespoke one; it is read back as a list only when it is one the assistant wrote (listFromExisting).
+	Page *domain.PageNode
 }
 
 // ExistingStateFrom is the one way to build an ExistingState from a loaded Workspace, used by
@@ -91,7 +93,7 @@ func ExistingStateFrom(ws domain.Workspace) ExistingState {
 		}
 		nav := make([]ExistingNavItem, 0, len(app.AllNavigation))
 		for _, n := range app.AllNavigation {
-			nav = append(nav, ExistingNavItem{ID: n.ID, Label: n.Label, Route: n.Route, Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge})
+			nav = append(nav, ExistingNavItem{ID: n.ID, Label: n.Label, Route: n.Route, Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge, Page: n.Page})
 			state.NavIDs[n.ID] = true
 		}
 		state.Applications[app.ID] = ExistingApplicationState{

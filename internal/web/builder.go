@@ -609,3 +609,100 @@ func runAddMenuItem(w http.ResponseWriter, req *http.Request, env actionEnv, rec
 	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
 	return stageBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpAddMenuItem, Machine: machine, Value: label}}, back)
 }
+
+// runEditList is the View tab of a list the assistant wrote: the record is "<app>/navigation/<item>", and the form says its columns (Field names, one a line, in
+// order), how it is ordered, the status its chips count by and the text Fields its search looks in. Compared with the list as the admin's draft leaves it; the
+// operations are the ones a conversation makes (set_list_columns, set_list_sort, set_list_filter, set_list_search) and are staged, then Publish writes the page and its
+// Datasets again from the list. A column named by something that is not a Field of the Machine is refused in words, not guessed.
+func runEditList(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	item, ok := strings.CutPrefix(rest, "navigation/")
+	if !ok || item == "" || strings.Contains(item, "/") || appID == "" {
+		http.Error(w, "this part is not a screen of the menu", http.StatusBadRequest)
+		return "", false
+	}
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	at := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == item })
+	if at < 0 || app.Navigation[at].List == nil {
+		http.Error(w, "this screen is not a list this editor can change", http.StatusNotFound)
+		return "", false
+	}
+	list := app.Navigation[at].List
+	machine := stagedMachine(app, app.Navigation[at].MachineID)
+	if machine == nil {
+		http.Error(w, "this list's Machine is not in this Application", http.StatusNotFound)
+		return "", false
+	}
+	idOf := func(name string) (string, bool) {
+		for _, f := range machine.Fields {
+			if strings.EqualFold(strings.TrimSpace(name), f.Name) || name == f.ID {
+				return f.ID, true
+			}
+		}
+		return "", false
+	}
+	var columns []string
+	for _, line := range strings.Split(req.PostForm.Get("columns"), "\n") {
+		if line = strings.TrimSpace(line); line == "" {
+			continue
+		}
+		id, found := idOf(line)
+		if !found {
+			http.Error(w, fmt.Sprintf("%q is not a field of %s", line, machine.Name), http.StatusUnprocessableEntity)
+			return "", false
+		}
+		if !slices.Contains(columns, id) {
+			columns = append(columns, id)
+		}
+	}
+	if len(columns) == 0 {
+		http.Error(w, "a list needs at least one column", http.StatusBadRequest)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"view"}}.Encode()
+	var ops []builder.Op
+	if !slices.Equal(columns, list.Columns) {
+		ops = append(ops, builder.Op{Kind: builder.OpSetListColumns, Item: item, Fields: columns})
+	}
+	sortField, dir := req.PostForm.Get("sort"), req.PostForm.Get("direction")
+	haveSort, haveDir := list.SortField, list.Direction
+	if haveSort == "" {
+		haveSort = "created_at"
+	}
+	if haveDir == "" {
+		haveDir = "desc"
+	}
+	if sortField == "" {
+		sortField = haveSort
+	}
+	if dir == "" {
+		dir = haveDir
+	}
+	if sortField != haveSort || dir != haveDir {
+		ops = append(ops, builder.Op{Kind: builder.OpSetListSort, Item: item, Field: sortField, Value: dir})
+	}
+	if filter := req.PostForm.Get("filter"); filter != list.FilterField {
+		ops = append(ops, builder.Op{Kind: builder.OpSetListFilter, Item: item, Field: filter})
+	}
+	var search []string
+	for _, id := range req.PostForm["search"] {
+		if id = strings.TrimSpace(id); id != "" && !slices.Contains(search, id) {
+			search = append(search, id)
+		}
+	}
+	if !slices.Equal(search, list.SearchFields) {
+		ops = append(ops, builder.Op{Kind: builder.OpSetListSearch, Item: item, Fields: search})
+	}
+	if len(ops) == 0 {
+		return back, true
+	}
+	return stageBuilderOps(w, req, env, appID, ops, back)
+}

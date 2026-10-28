@@ -36,6 +36,10 @@ const (
 	OpSetMenuParent      = "set_menu_parent"
 	OpSetMenuVisibleTo   = "set_menu_visible_to"
 	OpSetMenuBadge       = "set_menu_badge"
+	OpSetListColumns     = "set_list_columns"
+	OpSetListSort        = "set_list_sort"
+	OpSetListFilter      = "set_list_filter"
+	OpSetListSearch      = "set_list_search"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -60,7 +64,9 @@ type Op struct {
 	// Machine its new item opens) and Value (its label).
 	Item string `json:"item,omitempty"`
 	// Watch, on set_show_when, is the status Field of the Machine whose value (Value) asks for the Field Field.
-	Watch      string            `json:"watch,omitempty"`
+	Watch string `json:"watch,omitempty"`
+	// Fields, on the list operations, are the Fields of the Machine a list shows as columns or searches in.
+	Fields     []string          `json:"fields,omitempty"`
 	Position   int               `json:"position,omitempty"`
 	Categories map[string]string `json:"categories,omitempty"`
 }
@@ -86,6 +92,10 @@ var capabilityOf = map[string]string{
 	OpSetMenuParent:      "navItemDoc.parent",
 	OpSetMenuVisibleTo:   "navItemDoc.visible_to",
 	OpSetMenuBadge:       "navItemDoc.badge",
+	OpSetListColumns:     "navItemDoc.route",
+	OpSetListSort:        "navItemDoc.route",
+	OpSetListFilter:      "navItemDoc.route",
+	OpSetListSearch:      "navItemDoc.route",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -115,7 +125,7 @@ func Apply(current aiassist.GeneratedApplication, ops []Op) (aiassist.GeneratedA
 
 func apply(app *aiassist.GeneratedApplication, op Op) error {
 	switch op.Kind {
-	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem, OpSetMenuParent, OpSetMenuVisibleTo, OpSetMenuBadge:
+	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem, OpSetMenuParent, OpSetMenuVisibleTo, OpSetMenuBadge, OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch:
 		i := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == op.Item })
 		if i < 0 {
 			return fmt.Errorf("menu item %q is not in application %s", op.Item, app.ID)
@@ -131,6 +141,24 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			app.Navigation[i].VisibleTo = slices.Clone(op.Roles)
 		case OpSetMenuBadge:
 			app.Navigation[i].Badge = op.Value
+		case OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch:
+			// Only a list the assistant wrote (read back as one) has these; everything else is a screen the model cannot name.
+			if app.Navigation[i].List == nil {
+				return fmt.Errorf("menu item %q is not a list this editor can change", op.Item)
+			}
+			list := *app.Navigation[i].List
+			list.Columns, list.SearchFields = slices.Clone(list.Columns), slices.Clone(list.SearchFields)
+			switch op.Kind {
+			case OpSetListColumns:
+				list.Columns = slices.Clone(op.Fields)
+			case OpSetListSort:
+				list.SortField, list.Direction = op.Field, op.Value
+			case OpSetListFilter:
+				list.FilterField = op.Field
+			case OpSetListSearch:
+				list.SearchFields = slices.Clone(op.Fields)
+			}
+			app.Navigation[i].List = &list
 		case OpMoveMenuItem:
 			if op.Position < 1 || op.Position > len(app.Navigation) {
 				return fmt.Errorf("position %d is not among the %d menu items", op.Position, len(app.Navigation))

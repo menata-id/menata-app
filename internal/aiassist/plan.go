@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -32,7 +33,12 @@ func DescribeApplication(id string, a ExistingApplicationState) GeneratedApplica
 		}
 	}
 	for _, n := range a.Navigation {
-		g.Navigation = append(g.Navigation, GeneratedMenuItem{ID: n.ID, Label: n.Label, MachineID: machineOfRoute(n.Route), Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge})
+		item := GeneratedMenuItem{ID: n.ID, Label: n.Label, MachineID: machineOfRoute(n.Route), Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge}
+		// A list the assistant wrote is read back as the list, so it can be edited; any other screen stays a screen the model cannot name.
+		if machineID, list := listFromExisting(n.ID, n.Page, a.Machines); list != nil {
+			item.MachineID, item.List = machineID, list
+		}
+		g.Navigation = append(g.Navigation, item)
 	}
 	return g
 }
@@ -484,8 +490,14 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 			}
 			continue
 		}
-		if n.List != nil || n.ByStatus != nil || n.Queue != nil {
+		if (n.List != nil && old.List == nil) || n.ByStatus != nil || n.Queue != nil {
 			p.refuse("menu item %s cannot be given a list -- add a new menu item with the list instead", n.ID)
+		}
+		if n.List != nil && old.List != nil && !reflect.DeepEqual(n.List, old.List) {
+			p.change("the list of menu item %q is changed: %s", n.Label, listChange(old.List, n.List))
+		}
+		if n.List == nil && old.List != nil {
+			p.refuse("menu item %s is a list and cannot stop being one -- remove it and add what you want instead", n.ID)
 		}
 		kept[n.ID] = true
 		keptOrder = append(keptOrder, n.ID)
@@ -802,7 +814,23 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		}
 	}
 
-	plan := PlanUpdate(DescribeApplication(change.TargetAppID, current), *desired)
+	// A list that is new or changed is held to what a list needs of its Machine; a list left as it was is not judged again, so an old one a person wrote
+	// by hand cannot stand in the way of an unrelated edit.
+	described := DescribeApplication(change.TargetAppID, current)
+	oldLists := map[string]*GeneratedList{}
+	for _, n := range described.Navigation {
+		oldLists[n.ID] = n.List
+	}
+	judged := *desired
+	judged.Navigation = nil
+	for _, n := range desired.Navigation {
+		if n.List != nil && (n.ID == "" || !reflect.DeepEqual(oldLists[n.ID], n.List)) {
+			judged.Navigation = append(judged.Navigation, n)
+		}
+	}
+	issues = append(issues, validateLists(&judged)...)
+
+	plan := PlanUpdate(described, *desired)
 	issues = append(issues, plan.Refusals...)
 	if len(plan.Items) == 0 && len(plan.Refusals) == 0 {
 		issues = append(issues, "the returned application is identical to the installed one -- nothing would change. If the change the person asked for cannot be made, say so plainly in your message and why; do not tell them it is done")
@@ -908,4 +936,31 @@ func sameShowWhen(a, b *GeneratedShowWhen) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+// listChange says in a line what differs between two versions of a list, for the plan.
+func listChange(old, now *GeneratedList) string {
+	var what []string
+	if !slices.Equal(old.Columns, now.Columns) {
+		what = append(what, "columns "+strings.Join(now.Columns, ", "))
+	}
+	if old.SortField != now.SortField || old.Direction != now.Direction {
+		what = append(what, "ordered by "+now.SortField+" "+now.Direction)
+	}
+	if old.Scope != now.Scope || old.PersonField != now.PersonField {
+		what = append(what, "shows "+now.Scope+" records")
+	}
+	if old.Limit != now.Limit {
+		what = append(what, "at most "+strconv.Itoa(now.Limit))
+	}
+	if old.FilterField != now.FilterField {
+		what = append(what, "chips by "+now.FilterField)
+	}
+	if !slices.Equal(old.SearchFields, now.SearchFields) {
+		what = append(what, "search in "+strings.Join(now.SearchFields, ", "))
+	}
+	if old.AddLabel != now.AddLabel {
+		what = append(what, "add button "+now.AddLabel)
+	}
+	return strings.Join(what, "; ")
 }
