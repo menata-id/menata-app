@@ -1,0 +1,29 @@
+# The statuses of the workflow of the part the builder has selected (registry.RuntimeSources: builder_steps), one record each, in declared order: the status, the
+# meaning it is given, how many records stand in it, the edges that leave it and what is wrong with it. Read by the builder screen, which draws them as the process.
+id: mch_builder_step
+name: Workflow step
+runtime: builder_steps
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_node, name: Workflow, type: text }
+  - { id: fld_title, name: Status, type: text, required: true }
+  - { id: fld_category, name: Meaning, type: status, options: [Start, Active, Attention, Done, Stopped, Unmarked] }
+  - { id: fld_count, name: Records, type: text }
+  - { id: fld_edges, name: Leaves by, type: long_text }
+  - { id: fld_issue, name: To look at, type: long_text }
+  - { id: fld_link, name: Try from here, type: text }
+status_categories:
+  field: fld_category
+  values: { Start: start, Active: active, Attention: attention, Done: done, Stopped: stopped, Unmarked: start }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_category, role: status }
+  - { field: fld_count, role: subtitle }
+  - { field: fld_edges, role: summary }
+  - { field: fld_issue, role: detail }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_builder_steps
+    select: records
+    where: { field: fld_node, op: equals, value: $parameters.node }
+    limit: 60

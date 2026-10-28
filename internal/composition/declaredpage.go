@@ -1332,6 +1332,20 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputWorkflowStatuses:
+			machineID, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Machine)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			options := []string{NewStatusChoice + domain.InputChoiceSep + "The new status named above"}
+			if m := l.Machine(machineID); m != nil {
+				if f := LifecycleField(m); f != nil {
+					for _, o := range f.Options {
+						options = append(options, o+domain.InputChoiceSep+o)
+					}
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Required: false})
 		case registry.ActionInputChoice:
 			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
 			if err != nil {

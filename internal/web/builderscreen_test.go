@@ -1166,3 +1166,143 @@ func TestBuilderViewTabChangesAListsColumnsOrderChipsAndSearch(t *testing.T) {
 		t.Error("a refused view wrote the file")
 	}
 }
+
+// The Workflow part of the tree draws the Machine's lifecycle: each status with the meaning it is given, how many records stand in it, the edges that leave it and who may take
+// each, and a word about a status nothing leaves that is not a finish. A Machine whose status no transition governs has no process to draw.
+func TestBuilderWorkflowPartDrawsTheProcess(t *testing.T) {
+	s := newInstallTestSetup(t, "bflow")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	appFile := filepath.Join(dir, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, manager]\n"+string(live))
+	doc, _ := os.ReadFile(filepath.Join(dir, "document.yaml"))
+	writeTestFile(t, filepath.Join(dir, "document.yaml"), string(doc)+
+		"  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Review, Done, Stuck]\n"+
+		"status_categories:\n  field: fld_stage\n  values: { Open: start, Review: active, Done: done, Stuck: attention }\n"+
+		"transitions:\n"+
+		"  - { id: trn_submit, name: Submit, field: fld_stage, from: Open, to: Review, action: edit, roles: [author] }\n"+
+		"  - { id: trn_finish, name: Finish, field: fld_stage, from: Review, to: Done, action: edit, roles: [manager] }\n"+
+		"  - { id: trn_park, name: Park, field: fld_stage, from: Review, to: Stuck, action: edit }\n")
+	s.reloadWorkspace(t)
+	node := app + "/machines/mch_document/workflow"
+	body := s.getAs(t, "/builder/"+app+"?node="+url.QueryEscape(node)).Body.String()
+	for _, want := range []string{"Submit → Review", "author", "Finish → Done", "manager", "Park → Stuck", "Nothing leaves Stuck", "0 records"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the process is missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Nothing leaves Done") || strings.Contains(body, "Nothing leaves Open") {
+		t.Error("a finish, or a status with a way out, is flagged as a dead end")
+	}
+	other := s.getAs(t, "/builder/"+app+"?node="+url.QueryEscape(app+"/machines/mch_document/fields/fld_title")).Body.String()
+	if strings.Contains(other, "Submit → Review") {
+		t.Error("another part shows the process")
+	}
+}
+
+// The Workflow part's Edit tab adds to the lifecycle: a status with what it means, a move between two statuses with who may take it (the new status may be named in the same form),
+// and the move that gets a dead end out is how a dead end stops being one. What is there cannot be changed here -- the policy of an update.
+func TestBuilderWorkflowEditAddsAStatusAndAMove(t *testing.T) {
+	s := newInstallTestSetup(t, "bflow2")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	appFile := filepath.Join(dir, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, manager]\n"+string(live))
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+
+		"  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Review, Done, Stuck]\n"+
+		"status_categories:\n  field: fld_stage\n  values: { Open: start, Review: active, Done: done, Stuck: attention }\n"+
+		"transitions:\n"+
+		"  - { id: trn_submit, name: Submit, field: fld_stage, from: Open, to: Review, action: edit, roles: [author] }\n"+
+		"  - { id: trn_finish, name: Finish, field: fld_stage, from: Review, to: Done, action: edit, roles: [manager] }\n"+
+		"  - { id: trn_park, name: Park, field: fld_stage, from: Review, to: Stuck, action: edit }\n")
+	s.reloadWorkspace(t)
+	node := app + "/machines/mch_document/workflow"
+	form := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(node)).Body.String()
+	for _, want := range []string{"/runtime-actions/edit_workflow?record=", `name="status"`, `name="meaning"`, `name="step"`, `name="from"`, `name="to"`, `<option value="+new"`, `<option value="Stuck"`, `value="manager"`} {
+		if !strings.Contains(form, want) {
+			t.Errorf("the Workflow part's Edit tab is missing %q", want)
+		}
+	}
+	post := func(v url.Values) int {
+		return s.postBuilder(t, "/runtime-actions/edit_workflow?record="+url.QueryEscape(node), v).Code
+	}
+	// A status that finishes the work, a move into it by a manager, and the move that gets Stuck out of its dead end.
+	if code := post(url.Values{"status": {"Archived"}, "meaning": {"stopped"}, "step": {"Archive"}, "from": {"Done"}, "to": {"+new"}, "roles": {"manager"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a status and a move into it: %d", code)
+	}
+	if code := post(url.Values{"step": {"Reopen"}, "from": {"Stuck"}, "to": {"Review"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a move: %d", code)
+	}
+	written, _ := os.ReadFile(docFile)
+	for _, want := range []string{"Archived", "trn_archive", "trn_reopen", "Archived: stopped"} {
+		if !strings.Contains(string(written), want) {
+			t.Errorf("the Machine's file lacks %q:\n%s", want, written)
+		}
+	}
+	if i := strings.Index(string(written), "id: trn_archive"); i < 0 || !strings.Contains(string(written)[i:min(i+300, len(written))], "manager") {
+		t.Errorf("the move Archive does not carry the role that may take it:\n%s", written)
+	}
+	body := s.getAs(t, "/builder/"+app+"?node="+url.QueryEscape(node)).Body.String()
+	if strings.Contains(body, "Nothing leaves Stuck") || !strings.Contains(body, "Reopen → Review") || !strings.Contains(body, "Archive → Archived") {
+		t.Errorf("the process does not show the new moves, or still calls Stuck a dead end:\n%s", body)
+	}
+	before := string(written)
+	for name, v := range map[string]url.Values{
+		"nothing named":                  {},
+		"a move without an end":          {"step": {"Lost"}, "from": {"Done"}},
+		"a meaning not known":            {"status": {"X"}, "meaning": {"purple"}},
+		"a move from a status not there": {"step": {"Nope"}, "from": {"Gone"}, "to": {"Done"}},
+	} {
+		if code := post(v); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+	}
+	if after, _ := os.ReadFile(docFile); string(after) != before {
+		t.Error("a refused form wrote the file")
+	}
+}
+
+// "Try the flow" writes nothing: standing at a status as a role (the preview chips set the role), each status says whether you are there or a move you may take leads
+// to it, and the link on a status moves the trial there.
+func TestBuilderWorkflowTrialShowsWhereARoleCouldGo(t *testing.T) {
+	s := newInstallTestSetup(t, "bflow3")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	appFile := filepath.Join(dir, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, manager]\n"+string(live))
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+
+		"  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Review, Done]\n"+
+		"status_categories:\n  field: fld_stage\n  values: { Open: start, Review: active, Done: done }\n"+
+		"transitions:\n"+
+		"  - { id: trn_submit, name: Submit, field: fld_stage, from: Open, to: Review, action: edit, roles: [author] }\n"+
+		"  - { id: trn_finish, name: Finish, field: fld_stage, from: Review, to: Done, action: edit, roles: [manager] }\n")
+	s.reloadWorkspace(t)
+	node := url.QueryEscape(app + "/machines/mch_document/workflow")
+	at := func(query string) string { return s.getAs(t, "/builder/"+app+"?node="+node+query).Body.String() }
+	before, _ := os.ReadFile(docFile)
+	if body := at("&try=Open&as=author"); !strings.Contains(body, "you are here") || !strings.Contains(body, "Submit gets you here") || strings.Contains(body, "Finish gets you here") {
+		t.Errorf("an author at Open: %s", body)
+	}
+	if body := at("&try=Review&as=author"); strings.Contains(body, "Finish gets you here") {
+		t.Errorf("an author was shown a move only a manager may take")
+	}
+	if body := at("&try=Review&as=manager"); !strings.Contains(body, "Finish gets you here") {
+		t.Errorf("a manager at Review cannot finish")
+	}
+	if body := at("&try=Review"); !strings.Contains(body, "Finish gets you here") {
+		t.Errorf("the builder, with no role chosen, can take any move")
+	}
+	if body := at("&try=Open&as=author"); !strings.Contains(body, "try=Review") {
+		t.Errorf("a status does not link to trying from it:\n%s", body)
+	}
+	if after, _ := os.ReadFile(docFile); string(after) != string(before) {
+		t.Error("trying the flow wrote a file")
+	}
+}

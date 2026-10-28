@@ -138,6 +138,10 @@ page:
                       submit: Save view
                       binding: { write: action, action: edit_list }
                     - component: Form
+                      when: { role: status, is: Flow }
+                      submit: Save workflow
+                      binding: { write: action, action: edit_workflow }
+                    - component: Form
                       when: { role: status, is: MenuAdd }
                       submit: Add to the menu
                       binding: { write: action, action: add_menu_item }
@@ -148,3 +152,27 @@ page:
                     - static: caption
                       when: { role: status, is: Fixed }
                       text: Only a field, who may use a machine, a field added to a machine and the menu can be edited so far.
+            - component: Collection
+              gap: tight
+              block: true
+              binding: { dataset: ds_runtime_builder_steps, rows: records }
+              children:
+                - layout: panel
+                  children:
+                    - layout: row
+                      gap: tight
+                      children:
+                        - static: heading
+                          from: { text: title }
+                        - component: StatusBadge
+                          from: { label: status, tone: "status:tone" }
+                        - static: caption
+                          from: { text: subtitle }
+                    - static: caption
+                      from: { text: summary }
+                    - static: caption
+                      from: { text: detail }
+                    - static: link
+                      variant: quiet
+                      text: Try the flow from here
+                      from: { href: link }

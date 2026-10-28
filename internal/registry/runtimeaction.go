@@ -92,7 +92,9 @@ const (
 	// as the record's `Field`.
 	ActionInputMachineFields = "machine_fields"
 	ActionInputChoice        = "choice"
-	ActionInputAppDatasets   = "app_datasets"
+	// ActionInputWorkflowStatuses is a select of "the new status named above" and the statuses of the lifecycle of the Machine the record names (`Machine`).
+	ActionInputWorkflowStatuses = "workflow_statuses"
+	ActionInputAppDatasets      = "app_datasets"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -162,6 +164,14 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "filter", Label: "Chips that filter and count by", Kind: ActionInputMachineFields, Field: "fld_filter", Machine: "fld_list_machine", Types: []string{"status"}, None: "No chips"},
 		{Name: "search", Label: "Search looks in", Kind: ActionInputMachineFields, Field: "fld_search", Machine: "fld_list_machine", Types: []string{"text", "long_text"}, Multi: true}},
 		Doc: "changes what a list the assistant wrote shows -- its columns and their order, how it is ordered, the status its chips count by and the text fields its search looks in -- as the set_list_* operations a conversation uses (the page and its Datasets are written again from the list); about a part of the builder tree that is such a list"},
+	"edit_workflow": {ID: "edit_workflow", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "status", Label: "A new status (leave empty for none)"},
+		{Name: "meaning", Label: "What the new status means", Kind: ActionInputChoice, Field: "fld_meaning", Extra: []string{"active\tIn progress", "attention\tNeeds someone's attention", "start\tWhere a record begins", "done\tFinished", "stopped\tStopped without finishing"}},
+		{Name: "step", Label: "A new move between statuses (leave empty for none)"},
+		{Name: "from", Label: "From", Kind: ActionInputWorkflowStatuses, Machine: "fld_list_machine"},
+		{Name: "to", Label: "To", Kind: ActionInputWorkflowStatuses, Machine: "fld_list_machine"},
+		{Name: "roles", Label: "Who may take it (none ticked: anyone who may edit the record)", Kind: ActionInputPartRoles, Field: "fld_nobody"}},
+		Doc: "adds a status to a Machine's lifecycle (with what it means) and/or a move between two statuses (with who may take it), as the add_option and add_transition operations a conversation uses; a move or a status already there cannot be changed or taken away, which is the policy of an update; about the Workflow part of the builder tree"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

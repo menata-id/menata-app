@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -40,6 +41,7 @@ const (
 	OpSetListSort        = "set_list_sort"
 	OpSetListFilter      = "set_list_filter"
 	OpSetListSearch      = "set_list_search"
+	OpAddTransition      = "add_transition"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -66,7 +68,10 @@ type Op struct {
 	// Watch, on set_show_when, is the status Field of the Machine whose value (Value) asks for the Field Field.
 	Watch string `json:"watch,omitempty"`
 	// Fields, on the list operations, are the Fields of the Machine a list shows as columns or searches in.
-	Fields     []string          `json:"fields,omitempty"`
+	Fields []string `json:"fields,omitempty"`
+	// From and To, on add_transition, are the statuses a move goes between; Value is its name, Field the status Field it moves and Roles who may take it.
+	From       string            `json:"from,omitempty"`
+	To         string            `json:"to,omitempty"`
 	Position   int               `json:"position,omitempty"`
 	Categories map[string]string `json:"categories,omitempty"`
 }
@@ -96,6 +101,7 @@ var capabilityOf = map[string]string{
 	OpSetListSort:        "navItemDoc.route",
 	OpSetListFilter:      "navItemDoc.route",
 	OpSetListSearch:      "navItemDoc.route",
+	OpAddTransition:      "machineDoc.transitions",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -195,6 +201,18 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			return fmt.Errorf("permission %q already exists on machine %s", op.Permission, m.ID)
 		}
 		m.Permissions = append(m.Permissions, aiassist.GeneratedPermission{ID: op.Permission, Action: op.Action, Roles: slices.Clone(op.Roles)})
+	case OpAddTransition:
+		for _, f := range m.Fields {
+			if f.ID == op.Field && f.Type == "status" {
+				id := "trn_" + slugOf(op.Value)
+				for n := 2; slices.ContainsFunc(m.Transitions, func(t aiassist.GeneratedTransition) bool { return t.ID == id }); n++ {
+					id = "trn_" + slugOf(op.Value) + "_" + strconv.Itoa(n)
+				}
+				m.Transitions = append(m.Transitions, aiassist.GeneratedTransition{ID: id, Name: op.Value, Field: op.Field, From: op.From, To: op.To, Roles: slices.Clone(op.Roles)})
+				return nil
+			}
+		}
+		return fmt.Errorf("%q is not a status field of machine %s", op.Field, m.ID)
 	case OpAddField:
 		if slices.ContainsFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field }) {
 			return fmt.Errorf("field %q already exists on machine %s", op.Field, m.ID)
@@ -421,4 +439,21 @@ func AppVersion(workspaceManifestPath, appID string) (string, error) {
 	}
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// slugOf is a name in lower case with its words joined by "_", for an id made from it.
+func slugOf(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case b.Len() > 0 && !strings.HasSuffix(b.String(), "_"):
+			b.WriteByte('_')
+		}
+	}
+	if out := strings.Trim(b.String(), "_"); out != "" {
+		return out
+	}
+	return "move"
 }

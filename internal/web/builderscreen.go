@@ -71,6 +71,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					tab = "MenuItem" // a screen the menu lists: its name, its place, taking it out
 				case tab == "Edit" && kind == "Menu":
 					tab = "MenuAdd" // the menu itself: a new item
+				case tab == "Edit" && kind == "Workflow":
+					tab = "Flow" // the lifecycle: a new status, a new move between statuses
 				case tab == "Edit" && kind == "Permission":
 					tab = "Access" // a Permission's Edit tab is the roles that may do what it governs
 				case tab == "Edit" && kind == "Machine":
@@ -138,7 +140,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			add(builderSectionMenu+"/Application menu", "navigation", "Menu", strconv.Itoa(len(app.Navigation))+" entries in the menu")
 			for _, m := range owned {
 				if f := statusFieldOf(m); f != nil {
-					add(builderSectionWorkflow+"/"+builderPlaceName(m.Name), "machines/"+m.ID+"/workflow", "Workflow", plural2(len(f.Options), "status"))
+					add(builderSectionWorkflow+"/"+builderPlaceName(m.Name), "machines/"+m.ID+"/workflow", "Workflow", plural2(len(f.Options), "status"),
+						[2]string{"fld_list_machine", m.ID})
 				}
 			}
 		}
@@ -301,12 +304,12 @@ func wantsCode(id, selected, tab string) bool {
 func builderRolesProvider() composition.RuntimeProvider {
 	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
 		workspaceID, _ := data.WorkspaceScope(ctx)
-		node, tab, chosen := l.SourceParam("builder_roles", "node"), l.SourceParam("builder_roles", "tab"), l.SourceParam("builder_roles", "as")
+		node, tab, chosen, try := l.SourceParam("builder_roles", "node"), l.SourceParam("builder_roles", "tab"), l.SourceParam("builder_roles", "as"), l.SourceParam("builder_roles", "try")
 		var out []*data.Record
 		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
 			add := func(role, title string) {
 				q := url.Values{}
-				for k, v := range map[string]string{"node": node, "tab": tab, "as": role} {
+				for k, v := range map[string]string{"node": node, "tab": tab, "as": role, "try": try} {
 					if v != "" {
 						q.Set(k, v)
 					}
@@ -424,4 +427,106 @@ func listValues(machineID string, names map[string]string, l *aiassist.Generated
 		sort = "created_at"
 	}
 	return [][2]string{{"fld_list_machine", machineID}, {"fld_columns", strings.Join(cols, "\n")}, {"fld_sort", sort}, {"fld_direction", dir}, {"fld_filter", l.FilterField}, {"fld_search", strings.Join(l.SearchFields, "\n")}}
+}
+
+// builderStepsProvider is the reader of the `builder_steps` source: for the workflow part the request selects (`machines/<machine>/workflow` of an Application of this
+// Workspace), one record per status of the Machine's lifecycle -- its meaning, how many records stand in it, the edges that leave it and who may take each, and what is
+// wrong with it. The workflow is composition.ResolveProcess's reading of `transitions:` and `status_categories:`; nothing here is stored. Counts are one cheap statement per
+// status, asked only for the selected workflow.
+func builderStepsProvider(store *data.Store) composition.RuntimeProvider {
+	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		selected, try, as := l.SourceParam("builder_steps", "node"), l.SourceParam("builder_steps", "try"), l.SourceParam("builder_steps", "as")
+		appID, rest, _ := strings.Cut(selected, "/")
+		parts := strings.Split(rest, "/")
+		if len(parts) != 3 || parts[0] != "machines" || parts[2] != "workflow" {
+			return nil, nil
+		}
+		owned := false
+		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+			owned = owned || (app.ID == appID && slices.Contains(app.Machines, parts[1]))
+		}
+		m := machinesFor(ctx)[parts[1]]
+		if !owned || m == nil {
+			return nil, nil
+		}
+		counts := map[string]int{}
+		if field := m.StatusField(); field != "" {
+			for _, f := range m.Fields {
+				if f.ID != field {
+					continue
+				}
+				for _, o := range f.Options {
+					n, err := store.CountRecordsSelect(ctx, m.ID, "workflow:"+o, []data.FieldPredicate{{Field: field, Value: o}})
+					if err != nil {
+						return nil, err
+					}
+					counts[o] = n
+				}
+			}
+		}
+		g, ok := composition.ResolveProcess(m, counts)
+		if !ok {
+			return nil, nil
+		}
+		edge := map[string]composition.ProcessEdge{}
+		for _, e := range g.Edges {
+			edge[e.ID] = e
+		}
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		var out []*data.Record
+		for _, n := range g.Nodes {
+			var leaves []string
+			for _, id := range n.Out {
+				e := edge[id]
+				line := e.Name + " → " + e.To
+				if len(e.Roles) > 0 {
+					line += " · " + strings.Join(e.Roles, ", ")
+				}
+				if e.ActorField != "" {
+					line += " · the person in " + e.ActorField
+				}
+				leaves = append(leaves, line)
+			}
+			var issues []string
+			for _, i := range g.Issues {
+				if i.Status == n.Status {
+					issues = append(issues, i.Words)
+				}
+			}
+			category := "Unmarked"
+			if n.Category != "" {
+				category = strings.ToUpper(n.Category[:1]) + n.Category[1:]
+			}
+			// Trying the flow writes nothing: standing at `try` as the role `as`, a status is "you are here", or one a move you may take leads to.
+			words := plural2(n.Count, "record")
+			switch {
+			case try != "" && n.Status == try:
+				words += " · you are here"
+			case try != "":
+				for _, e := range g.Edges {
+					if e.From == try && e.To == n.Status && edgeTakenBy(e, as) {
+						words += " · " + e.Name + " gets you here"
+						break
+					}
+				}
+			}
+			q := url.Values{"node": {selected}, "try": {n.Status}}
+			if as != "" {
+				q.Set("as", as)
+			}
+			out = append(out, &data.Record{ID: selected + "#" + n.Status, MachineID: "mch_builder_step", WorkspaceID: workspaceID, Values: map[string]any{
+				"fld_id": selected + "#" + n.Status, "fld_node": selected, "fld_title": n.Status, "fld_category": category,
+				"fld_count": words, "fld_edges": strings.Join(leaves, "\n"), "fld_issue": strings.Join(issues, "\n"),
+				"fld_link": "/builder/" + url.PathEscape(appID) + "?" + q.Encode(),
+			}})
+		}
+		return out, nil
+	}
+}
+
+// edgeTakenBy says whether someone holding the Application role `as` could take a move: a move that names no roles is anyone's, one that names some is theirs who hold one,
+// and with no role chosen (the builder looking) every move can be taken. A move that names a person Field of the record is takeable by the person in it, which a trial has no
+// record to know, so it is offered.
+func edgeTakenBy(e composition.ProcessEdge, as string) bool {
+	return as == "" || len(e.Roles) == 0 || slices.Contains(e.Roles, as)
 }

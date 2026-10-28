@@ -15,6 +15,7 @@ import (
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/builder"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -704,5 +705,82 @@ func runEditList(w http.ResponseWriter, req *http.Request, env actionEnv, record
 	if len(ops) == 0 {
 		return back, true
 	}
+	return stageBuilderOps(w, req, env, appID, ops, back)
+}
+
+// runEditWorkflow is the Edit tab of a Machine's Workflow part: the record is "<app>/machines/<machine>/workflow", and the form adds a status to the lifecycle
+// (with what it means) and/or a move between two statuses (with who may take it) -- the add_option and add_transition operations a conversation makes. A status or a move
+// already there cannot be changed or taken away (the policy of an update), so this form only adds. A move may name the status being added in the same form
+// ("+new"). The loader's own rule stays: a status a move reaches must have a meaning, which is why a new status carries one.
+func runEditWorkflow(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 3 || parts[0] != "machines" || parts[2] != "workflow" || appID == "" {
+		http.Error(w, "this part is not a workflow", http.StatusBadRequest)
+		return "", false
+	}
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	machine := stagedMachine(app, parts[1])
+	if machine == nil {
+		http.Error(w, "this Machine is not in this Application", http.StatusNotFound)
+		return "", false
+	}
+	var field *aiassist.GeneratedField
+	for i := range machine.Fields {
+		if machine.Fields[i].Type == "status" && (len(machine.Transitions) == 0 || machine.Transitions[0].Field == machine.Fields[i].ID) {
+			field = &machine.Fields[i]
+			break
+		}
+	}
+	if field == nil {
+		http.Error(w, "this Machine has no status to build a workflow on", http.StatusUnprocessableEntity)
+		return "", false
+	}
+	status, step := strings.TrimSpace(req.PostForm.Get("status")), strings.TrimSpace(req.PostForm.Get("step"))
+	if status == "" && step == "" {
+		http.Error(w, "name a new status, a new move, or both", http.StatusBadRequest)
+		return "", false
+	}
+	var ops []builder.Op
+	if status != "" {
+		meaning := req.PostForm.Get("meaning")
+		if meaning == "" {
+			meaning = "active"
+		}
+		if !domain.KnownStatusCategories[domain.StatusCategory(meaning)] {
+			http.Error(w, fmt.Sprintf("%q is not a meaning a status can have", meaning), http.StatusBadRequest)
+			return "", false
+		}
+		ops = append(ops, builder.Op{Kind: builder.OpAddOption, Machine: machine.ID, Field: field.ID, Value: status, Category: meaning})
+	}
+	if step != "" {
+		resolve := func(v string) string {
+			if v == composition.NewStatusChoice {
+				return status
+			}
+			return v
+		}
+		from, to := resolve(req.PostForm.Get("from")), resolve(req.PostForm.Get("to"))
+		if from == "" || to == "" {
+			http.Error(w, "a move needs a status to start from and one to go to (the new status needs its name above)", http.StatusBadRequest)
+			return "", false
+		}
+		var roles []string
+		for _, r := range req.PostForm["roles"] {
+			if r = strings.TrimSpace(r); r != "" && !slices.Contains(roles, r) {
+				roles = append(roles, r)
+			}
+		}
+		ops = append(ops, builder.Op{Kind: builder.OpAddTransition, Machine: machine.ID, Field: field.ID, Value: step, From: from, To: to, Roles: roles})
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
 	return stageBuilderOps(w, req, env, appID, ops, back)
 }

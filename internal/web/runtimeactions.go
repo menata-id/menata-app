@@ -68,6 +68,7 @@ var runtimeActionRunners = map[string]actionRunner{
 	"add_field":              runAddField,
 	"edit_menu_item":         runEditMenuItem,
 	"edit_list":              runEditList,
+	"edit_workflow":          runEditWorkflow,
 	"add_menu_item":          runAddMenuItem,
 	"publish_draft":          runPublishDraft,
 	"discard_draft":          runDiscardDraft,
