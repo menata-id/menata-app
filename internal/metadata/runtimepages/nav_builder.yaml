@@ -166,7 +166,7 @@ page:
                       binding: { write: action, action: set_permission_roles }
                     - static: caption
                       when: { role: status, is: Fixed }
-                      text: Only a field, who may use a machine, a field added to a machine and the menu can be edited so far.
+                      text: Only a field, who may use a machine, a field added to a machine, the menu, a list, a workflow and a rule that runs on a write can be edited so far.
             - component: Collection
               gap: tight
               block: true

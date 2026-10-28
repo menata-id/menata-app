@@ -117,3 +117,25 @@ func TestARuleIsSwitchedOffAndOn(t *testing.T) {
 		t.Error("a rule that is not there was switched")
 	}
 }
+
+// A new rule is never given the id of one the machine already has but this grammar cannot describe (a rule on a date): the second reminder of a Machine is refused for being the same
+// rule only if it is, never because the ids collided.
+func TestANewRuleDoesNotTakeTheIdOfAHiddenOne(t *testing.T) {
+	manifest := installedForRules(t)
+	op := Op{Kind: OpAddScheduledRule, Machine: "mch_catat", Item: RuleExampleRemind, Field: "fld_tenggat", Watch: "fld_status", Value: "closed"}
+	if err := Commit(manifest, appID, []Op{op}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := Commit(manifest, appID, []Op{op}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatalf("a second reminder collided with the first one's ids: %v", err)
+	}
+	for _, id := range []string{"evt_catat_remind_log_2", "evt_catat_remind_2"} {
+		found := false
+		for path, text := range tree(t, manifest) {
+			found = found || (strings.HasSuffix(path, "catat.yaml") && strings.Contains(text, "id: "+id))
+		}
+		if !found {
+			t.Errorf("the second reminder lacks %s", id)
+		}
+	}
+}

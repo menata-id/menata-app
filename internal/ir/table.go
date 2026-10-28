@@ -484,7 +484,11 @@ func arrangeRows(out *UINode, n domain.PageNode, set RecordSet, dimension bool, 
 		var lines []string
 		for _, label := range labels {
 			order = append(order, members[label]...)
-			lines = append(lines, strings.NewReplacer("\t", " ", "\n", " ").Replace(label)+"\t"+strconv.Itoa(len(members[label])))
+			shown := strings.NewReplacer("\t", " ", "\n", " ").Replace(label)
+			if strings.TrimSpace(shown) == "" {
+				shown = "(none)"
+			}
+			lines = append(lines, shown+"\t"+strconv.Itoa(len(members[label])))
 		}
 		if len(lines) > 0 {
 			out.Props[tableGroupsProp] = strings.Join(lines, "\n")
@@ -506,5 +510,13 @@ func arrangeRows(out *UINode, n domain.PageNode, set RecordSet, dimension bool, 
 		cells = append(cells, out.Children[i*width:(i+1)*width]...)
 	}
 	out.Children = cells
+	// A row-number column counts the rows as they are laid out, which is no longer the order the records came in.
+	for j, c := range n.Columns {
+		if c.From == domain.PageRowPositionColumn {
+			for pos := 0; pos < rows; pos++ {
+				cells[pos*width+j] = UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": strconv.Itoa(pos + 1)}}
+			}
+		}
+	}
 	return nil
 }

@@ -3,7 +3,6 @@ package execution
 import (
 	"bytes"
 	"context"
-	"log"
 	"os"
 	"sort"
 
@@ -39,7 +38,7 @@ import (
 // steps it should.
 func compositeSignedDocument(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, cfg domain.Composite, approved string) {
 	if svc.Files == nil {
-		log.Printf("composite signed document for %s/%s: no file store configured", machine.ID, record.ID)
+		fail(ctx, "composite signed document for %s/%s: no file store configured", machine.ID, record.ID)
 		return
 	}
 	parentField, ok := machine.FieldByID(cfg.ParentField)
@@ -58,7 +57,7 @@ func compositeSignedDocument(ctx context.Context, svc Services, machines map[str
 
 	steps, err := svc.Store.ListRecordsBy(ctx, machine.ID, cfg.ParentField, parentID)
 	if err != nil {
-		log.Printf("composite signed document for %s: list steps: %v", parentID, err)
+		fail(ctx, "composite signed document for %s: list steps: %v", parentID, err)
 		return
 	}
 	// A Machine declaring no ordering has no declared order to sort by: the store's own sort_order
@@ -81,7 +80,7 @@ func compositeSignedDocument(ctx context.Context, svc Services, machines map[str
 		})
 		image, err := signatureImageForStep(ctx, svc, machines, machine, step, f)
 		if err != nil {
-			log.Printf("composite signed document for %s: signature image for step %s: %v", parentID, step.ID, err)
+			fail(ctx, "composite signed document for %s: signature image for step %s: %v", parentID, step.ID, err)
 			continue
 		}
 		if stamp, ok := action.StampFor(machine, step, image); ok {
@@ -94,7 +93,7 @@ func compositeSignedDocument(ctx context.Context, svc Services, machines map[str
 
 	parent, err := svc.Store.GetRecord(ctx, parentField.RelatedMachine, parentID)
 	if err != nil {
-		log.Printf("composite signed document for %s: read parent: %v", parentID, err)
+		fail(ctx, "composite signed document for %s: read parent: %v", parentID, err)
 		return
 	}
 	// Always the declared source, never a previous result: every run recomposites from scratch, which
@@ -102,31 +101,33 @@ func compositeSignedDocument(ctx context.Context, svc Services, machines map[str
 	// 2026-09-19 -- every approval should land in the PDF immediately).
 	source, err := readStoredFile(svc, displayString(parent.Values[cfg.SourceField]))
 	if err != nil {
-		log.Printf("composite signed document for %s: read %s: %v", parentID, cfg.SourceField, err)
+		fail(ctx, "composite signed document for %s: read %s: %v", parentID, cfg.SourceField, err)
 		return
 	}
 
 	signed := source
 	if len(stamps) > 0 {
 		if signed, err = action.CompositeSignatures(signed, stamps); err != nil {
-			log.Printf("composite signed document for %s: composite signatures: %v", parentID, err)
+			fail(ctx, "composite signed document for %s: composite signatures: %v", parentID, err)
 			return
 		}
 	}
 	if signed, err = action.CompositeStatusBanner(signed, action.ApprovalStatusBanner(banner)); err != nil {
-		log.Printf("composite signed document for %s: composite status banner: %v", parentID, err)
+		fail(ctx, "composite signed document for %s: composite status banner: %v", parentID, err)
 		return
 	}
 
 	key, err := svc.Files.Save(parentField.RelatedMachine, cfg.TargetField, "signed.pdf", bytes.NewReader(signed))
 	if err != nil {
-		log.Printf("composite signed document for %s: save: %v", parentID, err)
+		fail(ctx, "composite signed document for %s: save: %v", parentID, err)
 		return
 	}
 	parent.Values[cfg.TargetField] = key
 	if _, err := svc.Store.UpdateRecord(ctx, parentField.RelatedMachine, parentID, parent.Values); err != nil {
-		log.Printf("composite signed document for %s: save %s: %v", parentID, cfg.TargetField, err)
+		fail(ctx, "composite signed document for %s: save %s: %v", parentID, cfg.TargetField, err)
+		return
 	}
+	did(ctx, "composed the signed document of %s", parentID)
 }
 
 // numberValue reads a declared number Field off a record. data.ApplyDefaults/ValidateRecord guarantee

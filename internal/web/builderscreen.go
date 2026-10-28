@@ -75,7 +75,7 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					tab = "RuleNew" // a rule started from an example
 				case tab == "Rules":
 					tab = "Fixed"
-				case tab == "Test" && kind == "Rule":
+				case tab == "Test" && (kind == "Rule" || kind == "Fixed rule"):
 					tab = "RuleTest" // a rule tried on a real record, in words
 				case tab == "Test":
 					tab = "Fixed"
@@ -168,7 +168,11 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 						if e.Disabled {
 							state = "off"
 						}
-						add(builderSectionRules+"/"+builderPlaceName(m.Name)+"/"+builderPlaceName(ruleWords(m, e)), "machines/"+m.ID+"/events/"+e.ID, "Rule", "what happens when something changes · "+state+" · "+last,
+						kind := "Rule"
+						if !aiassist.EventDescribed(e) {
+							kind = "Fixed rule" // carried through unchanged by the builder: it is shown and its runs are read, but it has no switch here yet
+						}
+						add(builderSectionRules+"/"+builderPlaceName(m.Name)+"/"+builderPlaceName(ruleWords(m, e)), "machines/"+m.ID+"/events/"+e.ID, kind, "what happens when something changes · "+state+" · "+last,
 							[2]string{"fld_list_machine", m.ID}, [2]string{"fld_enabled", strconv.FormatBool(!e.Disabled)})
 					}
 				}

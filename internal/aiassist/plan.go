@@ -125,7 +125,8 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		g.Ensure = append(g.Ensure, GeneratedEnsure{ID: b.ID, SumOf: b.SumOf, Per: b.Per, AtLeast: cloneFloat(b.AtLeast), AtMost: cloneFloat(b.AtMost), Reason: b.Reason})
 	}
 	for _, e := range m.Events {
-		if e.Schedule != nil || e.Then.SummaryOverrideWhen != "" {
+		if !EventDescribed(e) {
+			g.HiddenEvents = append(g.HiddenEvents, e.ID)
 			continue
 		}
 		switch e.Then.Name {
@@ -1047,4 +1048,19 @@ func ruleAdded(machine string, e GeneratedEvent) string {
 		return fmt.Sprintf("rule on %q: when %s, set %s to %s", machine, when, e.SetField, e.SetValue)
 	}
 	return fmt.Sprintf("rule on %q: when %s, write an activity entry: %s", machine, when, e.Summary)
+}
+
+// EventDescribed says whether the assistant's rule grammar can say this rule: a rule on a write that logs or tells someone. Any other (a rule on a date, a rollup, a composite) is carried
+// through an update unchanged and cannot be switched here; its id is remembered (GeneratedMachine.HiddenEvents) so a new rule is never given it.
+func EventDescribed(e domain.Event) bool {
+	if e.Schedule != nil || e.Then.SummaryOverrideWhen != "" {
+		return false
+	}
+	switch e.Then.Name {
+	case domain.ServiceLogActivity:
+		return true
+	case domain.ServiceSendNotification:
+		return e.Then.Notify != nil
+	}
+	return false
 }

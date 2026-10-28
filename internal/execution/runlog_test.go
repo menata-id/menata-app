@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -130,5 +131,47 @@ func TestDryRunSaysWhatARuleWouldDoAndWritesNothing(t *testing.T) {
 	}
 	if runs, _ := store.RecentEventRuns(wsCtx, machine.ID, "evt_tell", 5); len(runs) != 0 {
 		t.Errorf("a trial was remembered as a run: %+v", runs)
+	}
+}
+
+// The detail of a run is cut on a character boundary and carries no NUL, so a name in any script never makes the row that remembers the run fail to be written; and the history is
+// trimmed per rule, so a busy rule does not push a rare one's last run out.
+func TestRunHistoryIsWrittenForAnyScriptAndTrimmedPerRule(t *testing.T) {
+	pool := testPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	ws, err := store.CreateWorkspace(ctx, "Runs Trim", "runs-trim-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupTest(t, pool, ws.ID, "unused_runs_trim@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	if err := store.RecordEventRun(wsCtx, "mch_x", "evt_rare", "rec_0", data.EventRanOutcome, strings.Repeat("é", 400)+"\x00end"); err != nil {
+		t.Fatalf("a long line in a script of two-byte characters, with a NUL: %v", err)
+	}
+	rare, err := store.RecentEventRuns(wsCtx, "mch_x", "evt_rare", 5)
+	if err != nil || len(rare) != 1 || !utf8.ValidString(rare[0].Detail) || strings.Contains(rare[0].Detail, "\x00") || len(rare[0].Detail) > 500 {
+		t.Fatalf("stored detail: %+v %v", rare, err)
+	}
+	for i := 0; i < 230; i++ {
+		if err := store.RecordEventRun(wsCtx, "mch_x", "evt_busy", "rec", data.EventRanOutcome, "x"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if rare, _ := store.RecentEventRuns(wsCtx, "mch_x", "evt_rare", 5); len(rare) != 1 {
+		t.Errorf("a busy rule pushed a rare rule's last run out: %d left", len(rare))
+	}
+	if busy, _ := store.RecentEventRuns(wsCtx, "mch_x", "evt_busy", 1000); len(busy) != 200 {
+		t.Errorf("a busy rule keeps %d runs, want 200", len(busy))
+	}
+}
+
+// A set_field rule that finds the Field already holding the value did nothing, and the history says so instead of "ran".
+func TestASetFieldThatFindsTheValueAlreadyThereIsQuiet(t *testing.T) {
+	ctx, rec := withRecorder(context.Background())
+	m := &domain.Machine{ID: "mch_x"}
+	setField(ctx, Services{}, nil, m, &data.Record{ID: "r", Values: map[string]any{"fld_s": "Closed"}}, "u", domain.SetField{TargetField: "fld_s", Value: "Closed"})
+	if outcome, detail := rec.outcome(); outcome != data.EventQuietOutcome || !strings.Contains(detail, "already holds Closed") {
+		t.Errorf("outcome = %s / %q", outcome, detail)
 	}
 }

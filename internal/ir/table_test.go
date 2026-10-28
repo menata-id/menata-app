@@ -467,3 +467,30 @@ func TestLowerTableGroupsRowsAndCarriesTheirTones(t *testing.T) {
 		t.Errorf("a Field the Dataset does not project: %v", err)
 	}
 }
+
+// The row-number column counts the rows as they are laid out after grouping, and an empty group value has a name a person can read.
+func TestLowerTableNumbersRowsAfterGroupingAndNamesTheEmptyGroup(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentTable), string(domain.ComponentStatusBadge)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentTable)})
+	rec := func(title, group string) map[string]string {
+		return map[string]string{"title": title, domain.PageFieldRole("fld_g"): group, domain.PageRecordRole: "/r/" + title}
+	}
+	node := tableNode(domain.PageColumn{Header: "#", From: domain.PageRowPositionColumn}, domain.PageColumn{Header: "Ticket", From: "title"})
+	node.Props["group_by"] = "fld_g"
+	root := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{node}}
+	tree, err := Lower(root, tableRecords(rec("a", "x"), rec("b", "y"), rec("c", "x"), rec("d", "")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tree.Children[0]
+	var order []string
+	for i := 0; i < len(table.Children); i += 2 {
+		order = append(order, table.Children[i].Props["text"]+table.Children[i+1].Props["text"])
+	}
+	if strings.Join(order, ",") != "1a,2c,3b,4d" {
+		t.Errorf("rows read %v, want 1a,2c,3b,4d", order)
+	}
+	if table.Props["groups"] != "x\t2\ny\t1\n(none)\t1" {
+		t.Errorf("groups = %q", table.Props["groups"])
+	}
+}

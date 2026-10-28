@@ -101,7 +101,8 @@ templ tableBody(label string, cols []TableColumn, cells []templ.Component, foote
 	} else {
 		{{ perRow := max(len(cols), 1) }}
 		{{ at := 0 }}
-		for _, line := range strings.Split(groups, "\n") {
+		{{ lines := strings.Split(groups, "\n") }}
+		for g, line := range lines {
 			{{ name, count := tableGroupOf(line) }}
 			<details open data-group-by={ group_by } class="mb-3">
 				<summary class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), "py-2" }>
@@ -109,14 +110,13 @@ templ tableBody(label string, cols []TableColumn, cells []templ.Component, foote
 				</summary>
 				@dataTable(label+": "+name, cols) {
 					@tableRows(cols, cells, at, count, density, row_tone, rowtones, at/perRow)
+					if g == len(lines)-1 {
+						// The total row closes the last group's table, so its columns line up with the rows above it.
+						@tableFooterRow(cols, footer, density)
+					}
 				}
 			</details>
 			{{ at += count * perRow }}
-		}
-		if footer != "" {
-			@dataTable(label, cols) {
-				@tableFooterRow(cols, footer, density)
-			}
 		}
 	}
 }

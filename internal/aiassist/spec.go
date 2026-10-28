@@ -165,9 +165,12 @@ const (
 // shape with no forcing case yet. A second real request that needs one of those is this package's
 // own trigger to grow it, the same discipline the rest of this codebase holds everywhere else.
 type GeneratedMachine struct {
-	ID     string           `json:"id"`
-	Name   string           `json:"name"`
-	Fields []GeneratedField `json:"fields"`
+	// HiddenEvents are the ids of rules the machine has that this shape cannot describe (a rule on a date, a rollup): read back from the installed Machine, never written, only so that
+	// a new rule is not given the id of one.
+	HiddenEvents []string         `json:"-"`
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Fields       []GeneratedField `json:"fields"`
 	// Completion names the status Field and the option that means a record is done (domain.Completion),
 	// which gives the record a mark-done / reopen action. Roadmap stage 1, W2.
 	Completion *GeneratedCompletion `json:"completion,omitempty"`

@@ -84,3 +84,16 @@ func TestTableGroupsFoldAndRowsTakeTheirTone(t *testing.T) {
 		t.Errorf("a plain table changed:\n%s", buf.String())
 	}
 }
+
+// With groups the total row closes the last group's table: one header row per group, none for the total, and the total's cells under the columns they add up.
+func TestGroupedTableTotalClosesTheLastGroup(t *testing.T) {
+	cells := []templ.Component{templ.Raw("a"), templ.Raw("1"), templ.Raw("b"), templ.Raw("2")}
+	var buf bytes.Buffer
+	if err := table("Jobs", "", "Title\nAmount", "start,end", "", false, Truncation{}, "Total\t3", "", "fld_g", "", "x\t1\ny\t1", "", cells).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	if strings.Count(html, "<thead") != 2 || strings.Count(html, ">Total<") != 1 || strings.Index(html, ">Total<") < strings.LastIndex(html, "<details") {
+		t.Errorf("the total is not the last group's last row, or the groups drew extra headers:\n%s", html)
+	}
+}

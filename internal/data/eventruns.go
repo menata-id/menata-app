@@ -3,7 +3,9 @@ package data
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // The outcomes of one run of a rule: it did its work, it ran and had nobody or nothing to act on (quiet), or it failed.
@@ -13,8 +15,8 @@ const (
 	EventFailedOutcome = "failed"
 )
 
-// eventRunsKept is how many runs of one Machine's rules are kept; older ones are trimmed when a new one is written.
-const eventRunsKept = 400
+// eventRunsKept is how many runs of one rule are kept; older ones are trimmed when a new one is written.
+const eventRunsKept = 200
 
 // EventRun is one run of a rule.
 type EventRun struct {
@@ -28,15 +30,14 @@ func (s *Store) RecordEventRun(ctx context.Context, machineID, eventID, recordID
 	if !ok {
 		return errNotScoped
 	}
-	if len(detail) > 500 {
-		detail = detail[:500]
-	}
+	detail = cleanDetail(detail, 500)
 	if _, err := s.q(ctx).Exec(ctx, `INSERT INTO event_runs (workspace_id, machine_id, event_id, record_id, outcome, detail) VALUES ($1, $2, $3, $4, $5, $6)`,
 		workspaceID, machineID, eventID, recordID, outcome, detail); err != nil {
 		return fmt.Errorf("record event run: %w", err)
 	}
-	_, err := s.q(ctx).Exec(ctx, `DELETE FROM event_runs WHERE workspace_id = $1 AND machine_id = $2 AND id NOT IN
-		(SELECT id FROM event_runs WHERE workspace_id = $1 AND machine_id = $2 ORDER BY id DESC LIMIT $3)`, workspaceID, machineID, eventRunsKept)
+	// Trimmed per rule, not per Machine: a busy rule must not push a rare one's last run out, which is the question this table exists to answer.
+	_, err := s.q(ctx).Exec(ctx, `DELETE FROM event_runs WHERE workspace_id = $1 AND machine_id = $2 AND event_id = $3 AND id NOT IN
+		(SELECT id FROM event_runs WHERE workspace_id = $1 AND machine_id = $2 AND event_id = $3 ORDER BY id DESC LIMIT $4)`, workspaceID, machineID, eventID, eventRunsKept)
 	if err != nil {
 		return fmt.Errorf("trim event runs: %w", err)
 	}
@@ -89,4 +90,17 @@ func (s *Store) LatestEventRuns(ctx context.Context, machineIDs []string) (map[s
 		out[r.MachineID+"/"+r.EventID] = r
 	}
 	return out, rows.Err()
+}
+
+// cleanDetail makes a line fit a column: no NUL (PostgreSQL text refuses it) and at most max bytes, cut on a character boundary so a name in any script is never split.
+func cleanDetail(s string, max int) string {
+	s = strings.ReplaceAll(s, "\x00", "")
+	if len(s) <= max {
+		return s
+	}
+	s = s[:max]
+	for !utf8.ValidString(s) && len(s) > 0 {
+		s = s[:len(s)-1]
+	}
+	return s
 }

@@ -532,7 +532,7 @@ func RuleFromExample(m *aiassist.GeneratedMachine, op Op) ([]aiassist.GeneratedE
 	id := func(suffix string) string {
 		base := "evt_" + slugOf(m.ID[len("mch_"):]) + "_" + suffix
 		out := base
-		for n := 2; slices.ContainsFunc(m.Events, func(e aiassist.GeneratedEvent) bool { return e.ID == out }); n++ {
+		for n := 2; slices.ContainsFunc(m.Events, func(e aiassist.GeneratedEvent) bool { return e.ID == out }) || slices.Contains(m.HiddenEvents, out); n++ {
 			out = base + "_" + strconv.Itoa(n)
 		}
 		return out
@@ -572,8 +572,12 @@ func RuleFromExample(m *aiassist.GeneratedMachine, op Op) ([]aiassist.GeneratedE
 		}
 		schedule := &aiassist.GeneratedSchedule{DateField: date.ID, When: "overdue", GuardField: status.ID, GuardNotEquals: op.Value}
 		if op.Item == RuleExampleClose {
-			return []aiassist.GeneratedEvent{{ID: id("close"), Schedule: schedule, Service: aiassist.EventServiceSetField, SetField: status.ID, SetValue: op.Value,
-				Summary: title + "was closed because " + date.Name + " passed"}}, nil
+			// The runtime tells a rule on a schedule has already run for a record by the entry a log_activity rule with the same schedule writes, so the close rule has one beside it.
+			return []aiassist.GeneratedEvent{
+				{ID: id("close_log"), Schedule: schedule, Service: aiassist.EventServiceLogActivity, Summary: "Closed: " + title + date.Name + " has passed"},
+				{ID: id("close"), Schedule: schedule, Service: aiassist.EventServiceSetField, SetField: status.ID, SetValue: op.Value,
+					Summary: title + "was closed because " + date.Name + " passed"},
+			}, nil
 		}
 		person := ""
 		for _, f := range m.Fields {

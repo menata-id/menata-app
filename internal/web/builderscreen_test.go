@@ -10,10 +10,13 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
+	"menata.app/internal/metadata"
 )
 
 // The builder's screen lists an Application's parts as a tree -- Machines with their Fields, its screens, its menu -- marks the part the request
@@ -1465,4 +1468,73 @@ func TestBuilderRulesTabStartsARuleFromAnExample(t *testing.T) {
 	if tree := s.getAs(t, "/builder/"+app).Body.String(); !strings.Contains(tree, "tell the person in Owner") {
 		t.Errorf("the new rule is not in the tree:\n%s", tree)
 	}
+}
+
+// The two rules on a schedule the examples make actually run on their own: the one that closes a record by itself moves an overdue record to its last status once, and writes the
+// entry the runtime reads to tell it has already run (so a second tick does nothing); the history remembers the run. (The fixture holds the activity Machine that entry is written to.)
+func TestTheCloseExampleRunsOnItsOwnAndOnlyOnce(t *testing.T) {
+	s := newInstallTestSetup(t, "bcloses")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+"  - id: fld_due\n    name: Due\n    type: date\n  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Closed]\ncard_fields:\n  - { field: fld_title, role: title }\n")
+	s.reloadWorkspace(t)
+	machine := app + "/machines/mch_document"
+	if code := s.postBuilder(t, "/runtime-actions/add_rule?record="+url.QueryEscape(machine), url.Values{"example": {"close"}, "watch": {"fld_due"}, "other": {"fld_stage"}, "value": {"Closed"}}).Code; code != http.StatusSeeOther {
+		t.Fatalf("adding the close rule: %d", code)
+	}
+	loaded, err := metadata.LoadApplication(s.manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	machines := map[string]*domain.Machine{}
+	var list []*domain.Machine
+	for _, m := range loaded.Workspace.Machines {
+		machines[m.ID] = m
+		list = append(list, m)
+	}
+	wsCtx := data.WithWorkspaceScope(context.Background(), s.wsID)
+	late, err := s.store.CreateRecord(wsCtx, "mch_document", map[string]any{"fld_title": "Late", "fld_due": "2020-01-01", "fld_stage": "Open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := execution.RunScheduledEvents(wsCtx, s.store, nil, list, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.store.GetRecord(wsCtx, "mch_document", late.ID)
+	if got.Values["fld_stage"] != "Closed" {
+		t.Fatalf("the overdue record was not closed by the rule: %v", got.Values)
+	}
+	activity, _ := s.store.ListRecords(wsCtx, "mch_activity")
+	if err := execution.RunScheduledEvents(wsCtx, s.store, nil, list, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := s.store.ListRecords(wsCtx, "mch_activity")
+	if len(again) != len(activity) {
+		t.Errorf("a second tick ran the rules again: %d -> %d activity entries", len(activity), len(again))
+	}
+	runs, _ := s.store.RecentEventRuns(wsCtx, "mch_document", current0(t, s, "close"), 5)
+	if len(runs) == 0 || runs[0].Outcome != data.EventRanOutcome || !strings.Contains(runs[0].Detail, "Closed") {
+		t.Errorf("the run is not remembered as ran-and-closed: %+v", runs)
+	}
+	_ = machines
+}
+
+// current0 is the id of the rule an example made, found by the word in its id.
+func current0(t *testing.T, s *installTestSetup, word string) string {
+	t.Helper()
+	loaded, err := metadata.LoadApplication(s.manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range loaded.Workspace.Machines {
+		for _, e := range m.Events {
+			if strings.HasSuffix(e.ID, "_"+word) {
+				return e.ID
+			}
+		}
+	}
+	t.Fatalf("no rule ends in _%s", word)
+	return ""
 }

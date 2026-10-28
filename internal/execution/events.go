@@ -264,11 +264,9 @@ func init() {
 		},
 		domain.ServiceRollupParentStatus: func(ctx context.Context, in serviceInput) {
 			rollUpParentStatus(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, in.event.On, *in.event.Then.Rollup)
-			did(ctx, "looked at the parent's status")
 		},
 		domain.ServiceSetField: func(ctx context.Context, in serviceInput) {
 			setField(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, *in.event.Then.Set)
-			did(ctx, "set %s", in.event.Then.Set.TargetField)
 		},
 		domain.ServiceCompositeSignedDocument: func(ctx context.Context, in serviceInput) {
 			compositeSignedDocument(ctx, in.svc, in.machines, in.machine, in.record, *in.event.Then.Composite, in.event.WhenEquals)
@@ -428,6 +426,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 	_ = mailer
 	parentID := fmt.Sprint(record.Values[r.ParentField])
 	if parentID == "" {
+		nothingToDo(ctx, "this record has no parent in %s", r.ParentField)
 		return
 	}
 	parentField, ok := machine.FieldByID(r.ParentField)
@@ -447,6 +446,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 
 	value, decided := behavior.RollupValue(r, watched)
 	if !decided {
+		nothingToDo(ctx, "no arm of the rollup fired, so the parent keeps its %s", r.TargetField)
 		return // no arm fired and no default is declared: the parent keeps what it holds
 	}
 	parent, err := store.GetRecord(ctx, parentField.RelatedMachine, parentID)
@@ -463,6 +463,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 		fail(ctx, "rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
 		return
 	}
+	did(ctx, "moved the parent's %s to %s", r.TargetField, value)
 	// A rolled-up status can change what a grandparent adds up (an instalment marked Paid is in its contract's paid).
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
 		if err := RecomputeParents(ctx, store, machines, parentMachine, oldParentValues, parent.Values); err != nil {
@@ -543,6 +544,7 @@ func relationTitles(ctx context.Context, store *data.Store, machines map[string]
 // the runtime performs it, so it must be an edge declared with no action (behavior.CheckTransitions with "").
 func setField(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string, s domain.SetField) {
 	if fmt.Sprint(record.Values[s.TargetField]) == s.Value {
+		nothingToDo(ctx, "%s already holds %s", s.TargetField, s.Value)
 		return
 	}
 	next := make(map[string]any, len(record.Values))
@@ -565,5 +567,6 @@ func setField(ctx context.Context, svc Services, machines map[string]*domain.Mac
 	if err := RecomputeChildren(ctx, svc.Store, machines, machine, record.ID, record.Values, next); err != nil {
 		fail(ctx, "set_field %s %s: recomputing below: %v", machine.ID, record.ID, err)
 	}
+	did(ctx, "set %s to %s", s.TargetField, s.Value)
 	RunEvents(ctx, svc, machines, machine, updated, actorID, record.Values, true)
 }
