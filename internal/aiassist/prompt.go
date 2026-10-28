@@ -65,6 +65,9 @@ func composableSurface() string {
   for a field anyone may change.
 - A list the assistant made earlier comes back with its "list"; return it changed (columns, sort_field/direction, search_fields,
   filter_field, add_label, limit) to change what the page shows. The page and its Datasets are written again from the list.
+- A rule can run on the passage of time instead of on a write ("schedule": {date_field, when: "overdue", guard_field, guard_equals}),
+  telling someone (send_notification; add a log_activity rule with the same schedule beside it, which is how the runtime knows it
+  already ran for a record) or moving a status ("service": "set_field", "set_field", "set_value": close what is overdue).
 - An existing menu item can be hung under another top-level item ("parent": that item's id; one level), offered only to some roles
   ("visible_to": roles this application declares; it cannot be emptied again) and made to show a count ("badge": the id of a Dataset
   of this application that lists records). Never on a new item: add it first.

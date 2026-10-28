@@ -1,0 +1,25 @@
+# The last runs of the rule the builder has selected (registry.RuntimeSources: builder_runs), newest first: when it ran, on which record, whether it ran, had nothing to act
+# on or failed, and a line saying what. Read by the builder screen, which draws them under the rule.
+id: mch_builder_run
+name: Rule run
+runtime: builder_runs
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_node, name: Rule, type: text }
+  - { id: fld_title, name: When, type: text, required: true }
+  - { id: fld_outcome, name: Outcome, type: status, options: [Ran, Quiet, Failed] }
+  - { id: fld_record, name: Record, type: text }
+  - { id: fld_detail, name: What happened, type: text }
+status_categories:
+  field: fld_outcome
+  values: { Ran: done, Quiet: attention, Failed: stopped }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_outcome, role: status }
+  - { field: fld_record, role: subtitle }
+  - { field: fld_detail, role: detail }
+datasets:
+  - id: ds_runtime_builder_runs
+    select: records
+    where: { field: fld_node, op: equals, value: $parameters.node }
+    limit: 30

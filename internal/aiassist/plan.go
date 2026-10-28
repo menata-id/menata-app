@@ -130,12 +130,12 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 		}
 		switch e.Then.Name {
 		case domain.ServiceLogActivity:
-			g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Summary: e.Then.Summary})
+			g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Summary: e.Then.Summary, Disabled: e.Disabled})
 		case domain.ServiceSendNotification:
 			if e.Then.Notify != nil {
 				g.Events = append(g.Events, GeneratedEvent{ID: e.ID, On: e.On, WhenEquals: e.WhenEquals, OnCreate: e.OnCreate, Service: EventServiceSendNotification,
 					Summary: e.Then.Summary, RecipientField: e.Then.Notify.RecipientField, RecipientRole: e.Then.Notify.RecipientRole,
-					RecipientGroupField: e.Then.Notify.RecipientGroupField, PreferenceKey: e.Then.Notify.PreferenceKey})
+					RecipientGroupField: e.Then.Notify.RecipientGroupField, PreferenceKey: e.Then.Notify.PreferenceKey, Disabled: e.Disabled})
 			}
 		}
 	}
@@ -399,9 +399,15 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		ox, exists := oldEvents[x.ID]
 		switch {
 		case !exists:
-			p.add("activity entry on %q: %s", m.Name, x.Summary)
+			p.add("%s", ruleAdded(m.Name, x))
+		case x.Disabled != ox.Disabled && withoutSwitch(x) == withoutSwitch(ox):
+			if x.Disabled {
+				p.change("rule %q on %q is switched off: it will not run until it is switched on again", x.ID, m.Name)
+			} else {
+				p.change("rule %q on %q is switched on again", x.ID, m.Name)
+			}
 		case x != ox:
-			p.refuse("event %s cannot be changed, only added", x.ID)
+			p.refuse("event %s cannot be changed, only added -- except to switch it off or on", x.ID)
 		}
 	}
 	for _, x := range old.Events {
@@ -1009,4 +1015,36 @@ func sameList(a, b *GeneratedList) bool {
 		}
 	}
 	return reflect.DeepEqual(x, y)
+}
+
+// withoutSwitch is a rule with its switch left as it was, to tell a rule that was only switched from one that was changed.
+func withoutSwitch(e GeneratedEvent) GeneratedEvent {
+	e.Disabled = false
+	return e
+}
+
+// ruleAdded says a new rule in a line for the plan: when it runs and what it does.
+func ruleAdded(machine string, e GeneratedEvent) string {
+	when := "a field changes (" + e.On + ")"
+	switch {
+	case e.Schedule != nil:
+		when = e.Schedule.DateField + " is " + e.Schedule.When
+	case e.OnCreate:
+		when = "a record is created"
+	case e.WhenEquals != "":
+		when = e.On + " becomes " + e.WhenEquals
+	}
+	switch e.EventService() {
+	case EventServiceSendNotification:
+		who := e.RecipientField
+		if e.RecipientRole != "" {
+			who = "everyone who is " + e.RecipientRole
+		} else if e.RecipientGroupField != "" {
+			who = "the group in " + e.RecipientGroupField
+		}
+		return fmt.Sprintf("rule on %q: when %s, tell %s: %s", machine, when, who, e.Summary)
+	case EventServiceSetField:
+		return fmt.Sprintf("rule on %q: when %s, set %s to %s", machine, when, e.SetField, e.SetValue)
+	}
+	return fmt.Sprintf("rule on %q: when %s, write an activity entry: %s", machine, when, e.Summary)
 }

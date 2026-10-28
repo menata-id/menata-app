@@ -807,3 +807,107 @@ func runEditWorkflow(w http.ResponseWriter, req *http.Request, env actionEnv, re
 	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
 	return stageBuilderOps(w, req, env, appID, ops, back)
 }
+
+// runEditRule is the Edit tab of a rule: the record is "<app>/machines/<machine>/events/<event>" and the form is its switch. Switching is the set_rule_enabled operation a
+// conversation makes; it is compared with the rule as the admin's draft leaves it, and a rule the assistant's grammar does not describe (a schedule, a rollup) has no switch here yet.
+func runEditRule(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 4 || parts[0] != "machines" || parts[2] != "events" || appID == "" {
+		http.Error(w, "this part is not a rule", http.StatusBadRequest)
+		return "", false
+	}
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	machine := stagedMachine(app, parts[1])
+	var current *aiassist.GeneratedEvent
+	if machine != nil {
+		for i := range machine.Events {
+			if machine.Events[i].ID == parts[3] {
+				current = &machine.Events[i]
+			}
+		}
+	}
+	if current == nil {
+		http.Error(w, "this rule is not one this editor can switch yet (a rule that runs on a date or moves a parent is carried through unchanged)", http.StatusUnprocessableEntity)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
+	on := req.PostForm.Get("enabled") != ""
+	if on == !current.Disabled {
+		return back, true
+	}
+	return stageBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpSetRuleEnabled, Machine: parts[1], Item: parts[3], Flag: on}}, back)
+}
+
+// runTryRule is the Try tab of a rule: it asks nothing of the rule but what it would do for a real record, and opens the rule with that record named (`rec`), where the page says it in words. The
+// answer is read by the part's own reader (builderNodesProvider, execution.DryRun) on the GET that follows; this route writes nothing and sends nothing.
+func runTryRule(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 4 || parts[0] != "machines" || parts[2] != "events" || appID == "" {
+		http.Error(w, "this part is not a rule", http.StatusBadRequest)
+		return "", false
+	}
+	rec := strings.TrimSpace(req.PostForm.Get("record"))
+	if rec == "" || len(rec) > 100 {
+		http.Error(w, "choose a record to try the rule on", http.StatusBadRequest)
+		return "", false
+	}
+	return "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"test"}, "rec": {rec}}.Encode(), true
+}
+
+// runAddRule is the Rules tab of a Machine: a rule started from one of the examples (builder.RuleExamples) and then an ordinary rule. The record is "<app>/machines/<machine>"; the form names
+// the example and what it needs (the Field it watches, a second Field, a status, a role). The rule(s) are made by builder.RuleFromExample on the Machine as the draft leaves it, and a
+// refusal of the example (a Field of the wrong type, a status that is not one) is in plain words. They are staged like every other change.
+func runAddRule(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 || parts[0] != "machines" || appID == "" {
+		http.Error(w, "this part is not a Machine", http.StatusBadRequest)
+		return "", false
+	}
+	var roles []string
+	for _, r := range req.PostForm["role"] {
+		if r = strings.TrimSpace(r); r != "" {
+			roles = append(roles, r)
+		}
+	}
+	kind := builder.OpAddRule
+	if ex := req.PostForm.Get("example"); ex == builder.RuleExampleRemind || ex == builder.RuleExampleClose {
+		kind = builder.OpAddScheduledRule
+	}
+	op := builder.Op{Kind: kind, Machine: parts[1], Item: req.PostForm.Get("example"), Field: req.PostForm.Get("watch"), Watch: req.PostForm.Get("other"),
+		Value: strings.TrimSpace(req.PostForm.Get("value")), Roles: roles}
+	if !slices.Contains(builder.RuleExamples, op.Item) {
+		http.Error(w, "choose one of the examples to start from", http.StatusBadRequest)
+		return "", false
+	}
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	machine := stagedMachine(app, parts[1])
+	if machine == nil {
+		http.Error(w, "this Machine is not in this Application", http.StatusNotFound)
+		return "", false
+	}
+	if _, err := builder.RuleFromExample(machine, op); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"rules"}}.Encode()
+	return stageBuilderOps(w, req, env, appID, []builder.Op{op}, back)
+}

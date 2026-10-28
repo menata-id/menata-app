@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
@@ -16,6 +17,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 	"menata.app/internal/installer"
 	"menata.app/internal/rendering"
 )
@@ -27,6 +29,7 @@ const (
 	builderSectionViews    = "Views"
 	builderSectionMenu     = "Menu"
 	builderSectionWorkflow = "Workflow"
+	builderSectionRules    = "Rules"
 	builderSectionChecks   = "Needs checking"
 )
 
@@ -54,7 +57,12 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			tab = "Ask"
 		case "view":
 			tab = "View"
+		case "test":
+			tab = "Test"
+		case "rules":
+			tab = "Rules"
 		}
+		rec := l.SourceParam("builder_nodes", "rec")
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
 		var out []*data.Record
@@ -63,6 +71,14 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				id := app.ID + "/" + path
 				tab := tab
 				switch {
+				case tab == "Rules" && kind == "Machine":
+					tab = "RuleNew" // a rule started from an example
+				case tab == "Rules":
+					tab = "Fixed"
+				case tab == "Test" && kind == "Rule":
+					tab = "RuleTest" // a rule tried on a real record, in words
+				case tab == "Test":
+					tab = "Fixed"
 				case tab == "View" && kind == "List":
 					tab = "ListEdit" // a list the assistant wrote: its columns, order, chips and search
 				case tab == "View":
@@ -71,6 +87,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					tab = "MenuItem" // a screen the menu lists: its name, its place, taking it out
 				case tab == "Edit" && kind == "Menu":
 					tab = "MenuAdd" // the menu itself: a new item
+				case tab == "Edit" && kind == "Rule":
+					tab = "Switch" // a rule: switched on or off
 				case tab == "Edit" && kind == "Workflow":
 					tab = "Flow" // the lifecycle: a new status, a new move between statuses
 				case tab == "Edit" && kind == "Permission":
@@ -97,7 +115,7 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			}
 			for _, m := range owned {
 				place := builderSectionData + "/" + builderPlaceName(m.Name)
-				add(place, "machines/"+m.ID, "Machine", plural2(len(m.Fields), "field"))
+				add(place, "machines/"+m.ID, "Machine", plural2(len(m.Fields), "field"), [2]string{"fld_list_machine", m.ID})
 				for _, f := range m.Fields {
 					detail := string(f.Type)
 					if f.Required {
@@ -134,16 +152,61 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					[2]string{"fld_name", item.Label}, [2]string{"fld_position", strconv.Itoa(i + 1)}, [2]string{"fld_count", strconv.Itoa(len(app.AllNavigation))},
 					[2]string{"fld_parent", item.Parent}, [2]string{"fld_visible_to", strings.Join(item.VisibleTo, "\n")}, [2]string{"fld_badge", item.Badge})...)
 			}
+			if len(owned) > 0 {
+				ids := make([]string, len(owned))
+				for i, m := range owned {
+					ids[i] = m.ID
+				}
+				latest, _ := store.LatestEventRuns(ctx, ids)
+				for _, m := range owned {
+					for _, e := range m.Events {
+						last := "never ran"
+						if r, ok := latest[m.ID+"/"+e.ID]; ok {
+							last = "last " + r.Outcome + " " + r.RanAt.Format("2006-01-02 15:04")
+						}
+						state := "on"
+						if e.Disabled {
+							state = "off"
+						}
+						add(builderSectionRules+"/"+builderPlaceName(m.Name)+"/"+builderPlaceName(ruleWords(m, e)), "machines/"+m.ID+"/events/"+e.ID, "Rule", "what happens when something changes · "+state+" · "+last,
+							[2]string{"fld_list_machine", m.ID}, [2]string{"fld_enabled", strconv.FormatBool(!e.Disabled)})
+					}
+				}
+			}
 			for i, c := range builderChecks(app, owned) {
 				add(builderSectionChecks+"/"+builderPlaceName(c.Text), "checks/"+strconv.Itoa(i+1), "Check", c.Detail)
 			}
 			add(builderSectionMenu+"/Application menu", "navigation", "Menu", strconv.Itoa(len(app.Navigation))+" entries in the menu")
 			for _, m := range owned {
 				if f := statusFieldOf(m); f != nil {
-					add(builderSectionWorkflow+"/"+builderPlaceName(m.Name), "machines/"+m.ID+"/workflow", "Workflow", plural2(len(f.Options), "status"),
+					add(builderSectionWorkflow+"/"+builderPlaceName(m.Name), "machines/"+m.ID+"/workflow", "Workflow", plural2(len(f.Options), "status")+" and the moves between them",
 						[2]string{"fld_list_machine", m.ID})
 				}
 			}
+		}
+		// The Test tab of a rule: what the rule would do for the record the request names, in words. It reads the record and the people the rule would tell, and writes nothing.
+		if tab == "Test" && rec != "" {
+			appID, rest, _ := strings.Cut(selected, "/")
+			if p := strings.Split(rest, "/"); len(p) == 4 && p[0] == "machines" && p[2] == "events" {
+				if m := machinesFor(ctx)[p[1]]; m != nil {
+					for _, e := range m.Events {
+						if e.ID != p[3] {
+							continue
+						}
+						record, err := store.GetRecord(ctx, m.ID, rec)
+						said := "That record is not one of this Machine's."
+						if err == nil {
+							said = strings.Join(execution.DryRun(ctx, store, machines, m, record, e, time.Now()), "\n")
+						}
+						for _, r := range out {
+							if r.ID == selected {
+								r.Values["fld_code"] = said
+							}
+						}
+					}
+				}
+			}
+			_ = appID
 		}
 		// A menu item's Edit tab likewise starts from the menu as the viewer's draft leaves it.
 		if tab == "Edit" {
@@ -537,4 +600,88 @@ func edgeTakenBy(e composition.ProcessEdge, as string) bool {
 		return false // an edge the runtime itself writes ("System") is taken by no one
 	}
 	return as == "" || len(e.Roles) == 0 || slices.Contains(e.Roles, as)
+}
+
+// ruleWords says a rule in a line a person would: when it runs and what it does.
+func ruleWords(m *domain.Machine, e domain.Event) string {
+	name := func(id string) string {
+		for _, f := range m.Fields {
+			if f.ID == id {
+				return f.Name
+			}
+		}
+		return id
+	}
+	var when string
+	switch {
+	case e.Schedule != nil:
+		when = name(e.Schedule.DateField) + " is " + e.Schedule.When
+	case e.OnCreate:
+		when = "a record is created"
+	case e.WhenEquals != "":
+		when = name(e.On) + " becomes " + e.WhenEquals
+	default:
+		when = name(e.On) + " changes"
+	}
+	var then string
+	switch e.Then.Name {
+	case domain.ServiceSendNotification:
+		then = "tell someone"
+		if n := e.Then.Notify; n != nil {
+			switch {
+			case n.RecipientRole != "":
+				then = "tell everyone who is " + n.RecipientRole
+			case n.RecipientGroupField != "":
+				then = "tell the group in " + name(n.RecipientGroupField)
+			default:
+				then = "tell the person in " + name(n.RecipientField)
+			}
+		}
+	case domain.ServiceLogActivity:
+		then = "write an activity entry"
+	case domain.ServiceSetField:
+		then = "set a field"
+		if e.Then.Set != nil {
+			then = "set " + name(e.Then.Set.TargetField) + " to " + e.Then.Set.Value
+		}
+	case domain.ServiceRollupParentStatus:
+		then = "update the parent's status"
+	default:
+		then = e.Then.Name
+	}
+	return "When " + when + ": " + then
+}
+
+// builderRunsProvider is the reader of the `builder_runs` source: for the rule the request selects (`machines/<machine>/events/<event>` of an Application of this Workspace), its last
+// runs, newest first. It is what tells a rule that is quiet from one that is broken: a run says whether the rule ran, had nobody or nothing to act on, or failed, and why.
+func builderRunsProvider(store *data.Store) composition.RuntimeProvider {
+	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		selected := l.SourceParam("builder_runs", "node")
+		appID, rest, _ := strings.Cut(selected, "/")
+		parts := strings.Split(rest, "/")
+		if len(parts) != 4 || parts[0] != "machines" || parts[2] != "events" {
+			return nil, nil
+		}
+		owned := false
+		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+			owned = owned || (app.ID == appID && slices.Contains(app.Machines, parts[1]))
+		}
+		if !owned {
+			return nil, nil
+		}
+		runs, err := store.RecentEventRuns(ctx, parts[1], parts[3], 30)
+		if err != nil {
+			return nil, err
+		}
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		var out []*data.Record
+		for i, r := range runs {
+			outcome := strings.ToUpper(r.Outcome[:1]) + r.Outcome[1:]
+			id := selected + "#" + strconv.Itoa(i)
+			out = append(out, &data.Record{ID: id, MachineID: "mch_builder_run", WorkspaceID: workspaceID, Values: map[string]any{
+				"fld_id": id, "fld_node": selected, "fld_title": r.RanAt.Format("2006-01-02 15:04"), "fld_outcome": outcome, "fld_record": "record " + r.RecordID, "fld_detail": r.Detail,
+			}})
+		}
+		return out, nil
+	}
 }

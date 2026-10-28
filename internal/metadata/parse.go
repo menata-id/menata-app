@@ -539,6 +539,8 @@ type eventDoc struct {
 	On         string `yaml:"on"`
 	WhenEquals string `yaml:"when_equals"`
 	OnCreate   bool   `yaml:"on_create"`
+	// Enabled, when written false, switches the rule off (domain.Event.Disabled); absent is on.
+	Enabled *bool `yaml:"enabled"`
 	// Schedule is the third trigger shape's own block (domain.Schedule) -- mutually exclusive with
 	// On/OnCreate above, enforced by validateEvent.
 	Schedule *struct {
@@ -781,6 +783,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			}
 		}
 		m.Events = append(m.Events, domain.Event{
+			Disabled:   ed.Enabled != nil && !*ed.Enabled,
 			ID:         ed.ID,
 			On:         ed.On,
 			WhenEquals: ed.WhenEquals,

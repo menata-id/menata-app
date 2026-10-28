@@ -91,6 +91,8 @@ const (
 	// ActionInputMachineFields is a select (or a set of ticks) over the Fields of a Machine named by the record; ActionInputChoice is a select over a fixed list. Both start
 	// as the record's `Field`.
 	ActionInputMachineFields = "machine_fields"
+	// ActionInputRecentRecords is a select of the newest records (up to twenty) of the Machine the record names (`Machine`), each by its title.
+	ActionInputRecentRecords = "recent_records"
 	ActionInputChoice        = "choice"
 	// ActionInputWorkflowStatuses is a select of "the new status named above" and the statuses of the lifecycle of the Machine the record names (`Machine`).
 	ActionInputWorkflowStatuses = "workflow_statuses"
@@ -175,6 +177,19 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "to", Label: "To", Kind: ActionInputWorkflowStatuses, Machine: "fld_list_machine"},
 		{Name: "roles", Label: "Who may take it (none ticked: anyone who may edit the record)", Kind: ActionInputPartRoles, Field: "fld_nobody"}},
 		Doc: "adds a status to a Machine's lifecycle (with what it means) and/or a move between two statuses (with who may take it), as the add_option and add_transition operations a conversation uses; a move or a status already there cannot be changed or taken away, which is the policy of an update; about the Workflow part of the builder tree"},
+	"edit_rule": {ID: "edit_rule", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "enabled", Label: "Switched on", Kind: ActionInputRecordFlag, Field: "fld_enabled"}},
+		Doc: "switches a rule (an Event of a Machine) on or off without deleting it, as the set_rule_enabled operation a conversation uses; a switched-off rule does not run until it is switched on again; about a part of the builder tree that is a rule"},
+	"try_rule": {ID: "try_rule", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "record", Label: "Try it on", Required: true, Kind: ActionInputRecentRecords, Machine: "fld_list_machine"}},
+		Doc: "asks what a rule would do for one real record, in words, and does none of it -- no mail is sent and nothing is written; it opens the rule with the answer; about a part of the builder tree that is a rule"},
+	"add_rule": {ID: "add_rule", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "example", Label: "Start from", Required: true, Kind: ActionInputChoice, Field: "fld_example", Extra: []string{"assigned\tTell the person a record is assigned to", "forward\tForward a record to a role when it reaches a status", "remind\tRemind the person when a date has passed", "close\tClose a record by itself when a date has passed"}},
+		{Name: "watch", Label: "The person field (assigned), the status (forward) or the date (remind, close)", Required: true, Kind: ActionInputMachineFields, Field: "fld_example", Machine: "fld_list_machine"},
+		{Name: "other", Label: "Remind and close: the status the record is in when it is finished", Kind: ActionInputMachineFields, Field: "fld_example", Machine: "fld_list_machine", Types: []string{"status"}, None: "Not needed"},
+		{Name: "value", Label: "Forward: the status that triggers it. Remind and close: the last status (written as it is)"},
+		{Name: "role", Label: "Forward: the role it goes to", Kind: ActionInputPartRoles, Field: "fld_nobody"}},
+		Doc: "adds a rule made from an example the person can edit afterwards -- tell the person a record is assigned to, forward a record to a role when it reaches a status, remind the person when a date has passed, close a record by itself when a date has passed -- as the add_rule operation a conversation's own rule grammar expresses; about a Machine part of the builder tree"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

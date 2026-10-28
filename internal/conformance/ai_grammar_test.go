@@ -26,7 +26,7 @@ import (
 var aiRenamedKeys = map[string]map[string]string{
 	"fieldDoc": {"machine": "related_machine"},
 	// `then` is a block in the loader; the assistant flattens it into service/summary/recipient_field/preference_key.
-	"eventDoc": {"then": "service"},
+	"eventDoc": {"then": "service", "enabled": "disabled"},
 }
 
 // The reasons the assistant has no slot for a key live in the capability catalogue

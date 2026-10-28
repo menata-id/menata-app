@@ -410,12 +410,31 @@ type GeneratedEvent struct {
 	// Exactly one of the three recipients is named.
 	RecipientRole       string `json:"recipient_role,omitempty"`
 	RecipientGroupField string `json:"recipient_group_field,omitempty"`
+	// Schedule makes the rule run on the passage of time rather than on a write (instead of On/OnCreate): while a date Field of the record is overdue and an optional guard holds. SetField and
+	// SetValue are set_field's own: on a schedule, the status Field the rule moves and the option it moves to ("close it when it is overdue"). A rule that tells someone on a schedule needs a
+	// log_activity rule on the same schedule beside it, which the runtime reads to tell it already ran for a record.
+	Schedule *GeneratedSchedule `json:"schedule,omitempty"`
+	SetField string             `json:"set_field,omitempty"`
+	SetValue string             `json:"set_value,omitempty"`
+	// Disabled switches the rule off without deleting it (`enabled: false`); an existing rule may be switched off and on again, which is the one change an existing rule takes.
+	Disabled bool `json:"disabled,omitempty"`
+}
+
+// GeneratedSchedule mirrors domain.Schedule: the date Field to watch, "overdue", and an optional guard on a status Field of the same Machine (GuardEquals holds the rule to one status,
+// GuardNotEquals keeps it from one).
+type GeneratedSchedule struct {
+	DateField      string `json:"date_field"`
+	When           string `json:"when"`
+	GuardField     string `json:"guard_field,omitempty"`
+	GuardEquals    string `json:"guard_equals,omitempty"`
+	GuardNotEquals string `json:"guard_not_equals,omitempty"`
 }
 
 // The Services a generated Event may name.
 const (
 	EventServiceLogActivity      = "log_activity"
 	EventServiceSendNotification = "send_notification"
+	EventServiceSetField         = "set_field"
 )
 
 // EventService is the Service an event names, with "" read as the default.

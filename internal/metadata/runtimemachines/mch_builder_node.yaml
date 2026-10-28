@@ -30,9 +30,10 @@ fields:
   - { id: fld_density, name: Rows, type: text }
   - { id: fld_group_by, name: Groups, type: text }
   - { id: fld_row_tone, name: Row colour, type: text }
+  - { id: fld_enabled, name: Switched on, type: text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
-  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, ListEdit, Flow, Fixed, Ask, Code] }
+  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, ListEdit, Flow, Switch, RuleTest, RuleNew, Fixed, Ask, Code] }
   - { id: fld_code, name: Metadata file, type: long_text }
 card_fields:
   - { field: fld_title, role: title }

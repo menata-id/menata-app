@@ -98,7 +98,7 @@ page:
                     - component: SegmentedControl
                       label: Inspector
                       query: tab
-                      options: "details=Details\nedit=Edit\nview=View\nask=Ask AI\ncode=Code"
+                      options: "details=Details\nedit=Edit\nview=View\ntest=Try\nrules=Rules\nask=Ask AI\ncode=Code"
                     - static: overline
                       from: { text: subtitle }
                     - static: heading
@@ -138,6 +138,21 @@ page:
                       submit: Save view
                       binding: { write: action, action: edit_list }
                     - component: Form
+                      when: { role: status, is: RuleTest }
+                      submit: Try the rule
+                      binding: { write: action, action: try_rule }
+                    - static: code
+                      when: { role: status, is: RuleTest }
+                      from: { text: detail }
+                    - component: Form
+                      when: { role: status, is: RuleNew }
+                      submit: Add the rule
+                      binding: { write: action, action: add_rule }
+                    - component: Form
+                      when: { role: status, is: Switch }
+                      submit: Save rule
+                      binding: { write: action, action: edit_rule }
+                    - component: Form
                       when: { role: status, is: Flow }
                       submit: Save workflow
                       binding: { write: action, action: edit_workflow }
@@ -152,6 +167,22 @@ page:
                     - static: caption
                       when: { role: status, is: Fixed }
                       text: Only a field, who may use a machine, a field added to a machine and the menu can be edited so far.
+            - component: Collection
+              gap: tight
+              block: true
+              binding: { dataset: ds_runtime_builder_runs, rows: records }
+              children:
+                - layout: row
+                  gap: tight
+                  children:
+                    - static: caption
+                      from: { text: title }
+                    - component: StatusBadge
+                      from: { label: status, tone: "status:tone" }
+                    - static: caption
+                      from: { text: subtitle }
+                    - static: caption
+                      from: { text: detail }
             - component: Collection
               gap: tight
               block: true

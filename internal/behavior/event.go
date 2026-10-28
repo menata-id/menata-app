@@ -16,7 +16,7 @@ import (
 func MatchedEvents(m *domain.Machine, oldValues, newValues map[string]any) []domain.Event {
 	var out []domain.Event
 	for _, e := range m.Events {
-		if e.OnCreate {
+		if e.OnCreate || e.Disabled {
 			continue
 		}
 		newVal, oldVal := fmt.Sprint(newValues[e.On]), fmt.Sprint(oldValues[e.On])
@@ -37,7 +37,7 @@ func MatchedEvents(m *domain.Machine, oldValues, newValues map[string]any) []dom
 func MatchedCreateEvents(m *domain.Machine) []domain.Event {
 	var out []domain.Event
 	for _, e := range m.Events {
-		if e.OnCreate {
+		if e.OnCreate && !e.Disabled {
 			out = append(out, e)
 		}
 	}
@@ -58,7 +58,7 @@ func MatchedScheduleEvents(m *domain.Machine, record *data.Record, now time.Time
 	var out []domain.Event
 	for _, e := range m.Events {
 		s := e.Schedule
-		if s == nil {
+		if s == nil || e.Disabled {
 			continue
 		}
 		due, err := time.Parse("2006-01-02", fmt.Sprint(record.Values[s.DateField]))

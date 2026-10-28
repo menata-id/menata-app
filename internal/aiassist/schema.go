@@ -289,20 +289,26 @@ var generatedEnsureSchema = geminiSchema{
 }
 
 var generatedEventSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "service", "on_create", "on", "when_equals", "summary", "recipient_field", "recipient_role", "recipient_group_field", "preference_key"},
+	PropertyOrdering: []string{"id", "service", "on_create", "on", "when_equals", "summary", "recipient_field", "recipient_role", "recipient_group_field", "preference_key", "set_field", "set_value", "schedule", "disabled"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "summary"},
 	Properties: map[string]geminiSchema{
 		"id":                    stringSchema,
-		"service":               {Type: "STRING", Enum: []string{EventServiceLogActivity, EventServiceSendNotification}, Description: "\"log_activity\" (the default) writes an activity-feed entry; \"send_notification\" tells a person."},
+		"service":               {Type: "STRING", Enum: []string{EventServiceLogActivity, EventServiceSendNotification, EventServiceSetField}, Description: "\"log_activity\" (the default) writes an activity-feed entry; \"send_notification\" tells a person; \"set_field\" (only with schedule) moves a status field."},
 		"recipient_field":       {Type: "STRING", Description: "For send_notification: a PERSON field of this same machine; the person named in it on the record is told. Name exactly one of recipient_field, recipient_role and recipient_group_field. Not for log_activity."},
 		"recipient_role":        {Type: "STRING", Description: "For send_notification: one of this application's roles; everyone holding it is told, whoever the record names (\"every coordinator\")."},
 		"recipient_group_field": {Type: "STRING", Description: "For send_notification: a GROUP field of this same machine; every member of the group it holds on the record is told."},
-		"preference_key":        {Type: "STRING", Enum: notificationPreferenceEnum(), Description: "Required for send_notification: which of the recipient's own notification settings also gates the email (the in-app notice is always written). \"assigned\" for being given something to do, \"decided\" for an outcome, \"sla_breach\" for lateness."},
-		"on":                    {Type: "STRING", Description: "A field id this event fires when it changes. Omit if on_create is true."},
-		"when_equals":           {Type: "STRING", Description: "Optional: narrow \"on\" to firing only when the field reaches this exact value."},
-		"on_create":             boolSchema,
-		"summary":               {Type: "STRING", Description: "The activity-log sentence this event writes, e.g. \"{fld_title} submitted\"."},
+		"set_field":             {Type: "STRING", Description: "For set_field (only with schedule): a STATUS field of this machine that the rule moves, e.g. closing a record that is overdue."},
+		"set_value":             {Type: "STRING", Description: "For set_field: the option of that status field to move to."},
+		"schedule": {Type: "OBJECT", Description: "Instead of on / on_create / when_equals: the rule runs on the passage of time, while a date field of the record is overdue (and the optional guard on a status field holds). A rule that tells someone on a schedule needs a log_activity rule with the same schedule beside it.",
+			Required: []string{"date_field", "when"}, PropertyOrdering: []string{"date_field", "when", "guard_field", "guard_equals", "guard_not_equals"},
+			Properties: map[string]geminiSchema{"date_field": stringSchema, "when": {Type: "STRING", Enum: []string{"overdue"}}, "guard_field": stringSchema, "guard_equals": stringSchema, "guard_not_equals": stringSchema}},
+		"disabled":       {Type: "BOOLEAN", Description: "Only on a rule that already exists: true switches it off (it stays, and does nothing until switched on again), false or absent leaves it on. Switching is the one change an existing rule takes."},
+		"preference_key": {Type: "STRING", Enum: notificationPreferenceEnum(), Description: "Required for send_notification: which of the recipient's own notification settings also gates the email (the in-app notice is always written). \"assigned\" for being given something to do, \"decided\" for an outcome, \"sla_breach\" for lateness."},
+		"on":             {Type: "STRING", Description: "A field id this event fires when it changes. Omit if on_create is true."},
+		"when_equals":    {Type: "STRING", Description: "Optional: narrow \"on\" to firing only when the field reaches this exact value."},
+		"on_create":      boolSchema,
+		"summary":        {Type: "STRING", Description: "The activity-log sentence this event writes, e.g. \"{fld_title} submitted\"."},
 	},
 }
 

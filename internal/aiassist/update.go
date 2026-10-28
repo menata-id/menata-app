@@ -347,6 +347,19 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		oldEvents[x.ID] = true
 	}
 	for _, x := range m.Events {
+		if oldEvents[x.ID] {
+			// An existing rule takes one change: its switch.
+			for _, old := range old.Events {
+				if old.ID == x.ID && old.Disabled != x.Disabled {
+					if node := navItemByID(ensureSeq(doc, "events"), x.ID); node != nil {
+						deleteKey(node, "enabled")
+						if x.Disabled {
+							node.Content = append(node.Content, scalar("enabled"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "false"})
+						}
+					}
+				}
+			}
+		}
 		if !oldEvents[x.ID] {
 			if err := appendEncoded(ensureSeq(doc, "events"), machineDocFor(GeneratedMachine{Events: []GeneratedEvent{x}}).Events[0]); err != nil {
 				return err

@@ -73,7 +73,7 @@ func logActivity(ctx context.Context, store *data.Store, machines map[string]*do
 		values["fld_application_id"] = applicationID
 	}
 	if _, err := createDeclared(ctx, store, machines, activityMachineID, values); err != nil {
-		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
+		fail(ctx, "failed to log activity (%s %s): %v", machineID, recordID, err)
 	}
 }
 
@@ -88,21 +88,37 @@ func logActivity(ctx context.Context, store *data.Store, machines map[string]*do
 // -- a Group-held Approval Step (CAP-F24) has no single person to notify, named and skipped here
 // rather than solved.
 func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, notify domain.Notify, message string) {
-	for _, recipientID := range notificationRecipients(ctx, store, machine, record, notify) {
+	recipients := notificationRecipients(ctx, store, machine, record, notify)
+	if len(recipients) == 0 {
+		nothingToDo(ctx, "nobody to tell: %s", noRecipientWords(notify))
+		return
+	}
+	for _, recipientID := range recipients {
 		notifyOne(ctx, store, mailer, machines, machine, record, notify, message, recipientID)
 	}
+	did(ctx, "told %d %s", len(recipients), map[bool]string{true: "person", false: "people"}[len(recipients) == 1])
 }
 
 // notificationRecipients answers who an Event tells: the person a Field names, everyone holding a role, or the members
 // of the Group a Field holds. An empty answer is a normal outcome, not an error. A read failure is logged and tells
 // no one, the same best-effort posture the rest of this file has: a notification never fails the write it describes.
+func noRecipientWords(n domain.Notify) string {
+	switch {
+	case n.RecipientRole != "":
+		return "no one holds the role " + n.RecipientRole
+	case n.RecipientGroupField != "":
+		return "the group field " + n.RecipientGroupField + " is empty or the group has no active member"
+	}
+	return "the field " + n.RecipientField + " is empty on this record"
+}
+
 func notificationRecipients(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, notify domain.Notify) []string {
 	switch {
 	case notify.RecipientRole != "":
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		ids, err := store.UsersHoldingAppRole(ctx, workspaceID, machine.ApplicationID, notify.RecipientRole)
 		if err != nil {
-			log.Printf("notify %s: listing holders of role %q: %v", notify.PreferenceKey, notify.RecipientRole, err)
+			fail(ctx, "notify %s: listing holders of role %q: %v", notify.PreferenceKey, notify.RecipientRole, err)
 		}
 		return ids
 	case notify.RecipientGroupField != "":
@@ -113,7 +129,7 @@ func notificationRecipients(ctx context.Context, store *data.Store, machine *dom
 		}
 		ids, err := store.ActiveGroupMemberIDs(ctx, workspaceID, groupID)
 		if err != nil {
-			log.Printf("notify %s: listing members of group %s: %v", notify.PreferenceKey, groupID, err)
+			fail(ctx, "notify %s: listing members of group %s: %v", notify.PreferenceKey, groupID, err)
 		}
 		return ids
 	}
@@ -132,12 +148,12 @@ func notifyOne(ctx context.Context, store *data.Store, mailer mail.Mailer, machi
 		"fld_link":      notificationLinkFor(machine, record.ID),
 	}
 	if _, err := createDeclared(ctx, store, machines, notificationMachineID, values); err != nil {
-		log.Printf("failed to create notification for %s: %v", recipientID, err)
+		fail(ctx, "failed to create notification for %s: %v", recipientID, err)
 	}
 
 	recipient, err := store.GetRecord(ctx, domain.UserMachineID, recipientID)
 	if err != nil {
-		log.Printf("notify %s: reading recipient %s: %v", notify.PreferenceKey, recipientID, err)
+		fail(ctx, "notify %s: reading recipient %s: %v", notify.PreferenceKey, recipientID, err)
 		return
 	}
 	email := fmt.Sprint(recipient.Values["fld_email"])
@@ -146,7 +162,7 @@ func notifyOne(ctx context.Context, store *data.Store, mailer mail.Mailer, machi
 	}
 	cred, err := store.GetCredential(ctx, email)
 	if err != nil {
-		log.Printf("notify %s: reading credential for %s: %v", notify.PreferenceKey, email, err)
+		fail(ctx, "notify %s: reading credential for %s: %v", notify.PreferenceKey, email, err)
 		return
 	}
 	wantsEmail := true
@@ -162,7 +178,7 @@ func notifyOne(ctx context.Context, store *data.Store, mailer mail.Mailer, machi
 		return
 	}
 	if err := mailer.Send(ctx, email, "Menata App", message); err != nil {
-		log.Printf("notify %s: sending email to %s: %v", notify.PreferenceKey, email, err)
+		fail(ctx, "notify %s: sending email to %s: %v", notify.PreferenceKey, email, err)
 	}
 }
 
@@ -241,15 +257,18 @@ func init() {
 	serviceExecutors = map[string]func(ctx context.Context, in serviceInput){
 		domain.ServiceLogActivity: func(ctx context.Context, in serviceInput) {
 			logActivity(ctx, in.svc.Store, in.machines, in.machine.ID, in.machine.ApplicationID, in.record.ID, in.actorID, in.activitySummary)
+			did(ctx, "wrote an activity entry")
 		},
 		domain.ServiceSendNotification: func(ctx context.Context, in serviceInput) {
 			sendNotification(ctx, in.svc.Store, in.svc.Mailer, in.machines, in.machine, in.record, *in.event.Then.Notify, in.summary)
 		},
 		domain.ServiceRollupParentStatus: func(ctx context.Context, in serviceInput) {
 			rollUpParentStatus(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, in.event.On, *in.event.Then.Rollup)
+			did(ctx, "looked at the parent's status")
 		},
 		domain.ServiceSetField: func(ctx context.Context, in serviceInput) {
 			setField(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, *in.event.Then.Set)
+			did(ctx, "set %s", in.event.Then.Set.TargetField)
 		},
 		domain.ServiceCompositeSignedDocument: func(ctx context.Context, in serviceInput) {
 			compositeSignedDocument(ctx, in.svc, in.machines, in.machine, in.record, *in.event.Then.Composite, in.event.WhenEquals)
@@ -262,7 +281,9 @@ func init() {
 // bypassed -- and a write is not the place to crash over it.
 func runService(ctx context.Context, in serviceInput) {
 	if run, ok := serviceExecutors[in.event.Then.Name]; ok {
+		ctx, rec := withRecorder(ctx)
 		run(ctx, in)
+		remember(ctx, in, rec)
 	}
 }
 
@@ -416,7 +437,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 
 	siblings, err := store.ListRecordsBy(ctx, machine.ID, r.ParentField, parentID)
 	if err != nil {
-		log.Printf("rollup %s: listing children of %s: %v", r.TargetField, parentID, err)
+		fail(ctx, "rollup %s: listing children of %s: %v", r.TargetField, parentID, err)
 		return
 	}
 	watched := make([]string, 0, len(siblings))
@@ -430,7 +451,7 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 	}
 	parent, err := store.GetRecord(ctx, parentField.RelatedMachine, parentID)
 	if err != nil {
-		log.Printf("rollup %s: reading parent %s: %v", r.TargetField, parentID, err)
+		fail(ctx, "rollup %s: reading parent %s: %v", r.TargetField, parentID, err)
 		return
 	}
 	oldParentValues := make(map[string]any, len(parent.Values))
@@ -439,17 +460,17 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 	}
 	parent.Values[r.TargetField] = value
 	if _, err := store.UpdateRecord(ctx, parentField.RelatedMachine, parentID, parent.Values); err != nil {
-		log.Printf("rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
+		fail(ctx, "rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
 		return
 	}
 	// A rolled-up status can change what a grandparent adds up (an instalment marked Paid is in its contract's paid).
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
 		if err := RecomputeParents(ctx, store, machines, parentMachine, oldParentValues, parent.Values); err != nil {
-			log.Printf("rollup %s: recomputing above %s: %v", r.TargetField, parentID, err)
+			fail(ctx, "rollup %s: recomputing above %s: %v", r.TargetField, parentID, err)
 		}
 		// ...and what reads this parent through `parent:` follows it, as it does a person's edit.
 		if err := RecomputeChildren(ctx, store, machines, parentMachine, parentID, oldParentValues, parent.Values); err != nil {
-			log.Printf("rollup %s: recomputing below %s: %v", r.TargetField, parentID, err)
+			fail(ctx, "rollup %s: recomputing below %s: %v", r.TargetField, parentID, err)
 		}
 	}
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
@@ -530,19 +551,19 @@ func setField(ctx context.Context, svc Services, machines map[string]*domain.Mac
 	}
 	next[s.TargetField] = s.Value
 	if err := behavior.CheckTransitions(machine, "", record.Values, next); err != nil {
-		log.Printf("set_field %s %s: %v", machine.ID, record.ID, err)
+		fail(ctx, "set_field %s %s: %v", machine.ID, record.ID, err)
 		return
 	}
 	updated, err := svc.Store.UpdateRecord(ctx, machine.ID, record.ID, next)
 	if err != nil {
-		log.Printf("set_field %s %s: %v", machine.ID, record.ID, err)
+		fail(ctx, "set_field %s %s: %v", machine.ID, record.ID, err)
 		return
 	}
 	if err := RecomputeParents(ctx, svc.Store, machines, machine, record.Values, next); err != nil {
-		log.Printf("set_field %s %s: recomputing above: %v", machine.ID, record.ID, err)
+		fail(ctx, "set_field %s %s: recomputing above: %v", machine.ID, record.ID, err)
 	}
 	if err := RecomputeChildren(ctx, svc.Store, machines, machine, record.ID, record.Values, next); err != nil {
-		log.Printf("set_field %s %s: recomputing below: %v", machine.ID, record.ID, err)
+		fail(ctx, "set_field %s %s: recomputing below: %v", machine.ID, record.ID, err)
 	}
 	RunEvents(ctx, svc, machines, machine, updated, actorID, record.Values, true)
 }

@@ -62,7 +62,6 @@ var Ownership = map[string]Owner{
 	// Workflow and automation (Fase 7, 10).
 	"machineDoc.actions":   {EditorWorkflow, "what an Action writes"},
 	"transitionDoc.action": {EditorWorkflow, "an edge that is not the edit Action's"},
-	"eventDoc.schedule":    {EditorAutomation, "a rule that runs on a clock"},
 
 	// Not edited by the builder.
 	"machineDoc.sequencing":           {EditorNone, engineKey},

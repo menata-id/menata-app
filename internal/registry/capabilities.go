@@ -109,9 +109,10 @@ var Capabilities = []Capability{
 	key("eventDoc", "id", "identity", "domain", true, ""),
 	key("eventDoc", "on", "behaviour", "behavior", true, ""),
 	key("eventDoc", "when_equals", "behaviour", "behavior", true, ""),
+	key("eventDoc", "enabled", "behaviour", "behavior", true, ""),
 	key("eventDoc", "on_create", "behaviour", "behavior", true, ""),
 	key("eventDoc", "then", "behaviour", "behavior", true, ""),
-	key("eventDoc", "schedule", "behaviour", "behavior", false, "a scheduled event (SLA breach) runs on a clock and a guard; nothing in a generated Application has asked for one"),
+	key("eventDoc", "schedule", "behaviour", "behavior", true, ""),
 	// viewDoc, cardFieldDoc, completionDoc, computeDoc
 	key("viewDoc", "id", "identity", "experience", true, ""),
 	key("viewDoc", "name", "identity", "experience", true, ""),

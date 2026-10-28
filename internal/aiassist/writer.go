@@ -271,13 +271,23 @@ type eventDoc struct {
 	On         string `yaml:"on,omitempty"`
 	WhenEquals string `yaml:"when_equals,omitempty"`
 	OnCreate   bool   `yaml:"on_create,omitempty"`
-	Then       struct {
+	Enabled    *bool  `yaml:"enabled,omitempty"`
+	Schedule   *struct {
+		DateField      string `yaml:"date_field"`
+		When           string `yaml:"when"`
+		GuardField     string `yaml:"guard_field,omitempty"`
+		GuardEquals    string `yaml:"guard_equals,omitempty"`
+		GuardNotEquals string `yaml:"guard_not_equals,omitempty"`
+	} `yaml:"schedule,omitempty"`
+	Then struct {
 		Service             string `yaml:"service"`
 		Summary             string `yaml:"summary"`
 		RecipientField      string `yaml:"recipient_field,omitempty"`
 		RecipientRole       string `yaml:"recipient_role,omitempty"`
 		RecipientGroupField string `yaml:"recipient_group_field,omitempty"`
 		PreferenceKey       string `yaml:"preference_key,omitempty"`
+		TargetField         string `yaml:"target_field,omitempty"`
+		Value               string `yaml:"value,omitempty"`
 	} `yaml:"then"`
 }
 
@@ -512,9 +522,23 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 	for _, e := range m.Events {
 		var ed eventDoc
 		ed.ID, ed.On, ed.WhenEquals, ed.OnCreate = e.ID, e.On, e.WhenEquals, e.OnCreate
+		if e.Disabled {
+			off := false
+			ed.Enabled = &off
+		}
 		ed.Then.Service, ed.Then.Summary = e.EventService(), e.Summary
 		ed.Then.RecipientField, ed.Then.PreferenceKey = e.RecipientField, e.PreferenceKey
 		ed.Then.RecipientRole, ed.Then.RecipientGroupField = e.RecipientRole, e.RecipientGroupField
+		ed.Then.TargetField, ed.Then.Value = e.SetField, e.SetValue
+		if s := e.Schedule; s != nil {
+			ed.Schedule = &struct {
+				DateField      string `yaml:"date_field"`
+				When           string `yaml:"when"`
+				GuardField     string `yaml:"guard_field,omitempty"`
+				GuardEquals    string `yaml:"guard_equals,omitempty"`
+				GuardNotEquals string `yaml:"guard_not_equals,omitempty"`
+			}{s.DateField, s.When, s.GuardField, s.GuardEquals, s.GuardNotEquals}
+		}
 		doc.Events = append(doc.Events, ed)
 	}
 	return doc

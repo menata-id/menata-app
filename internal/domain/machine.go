@@ -758,6 +758,9 @@ type Event struct {
 	// Schedule is the third trigger shape's own configuration, nil for the other two.
 	Schedule *Schedule
 	Then     Service
+	// Disabled (`enabled: false`, 2026-10-28, Apps Builder Fase 10) switches the rule off without deleting it: no write, creation or passing of time fires it until it is switched
+	// on again. The zero value is a rule that runs, which is every Event that existed before the key did.
+	Disabled bool
 }
 
 // Schedule is a schedule-shaped Event's own configuration: a condition evaluated periodically

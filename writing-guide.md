@@ -2848,6 +2848,8 @@ that is the whole list. At most one override. `{old}`/`{new}` are meaningless on
 inside a request) against every record of the declaring Machine — see `metadata/document.yaml`'s
 own `evt_document_overdue_notify` (§10).
 
+**A rule can be switched off (`enabled: false`, 2026-10-28, Apps Builder Fase 10)** without deleting it: no write, creation or passing of time fires it until the key is removed or set true. **Each run is remembered** (`event_runs`): when, on which record, and whether it *ran* (and what it did: "told 2 people"), was *quiet* (it ran but had nobody to tell, and says why) or *failed* -- which is how a rule that is silent is told from one that is broken. The builder's Rules part of the tree shows the runs, switches the rule, tries it on a real record in words (nothing sent, nothing written) and starts one from four examples (tell the person a record is assigned to; forward a record to a role at a status; remind the person when a date has passed; close a record by itself when a date has passed).
+
 **The third Service, `send_notification`** (`domain.Notify`) — writes an in-app `mch_notification`
 record and, if the recipient's own preference allows it, an email. Usable from any of the three
 Event shapes above, not just `schedule:`:

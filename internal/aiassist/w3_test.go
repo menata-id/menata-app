@@ -149,7 +149,7 @@ func TestW3_updatesAddAndPreserveNotifications(t *testing.T) {
 // runtime knows, so it cannot return one outside them.
 func TestW3_schemaOffersOnlyWhatTheRuntimeKnows(t *testing.T) {
 	props := generatedEventSchema.Properties
-	if got := strings.Join(props["service"].Enum, ","); got != "log_activity,send_notification" {
+	if got := strings.Join(props["service"].Enum, ","); got != "log_activity,send_notification,set_field" {
 		t.Errorf("service enum = %q", got)
 	}
 	keys := props["preference_key"].Enum

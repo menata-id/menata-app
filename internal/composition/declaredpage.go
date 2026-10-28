@@ -1332,6 +1332,33 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputRecentRecords:
+			machineID, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Machine)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			var options []string
+			if m := l.Machine(machineID); m != nil {
+				keys, err := sortKeysFor(m, []domain.SortKey{{Field: "created_at", Direction: "desc"}})
+				if err != nil {
+					return ir.FormSpec{}, err
+				}
+				recent, _, err := l.store.ListRecordsSelect(ctx, m.ID, "try a rule", nil, keys, 20)
+				if err != nil {
+					return ir.FormSpec{}, err
+				}
+				title := m.CardFieldFor(domain.CardFieldRoleTitle)
+				for _, rec := range recent {
+					label := rec.ID
+					if title != "" {
+						if v := DisplayString(rec.Values[title]); v != "" {
+							label = v
+						}
+					}
+					options = append(options, rec.ID+domain.InputChoiceSep+label)
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Required: in.Required})
 		case registry.ActionInputWorkflowStatuses:
 			machineID, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Machine)
 			if err != nil {

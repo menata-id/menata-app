@@ -43,6 +43,9 @@ const (
 	OpSetListSearch      = "set_list_search"
 	OpAddTransition      = "add_transition"
 	OpSetListLayout      = "set_list_layout"
+	OpSetRuleEnabled     = "set_rule_enabled"
+	OpAddRule            = "add_rule"
+	OpAddScheduledRule   = "add_scheduled_rule"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -104,6 +107,9 @@ var capabilityOf = map[string]string{
 	OpSetListSearch:      "navItemDoc.route",
 	OpAddTransition:      "machineDoc.transitions",
 	OpSetListLayout:      "navItemDoc.route",
+	OpSetRuleEnabled:     "eventDoc.enabled",
+	OpAddRule:            "machineDoc.events",
+	OpAddScheduledRule:   "eventDoc.schedule",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -209,6 +215,25 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			return fmt.Errorf("permission %q already exists on machine %s", op.Permission, m.ID)
 		}
 		m.Permissions = append(m.Permissions, aiassist.GeneratedPermission{ID: op.Permission, Action: op.Action, Roles: slices.Clone(op.Roles)})
+	case OpAddRule, OpAddScheduledRule:
+		events, err := RuleFromExample(m, op)
+		if err != nil {
+			return err
+		}
+		// The two kinds are one thing said two ways: a rule that runs on a write, and one that runs on the passage of time.
+		if scheduled := op.Item == RuleExampleRemind || op.Item == RuleExampleClose; scheduled != (op.Kind == OpAddScheduledRule) {
+			return fmt.Errorf("%s is not %s", op.Item, map[bool]string{true: "a rule on a write", false: "a rule on a schedule"}[op.Kind == OpAddRule])
+		}
+		m.Events = append(m.Events, events...)
+		return nil
+	case OpSetRuleEnabled:
+		for i := range m.Events {
+			if m.Events[i].ID == op.Item {
+				m.Events[i].Disabled = !op.Flag
+				return nil
+			}
+		}
+		return fmt.Errorf("rule %q is not one this editor can switch on machine %s", op.Item, m.ID)
 	case OpAddTransition:
 		for _, f := range m.Fields {
 			if f.ID == op.Field && f.Type == "status" {
@@ -325,6 +350,7 @@ func clone(a aiassist.GeneratedApplication) aiassist.GeneratedApplication {
 		}
 		m.Permissions = slices.Clone(m.Permissions)
 		m.Transitions = slices.Clone(m.Transitions)
+		m.Events = slices.Clone(m.Events)
 		if sc := m.StatusCategories; sc != nil {
 			m.StatusCategories = &aiassist.GeneratedStatusCategories{Field: sc.Field, Values: slices.Clone(sc.Values)}
 		}
@@ -465,4 +491,104 @@ func slugOf(name string) string {
 		return out
 	}
 	return "move"
+}
+
+// The ready-made rules a person can start from and then edit: tell the person a record is assigned to, forward a record to a role when it reaches a status, remind the person in a field when
+// a date has passed, and close a record by itself when a date has passed. Each is written in the rule grammar a conversation uses, so what is made is an ordinary rule.
+const (
+	RuleExampleAssigned = "assigned"
+	RuleExampleForward  = "forward"
+	RuleExampleRemind   = "remind"
+	RuleExampleClose    = "close"
+)
+
+// RuleExamples lists them, in the order a form offers them.
+var RuleExamples = []string{RuleExampleAssigned, RuleExampleForward, RuleExampleRemind, RuleExampleClose}
+
+// RuleFromExample builds the rule(s) of an example for a Machine: op.Item names the example, op.Field the Field it watches (a person, a status or a date, by the example), op.Watch the
+// second Field it needs, op.Value a status option, op.Roles[0] a role. Ids are made from the example and kept unique among the Machine's rules.
+func RuleFromExample(m *aiassist.GeneratedMachine, op Op) ([]aiassist.GeneratedEvent, error) {
+	field := func(id string) *aiassist.GeneratedField {
+		for i := range m.Fields {
+			if m.Fields[i].ID == id {
+				return &m.Fields[i]
+			}
+		}
+		return nil
+	}
+	need := func(id, typ, what string) (*aiassist.GeneratedField, error) {
+		f := field(id)
+		if f == nil || f.Type != typ {
+			return nil, fmt.Errorf("%s needs a %s field of %s, and %q is not one", what, typ, m.Name, id)
+		}
+		return f, nil
+	}
+	title := ""
+	for _, cf := range m.CardFields {
+		if cf.Role == "title" {
+			title = "{" + cf.Field + "} "
+		}
+	}
+	id := func(suffix string) string {
+		base := "evt_" + slugOf(m.ID[len("mch_"):]) + "_" + suffix
+		out := base
+		for n := 2; slices.ContainsFunc(m.Events, func(e aiassist.GeneratedEvent) bool { return e.ID == out }); n++ {
+			out = base + "_" + strconv.Itoa(n)
+		}
+		return out
+	}
+	switch op.Item {
+	case RuleExampleAssigned:
+		f, err := need(op.Field, "person", "telling the person a record is assigned to")
+		if err != nil {
+			return nil, err
+		}
+		return []aiassist.GeneratedEvent{{ID: id("assigned"), On: f.ID, Service: aiassist.EventServiceSendNotification, RecipientField: f.ID, PreferenceKey: "assigned",
+			Summary: title + "was assigned to you"}}, nil
+	case RuleExampleForward:
+		f, err := need(op.Field, "status", "forwarding a record when it reaches a status")
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Contains(f.Options, op.Value) {
+			return nil, fmt.Errorf("%q is not one of the statuses of %s", op.Value, f.Name)
+		}
+		if len(op.Roles) == 0 {
+			return nil, fmt.Errorf("forwarding a record needs the role it is forwarded to")
+		}
+		return []aiassist.GeneratedEvent{{ID: id("forward"), On: f.ID, WhenEquals: op.Value, Service: aiassist.EventServiceSendNotification, RecipientRole: op.Roles[0], PreferenceKey: "assigned",
+			Summary: title + "is now " + op.Value}}, nil
+	case RuleExampleRemind, RuleExampleClose:
+		date, err := need(op.Field, "date", "a rule that waits for a date to pass")
+		if err != nil {
+			return nil, err
+		}
+		status, err := need(op.Watch, "status", "a rule that stops once a record is in its last status")
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Contains(status.Options, op.Value) {
+			return nil, fmt.Errorf("%q is not one of the statuses of %s", op.Value, status.Name)
+		}
+		schedule := &aiassist.GeneratedSchedule{DateField: date.ID, When: "overdue", GuardField: status.ID, GuardNotEquals: op.Value}
+		if op.Item == RuleExampleClose {
+			return []aiassist.GeneratedEvent{{ID: id("close"), Schedule: schedule, Service: aiassist.EventServiceSetField, SetField: status.ID, SetValue: op.Value,
+				Summary: title + "was closed because " + date.Name + " passed"}}, nil
+		}
+		person := ""
+		for _, f := range m.Fields {
+			if f.Type == "person" {
+				person = f.ID
+				break
+			}
+		}
+		if person == "" {
+			return nil, fmt.Errorf("a reminder tells the person in a person field, and %s has none", m.Name)
+		}
+		return []aiassist.GeneratedEvent{
+			{ID: id("remind_log"), Schedule: schedule, Service: aiassist.EventServiceLogActivity, Summary: "Reminder: " + title + date.Name + " has passed"},
+			{ID: id("remind"), Schedule: schedule, Service: aiassist.EventServiceSendNotification, RecipientField: person, PreferenceKey: "sla_breach", Summary: title + date.Name + " has passed"},
+		}, nil
+	}
+	return nil, fmt.Errorf("%q is not one of the examples (%s)", op.Item, strings.Join(RuleExamples, ", "))
 }

@@ -366,12 +366,25 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			if f := fieldOf(m, ge.RecipientField); f != nil && f.Type != domain.FieldTypePerson {
 				issues = append(issues, fmt.Sprintf("machine %q event %q: recipient_field %q must be a person field, got %q -- otherwise the notification reaches nobody", gm.ID, ge.ID, ge.RecipientField, f.Type))
 			}
+		case EventServiceSetField:
+			svc.Set = &domain.SetField{TargetField: ge.SetField, Value: ge.SetValue}
+			if ge.Schedule == nil {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: set_field runs on a schedule (a date that has passed), not on a write", gm.ID, ge.ID))
+			}
 		default:
-			issues = append(issues, fmt.Sprintf("machine %q event %q: service %q is not one a generated event may name (log_activity or send_notification)", gm.ID, ge.ID, ge.Service))
+			issues = append(issues, fmt.Sprintf("machine %q event %q: service %q is not one a generated event may name (log_activity, send_notification or set_field)", gm.ID, ge.ID, ge.Service))
 		}
-		m.Events = append(m.Events, domain.Event{
-			ID: ge.ID, On: ge.On, WhenEquals: ge.WhenEquals, OnCreate: ge.OnCreate, Then: svc,
-		})
+		ev := domain.Event{ID: ge.ID, On: ge.On, WhenEquals: ge.WhenEquals, OnCreate: ge.OnCreate, Then: svc}
+		if s := ge.Schedule; s != nil {
+			if ge.On != "" || ge.OnCreate || ge.WhenEquals != "" {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: a rule on a schedule has no on, on_create or when_equals", gm.ID, ge.ID))
+			}
+			if f := fieldOf(m, s.DateField); f == nil || f.Type != domain.FieldTypeDate {
+				issues = append(issues, fmt.Sprintf("machine %q event %q: schedule date_field %q must be a date field of this machine", gm.ID, ge.ID, s.DateField))
+			}
+			ev.Schedule = &domain.Schedule{DateField: s.DateField, When: s.When, GuardField: s.GuardField, GuardEquals: s.GuardEquals, GuardNotEquals: s.GuardNotEquals}
+		}
+		m.Events = append(m.Events, ev)
 	}
 	return m, issues
 }

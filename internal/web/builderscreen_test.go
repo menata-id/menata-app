@@ -1309,3 +1309,160 @@ func TestBuilderWorkflowTrialShowsWhereARoleCouldGo(t *testing.T) {
 		t.Error("trying the flow wrote a file")
 	}
 }
+
+// Rules are parts of the tree: each Event of a Machine is said in a line ("When Status becomes Approved: tell the person in Requester"), with whether it is on and when it last ran; the Details
+// of a rule list its runs -- ran, quiet, failed, and why -- which is how a rule that is silent is told from one that is broken; the Edit tab switches it, and a switched-off rule does not run.
+func TestBuilderRulesAreListedSwitchedAndTheirRunsShown(t *testing.T) {
+	s := newInstallTestSetup(t, "brules")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+
+		"  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Done]\n"+
+		"events:\n  - id: evt_done\n    on: fld_stage\n    when_equals: Done\n    then: { service: log_activity, summary: \"{fld_title} is done\" }\n")
+	s.reloadWorkspace(t)
+	rule := app + "/machines/mch_document/events/evt_done"
+	tree := s.getAs(t, "/builder/"+app).Body.String()
+	for _, want := range []string{"Rules", "When Stage becomes Done: write an activity entry"} {
+		if !strings.Contains(tree, want) {
+			t.Errorf("the tree lacks %q", want)
+		}
+	}
+	if body := s.getAs(t, "/builder/"+app+"?node="+url.QueryEscape(rule)).Body.String(); !strings.Contains(body, "never ran") {
+		t.Errorf("a rule that has not run says so:\n%s", body)
+	}
+	// The history: a run is shown with its outcome and its reason.
+	wsCtx := data.WithWorkspaceScope(context.Background(), s.wsID)
+	if err := s.store.RecordEventRun(wsCtx, "mch_document", "evt_done", "rec_1", data.EventQuietOutcome, "nobody to tell: the field fld_x is empty"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.RecordEventRun(wsCtx, "mch_document", "evt_done", "rec_2", data.EventFailedOutcome, "sending email to a@b: refused"); err != nil {
+		t.Fatal(err)
+	}
+	body := s.getAs(t, "/builder/"+app+"?node="+url.QueryEscape(rule)).Body.String()
+	for _, want := range []string{"Quiet", "nobody to tell", "Failed", "sending email to a@b: refused", "record rec_2"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the rule's runs lack %q:\n%s", want, body)
+		}
+	}
+	// The switch.
+	form := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(rule)).Body.String()
+	if !strings.Contains(form, "/runtime-actions/edit_rule?record=") || !strings.Contains(form, `name="enabled"`) {
+		t.Errorf("the rule's Edit tab has no switch:\n%s", form)
+	}
+	switchTo := func(values url.Values) int {
+		return s.postBuilder(t, "/runtime-actions/edit_rule?record="+url.QueryEscape(rule), values).Code
+	}
+	if code := switchTo(url.Values{}); code != http.StatusSeeOther {
+		t.Fatalf("switching off: %d", code)
+	}
+	if written, _ := os.ReadFile(docFile); !strings.Contains(string(written), "enabled: false") {
+		t.Errorf("the rule is not switched off in its file:\n%s", written)
+	}
+	if code := switchTo(url.Values{}); code != http.StatusSeeOther {
+		t.Errorf("switching off a switched-off rule: %d", code)
+	}
+	if code := switchTo(url.Values{"enabled": {"on"}}); code != http.StatusSeeOther {
+		t.Fatalf("switching on: %d", code)
+	}
+	if written, _ := os.ReadFile(docFile); strings.Contains(string(written), "enabled: false") {
+		t.Errorf("the rule stayed switched off:\n%s", written)
+	}
+	if code := s.postBuilder(t, "/runtime-actions/edit_rule?record="+url.QueryEscape(app+"/machines/mch_document/events/evt_nowhere"), url.Values{}).Code; code < 400 {
+		t.Errorf("a rule that is not there was switched: %d", code)
+	}
+}
+
+// "Try the rule" asks a rule what it would do for a real record and does none of it: the answer is in words on the rule's page, no mail goes, no record is written, no run is remembered.
+func TestBuilderTryARuleOnARealRecordWritesNothing(t *testing.T) {
+	s := newInstallTestSetup(t, "btry")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+
+		"  - id: fld_stage\n    name: Stage\n    type: status\n    default: Open\n    options: [Open, Done]\n"+
+		"card_fields:\n  - { field: fld_title, role: title }\n"+
+		"events:\n  - id: evt_done\n    on: fld_stage\n    when_equals: Done\n    then: { service: log_activity, summary: \"{fld_title} is done\" }\n")
+	s.reloadWorkspace(t)
+	wsCtx := data.WithWorkspaceScope(context.Background(), s.wsID)
+	rec, err := s.store.CreateRecord(wsCtx, "mch_document", map[string]any{"fld_title": "Quarterly report", "fld_stage": "Open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := app + "/machines/mch_document/events/evt_done"
+	form := s.getAs(t, "/builder/"+app+"?tab=test&node="+url.QueryEscape(rule)).Body.String()
+	if !strings.Contains(form, "/runtime-actions/try_rule?record=") || !strings.Contains(form, `<option value="`+rec.ID+`"`) || !strings.Contains(form, "Quarterly report") {
+		t.Errorf("the Try tab does not offer the record to try it on:\n%s", form)
+	}
+	before, _ := s.store.ListRecords(wsCtx, "mch_activity")
+	post := s.postTo(t, "/runtime-actions/try_rule?record="+url.QueryEscape(rule), url.Values{"record": {rec.ID}})
+	if post.Code != http.StatusSeeOther || !strings.Contains(post.Header().Get("Location"), "rec="+rec.ID) {
+		t.Fatalf("trying: %d %s", post.Code, post.Header().Get("Location"))
+	}
+	said := s.getAs(t, post.Header().Get("Location")).Body.String()
+	for _, want := range []string{"becomes Done", "write an activity entry: Quarterly report is done"} {
+		if !strings.Contains(said, want) {
+			t.Errorf("the trial's answer lacks %q:\n%s", want, said)
+		}
+	}
+	if other := s.getAs(t, "/builder/"+app+"?tab=test&rec=rec_nowhere&node="+url.QueryEscape(rule)).Body.String(); !strings.Contains(other, "not one of this Machine") {
+		t.Errorf("a record that is not the Machine's:\n%s", other)
+	}
+	after, _ := s.store.ListRecords(wsCtx, "mch_activity")
+	if len(after) != len(before) {
+		t.Errorf("trying a rule wrote %d activity entries", len(after)-len(before))
+	}
+	if runs, _ := s.store.RecentEventRuns(wsCtx, "mch_document", "evt_done", 5); len(runs) != 0 {
+		t.Errorf("a trial was remembered as a run: %+v", runs)
+	}
+	if code := s.postTo(t, "/runtime-actions/try_rule?record="+url.QueryEscape(rule), url.Values{}).Code; code < 400 {
+		t.Errorf("trying with no record: %d", code)
+	}
+}
+
+// A Machine's Rules tab starts a rule from an example: the form offers the four, the Fields to watch, and refuses in words what the example cannot make; what it makes is an ordinary rule
+// that then appears in the tree and can be switched off.
+func TestBuilderRulesTabStartsARuleFromAnExample(t *testing.T) {
+	s := newInstallTestSetup(t, "bnewrule")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	docFile := filepath.Join(dir, "document.yaml")
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+"  - id: fld_owner\n    name: Owner\n    type: person\n")
+	// A rule that tells someone writes to the notification Machine, which the Workspace must hold.
+	notification, err := os.ReadFile(filepath.Join("..", "..", "metadata", "notification.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(dir, "notification.yaml"), string(notification))
+	manifest, _ := os.ReadFile(s.manifestPath)
+	writeTestFile(t, s.manifestPath, strings.Replace(string(manifest), "machines:\n", "machines:\n  - "+s.slug+"/notification.yaml\n", 1))
+	s.reloadWorkspace(t)
+	machine := app + "/machines/mch_document"
+	form := s.getAs(t, "/builder/"+app+"?tab=rules&node="+url.QueryEscape(machine)).Body.String()
+	for _, want := range []string{"/runtime-actions/add_rule?record=", `name="example"`, `<option value="assigned"`, `<option value="close"`, `name="watch"`, `<option value="fld_owner"`, "Add the rule"} {
+		if !strings.Contains(form, want) {
+			t.Errorf("the Rules tab is missing %q", want)
+		}
+	}
+	add := func(v url.Values) int {
+		return s.postBuilder(t, "/runtime-actions/add_rule?record="+url.QueryEscape(machine), v).Code
+	}
+	if code := add(url.Values{"example": {"assigned"}, "watch": {"fld_title"}}); code < 400 {
+		t.Errorf("an assigned rule over a text field: %d", code)
+	}
+	if code := add(url.Values{"example": {"teleport"}, "watch": {"fld_owner"}}); code < 400 {
+		t.Errorf("an example that is not one: %d", code)
+	}
+	if code := add(url.Values{"example": {"assigned"}, "watch": {"fld_owner"}}); code != http.StatusSeeOther {
+		t.Fatalf("an assigned rule over a person field: %d", code)
+	}
+	if written, _ := os.ReadFile(docFile); !strings.Contains(string(written), "recipient_field: fld_owner") {
+		t.Errorf("the rule is not in the Machine's file:\n%s", written)
+	}
+	if tree := s.getAs(t, "/builder/"+app).Body.String(); !strings.Contains(tree, "tell the person in Owner") {
+		t.Errorf("the new rule is not in the tree:\n%s", tree)
+	}
+}
