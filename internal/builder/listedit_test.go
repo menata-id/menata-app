@@ -104,3 +104,124 @@ func TestListOperationsRewriteThePageAndItsDatasets(t *testing.T) {
 		}
 	}
 }
+
+// A page is read as a list only if it is exactly what the generator writes: a person's own addition anywhere in it -- a column's total or header or `under:`, `complete:` on the Table,
+// a `fields:` on the add form, a row template of their own -- means the page is not a list this editor rewrites, so a rewrite can never lose it.
+func TestAListWithAPersonsOwnAdditionsIsNotReadAsOne(t *testing.T) {
+	for name, edit := range map[string]func(string) string{
+		"a column total": func(y string) string {
+			return strings.Replace(y, "              field: fld_judul\n", "              field: fld_judul\n              total: count\n", 1)
+		},
+		"a column header": func(y string) string { return strings.Replace(y, "header: Judul", "header: Situasi", 1) },
+		"complete on the Table": func(y string) string {
+			return strings.Replace(y, "          framed: true\n", "          framed: true\n          complete: true\n", 1)
+		},
+		"fields on the form": func(y string) string {
+			return strings.Replace(y, "                - submit: Tambah\n", "                - submit: Tambah\n                  fields: [fld_judul, fld_status]\n", 1)
+		},
+		"an extra prop on the row": func(y string) string {
+			return strings.Replace(y, "          layout: row\n          gap: tight\n", "          layout: row\n          gap: tight\n          wrap: nowrap\n", 1)
+		},
+	} {
+		manifest, nav := installedWithList(t)
+		_ = nav
+		changed := false
+		for path, text := range tree(t, manifest) {
+			if strings.HasSuffix(path, "applications/sampah.yaml") {
+				if after := edit(text); after != text {
+					full := filepath.Join(filepath.Dir(manifest), path)
+					if err := os.WriteFile(full, []byte(after), 0o644); err != nil {
+						t.Fatal(err)
+					}
+					changed = true
+				}
+			}
+		}
+		if !changed {
+			t.Errorf("%s: the fixture has no such text to edit", name)
+			continue
+		}
+		if got := current(t, manifest).Navigation[0]; got.List != nil {
+			t.Errorf("%s: the page was read as a list and would be rewritten", name)
+		}
+	}
+}
+
+// A list echoed back with empty slices where it was read with nothing is the same list, not a change (and not a rewrite that drops a hand-edited row).
+func TestAnEmptyListOfColumnsEchoedBackIsNoChange(t *testing.T) {
+	manifest, _ := installedWithList(t)
+	cur := current(t, manifest)
+	desired := current(t, manifest)
+	l := *desired.Navigation[0].List
+	l.SearchFields = append([]string{}, l.SearchFields...)
+	desired.Navigation[0].List = &l
+	desired.Navigation[0].Label = "Renamed"
+	plan := aiassist.PlanUpdate(cur, desired)
+	for _, it := range plan.Items {
+		if strings.Contains(it.What, "list of menu item") {
+			t.Errorf("an unchanged list is reported as changed: %q", it.What)
+		}
+	}
+}
+
+// Adding an entry that opens a Machine another entry restricts is refused: it would open to everyone what was held back; and a status gets its first move only with the plan saying every other change is now refused.
+func TestMenuAndWorkflowPlansSayWhatTheyCost(t *testing.T) {
+	manifest := installed(t)
+	if err := Commit(manifest, appID, []Op{{Kind: OpSetMenuVisibleTo, Item: current(t, manifest).Navigation[0].ID, Roles: []string{"approver"}}}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddMenuItem, Machine: "mch_catat", Value: "Everyone's"}}); err == nil || !strings.Contains(err.Error(), "open the screens") {
+		t.Errorf("an entry opening a restricted Machine to everyone: %v", err)
+	}
+	plan, err := Review(installedFresh(t), appID, []Op{{Kind: OpAddTransition, Machine: "mch_catat", Field: "fld_status", Value: "Send", From: "draft", To: "sent"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	said := false
+	for _, it := range plan.Plan.Items {
+		said = said || strings.Contains(it.What, "governed from now on")
+	}
+	if !said {
+		t.Errorf("the first move of a status does not say it governs the status: %+v", plan.Plan.Items)
+	}
+	if _, err := Apply(current(t, installedFresh(t)), []Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "DRAFT"}}); err == nil {
+		t.Error("an option equal to another but for its case was accepted")
+	}
+	if _, err := Apply(current(t, installedFresh(t)), []Op{{Kind: OpSetListColumns, Item: "x", Fields: nil}}); err == nil {
+		t.Error("a list with no column was accepted")
+	}
+}
+
+func installedFresh(t *testing.T) string {
+	t.Helper()
+	return installed(t)
+}
+
+// A Dataset of a person's own that sits under the id the chips' Dataset would have is not the generator's, and a rewrite of the list leaves it alone.
+func TestARewriteLeavesAForeignDatasetUnderTheChipsId(t *testing.T) {
+	manifest, nav := installedWithList(t)
+	if err := Commit(manifest, appID, []Op{{Kind: OpSetListFilter, Item: nav, Field: ""}}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	var machineFile string
+	for path := range tree(t, manifest) {
+		if strings.HasSuffix(path, "catat.yaml") {
+			machineFile = filepath.Join(filepath.Dir(manifest), path)
+		}
+	}
+	text, err := os.ReadFile(machineFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := strings.Replace(string(text), "datasets:\n", "datasets:\n  - id: ds_sampah_filter\n    dimension: fld_status\n    measures:\n      - { id: msr_mine, aggregate: count }\n", 1)
+	if err := os.WriteFile(machineFile, []byte(foreign), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Commit(manifest, appID, []Op{{Kind: OpSetListSort, Item: nav, Field: "fld_judul", Value: "asc"}}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(machineFile)
+	if !strings.Contains(string(after), "msr_mine") {
+		t.Errorf("a Dataset of the person's own was dropped by a rewrite of the list:\n%s", after)
+	}
+}

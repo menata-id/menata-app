@@ -88,7 +88,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 	}
 	relisted := map[string]listed{}
 	for i, n := range desired.Navigation {
-		if old, ok := currentLists[navIDs[i]]; ok && old != nil && n.List != nil && !reflect.DeepEqual(old, n.List) {
+		if old, ok := currentLists[navIDs[i]]; ok && old != nil && n.List != nil && !sameList(old, n.List) {
 			l := listed{NavID: navIDs[i], DatasetID: listDatasetID(navIDs[i]), Item: n}
 			relisted[navIDs[i]] = l
 			lists = append(lists, l)
@@ -356,7 +356,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 	for _, l := range newLists {
 		if _, again := relisted[l.NavID]; again {
 			// Its Datasets are written again below; the old ones go first.
-			removeDatasetNodes(doc, listDatasetID(l.NavID), tableFilterDatasetID(l.NavID))
+			removeListDatasets(doc, l.NavID)
 		}
 		for _, ds := range datasetsFor(l, m) {
 			if err := appendEncoded(ensureSeq(doc, "datasets"), ds); err != nil {
@@ -705,6 +705,23 @@ func setOrDeleteKey(node *yaml.Node, key, value string) {
 		setScalar(node, key, value)
 	case mapValue(node, key) != nil:
 		deleteKey(node, key)
+	}
+}
+
+// removeListDatasets drops the Datasets a list was written with before they are written again: its own, and the chips' only when it is the one the generator writes
+// (counting by the measure it names) -- a Dataset of a person's own that happens to sit under that id is left, and the rewrite then fails on the id rather than lose it.
+func removeListDatasets(doc *yaml.Node, navID string) {
+	removeDatasetNodes(doc, listDatasetID(navID))
+	if seq := mapValue(doc, "datasets"); seq != nil {
+		for _, ds := range seq.Content {
+			if id := mapValue(ds, "id"); id != nil && id.Value == tableFilterDatasetID(navID) {
+				if ms := mapValue(ds, "measures"); ms != nil && len(ms.Content) == 1 {
+					if mid := mapValue(ms.Content[0], "id"); mid != nil && mid.Value == tableFilterMeasureID(navID) {
+						removeDatasetNodes(doc, tableFilterDatasetID(navID))
+					}
+				}
+			}
+		}
 	}
 }
 

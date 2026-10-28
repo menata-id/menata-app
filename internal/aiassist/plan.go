@@ -338,6 +338,9 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		}
 	}
 
+	if len(old.Transitions) == 0 && len(m.Transitions) > 0 {
+		p.change("the statuses of %q are governed from now on: only the moves declared can change them, and every other change of the status is refused", m.Name)
+	}
 	oldTrans := map[string]GeneratedTransition{}
 	for _, x := range old.Transitions {
 		oldTrans[x.ID] = x
@@ -475,6 +478,13 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	var keptOrder []string
 	for _, n := range desired {
 		old, exists := byID[n.ID]
+		if (n.ID == "" || !exists) && n.List == nil && n.ByStatus == nil && n.Queue == nil {
+			for _, other := range current {
+				if other.MachineID == n.MachineID && other.List == nil && len(other.VisibleTo) > 0 {
+					p.refuse("menu item %q would open the screens of %s to everyone, and %q restricts them to %s -- an address several entries name is open if any is offered", n.Label, n.MachineID, other.Label, strings.Join(other.VisibleTo, ", "))
+				}
+			}
+		}
 		if (n.ID == "" || !exists) && (n.Parent != "" || len(n.VisibleTo) > 0 || n.Badge != "") {
 			p.refuse("menu item %q is new, so it cannot also name a parent, who may see it or a count -- add the item, then set those", n.Label)
 		}
@@ -493,7 +503,7 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 		if (n.List != nil && old.List == nil) || n.ByStatus != nil || n.Queue != nil {
 			p.refuse("menu item %s cannot be given a list -- add a new menu item with the list instead", n.ID)
 		}
-		if n.List != nil && old.List != nil && !reflect.DeepEqual(n.List, old.List) {
+		if n.List != nil && old.List != nil && !sameList(n.List, old.List) {
 			p.change("the list of menu item %q is changed: %s", n.Label, listChange(old.List, n.List))
 		}
 		if n.List == nil && old.List != nil {
@@ -824,7 +834,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 	judged := *desired
 	judged.Navigation = nil
 	for _, n := range desired.Navigation {
-		if n.List != nil && (n.ID == "" || !reflect.DeepEqual(oldLists[n.ID], n.List)) {
+		if n.List != nil && (n.ID == "" || !sameList(oldLists[n.ID], n.List)) {
 			judged.Navigation = append(judged.Navigation, n)
 		}
 	}
@@ -963,4 +973,28 @@ func listChange(old, now *GeneratedList) string {
 		what = append(what, "add button "+now.AddLabel)
 	}
 	return strings.Join(what, "; ")
+}
+
+// sameList compares two lists as a person would: an empty list of columns or search fields is the same as none, so a list echoed back with `[]` where it was read with nothing
+// is not a change.
+func sameList(a, b *GeneratedList) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	x, y := *a, *b
+	for _, l := range []*GeneratedList{&x, &y} {
+		if len(l.Columns) == 0 {
+			l.Columns = nil
+		}
+		if len(l.SearchFields) == 0 {
+			l.SearchFields = nil
+		}
+		if l.SortField == "" {
+			l.SortField = "created_at"
+		}
+		if l.Direction == "" {
+			l.Direction = "desc"
+		}
+	}
+	return reflect.DeepEqual(x, y)
 }

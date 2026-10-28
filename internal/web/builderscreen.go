@@ -525,8 +525,11 @@ func builderStepsProvider(store *data.Store) composition.RuntimeProvider {
 }
 
 // edgeTakenBy says whether someone holding the Application role `as` could take a move: a move that names no roles is anyone's, one that names some is theirs who hold one,
-// and with no role chosen (the builder looking) every move can be taken. A move that names a person Field of the record is takeable by the person in it, which a trial has no
+// and with no role chosen (the builder looking) every move can be taken. A move the runtime writes itself is no one's; one performed by another Action than `edit` keeps its rule in that Action's Permission, which a trial does not read, so it is offered. A move that names a person Field of the record is takeable by the person in it, which a trial has no
 // record to know, so it is offered.
 func edgeTakenBy(e composition.ProcessEdge, as string) bool {
+	if e.Action == "" {
+		return false // an edge the runtime itself writes ("System") is taken by no one
+	}
 	return as == "" || len(e.Roles) == 0 || slices.Contains(e.Roles, as)
 }

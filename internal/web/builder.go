@@ -643,12 +643,16 @@ func runEditList(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		return "", false
 	}
 	idOf := func(name string) (string, bool) {
+		found := ""
 		for _, f := range machine.Fields {
-			if strings.EqualFold(strings.TrimSpace(name), f.Name) || name == f.ID {
-				return f.ID, true
+			if strings.EqualFold(strings.TrimSpace(name), f.Name) || strings.TrimSpace(name) == f.ID {
+				if found != "" && found != f.ID {
+					return "", false // two Fields answer to this name: guessing one would put the wrong column on the page
+				}
+				found = f.ID
 			}
 		}
-		return "", false
+		return found, found != ""
 	}
 	var columns []string
 	for _, line := range strings.Split(req.PostForm.Get("columns"), "\n") {
@@ -657,7 +661,7 @@ func runEditList(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		}
 		id, found := idOf(line)
 		if !found {
-			http.Error(w, fmt.Sprintf("%q is not a field of %s", line, machine.Name), http.StatusUnprocessableEntity)
+			http.Error(w, fmt.Sprintf("%q is not a field of %s, or more than one field has that name -- write the field's id instead", line, machine.Name), http.StatusUnprocessableEntity)
 			return "", false
 		}
 		if !slices.Contains(columns, id) {
@@ -733,9 +737,21 @@ func runEditWorkflow(w http.ResponseWriter, req *http.Request, env actionEnv, re
 		http.Error(w, "this Machine is not in this Application", http.StatusNotFound)
 		return "", false
 	}
+	// The lifecycle Field is composition.LifecycleField's choice read on the Machine as the draft leaves it: the Field its moves move, else the one its meanings name, else its first status.
+	want := ""
+	for _, t := range machine.Transitions {
+		if want != "" && want != t.Field {
+			want = ""
+			break
+		}
+		want = t.Field
+	}
+	if want == "" && machine.StatusCategories != nil {
+		want = machine.StatusCategories.Field
+	}
 	var field *aiassist.GeneratedField
 	for i := range machine.Fields {
-		if machine.Fields[i].Type == "status" && (len(machine.Transitions) == 0 || machine.Transitions[0].Field == machine.Fields[i].ID) {
+		if machine.Fields[i].Type == "status" && (want == "" || machine.Fields[i].ID == want) {
 			field = &machine.Fields[i]
 			break
 		}

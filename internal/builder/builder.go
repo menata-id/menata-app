@@ -156,6 +156,9 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			list.Columns, list.SearchFields = slices.Clone(list.Columns), slices.Clone(list.SearchFields)
 			switch op.Kind {
 			case OpSetListColumns:
+				if len(op.Fields) == 0 {
+					return fmt.Errorf("a list needs at least one column")
+				}
 				list.Columns = slices.Clone(op.Fields)
 			case OpSetListSort:
 				list.SortField, list.Direction = op.Field, op.Value
@@ -254,8 +257,8 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 				f.ShowWhen = &aiassist.GeneratedShowWhen{Field: op.Watch, Equals: op.Value}
 			}
 		case OpAddOption:
-			if slices.Contains(f.Options, op.Value) {
-				return fmt.Errorf("option %q already exists on %s", op.Value, f.ID)
+			if slices.ContainsFunc(f.Options, func(o string) bool { return strings.EqualFold(o, op.Value) }) {
+				return fmt.Errorf("option %q already exists on %s (an option is the same whatever its case)", op.Value, f.ID)
 			}
 			f.Options = append(f.Options, op.Value)
 			if op.Category != "" {
@@ -316,6 +319,7 @@ func clone(a aiassist.GeneratedApplication) aiassist.GeneratedApplication {
 			m.Fields[j].Options = slices.Clone(m.Fields[j].Options)
 		}
 		m.Permissions = slices.Clone(m.Permissions)
+		m.Transitions = slices.Clone(m.Transitions)
 		if sc := m.StatusCategories; sc != nil {
 			m.StatusCategories = &aiassist.GeneratedStatusCategories{Field: sc.Field, Values: slices.Clone(sc.Values)}
 		}
