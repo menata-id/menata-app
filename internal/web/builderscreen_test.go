@@ -169,6 +169,9 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 	if swept < 10 || named < swept {
 		t.Fatalf("swept %d screens and %d named parts -- the sweep measures too little", swept, named)
 	}
+	if fields == 0 {
+		t.Fatal("no control of any form named its Field -- the form naming stopped, and every name that is left is still listed")
+	}
 	t.Logf("swept %d screens, %d named parts, %d of them Fields", swept, named, fields)
 }
 
@@ -266,6 +269,12 @@ func TestBuilderPreviewAsARole(t *testing.T) {
 		}
 		if code, _ := get(app.HomeRoute + "?builder=1&as=" + url.QueryEscape(role)); code != http.StatusOK {
 			t.Errorf("%s as %s: %d, want 200", app.HomeRoute, role, code)
+		}
+		// The shell of the preview is a member's: the admin's own Administration rows are not drawn when previewed as a role.
+		_, asAdmin := get(app.HomeRoute + "?builder=1")
+		_, asRole := get(app.HomeRoute + "?builder=1&as=" + url.QueryEscape(role))
+		if !strings.Contains(asAdmin, "Workspace settings") || strings.Contains(asRole, "Workspace settings") {
+			t.Errorf("%s: the Administration rows must show for the builder and not for a previewed role (admin %v, role %v)", app.HomeRoute, strings.Contains(asAdmin, "Workspace settings"), strings.Contains(asRole, "Workspace settings"))
 		}
 		if code, _ := get(app.HomeRoute + "?builder=1&as=nobody_holds_this"); code != http.StatusForbidden {
 			t.Errorf("%s as a role the Application does not declare: %d, want 403 (fails closed)", app.HomeRoute, code)

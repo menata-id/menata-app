@@ -65,7 +65,10 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		if id.workspace != nil {
 			workspaceName = id.workspace.Name
 		}
-		apps := openableApplications(rendering.CurrentWorkspace(ctx), id.Actor(ctx), cfg)
+		apps := openableApplications(rendering.CurrentWorkspace(ctx), asPreviewRole(ctx, id.Actor(ctx), cfg), cfg)
+		if _, previewing := rendering.PreviewRole(ctx); previewing {
+			role = domain.WorkspaceRoleMember // the shell of a preview is an ordinary member's, with no Administration rows
+		}
 		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role, Applications: apps}, nil
 	}
 

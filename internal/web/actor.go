@@ -46,13 +46,13 @@ import (
 // have. That is the same fail-closed posture domain.Actor's own doc comment describes for a nil
 // map, now covering both maps.
 func currentActor(req *http.Request, store *data.Store, cfg config.Config) domain.Actor {
-	return asPreviewRole(req.Context(), resolveActor(req, store, cfg))
+	return asPreviewRole(req.Context(), resolveActor(req, store, cfg), cfg)
 }
 
 // asPreviewRole is the actor a builder preview is drawn for: an ordinary member who holds exactly the previewed role in the Application the request
 // is in, and nothing else -- not the admin's own roles, not the Workspace admin role. Anywhere else it is the actor it was given. It only ever
 // narrows (one role, member), so a preview can show less than the admin has and never more.
-func asPreviewRole(ctx context.Context, actor domain.Actor) domain.Actor {
+func asPreviewRole(ctx context.Context, actor domain.Actor, cfg config.Config) domain.Actor {
 	role, ok := rendering.PreviewRole(ctx)
 	app, inApp := rendering.CurrentApplication(ctx)
 	if !ok || !inApp {
@@ -63,6 +63,10 @@ func asPreviewRole(ctx context.Context, actor domain.Actor) domain.Actor {
 		actor.Roles = nil // holds nothing there
 	}
 	actor.WorkspaceRole = "member"
+	actor.Groups = nil // a Group the admin belongs to grants the previewed person nothing
+	if cfg.AdminUserID != "" && actor.ID == cfg.AdminUserID {
+		actor.ID = "preview:" + actor.ID // the configured admin opens every Application by id (canOpenApplication); the person previewed does not
+	}
 	return actor
 }
 
