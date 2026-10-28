@@ -1,0 +1,20 @@
+# The ways the builder's preview of an Application can be looked at (registry.RuntimeSources: builder_roles), one record each: as the admin who is
+# building it, then as someone who holds only each role the Application declares. Read by the builder screen only.
+id: mch_builder_role
+name: Preview viewer
+runtime: builder_roles
+fields:
+  - { id: fld_id, name: Id, type: text }
+  - { id: fld_app, name: Application, type: text }
+  - { id: fld_title, name: Viewer, type: text, required: true }
+  - { id: fld_state, name: Chosen, type: status, options: [Current, Other] }
+  - { id: fld_link, name: Choose at, type: text }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_state, role: status }
+  - { field: fld_link, role: link }
+datasets:
+  - id: ds_runtime_builder_roles
+    select: records
+    where: { field: fld_app, op: equals, value: $parameters.app }
+    limit: 50

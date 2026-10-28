@@ -37,3 +37,20 @@ func nodeAttrs(ctx context.Context, path string) templ.Attributes {
 	}
 	return templ.Attributes{NodePathAttr: app.ID + "/" + path}
 }
+
+// PreviewNoRole is the previewed role of someone who holds no role in the Application: what a request names that the Application does not declare.
+const PreviewNoRole = "(none)"
+
+type previewRoleKey struct{}
+
+// WithPreviewRole puts the Application role a builder preview is drawn as onto ctx: the admin looking at the screen as someone who holds only that
+// role there. internal/web's builderMode middleware is the only caller, and only on a builder preview (GET, an admin, `?builder=1&as=<role>`).
+func WithPreviewRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, previewRoleKey{}, role)
+}
+
+// PreviewRole is the role this request is previewed as, and whether it is previewed as one.
+func PreviewRole(ctx context.Context) (string, bool) {
+	role, ok := ctx.Value(previewRoleKey{}).(string)
+	return role, ok && role != ""
+}

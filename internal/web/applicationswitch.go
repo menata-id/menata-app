@@ -93,7 +93,7 @@ func workspaceApplicationsProvider() composition.RuntimeProvider {
 				detail += ". Published by the assistant just now: you can take it back until " + at.Add(domain.PublishUndoWindow).Local().Format("15:04") + "."
 			}
 			out = append(out, &data.Record{ID: app.ID, MachineID: "mch_workspace_application", WorkspaceID: workspaceID,
-				Values: map[string]any{"fld_id": app.ID, "fld_title": app.Name, "fld_detail": detail, "fld_state": state, "fld_undo": undo, "fld_open": builderPreviewRoute(app)}})
+				Values: map[string]any{"fld_id": app.ID, "fld_title": app.Name, "fld_detail": detail, "fld_state": state, "fld_undo": undo, "fld_open": builderPreviewRoute(app, l.SourceParam("workspace_applications", "as"))}})
 		}
 		return out, nil
 	}
@@ -180,7 +180,7 @@ func runUndoPublish(w http.ResponseWriter, req *http.Request, env actionEnv, app
 
 // builderPreviewRoute is the address the builder frames to show an Application: its home screen asked for in builder mode. "" for an Application with
 // no screen of its own to show.
-func builderPreviewRoute(app domain.Application) string {
+func builderPreviewRoute(app domain.Application, as string) string {
 	if app.HomeRoute == "" {
 		return ""
 	}
@@ -190,6 +190,9 @@ func builderPreviewRoute(app domain.Application) string {
 	}
 	q := u.Query()
 	q.Set("builder", "1")
+	if as != "" {
+		q.Set("as", as)
+	}
 	u.RawQuery = q.Encode()
 	return u.String()
 }

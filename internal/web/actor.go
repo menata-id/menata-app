@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -8,6 +9,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // currentActor resolves who is acting on this request: the session identity, the Workspace Groups
@@ -44,6 +46,27 @@ import (
 // have. That is the same fail-closed posture domain.Actor's own doc comment describes for a nil
 // map, now covering both maps.
 func currentActor(req *http.Request, store *data.Store, cfg config.Config) domain.Actor {
+	return asPreviewRole(req.Context(), resolveActor(req, store, cfg))
+}
+
+// asPreviewRole is the actor a builder preview is drawn for: an ordinary member who holds exactly the previewed role in the Application the request
+// is in, and nothing else -- not the admin's own roles, not the Workspace admin role. Anywhere else it is the actor it was given. It only ever
+// narrows (one role, member), so a preview can show less than the admin has and never more.
+func asPreviewRole(ctx context.Context, actor domain.Actor) domain.Actor {
+	role, ok := rendering.PreviewRole(ctx)
+	app, inApp := rendering.CurrentApplication(ctx)
+	if !ok || !inApp {
+		return actor
+	}
+	actor.Roles = map[string][]string{app.ID: {role}}
+	if role == rendering.PreviewNoRole {
+		actor.Roles = nil // holds nothing there
+	}
+	actor.WorkspaceRole = "member"
+	return actor
+}
+
+func resolveActor(req *http.Request, store *data.Store, cfg config.Config) domain.Actor {
 	id, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	if id == "" {
 		return domain.Actor{}

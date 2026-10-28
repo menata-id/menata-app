@@ -39,6 +39,22 @@ page:
           children:
             - component: Collection
               gap: tight
+              inline: true
+              binding: { dataset: ds_runtime_builder_roles, rows: records }
+              children:
+                - layout: row
+                  gap: tight
+                  children:
+                    - static: link
+                      variant: chip
+                      when: { role: status, is: Other }
+                      from: { text: title, href: link }
+                    - static: link
+                      variant: plain
+                      when: { role: status, is: Current }
+                      from: { text: title, href: link }
+            - component: Collection
+              gap: tight
               block: true
               binding: { dataset: ds_runtime_workspace_application, rows: records }
               children:

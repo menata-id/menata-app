@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -116,7 +117,16 @@ func builderMode(store *data.Store, cfg config.Config) func(http.Handler) http.H
 				m, err := membershipFor(req.Context(), store, workspaceID, userID)
 				// The same admission as requireWorkspaceAdmin: an admin's membership, or the configured admin identity that has none.
 				if err == nil && ((m != nil && m.WorkspaceRole == "admin") || (m == nil && userID != "" && userID == cfg.AdminUserID)) {
-					req = req.WithContext(rendering.WithBuilderMode(req.Context()))
+					ctx := rendering.WithBuilderMode(req.Context())
+					if as := req.URL.Query().Get("as"); as != "" {
+						// Previewed as a role the Application declares, and only one: any other name holds no role there, which fails closed.
+						if app, ok := rendering.CurrentApplication(ctx); ok && slices.Contains(app.Roles, as) {
+							ctx = rendering.WithPreviewRole(ctx, as)
+						} else {
+							ctx = rendering.WithPreviewRole(ctx, rendering.PreviewNoRole)
+						}
+					}
+					req = req.WithContext(ctx)
 				}
 			}
 			next.ServeHTTP(w, req)
@@ -156,4 +166,39 @@ func codeOf(wanted bool, ctx context.Context, store *data.Store, cfg config.Conf
 // most one file.
 func wantsCode(id, selected, tab string) bool {
 	return selected != "" && id == selected && tab == "Code"
+}
+
+// builderRolesProvider is the reader of the `builder_roles` source: for every Application, the ways the builder's preview can be looked at -- as the
+// admin who is building it (no role), then as someone who holds each role the Application declares. Each says whether it is the one the request chose
+// (`?as=`) and carries the builder's own address with that choice and the part and tab already chosen kept, so changing the viewer never loses your place.
+func builderRolesProvider() composition.RuntimeProvider {
+	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		node, tab, chosen := l.SourceParam("builder_roles", "node"), l.SourceParam("builder_roles", "tab"), l.SourceParam("builder_roles", "as")
+		var out []*data.Record
+		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+			add := func(role, title string) {
+				q := url.Values{}
+				for k, v := range map[string]string{"node": node, "tab": tab, "as": role} {
+					if v != "" {
+						q.Set(k, v)
+					}
+				}
+				state := "Other"
+				if role == chosen {
+					state = "Current"
+				}
+				id := app.ID + "/" + role
+				out = append(out, &data.Record{ID: id, MachineID: "mch_builder_role", WorkspaceID: workspaceID, Values: map[string]any{
+					"fld_id": id, "fld_app": app.ID, "fld_title": title, "fld_state": state,
+					"fld_link": "/builder/" + url.PathEscape(app.ID) + "?" + q.Encode(),
+				}})
+			}
+			add("", "As the builder")
+			for _, role := range app.Roles {
+				add(role, "As "+role)
+			}
+		}
+		return out, nil
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -123,7 +124,7 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 		if app.Inactive || app.HomeRoute == "" {
 			continue
 		}
-		req := httptest.NewRequest(http.MethodGet, builderPreviewRoute(app), nil)
+		req := httptest.NewRequest(http.MethodGet, builderPreviewRoute(app, ""), nil)
 		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
@@ -163,7 +164,7 @@ func TestBuilderPreviewMayBeFramedByThisOriginOnly(t *testing.T) {
 // The address the builder frames keeps whatever query the home route already has.
 func TestBuilderPreviewRouteKeepsTheHomeRoutesOwnQuery(t *testing.T) {
 	for route, want := range map[string]string{"/machines/x": "/machines/x?builder=1", "/a?tab=mine": "/a?builder=1&tab=mine", "": ""} {
-		if got := builderPreviewRoute(domain.Application{HomeRoute: route}); got != want {
+		if got := builderPreviewRoute(domain.Application{HomeRoute: route}, ""); got != want {
 			t.Errorf("%q -> %q, want %q", route, got, want)
 		}
 	}
@@ -202,5 +203,52 @@ func TestWorkspaceSettingsLinksEachApplicationToItsBuilder(t *testing.T) {
 	body := s.getAs(t, "/workspace-settings").Body.String()
 	if !strings.Contains(body, `href="/builder/app_document_tracking"`) || !strings.Contains(body, "Open in builder") {
 		t.Errorf("the Applications section does not link the Application to its builder:\n%s", body)
+	}
+}
+
+// Preview as a role: the builder offers the admin and each role the Application declares, keeps the part and tab already chosen when the viewer
+// changes, frames the screen with that choice, and the framed screen is drawn for someone who holds exactly that role -- a role the Application
+// does not declare holds nothing there, so the screen refuses, which is the honest preview of "this person cannot open it".
+func TestBuilderPreviewAsARole(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "bas")
+	get := func(path string) (int, string) {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code, rec.Body.String()
+	}
+	tested := false
+	for _, app := range fx.ws.Applications {
+		if app.Inactive || app.HomeRoute == "" || len(app.Roles) == 0 {
+			continue
+		}
+		role := app.Roles[0]
+		code, page := get("/builder/" + app.ID + "?node=x&tab=code&as=" + url.QueryEscape(role))
+		if code != http.StatusOK {
+			t.Fatalf("builder for %s as %s: %d", app.ID, role, code)
+		}
+		if !strings.Contains(page, "As the builder") || !strings.Contains(page, ">As "+role+"<") {
+			t.Errorf("%s: the builder does not offer the admin and the role %q:\n%s", app.ID, role, page)
+		}
+		if m := regexp.MustCompile(`<iframe[^>]*src="([^"]*)"`).FindStringSubmatch(page); m == nil || !strings.Contains(m[1], "as="+url.QueryEscape(role)) {
+			t.Errorf("%s: the frame does not carry the previewed role: %v", app.ID, m)
+		}
+		if !strings.Contains(page, "tab=code") || !strings.Contains(page, "node=x") {
+			t.Errorf("%s: changing the viewer loses the part or the tab", app.ID)
+		}
+		if code, _ := get(app.HomeRoute + "?builder=1&as=" + url.QueryEscape(role)); code != http.StatusOK {
+			t.Errorf("%s as %s: %d, want 200", app.HomeRoute, role, code)
+		}
+		if code, _ := get(app.HomeRoute + "?builder=1&as=nobody_holds_this"); code != http.StatusForbidden {
+			t.Errorf("%s as a role the Application does not declare: %d, want 403 (fails closed)", app.HomeRoute, code)
+		}
+		if code, _ := get(app.HomeRoute + "?as=nobody_holds_this"); code == http.StatusForbidden {
+			t.Errorf("%s: `as` without builder mode changed who the admin is", app.HomeRoute)
+		}
+		tested = true
+	}
+	if !tested {
+		t.Fatal("no installed Application declares roles and a home screen -- the preview-as-a-role check measures nothing")
 	}
 }
