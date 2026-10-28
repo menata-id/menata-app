@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,7 @@ import (
 	"menata.app/internal/builder"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/installer"
 )
 
@@ -182,9 +184,28 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 		serverError(w, err)
 		return "", false
 	}
-	ops := []builder.Op{
-		{Kind: builder.OpRenameField, Machine: parts[1], Field: parts[3], Value: name},
-		{Kind: builder.OpSetRequired, Machine: parts[1], Field: parts[3], Flag: req.PostForm.Get("required") != ""},
+	current := fieldOf(machinesFor(ctx)[parts[1]], parts[3])
+	if current == nil {
+		http.Error(w, "this Field is not in this Workspace", http.StatusNotFound)
+		return "", false
+	}
+	// Only what differs is an operation: saving a form nobody changed writes nothing (the writer refuses an identical Application).
+	var ops []builder.Op
+	if name != current.Name {
+		ops = append(ops, builder.Op{Kind: builder.OpRenameField, Machine: parts[1], Field: parts[3], Value: name})
+	}
+	if required := req.PostForm.Get("required") != ""; required != current.Required {
+		ops = append(ops, builder.Op{Kind: builder.OpSetRequired, Machine: parts[1], Field: parts[3], Flag: required})
+	}
+	if len(current.Options) > 0 {
+		ops = append(ops, optionOps(parts[1], parts[3], current.Options, req.PostForm.Get("options"))...)
+	} else if strings.TrimSpace(req.PostForm.Get("options")) != "" {
+		http.Error(w, "this Field offers no choices to edit", http.StatusBadRequest)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
+	if len(ops) == 0 {
+		return back, true
 	}
 	snapshotBeforeWrite(env.cfg, manifestPath)
 	err = builder.Commit(manifestPath, appID, ops, version, nil)
@@ -206,5 +227,44 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 		serverError(w, fmt.Errorf("builder: written, but the live reload failed -- a restart will pick it up: %w", err))
 		return "", false
 	}
-	return "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode(), true
+	return back, true
+}
+
+func fieldOf(m *domain.Machine, id string) *domain.Field {
+	if m == nil {
+		return nil
+	}
+	for i := range m.Fields {
+		if m.Fields[i].ID == id {
+			return &m.Fields[i]
+		}
+	}
+	return nil
+}
+
+// optionOps are the operations that turn a Field's choices into the lines typed: a line not there yet is added (at the end, in the order typed) and a
+// choice no line names is removed. A blank line and a repeated one say nothing. Typing no line at all would remove every choice, which
+// is not an edit but a different Field, so it makes no operation.
+func optionOps(machine, field string, have []string, typed string) []builder.Op {
+	var want []string
+	for _, line := range strings.Split(typed, "\n") {
+		if line = strings.TrimSpace(line); line != "" && !slices.Contains(want, line) {
+			want = append(want, line)
+		}
+	}
+	if len(want) == 0 {
+		return nil
+	}
+	var ops []builder.Op
+	for _, o := range have {
+		if !slices.Contains(want, o) {
+			ops = append(ops, builder.Op{Kind: builder.OpRemoveOption, Machine: machine, Field: field, Value: o})
+		}
+	}
+	for _, o := range want {
+		if !slices.Contains(have, o) {
+			ops = append(ops, builder.Op{Kind: builder.OpAddOption, Machine: machine, Field: field, Value: o})
+		}
+	}
+	return ops
 }

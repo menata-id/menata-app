@@ -357,3 +357,45 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 		}
 	}
 }
+
+// A Field that offers choices shows them one per line in the Edit tab, and saving the lines adds the new ones. A choice no line names would be removed, which
+// the plan refuses (records may hold it), and nothing is written; a Field without choices refuses lines; a box emptied of every line changes nothing.
+func TestBuilderEditTabEditsTheChoicesOfAField(t *testing.T) {
+	s := newInstallTestSetup(t, "bopts")
+	field := "app_document_tracking/machines/mch_document/fields/fld_kind"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"  - id: fld_kind\n    name: Kind\n    type: status\n    options: [Draft, Under Review, Approved, Rejected]\n")
+	s.reloadWorkspace(t)
+	body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(field)).Body.String()
+	for _, want := range []string{`name="options"`, "Under Review", "Rejected"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Edit tab does not offer the choices (%q):\n%s", want, body)
+		}
+	}
+	post := func(node, lines string) int {
+		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(node), url.Values{"name": {"Kind"}, "options": {lines}}).Code
+	}
+	all := "Draft\r\nUnder Review\r\nApproved\r\nRejected"
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+
+	if code := post(field, all+"\r\n\r\nArchived\r\nArchived"); code != http.StatusSeeOther {
+		t.Fatalf("adding a choice: status %d", code)
+	}
+	if strings.Count(read(), "Archived") != 1 {
+		t.Errorf("the new choice is not in the file exactly once:\n%s", read())
+	}
+	before := read()
+	if code := post(field, "Draft\r\nApproved"); code < 400 {
+		t.Errorf("removing choices was accepted: %d", code)
+	}
+	if read() != before {
+		t.Errorf("a refused removal wrote the file")
+	}
+	if code := post(field, " \r\n "); code != http.StatusSeeOther || read() != before {
+		t.Errorf("an empty box must change nothing (status %d)", code)
+	}
+	if code := post("app_document_tracking/machines/mch_document/fields/fld_title", "A\r\nB"); code < 400 {
+		t.Errorf("choices for a Field that offers none were accepted: %d", code)
+	}
+}

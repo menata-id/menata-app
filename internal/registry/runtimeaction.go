@@ -58,6 +58,8 @@ const (
 	// tick that starts as that field's "true". Both read `Field` of the record, so a Form edits what a source provides without the page naming a value.
 	ActionInputRecordLine = "record_line"
 	ActionInputRecordFlag = "record_flag"
+	// ActionInputRecordLines is a box of lines, one thing per line, that starts as the lines one field of the record holds (a Field's options).
+	ActionInputRecordLines = "record_lines"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -90,8 +92,9 @@ var RuntimeActions = map[string]RuntimeAction{
 		Doc: "replaces a Group's membership with exactly the members ticked"},
 	"edit_field": {ID: "edit_field", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
 		{Name: "name", Label: "Name", Required: true, Kind: ActionInputRecordLine, Field: "fld_name"},
-		{Name: "required", Label: "Must be filled in", Kind: ActionInputRecordFlag, Field: "fld_required"}},
-		Doc: "changes the name of a Field and whether it is required, as the same builder operations the assistant's changes use (reviewed against the installation's version, snapshotted, load-verified); about a part of the builder tree that is a Field"},
+		{Name: "required", Label: "Must be filled in", Kind: ActionInputRecordFlag, Field: "fld_required"},
+		{Name: "options", Label: "Choices, one per line", Kind: ActionInputRecordLines, Field: "fld_options"}},
+		Doc: "changes the name of a Field, whether it is required and, for a Field that offers choices, which choices (added and removed as the same operations a conversation uses), as the same builder operations the assistant's changes use (reviewed against the installation's version, snapshotted, load-verified); about a part of the builder tree that is a Field"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

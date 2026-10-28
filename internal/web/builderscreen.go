@@ -84,7 +84,7 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 						detail += ", required"
 					}
 					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail,
-						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)})
+						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", strings.Join(f.Options, "\n")})
 				}
 			}
 			for _, item := range app.AllNavigation {

@@ -1302,14 +1302,17 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, err
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputCode, Required: in.Required, Default: text})
-		case registry.ActionInputRecordLine, registry.ActionInputRecordFlag:
+		case registry.ActionInputRecordLine, registry.ActionInputRecordFlag, registry.ActionInputRecordLines:
 			text, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
 			if err != nil {
 				return ir.FormSpec{}, err
 			}
 			kind := domain.InputText
-			if in.Kind == registry.ActionInputRecordFlag {
+			switch in.Kind {
+			case registry.ActionInputRecordFlag:
 				kind = domain.InputBoolean
+			case registry.ActionInputRecordLines:
+				kind = domain.InputLongText
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: kind, Required: in.Required, Default: text})
 		case registry.ActionInputTemplateRoles:
