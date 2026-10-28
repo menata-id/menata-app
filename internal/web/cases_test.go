@@ -235,6 +235,7 @@ var caseRatchet = map[string]ratchetEntry{
 	"case25_visible_to":           {Rejected: 0, Passed: 4, Steps: 4},
 	"case26_count_badge":          {Rejected: 0, Passed: 6, Steps: 6},
 	"case27_show_when":            {Rejected: 0, Passed: 4, Steps: 4},
+	"case28_list_layout":          {Rejected: 0, Passed: 4, Steps: 4},
 }
 
 var unreadKey = regexp.MustCompile(`line (\d+): "([^"]+)" is not a key`)

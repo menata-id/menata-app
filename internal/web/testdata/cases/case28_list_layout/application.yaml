@@ -1,0 +1,35 @@
+id: app_jobs
+name: Pekerjaan
+machines:
+  - mch_job
+roles:
+  - clerk
+description: A list laid out for reading at a glance.
+icon: board
+color: blue
+summary_machine: mch_job
+navigation:
+  - id: nav_jobs
+    label: Jobs
+    title: Jobs
+    route: /pages/nav_jobs
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Add job
+          binding: { dataset: ds_jobs, write: create }
+        - component: Table
+          label: Jobs
+          empty: No job yet.
+          framed: true
+          density: compact
+          group_by: fld_state
+          row_tone: date:tone
+          columns:
+            - { header: Title, field: fld_title }
+            - { header: Due, field: fld_due }
+          binding: { dataset: ds_jobs, rows: records }

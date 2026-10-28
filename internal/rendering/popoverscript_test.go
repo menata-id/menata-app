@@ -66,6 +66,7 @@ var unnamedDisclosures = map[string]int{
 	"disclosure.templ":      1, // the Disclosure Component: a panel the page declared
 	"popover.templ":         1, // the Popover itself; the shell script is its group
 	"tree.templ":            1, // the Tree Component: a folder the page declared, folded or open on its own
+	"table.templ":           1, // a Table grouped by a Field (`group_by:`): each group folds on its own, open to begin with
 }
 
 func TestEveryDetailsClosesItsSiblingsOrIsADisclosure(t *testing.T) {

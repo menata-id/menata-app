@@ -21,6 +21,10 @@ const (
 	// tableHiddenProp is the places (0-based, comma-joined) of the columns whose header is kept for assistive technology and
 	// not drawn (`hide_header: true`), lowered and never written, for the reason the other two are not.
 	tableHiddenProp = "hidden"
+	// tableGroupsProp is `group_by:` read against the records: one "label<TAB>rows" line per group, in the order the groups first appear, the rows being laid out group by group.
+	// tableRowTonesProp is `row_tone:` read per row: the tone of each row, comma-joined, empty where the record has none. Lowering writes both; a page that does is refused.
+	tableGroupsProp   = "groups"
+	tableRowTonesProp = "rowtones"
 )
 
 // lowerTable turns a Table bound with `rows: records` into its header row and one row of cells per record. The cells
@@ -40,7 +44,7 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	case len(n.From) > 0 || n.To != "" || n.Param != "":
 		return nil, fmt.Errorf("%s: from:, to: and param: do not belong on a Table; a column takes its role with from: inside columns:", path)
 	}
-	for _, p := range []string{tableHeadersProp, tableAlignsProp, tableHiddenProp} {
+	for _, p := range []string{tableHeadersProp, tableAlignsProp, tableHiddenProp, tableGroupsProp, tableRowTonesProp} {
 		if _, written := n.Props[p]; written {
 			return nil, fmt.Errorf("%s: %s: comes from columns: and is never written", path, p)
 		}
@@ -214,6 +218,9 @@ func lowerTable(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 			}
 			out.Children = append(out.Children, cell)
 		}
+	}
+	if err := arrangeRows(&out, n, set, dimension, len(cols), actions != nil, path); err != nil {
+		return nil, err
 	}
 	footer, err := tableFooter(cols, set, dimension, path, actions != nil, r.Number)
 	if err != nil {
@@ -434,4 +441,70 @@ func tableCell(c domain.PageColumn, text string, rec map[string]string) (UINode,
 		}
 	}
 	return UINode{Kind: NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": text}}, nil
+}
+
+// arrangeRows applies `group_by:` and `row_tone:` to the rows lowering has built, which are `width` cells each in record order: the rows are laid group by group (a group is a value of
+// the Field, in the order values first appear) and the groups' labels and sizes, and each row's tone, are written as the Table's lowered properties. A Field the Dataset's Machine does
+// not project, or a role the record has no value for, is refused by name rather than drawn as one lump.
+func arrangeRows(out *UINode, n domain.PageNode, set RecordSet, dimension bool, columns int, actions bool, path string) error {
+	groupBy, rowTone := n.Props["group_by"], n.Props["row_tone"]
+	if groupBy == "" && rowTone == "" {
+		return nil
+	}
+	if dimension {
+		return fmt.Errorf("%s: group_by: and row_tone: read a record's Fields and roles, which a Dimension's rows are not", path)
+	}
+	width := columns
+	if actions {
+		width++
+	}
+	rows := len(set.Records)
+	if len(out.Children) != rows*width {
+		return fmt.Errorf("%s: %d cells for %d rows of %d", path, len(out.Children), rows, width)
+	}
+	order := make([]int, rows)
+	for i := range order {
+		order[i] = i
+	}
+	if groupBy != "" {
+		key := domain.PageFieldRole(groupBy)
+		var labels []string
+		members := map[string][]int{}
+		for i, rec := range set.Records {
+			label, ok := rec[key]
+			if !ok && !set.ShapeOnly {
+				return fmt.Errorf("%s: group_by: %s is not projected by the bound Dataset's Machine (record %d)", path, groupBy, i)
+			}
+			if _, seen := members[label]; !seen {
+				labels = append(labels, label)
+			}
+			members[label] = append(members[label], i)
+		}
+		order = order[:0]
+		var lines []string
+		for _, label := range labels {
+			order = append(order, members[label]...)
+			lines = append(lines, strings.NewReplacer("\t", " ", "\n", " ").Replace(label)+"\t"+strconv.Itoa(len(members[label])))
+		}
+		if len(lines) > 0 {
+			out.Props[tableGroupsProp] = strings.Join(lines, "\n")
+		}
+	}
+	if rowTone != "" {
+		tones := make([]string, rows)
+		for pos, i := range order {
+			if v, ok := set.Records[i][rowTone]; ok {
+				tones[pos] = v
+			} else if !set.ShapeOnly {
+				return fmt.Errorf("%s: row_tone: %s is a role the bound Dataset's Machine does not project (record %d) -- its card_fields need the role it is derived from", path, rowTone, i)
+			}
+		}
+		out.Props[tableRowTonesProp] = strings.Join(tones, ",")
+	}
+	cells := make([]UINode, 0, len(out.Children))
+	for _, i := range order {
+		cells = append(cells, out.Children[i*width:(i+1)*width]...)
+	}
+	out.Children = cells
+	return nil
 }

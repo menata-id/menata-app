@@ -250,7 +250,7 @@ var allowedProps = map[string][]string{
 	"component/Disclosure":       {"summary"},
 	"component/SegmentedControl": {"label", "query", "options", "selected", "keep"},
 	"component/Popover":          {"label", "title", "trigger", "align", "density"},
-	"component/Table":            {"label", "empty", "headers", "aligns", "hidden", "truncated", "framed", "footer"},
+	"component/Table":            {"label", "empty", "headers", "aligns", "hidden", "truncated", "framed", "footer", "density", "group_by", "row_tone", "groups", "rowtones"},
 	"component/NavList":          {"label", "variant", "home", "rows"},
 	"component/Tree":             {"label", "query", "outline", "empty"},
 	"component/Frame":            {"label", "src", "query"},

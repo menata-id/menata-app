@@ -1737,7 +1737,7 @@ templ uiNodeBody(n ir.UINode) {
 				case domain.ComponentNavList:
 					@navList(n.Props["label"], n.Props["variant"], n.Props["home"], n.Props["rows"])
 				case domain.ComponentTable:
-					@table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["hidden"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["footer"], uiChildComponents(n))
+					@table(n.Props["label"], n.Props["empty"], n.Props["headers"], n.Props["aligns"], n.Props["hidden"], n.Props["framed"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["footer"], n.Props["density"], n.Props["group_by"], n.Props["row_tone"], n.Props["groups"], n.Props["rowtones"], uiChildComponents(n))
 				case domain.ComponentFormInput:
 					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["label"], n.Props["required"] == "true", n.Props["fixed"] == "true", n.Props["money"] == "true")
 			}

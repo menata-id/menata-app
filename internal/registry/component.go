@@ -294,6 +294,14 @@ var tableContract = domain.ComponentContract{
 		// footer is the total row lowering produced from the columns' `total:` (and the Table's `totals:` Dataset, which
 		// lowering reads and drops), one tab-separated cell per column, never written.
 		{Name: "footer", Kind: "string"},
+		// density is how close the rows sit (compact, regular, roomy), written by the page. group_by is a Field of the records whose value folds the rows into groups, each with its
+		// count in the header, and row_tone a derived role (date:tone, status:tone) whose tone each row takes -- both written by the page. groups and rowtones are what lowering makes
+		// of them (one "label<TAB>rows" line per group in order; one tone per row, comma-joined) and are never written.
+		{Name: "density", Kind: "string"},
+		{Name: "group_by", Kind: "string"},
+		{Name: "row_tone", Kind: "string"},
+		{Name: "groups", Kind: "string"},
+		{Name: "rowtones", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"cell"},
@@ -311,6 +319,12 @@ func validateTable(inputs map[string]string) []string {
 	}
 	if v, ok := inputs["framed"]; ok && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Table framed %q is not true or false", v))
+	}
+	if v, ok := inputs["density"]; ok && !domain.KnownTableDensities[domain.ListDensity(v)] {
+		issues = append(issues, fmt.Sprintf("Table density %q is not compact, regular or roomy", v))
+	}
+	if v, ok := inputs["row_tone"]; ok && !domain.TableRowTones[v] {
+		issues = append(issues, fmt.Sprintf("Table row_tone %q is not a role that carries a tone (date:tone or status:tone)", v))
 	}
 	headers := strings.Split(inputs["headers"], "\n")
 	if inputs["headers"] == "" {

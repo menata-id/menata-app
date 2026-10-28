@@ -42,6 +42,7 @@ const (
 	OpSetListFilter      = "set_list_filter"
 	OpSetListSearch      = "set_list_search"
 	OpAddTransition      = "add_transition"
+	OpSetListLayout      = "set_list_layout"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -102,6 +103,7 @@ var capabilityOf = map[string]string{
 	OpSetListFilter:      "navItemDoc.route",
 	OpSetListSearch:      "navItemDoc.route",
 	OpAddTransition:      "machineDoc.transitions",
+	OpSetListLayout:      "navItemDoc.route",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -131,7 +133,7 @@ func Apply(current aiassist.GeneratedApplication, ops []Op) (aiassist.GeneratedA
 
 func apply(app *aiassist.GeneratedApplication, op Op) error {
 	switch op.Kind {
-	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem, OpSetMenuParent, OpSetMenuVisibleTo, OpSetMenuBadge, OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch:
+	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem, OpSetMenuParent, OpSetMenuVisibleTo, OpSetMenuBadge, OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch, OpSetListLayout:
 		i := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == op.Item })
 		if i < 0 {
 			return fmt.Errorf("menu item %q is not in application %s", op.Item, app.ID)
@@ -147,7 +149,7 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			app.Navigation[i].VisibleTo = slices.Clone(op.Roles)
 		case OpSetMenuBadge:
 			app.Navigation[i].Badge = op.Value
-		case OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch:
+		case OpSetListColumns, OpSetListSort, OpSetListFilter, OpSetListSearch, OpSetListLayout:
 			// Only a list the assistant wrote (read back as one) has these; everything else is a screen the model cannot name.
 			if app.Navigation[i].List == nil {
 				return fmt.Errorf("menu item %q is not a list this editor can change", op.Item)
@@ -166,6 +168,9 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 				list.FilterField = op.Field
 			case OpSetListSearch:
 				list.SearchFields = slices.Clone(op.Fields)
+			case OpSetListLayout:
+				// Value is the density, Field the Field the rows are grouped by, Watch the role whose tone each row takes; empty is none.
+				list.Density, list.GroupBy, list.RowTone = op.Value, op.Field, op.Watch
 			}
 			app.Navigation[i].List = &list
 		case OpMoveMenuItem:

@@ -426,7 +426,12 @@ func listValues(machineID string, names map[string]string, l *aiassist.Generated
 	if sort == "" {
 		sort = "created_at"
 	}
-	return [][2]string{{"fld_list_machine", machineID}, {"fld_columns", strings.Join(cols, "\n")}, {"fld_sort", sort}, {"fld_direction", dir}, {"fld_filter", l.FilterField}, {"fld_search", strings.Join(l.SearchFields, "\n")}}
+	density := l.Density
+	if density == "" {
+		density = "regular"
+	}
+	return [][2]string{{"fld_list_machine", machineID}, {"fld_columns", strings.Join(cols, "\n")}, {"fld_sort", sort}, {"fld_direction", dir}, {"fld_filter", l.FilterField}, {"fld_search", strings.Join(l.SearchFields, "\n")},
+		{"fld_density", density}, {"fld_group_by", l.GroupBy}, {"fld_row_tone", l.RowTone}}
 }
 
 // builderStepsProvider is the reader of the `builder_steps` source: for the workflow part the request selects (`machines/<machine>/workflow` of an Application of this

@@ -106,6 +106,8 @@ type pageNodeDoc struct {
 	Title       string            `yaml:"title,omitempty"`
 	Trigger     string            `yaml:"trigger,omitempty"`
 	Density     string            `yaml:"density,omitempty"`
+	GroupBy     string            `yaml:"group_by,omitempty"`
+	RowTone     string            `yaml:"row_tone,omitempty"`
 	Layout      string            `yaml:"layout,omitempty"`
 	Static      string            `yaml:"static,omitempty"`
 	Component   string            `yaml:"component,omitempty"`
@@ -429,6 +431,17 @@ func validateTable(where string, l *GeneratedList, fields map[string]GeneratedFi
 		}
 		seenSearch[id] = true
 	}
+	if l.Density != "" && !domain.KnownTableDensities[domain.ListDensity(l.Density)] {
+		issues = append(issues, fmt.Sprintf("%s: density must be compact, regular or roomy, not %q", where, l.Density))
+	}
+	if l.GroupBy != "" {
+		if f, ok := fields[l.GroupBy]; !ok || domain.FieldType(f.Type) == domain.FieldTypeFile || domain.FieldType(f.Type) == domain.FieldTypeGroup {
+			issues = append(issues, fmt.Sprintf("%s: group_by %q must be a field of this machine that rows can be folded by", where, l.GroupBy))
+		}
+	}
+	if l.RowTone != "" && !domain.TableRowTones[l.RowTone] {
+		issues = append(issues, fmt.Sprintf("%s: row_tone must be date:tone or status:tone, not %q", where, l.RowTone))
+	}
 	if l.FilterField != "" {
 		if f, ok := fields[l.FilterField]; !ok || domain.FieldType(f.Type) != domain.FieldTypeStatus {
 			issues = append(issues, fmt.Sprintf("%s: filter_field %q must be a status field of this machine", where, l.FilterField))
@@ -519,6 +532,7 @@ func tablePage(l listed, m GeneratedMachine) pageNodeDoc {
 		children = append(children, pageNodeDoc{Layout: "row", Gap: "tight", Align: "center", Children: controls})
 	}
 	children = append(children, pageNodeDoc{Component: "Table", Label: l.Item.Label, Empty: listEmptyWords, Framed: true,
+		Density: spec.Density, GroupBy: spec.GroupBy, RowTone: spec.RowTone,
 		Columns: cols, Binding: &pageBindingDoc{Dataset: l.DatasetID, Rows: "records"}})
 	return pageNodeDoc{Layout: "stack", Gap: "default", Children: withAddForm(l, children)}
 }

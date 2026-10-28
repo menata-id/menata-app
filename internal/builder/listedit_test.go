@@ -225,3 +225,45 @@ func TestARewriteLeavesAForeignDatasetUnderTheChipsId(t *testing.T) {
 		t.Errorf("a Dataset of the person's own was dropped by a rewrite of the list:\n%s", after)
 	}
 }
+
+// A table's layout -- how close its rows sit, the Field that folds them into groups, the role whose tone each row takes -- is read back and changed by one operation; a tone the Machine
+// has no role for is refused by the loader at review, with its reason.
+func TestListLayoutOperationFoldsAndTonesATable(t *testing.T) {
+	manifest, nav := installedWithList(t)
+	ops := []Op{{Kind: OpSetListLayout, Item: nav, Value: "compact", Field: "fld_status", Watch: "status:tone"}}
+	if err := Commit(manifest, appID, ops, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	got := current(t, manifest).Navigation[0].List
+	if got == nil || got.Density != "compact" || got.GroupBy != "fld_status" || got.RowTone != "status:tone" {
+		t.Errorf("the layout after the operation: %+v", got)
+	}
+	text := ""
+	for path, body := range tree(t, manifest) {
+		if strings.HasSuffix(path, "applications/sampah.yaml") {
+			text = body
+		}
+	}
+	for _, want := range []string{"density: compact", "group_by: fld_status", "row_tone: status:tone"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the page lacks %q:\n%s", want, text)
+		}
+	}
+	for name, bad := range map[string][]Op{
+		"a role the Machine has no card for": {{Kind: OpSetListLayout, Item: nav, Watch: "date:tone"}},
+		"a density that is not one":          {{Kind: OpSetListLayout, Item: nav, Value: "tight"}},
+		"a Field that is not there":          {{Kind: OpSetListLayout, Item: nav, Field: "fld_nowhere"}},
+		"a role that is not one":             {{Kind: OpSetListLayout, Item: nav, Watch: "money:tone"}},
+	} {
+		if _, err := Review(manifest, appID, bad); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+	// Taking the layout off again is a change too, and it reads back as none.
+	if err := Commit(manifest, appID, []Op{{Kind: OpSetListLayout, Item: nav}}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	if after := current(t, manifest).Navigation[0].List; after.Density != "" || after.GroupBy != "" || after.RowTone != "" {
+		t.Errorf("the layout stayed after it was taken off: %+v", after)
+	}
+}

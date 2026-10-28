@@ -607,6 +607,10 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 			}
 		}
 		out.Binding.CountCut = p.typ == string(domain.ComponentTable) && p.props["complete"] == "true"
+		// A Table grouped by a Field reads that Field's value for every record, as a column does.
+		if g := p.props["group_by"]; g != "" && p.typ == string(domain.ComponentTable) && !slices.Contains(out.Binding.Fields, g) {
+			out.Binding.Fields = append(out.Binding.Fields, g)
+		}
 		out.Binding.Values = p.values
 		out.Binding.Starts = p.starts
 		out.Binding.FormFields = p.formFields
@@ -1283,6 +1287,23 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	}
 	if (columnsRead(n.Columns, domain.PageDateLabelRole) || columnsRead(n.Columns, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: columns: %s -- machine %q declares no card_fields role %q to derive it from", where, domain.PageDateLabelRole, source.ID, domain.CardFieldRoleDate))
+	}
+	if n.Type == string(domain.ComponentTable) {
+		if g := n.Props["group_by"]; g != "" {
+			if f, ok := source.FieldByID(g); !ok || f.Type == domain.FieldTypeFile {
+				issues = append(issues, fmt.Sprintf("%s: page: group_by: %q is not a Field of machine %q that a list can fold by", where, g, source.ID))
+			}
+		}
+		switch n.Props["row_tone"] {
+		case domain.PageDateToneRole:
+			if source.CardFieldFor(domain.CardFieldRoleDate) == "" {
+				issues = append(issues, fmt.Sprintf("%s: page: row_tone: %s -- machine %q declares no card_fields role %q to derive it from", where, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
+			}
+		case domain.PageStatusToneRole:
+			if source.CardFieldFor(domain.CardFieldRoleStatus) == "" {
+				issues = append(issues, fmt.Sprintf("%s: page: row_tone: %s -- machine %q declares no card_fields role %q to derive it from", where, domain.PageStatusToneRole, source.ID, domain.CardFieldRoleStatus))
+			}
+		}
 	}
 	if columnsRead(n.Columns, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: columns: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))

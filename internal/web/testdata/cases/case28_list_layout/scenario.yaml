@@ -1,0 +1,25 @@
+case: 28
+title: A list laid out for reading at a glance
+# The Table is grouped by State -- each group a fold with its count in the header -- its rows sit close (`density: compact`), and a row takes the tone of its date
+# (`row_tone: date:tone`): an open job whose day has passed is drawn in the bad tone, a finished one is not.
+actors:
+  - { name: sari, role: clerk }
+steps:
+  - id: a-late-open-job
+    as: sari
+    create: { machine: mch_job, values: { fld_title: Late, fld_due: "2020-01-01" } }
+    expect: ok
+  - id: a-job-with-time-left
+    as: sari
+    create: { machine: mch_job, values: { fld_title: Later, fld_due: "2099-01-01" } }
+    expect: ok
+  - id: a-finished-late-job
+    as: sari
+    create: { machine: mch_job, values: { fld_title: Finished, fld_state: Done, fld_due: "2020-01-01" } }
+    expect: ok
+  - id: the-table-folds-by-state-and-marks-the-late-row
+    as: sari
+    view:
+      path: /pages/nav_jobs
+      shows: ["<details", "Open", "Done", "bg-tone-bad-bg", "py-1.5"]
+    expect: ok

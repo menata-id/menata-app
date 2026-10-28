@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -74,44 +75,109 @@ func recordTableColumns(fields []domain.Field) []TableColumn {
 // header, both produced by lowering from the page's `columns:`; the cells are row-major, so cell i belongs to column
 // i mod the number of headers and to row i div that number. A table with no cells and an `empty` text says that instead
 // of drawing a header over nothing.
-templ table(label, empty, headers, aligns, hidden string, framed bool, truncated Truncation, footer string, cells []templ.Component) {
+templ table(label, empty, headers, aligns, hidden string, framed bool, truncated Truncation, footer, density, group_by, row_tone, groups, rowtones string, cells []templ.Component) {
 	{{ cols := tableColumnsFromProps(headers, aligns, hidden) }}
 	if len(cells) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if framed {
 		<div class={ surfaceClasses(ctx) }>
-			@tableBody(label, cols, cells, footer)
+			@tableBody(label, cols, cells, footer, density, group_by, row_tone, groups, rowtones)
 		</div>
 		@truncationNotice(truncated)
 	} else {
-		@tableBody(label, cols, cells, footer)
+		@tableBody(label, cols, cells, footer, density, group_by, row_tone, groups, rowtones)
 		@truncationNotice(truncated)
 	}
 }
 
-// tableBody is a Table's rows: the cells arrive row-major, one row's worth at a time.
-templ tableBody(label string, cols []TableColumn, cells []templ.Component, footer string) {
-	@dataTable(label, cols) {
-		for i := 0; i+len(cols) <= len(cells) && len(cols) > 0; i += len(cols) {
-			<tr>
-				for j, c := range cols {
-					<td class={ tableCellClasses(ctx), tableAlignClass(c.Align) }>
-						@cells[i+j]
-					</td>
+// tableBody is a Table's rows: the cells arrive row-major, one row's worth at a time. With `groups` the rows are folded group by group -- each group a <details> open
+// on its own, its header the group's name and how many rows are in it -- and with `rowtones` a row takes the tone its record has. Without either it is one table, as it always was.
+templ tableBody(label string, cols []TableColumn, cells []templ.Component, footer, density, group_by, row_tone, groups, rowtones string) {
+	if groups == "" {
+		@dataTable(label, cols) {
+			@tableRows(cols, cells, 0, len(cells)/max(len(cols), 1), density, row_tone, rowtones, 0)
+			@tableFooterRow(cols, footer, density)
+		}
+	} else {
+		{{ perRow := max(len(cols), 1) }}
+		{{ at := 0 }}
+		for _, line := range strings.Split(groups, "\n") {
+			{{ name, count := tableGroupOf(line) }}
+			<details open data-group-by={ group_by } class="mb-3">
+				<summary class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapTight), "py-2" }>
+					@collectionHeading(name, "", count)
+				</summary>
+				@dataTable(label+": "+name, cols) {
+					@tableRows(cols, cells, at, count, density, row_tone, rowtones, at/perRow)
 				}
-			</tr>
+			</details>
+			{{ at += count * perRow }}
 		}
 		if footer != "" {
-			// The total row (`total:` on the columns): the same cells, emphasised, under the rows.
-			<tr>
-				for j, text := range strings.Split(footer, "\t") {
-					if j < len(cols) {
-						<td class={ tableCellClasses(ctx), tableAlignClass(cols[j].Align), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ text }</td>
-					}
-				}
-			</tr>
+			@dataTable(label, cols) {
+				@tableFooterRow(cols, footer, density)
+			}
 		}
 	}
+}
+
+// tableRows draws `count` rows of the cells from cell index `from`; first is the place of the first of them among all the rows, which is where its tone is in rowtones.
+templ tableRows(cols []TableColumn, cells []templ.Component, from, count int, density, row_tone, rowtones string, first int) {
+	{{ tones := strings.Split(rowtones, ",") }}
+	for r := 0; r < count && from+(r+1)*len(cols) <= len(cells); r++ {
+		{{ tone := tableRowTone(ctx, tones, first+r) }}
+		<tr if tone != "" { class={ tone } data-row-tone={ row_tone } }>
+			for j, c := range cols {
+				<td class={ tableCellClasses(ctx), tableCellDensity(domain.ListDensity(density)), tableAlignClass(c.Align) }>
+					@cells[from+r*len(cols)+j]
+				</td>
+			}
+		</tr>
+	}
+}
+
+// tableFooterRow is the total row (`total:` on the columns): the same cells, emphasised, under the rows.
+templ tableFooterRow(cols []TableColumn, footer, density string) {
+	if footer != "" {
+		<tr>
+			for j, text := range strings.Split(footer, "\t") {
+				if j < len(cols) {
+					<td class={ tableCellClasses(ctx), tableCellDensity(domain.ListDensity(density)), tableAlignClass(cols[j].Align), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ text }</td>
+				}
+			}
+		</tr>
+	}
+}
+
+// tableCellDensity is a body cell's padding for each declared density, whole literal strings as the scanner needs; regular is the padding tableCellClasses already gives, so it adds none.
+func tableCellDensity(density domain.ListDensity) string {
+	switch density {
+	case domain.ListCompact:
+		return "py-1"
+	case domain.ListRoomy:
+		return "py-4"
+	}
+	return ""
+}
+
+// tableRowTone is the wash a row takes for the tone its record has: nothing for no tone, a neutral one or an unknown word. It reads the tone's own fill, so a Workspace that remaps a
+// tone moves the rows with it.
+func tableRowTone(ctx context.Context, tones []string, i int) string {
+	if i < 0 || i >= len(tones) {
+		return ""
+	}
+	switch tone := domain.BadgeTone(tones[i]); tone {
+	case domain.ToneBad, domain.ToneWarn, domain.ToneGood, domain.ToneInfo:
+		return toneFillClass(ctx, tone)
+	}
+	return ""
+}
+
+// tableGroupOf reads one line of the lowered `groups`: the name, and how many rows it holds.
+func tableGroupOf(line string) (string, int) {
+	name, count, _ := strings.Cut(line, "\t")
+	n, _ := strconv.Atoi(count)
+	return name, n
 }
 
 // tableColumnsFromProps reads the two lowered properties back into columns. A missing or short alignment list is the

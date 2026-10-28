@@ -162,7 +162,10 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "sort", Label: "Ordered by", Kind: ActionInputMachineFields, Field: "fld_sort", Machine: "fld_list_machine", Extra: []string{"created_at\tWhen it was added", "updated_at\tWhen it last changed"}},
 		{Name: "direction", Label: "Order", Kind: ActionInputChoice, Field: "fld_direction", Extra: []string{"desc\tNewest or largest first", "asc\tOldest or smallest first"}},
 		{Name: "filter", Label: "Chips that filter and count by", Kind: ActionInputMachineFields, Field: "fld_filter", Machine: "fld_list_machine", Types: []string{"status"}, None: "No chips"},
-		{Name: "search", Label: "Search looks in", Kind: ActionInputMachineFields, Field: "fld_search", Machine: "fld_list_machine", Types: []string{"text", "long_text"}, Multi: true}},
+		{Name: "search", Label: "Search looks in", Kind: ActionInputMachineFields, Field: "fld_search", Machine: "fld_list_machine", Types: []string{"text", "long_text"}, Multi: true},
+		{Name: "density", Label: "Rows", Kind: ActionInputChoice, Field: "fld_density", Extra: []string{"regular\tRegular", "compact\tClose together", "roomy\tRoomy"}},
+		{Name: "group_by", Label: "Fold into groups by", Kind: ActionInputMachineFields, Field: "fld_group_by", Machine: "fld_list_machine", None: "No groups"},
+		{Name: "row_tone", Label: "Colour a row by", Kind: ActionInputChoice, Field: "fld_row_tone", Extra: []string{"\tNo colour", "date:tone\tIts date (late is red)", "status:tone\tIts status"}}},
 		Doc: "changes what a list the assistant wrote shows -- its columns and their order, how it is ordered, the status its chips count by and the text fields its search looks in -- as the set_list_* operations a conversation uses (the page and its Datasets are written again from the list); about a part of the builder tree that is such a list"},
 	"edit_workflow": {ID: "edit_workflow", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
 		{Name: "status", Label: "A new status (leave empty for none)"},

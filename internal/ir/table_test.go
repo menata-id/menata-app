@@ -425,3 +425,45 @@ func TestLowerWorkspaceConditionRefusesEachMisuseForItsOwnReason(t *testing.T) {
 		}
 	}
 }
+
+// group_by lays the rows group by group in the order values first appear, row_tone gives each row its record's tone in that new order, and a page may not write what lowering produces.
+func TestLowerTableGroupsRowsAndCarriesTheirTones(t *testing.T) {
+	RegisterComponentTypes([]string{string(domain.ComponentTable), string(domain.ComponentStatusBadge)})
+	RegisterSlottedComponentTypes([]string{string(domain.ComponentTable)})
+	rec := func(title, state, tone string) map[string]string {
+		return map[string]string{"title": title, domain.PageFieldRole("fld_state"): state, domain.PageDateToneRole: tone, domain.PageRecordRole: "/r/" + title}
+	}
+	node := tableNode(domain.PageColumn{Header: "Ticket", From: "title"})
+	node.Props["group_by"], node.Props["row_tone"], node.Props["density"] = "fld_state", domain.PageDateToneRole, "compact"
+	root := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{node}}
+	tree, err := Lower(root, tableRecords(rec("a", "Open", "bad"), rec("b", "Done", ""), rec("c", "Open", "good")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tree.Children[0]
+	if table.Props["groups"] != "Open\t2\nDone\t1" || table.Props["rowtones"] != "bad,good," || table.Props["density"] != "compact" {
+		t.Errorf("props = %v", table.Props)
+	}
+	var order []string
+	for _, c := range table.Children {
+		order = append(order, c.Props["text"])
+	}
+	if strings.Join(order, ",") != "a,c,b" {
+		t.Errorf("cells in the order %v, want the Open group's rows then Done's", order)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a grouped Table is not a valid tree: %v", issues)
+	}
+	for _, written := range []string{"groups", "rowtones"} {
+		bad := tableNode(domain.PageColumn{Header: "Ticket", From: "title"})
+		bad.Props[written] = "x"
+		if _, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{bad}}, tableRecords(rec("a", "Open", ""))); err == nil {
+			t.Errorf("a page wrote %s", written)
+		}
+	}
+	missing := tableNode(domain.PageColumn{Header: "Ticket", From: "title"})
+	missing.Props["group_by"] = "fld_nowhere"
+	if _, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{missing}}, tableRecords(rec("a", "Open", ""))); err == nil || !strings.Contains(err.Error(), "not projected") {
+		t.Errorf("a Field the Dataset does not project: %v", err)
+	}
+}

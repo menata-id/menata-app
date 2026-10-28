@@ -145,6 +145,11 @@ type GeneratedList struct {
 	// the Machine (2026-10-26, from the log of 2026-10-25). The words are the person's own language, so none is
 	// defaulted; the form asks for the Machine's own controls and names no Field.
 	AddLabel string `json:"add_label,omitempty"`
+	// Density is how close the table's rows sit (compact, regular, roomy; empty is regular), GroupBy a Field whose values fold the rows into groups with their counts, and RowTone a role
+	// (date:tone, status:tone) whose tone each row takes (an open task whose day has passed is drawn in red). All three belong to a table.
+	Density string `json:"density,omitempty"`
+	GroupBy string `json:"group_by,omitempty"`
+	RowTone string `json:"row_tone,omitempty"`
 }
 
 // The scopes of a generated list.

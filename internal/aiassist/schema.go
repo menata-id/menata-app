@@ -379,7 +379,7 @@ var generatedApplicationSchema = geminiSchema{
 }
 
 var generatedListSchema = geminiSchema{
-	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit", "columns", "search_fields", "filter_field", "add_label"},
+	PropertyOrdering: []string{"scope", "person_field", "sort_field", "direction", "limit", "columns", "search_fields", "filter_field", "add_label", "density", "group_by", "row_tone"},
 	Type:             "OBJECT",
 	Required:         []string{"scope", "limit"},
 	Properties: map[string]geminiSchema{
@@ -391,6 +391,9 @@ var generatedListSchema = geminiSchema{
 		"columns":       {Type: "ARRAY", Items: &stringSchema, Description: "Optional: makes the page a table instead of a plain list of titles. The fields of that machine to show as columns, 1 to 8, in order; the first column links to the record. Choose the fields a person scanning the list needs; ask when unsure."},
 		"search_fields": {Type: "ARRAY", Items: &stringSchema, Description: "Only with columns: text fields (type text or long_text) a search box above the table looks in, at most 4."},
 		"filter_field":  {Type: "STRING", Description: "Only with columns, and only with scope \"all\": a status field of that machine; chips above the table filter by its options and count each one."},
+		"density":       {Type: "STRING", Enum: []string{"compact", "regular", "roomy"}, Description: "Only with columns: how close the rows sit. Leave empty for regular."},
+		"group_by":      {Type: "STRING", Description: "Only with columns: a field of that machine (usually a status) whose values fold the rows into groups, each with its count."},
+		"row_tone":      {Type: "STRING", Enum: []string{"date:tone", "status:tone"}, Description: "Only with columns: each row takes the tone its record has -- date:tone makes an open record whose date has passed red (the machine needs a card_fields date role), status:tone the status's own tone (needs a status role)."},
 		"add_label":     {Type: "STRING", Description: "Optional: the words on a button above the list (in the person's language, e.g. \"Tambah tugas\") that opens a form to add a record of that machine. Set it whenever the person asked for an add/new button, or the list is where they would expect to add. Never name a menu entry \"Add ...\" unless it carries this."},
 	},
 }

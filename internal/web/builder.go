@@ -706,6 +706,13 @@ func runEditList(w http.ResponseWriter, req *http.Request, env actionEnv, record
 	if !slices.Equal(search, list.SearchFields) {
 		ops = append(ops, builder.Op{Kind: builder.OpSetListSearch, Item: item, Fields: search})
 	}
+	density, groupBy, rowTone := req.PostForm.Get("density"), req.PostForm.Get("group_by"), req.PostForm.Get("row_tone")
+	if density == "regular" {
+		density = ""
+	}
+	if density != list.Density || groupBy != list.GroupBy || rowTone != list.RowTone {
+		ops = append(ops, builder.Op{Kind: builder.OpSetListLayout, Item: item, Value: density, Field: groupBy, Watch: rowTone})
+	}
 	if len(ops) == 0 {
 		return back, true
 	}

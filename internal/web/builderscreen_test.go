@@ -1118,7 +1118,7 @@ func TestBuilderViewTabChangesAListsColumnsOrderChipsAndSearch(t *testing.T) {
 	s.reloadWorkspace(t)
 	node := app + "/navigation/nav_listing"
 	body := s.getAs(t, "/builder/"+app+"?tab=view&node="+url.QueryEscape(node)).Body.String()
-	for _, want := range []string{"/runtime-actions/edit_list?record=", `name="columns"`, `name="sort"`, `name="direction"`, `name="filter"`, `name="search"`, "Save view"} {
+	for _, want := range []string{"/runtime-actions/edit_list?record=", `name="columns"`, `name="sort"`, `name="direction"`, `name="filter"`, `name="search"`, `name="density"`, `name="group_by"`, `name="row_tone"`, "Save view"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the View tab of a list is missing %q", want)
 		}
@@ -1132,7 +1132,7 @@ func TestBuilderViewTabChangesAListsColumnsOrderChipsAndSearch(t *testing.T) {
 	save := func(form url.Values) int {
 		return s.postBuilder(t, "/runtime-actions/edit_list?record="+url.QueryEscape(node), form).Code
 	}
-	if code := save(url.Values{"columns": {"Title\nNote\nStage"}, "sort": {"fld_title"}, "direction": {"asc"}, "filter": {"fld_stage"}, "search": {"fld_title", "fld_note"}}); code != http.StatusSeeOther {
+	if code := save(url.Values{"columns": {"Title\nNote\nStage"}, "sort": {"fld_title"}, "direction": {"asc"}, "filter": {"fld_stage"}, "search": {"fld_title", "fld_note"}, "density": {"compact"}, "group_by": {"fld_stage"}}); code != http.StatusSeeOther {
 		t.Fatalf("saving the view: %d", code)
 	}
 	pageRec := s.getAs(t, "/pages/nav_listing")
@@ -1144,6 +1144,9 @@ func TestBuilderViewTabChangesAListsColumnsOrderChipsAndSearch(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("the list the runtime draws lacks %q:\n%s", want, page)
 		}
+	}
+	if written, _ := os.ReadFile(appFile); !strings.Contains(string(written), "density: compact") || !strings.Contains(string(written), "group_by: fld_stage") {
+		t.Errorf("the layout is not in the page:\n%s", written)
 	}
 	if written, _ := os.ReadFile(appFile); !strings.Contains(string(written), "field: fld_note") || !strings.Contains(string(written), "field: fld_stage") {
 		t.Errorf("the page's columns are not the ones saved:\n%s", written)

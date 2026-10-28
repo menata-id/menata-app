@@ -972,6 +972,15 @@ func listChange(old, now *GeneratedList) string {
 	if old.AddLabel != now.AddLabel {
 		what = append(what, "add button "+now.AddLabel)
 	}
+	if old.Density != now.Density {
+		what = append(what, "rows "+now.Density)
+	}
+	if old.GroupBy != now.GroupBy {
+		what = append(what, "grouped by "+now.GroupBy)
+	}
+	if old.RowTone != now.RowTone {
+		what = append(what, "rows toned by "+now.RowTone)
+	}
 	return strings.Join(what, "; ")
 }
 
@@ -994,6 +1003,9 @@ func sameList(a, b *GeneratedList) bool {
 		}
 		if l.Direction == "" {
 			l.Direction = "desc"
+		}
+		if l.Density == string(domain.ListRegular) {
+			l.Density = ""
 		}
 	}
 	return reflect.DeepEqual(x, y)

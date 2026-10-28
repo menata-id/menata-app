@@ -59,3 +59,28 @@ func TestRecordTableColumns_oneNamedPerFieldThenAnUnnamedActionsColumn(t *testin
 		t.Errorf("columns = %+v", cols)
 	}
 }
+
+// A grouped Table draws each group as a fold open on its own, headed by the group's name and how many rows it holds, and a row takes the wash of its tone; density narrows or widens the
+// body cells; a Table with none of them is the one table it always was.
+func TestTableGroupsFoldAndRowsTakeTheirTone(t *testing.T) {
+	cell := func(s string) templ.Component { return templ.Raw(s) }
+	cells := []templ.Component{cell("a"), cell("c"), cell("b")}
+	var buf bytes.Buffer
+	if err := table("Jobs", "", "Title", "start", "", false, Truncation{}, "", "compact", "fld_state", "date:tone", "Open\t2\nDone\t1", "bad,,", cells).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	if strings.Count(html, "<details open") != 2 || !strings.Contains(html, ">Open<") || !strings.Contains(html, ">Done<") || !strings.Contains(html, "py-1") {
+		t.Errorf("grouped table:\n%s", html)
+	}
+	if strings.Count(html, "bg-tone-bad-bg") != 1 {
+		t.Errorf("exactly the first row takes the bad tone:\n%s", html)
+	}
+	buf.Reset()
+	if err := table("Jobs", "", "Title", "start", "", false, Truncation{}, "", "", "", "", "", "", cells).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "<details") || strings.Contains(buf.String(), "bg-tone-") || strings.Count(buf.String(), "<tr") != 4 {
+		t.Errorf("a plain table changed:\n%s", buf.String())
+	}
+}

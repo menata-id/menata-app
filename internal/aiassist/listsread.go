@@ -53,6 +53,10 @@ func listFromExisting(navID string, page *domain.PageNode, machines map[string]*
 			}
 			spec.Columns = append(spec.Columns, c.Field)
 		}
+		spec.Density, spec.GroupBy, spec.RowTone = table.Props["density"], table.Props["group_by"], table.Props["row_tone"]
+		if spec.Density == string(domain.ListRegular) {
+			spec.Density = "" // regular is what a table is without saying so
+		}
 	}
 	if ds.ViewerScoped {
 		spec.Scope = ListScopeMine
@@ -125,7 +129,7 @@ func generatedPageParts(n *domain.PageNode, dsID string, table, collection **dom
 			return false
 		}
 	case n.Kind == "component" && n.Type == string(domain.ComponentTable):
-		if !propsWithin(n.Props, "label", "empty", "framed") || n.Binding == nil || n.Binding.Dataset != dsID || n.Binding.Rows != "records" || *table != nil || *collection != nil {
+		if !propsWithin(n.Props, "label", "empty", "framed", "density", "group_by", "row_tone") || n.Binding == nil || n.Binding.Dataset != dsID || n.Binding.Rows != "records" || *table != nil || *collection != nil {
 			return false
 		}
 		for _, c := range n.Columns {

@@ -1,0 +1,15 @@
+id: mch_job
+name: Job
+fields:
+  - { id: fld_title, name: Title, type: text, required: true }
+  - { id: fld_state, name: State, type: status, default: Open, options: [Open, Done] }
+  - { id: fld_due, name: Due, type: date }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_state, role: status }
+  - { field: fld_due, role: date }
+completion: { field: fld_state, done: Done }
+permissions:
+  - { id: prm_create_job, action: create, roles: [clerk] }
+datasets:
+  - { id: ds_jobs, select: records, sort: [{ field: fld_state }, { field: fld_title }], limit: 100 }

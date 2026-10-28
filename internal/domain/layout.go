@@ -164,6 +164,16 @@ const (
 // KnownListDensities is the closed set.
 var KnownListDensities = map[ListDensity]bool{ListRegular: true, ListRoomy: true}
 
+// ListCompact is the density a Table (only a Table) also takes: rows that sit close, for a list of two hundred rows read at a glance (the 12px-by-6px row).
+const ListCompact ListDensity = "compact"
+
+// KnownTableDensities is the closed set a Table's `density:` may name.
+var KnownTableDensities = map[ListDensity]bool{ListCompact: true, ListRegular: true, ListRoomy: true}
+
+// TableRowTones are the derived roles a Table's `row_tone:` may read: each row takes the tone its record's status or date already has (an open task whose day has passed is
+// bad), so a rule of colour is the Machine's own meaning and not a second one on the page.
+var TableRowTones = map[string]bool{PageDateToneRole: true, PageStatusToneRole: true}
+
 // RowTrack is the width a child of a row keeps, so the children of one row sit in the same columns as those of the rows around it
 // (Workspace Home's list: a name that grows, a role column, a badge column). A row declares `tracks:` as one word for each child, in
 // order, and a child that a `when:` leaves out still holds its column, so what comes after it does not slide left. Named for what the

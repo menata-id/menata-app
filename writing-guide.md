@@ -2098,7 +2098,7 @@ cell may take and makes it a link to the record's own page. There are up to twel
 only: a table of several Measures per Dimension (the Dashboard's shape) is not built and is refused by name. It reads `limit:` as a
 window and claims nothing about completeness -- unless it says **`complete: true`** (2026-10-17, as a Collection may): then a list
 the bound cut says so under its rows, with the count it was cut from ("Showing the first 100 of 340"), which costs one count only
-when the bound bit. **`framed: true`** draws the table on a surface, the bordered card the mockups put a list in. **`stable`**: the
+when the bound bit. **`framed: true`** draws the table on a surface, the bordered card the mockups put a list in. **`density: compact|regular|roomy`** (2026-10-28, Apps Builder Fase 9) sets how close the rows sit; **`group_by: fld_x`** folds the rows into groups by the Field's value, in the order values first appear, each group a fold open to begin with and headed by its name and how many rows it holds (the Dataset's Machine must project the Field, as for a column); **`row_tone: date:tone|status:tone`** gives each row the wash of the tone its record already has (a task whose day has passed is red) -- a rule of colour is the Machine's own meaning, not a second one on the page, so the Machine needs the card_fields role it is derived from. The page never writes `groups` or `rowtones`; lowering does. **`stable`**: the
 Helpdesk's All tickets page declares one.
 
 **One record's page (`record_of:`, 2026-10-17, plan B1).** A navigation item with `record_of: mch_contract` and a `page:`
