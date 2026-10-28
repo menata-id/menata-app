@@ -1,5 +1,9 @@
 package domain
 
+// NavBadgeDatasetPrefix starts a navigation item's `badge:` that names a Dataset of the Application (`badge: ds_pending`): the item shows how many records
+// that Dataset selects for the viewer now (2026-10-28, Apps Builder Fase 8c), and nothing while there are none. Anything else is one of KnownNavigationBadges.
+const NavBadgeDatasetPrefix = "ds_"
+
 // NavBadgeApprovalInboxPending is the one live count a navigation item may request: the
 // signed-in identity's own pending-approval count (already computed by
 // composition.ApprovalInbox, development-history.md Phase 21 round 2 Step J's own badge). Named as a

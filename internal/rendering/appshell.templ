@@ -600,7 +600,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				}
 			>
 				{ item.Label }
-				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden")
+				@navBadge(item.Badge, item.ID, "inline-flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden")
 			</a>
 			if len(item.Children) > 0 {
 				@menuTrigger("menata-app-sub-"+item.ID, item.Label+" submenu", "-ml-1 flex cursor-pointer items-center "+radiusClass(ctx, domain.RadiusControl)+" border-0 bg-transparent px-1 py-1.5 font-sans "+inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong)) {
@@ -691,11 +691,18 @@ func triggerInk(ctx context.Context, inside bool) string {
 // queries, on Document Approval's screens only, and only because a count nobody threaded through
 // appShell has to fetch itself. One request again the moment that stops being true (ROADMAP.md's
 // `NavBadgeApprovalInboxPending` deferral row).
-templ navBadge(badge, class string) {
+templ navBadge(badge, navID, class string) {
 	if badge == domain.NavBadgeApprovalInboxPending {
 		<span
 			class={ class }
 			hx-get="/api/approval-inbox/pending-count"
+			hx-trigger="load"
+			hx-swap="innerHTML"
+		></span>
+	} else if strings.HasPrefix(badge, domain.NavBadgeDatasetPrefix) {
+		<span
+			class={ class }
+			hx-get={ "/api/nav-badge/" + navID }
 			hx-trigger="load"
 			hx-swap="innerHTML"
 		></span>
@@ -722,7 +729,7 @@ templ applicationBottomBar(items []navMenuItem, more []navMenuItem, app domain.A
 			>
 				<span class="relative flex">
 					@icon(item.Icon, "size-5.5")
-					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" " + toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
+					@navBadge(item.Badge, item.ID, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" " + toneInkFillClass(ctx, domain.ToneBad) + " " + "px-1 text-3xs " + onFillClass(ctx) + " empty:hidden")
 				</span>
 				{ item.Label }
 			</a>
@@ -776,7 +783,7 @@ templ moreSheet(app domain.Application, more []navMenuItem) {
 						</span>
 						<span class={ "flex min-w-0 grow items-center", layoutGap(ctx, domain.GapTight) }>
 							<span class={ "truncate", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), item.Active) }>{ item.Label }</span>
-							@navBadge(item.Badge, "flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneInkFillClass(ctx, domain.ToneBad)+" px-1.5 text-3xs "+onFillClass(ctx)+" empty:hidden")
+							@navBadge(item.Badge, item.ID, "flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneInkFillClass(ctx, domain.ToneBad)+" px-1.5 text-3xs "+onFillClass(ctx)+" empty:hidden")
 						</span>
 						@rowChevron()
 					</a>

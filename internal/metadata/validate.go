@@ -61,7 +61,7 @@ func validateNavigation(items []domain.NavigationItem) []string {
 		if !strings.HasPrefix(n.Route, "/") {
 			issues = append(issues, fmt.Sprintf("navigation item %q: route %q must start with \"/\"", n.ID, n.Route))
 		}
-		if n.Badge != "" && !domain.KnownNavigationBadges[n.Badge] {
+		if n.Badge != "" && !domain.KnownNavigationBadges[n.Badge] && !strings.HasPrefix(n.Badge, domain.NavBadgeDatasetPrefix) {
 			issues = append(issues, fmt.Sprintf("navigation item %q: unknown badge %q", n.ID, n.Badge))
 		}
 		// Same closed-set posture as badge directly above, and for a sharper reason: an icon name
@@ -1646,6 +1646,26 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 				if !vocabulary[app.ID][role] {
 					issues = append(issues, fmt.Sprintf("application %q: navigation item %q visible_to names role %q, which the application does not declare in its roles: vocabulary -- nobody can hold it, so nobody would be offered the item", app.ID, n.ID, role))
 				}
+			}
+		}
+	}
+	// A counting badge names a Dataset of the Application's own Machines that lists records (a count of an aggregate has no meaning).
+	for _, app := range applications {
+		for _, n := range app.AllNavigation {
+			if !strings.HasPrefix(n.Badge, domain.NavBadgeDatasetPrefix) || domain.KnownNavigationBadges[n.Badge] {
+				continue
+			}
+			found := false
+			for _, m := range machines {
+				if m.ApplicationID != app.ID {
+					continue
+				}
+				for _, ds := range m.Datasets {
+					found = found || (ds.ID == n.Badge && ds.Select == domain.SelectRecords)
+				}
+			}
+			if !found {
+				issues = append(issues, fmt.Sprintf("application %q: navigation item %q badge %q is not a Dataset of the application's Machines that selects records, so there is nothing to count", app.ID, n.ID, n.Badge))
 			}
 		}
 	}

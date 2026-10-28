@@ -297,6 +297,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/pages/{navID}/{recordID}/pdf", showDeclaredPagePDF(showDeclaredPage(d.Store, d.Cfg, d.Files, d.Printer, d.Extractor), d.Printer, d.staticRoot()))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
+		pr.Get("/api/nav-badge/{navID}", showNavBadge(d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		// CAP-V28 (ROADMAP.md, 2026-09-27): the doc_type <select>'s own htmx fragment, loading that

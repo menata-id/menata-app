@@ -18,6 +18,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/execution"
+	"menata.app/internal/expression"
 	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
@@ -592,4 +593,37 @@ func deciderName(ctx context.Context, store *data.Store, actorID string) string 
 		return ""
 	}
 	return names[actorID]
+}
+
+// showNavBadge is `GET /api/nav-badge/{navID}`: how many records the Dataset a navigation item names as its badge (`badge: ds_x`) selects for the viewer now,
+// as plain text, and nothing at all while there are none (the badge draws only a number). The item must be one of the current Workspace's Applications' that the
+// viewer may open and is offered (`visible_to:`), so the endpoint says nothing about an Application or an item they could not see. The count is the Dataset
+// exactly as a page would select it, `$current_user` and `$today` included.
+func showNavBadge(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		navID := chi.URLParam(req, "navID")
+		actor := currentActor(req, store, cfg)
+		for _, app := range rendering.CurrentWorkspace(req.Context()).Applications {
+			for _, item := range app.AllNavigation {
+				if item.ID != navID || !strings.HasPrefix(item.Badge, domain.NavBadgeDatasetPrefix) || domain.KnownNavigationBadges[item.Badge] {
+					continue
+				}
+				if app.Inactive || !canOpenApplication(app, actor, cfg) || !navItemVisible(app, item, actor, cfg) {
+					http.NotFound(w, req)
+					return
+				}
+				l := composition.NewLoader(store, machinesFor(req.Context()))
+				n, err := l.CountSelected(req.Context(), item.Badge, expression.Context{CurrentUser: actor.ID, Today: time.Now().Format("2006-01-02")})
+				if err != nil {
+					serverError(w, err)
+					return
+				}
+				if n > 0 {
+					_, _ = fmt.Fprintf(w, "%d", n)
+				}
+				return
+			}
+		}
+		http.NotFound(w, req)
+	}
 }

@@ -77,3 +77,22 @@ func TestVisibleToNamesOnlyRolesTheApplicationDeclares(t *testing.T) {
 		t.Errorf("a role the Application does not declare loaded: %v", err)
 	}
 }
+
+// A counting badge (`badge: ds_x`) must name a Dataset of the Application's own Machines that lists records; one that names nothing is a load error, not a badge
+// that never shows.
+func TestACountingBadgeMustNameADatasetOfTheApplication(t *testing.T) {
+	s := newInstallTestSetup(t, "bbadge")
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	live, err := os.ReadFile(appFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.Replace(string(live), "    route: /machines/mch_document\n", "    route: /machines/mch_document\n    badge: ds_nowhere\n", 1)
+	if text == string(live) {
+		t.Fatal("the fixture's navigation item moved")
+	}
+	writeTestFile(t, appFile, text)
+	if err := s.deps.ReloadMetadata(s.slug); err == nil || !strings.Contains(err.Error(), "is not a Dataset of the application's Machines") {
+		t.Errorf("a badge naming no Dataset loaded: %v", err)
+	}
+}

@@ -1,0 +1,39 @@
+case: 26
+title: A menu item that counts what waits
+# Pending declares `badge: ds_pending`, a Dataset of the Application, not a kind the runtime hard-codes. The menu asks for its count where it draws the item and
+# the answer is the number of records the Dataset selects now; nothing is drawn while there are none.
+actors:
+  - { name: sari, role: clerk }
+  - { name: bayu, role: auditor }
+steps:
+  - id: nothing-waits-so-nothing-is-counted
+    as: sari
+    view:
+      path: /api/nav-badge/nav_pending
+      hides: ["0", "1", "2"]
+    expect: ok
+  - id: the-menu-asks-for-the-count
+    as: sari
+    view:
+      path: /pages/nav_orders
+      shows: ['hx-get="/api/nav-badge/nav_pending"']
+    expect: ok
+  - id: one-order
+    as: sari
+    create: { machine: mch_order, values: { fld_title: First } }
+    expect: ok
+  - id: another-order
+    as: sari
+    create: { machine: mch_order, values: { fld_title: Second } }
+    expect: ok
+  - id: two-wait
+    as: sari
+    view:
+      path: /api/nav-badge/nav_pending
+      shows: ["2"]
+    expect: ok
+  - id: someone-who-is-not-offered-the-item-is-told-nothing-of-its-count
+    as: bayu
+    view:
+      path: /api/nav-badge/nav_pending
+    expect: refused

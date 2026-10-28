@@ -308,6 +308,9 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	if !membersCase {
 		t.Fatal("this Workspace installs no Settings hub over an Application with roles -- the 200 arm of /settings/{navID}/members would measure nothing")
 	}
+	// /api/nav-badge/{navID} counts what a navigation item's Dataset badge selects: nothing is found for an id that names no counting badge (and for a hidden item
+	// or an Application the viewer cannot open); the 200 arm needs a Workspace installing an item with `badge: ds_x`, which the case corpus (Case 26) covers.
+	add("/api/nav-badge/{navID}", "/api/nav-badge/nav_does_not_exist", http.StatusNotFound, "an id that names no counting badge is not found")
 	// /builder/{app} is the Application Builder's shell: a 200 for every installed Application (switched off or not -- the admin builds one
 	// before switching it on), and a 404 for an id the Workspace does not have.
 	add("/builder/{app}", "/builder/app_does_not_exist", http.StatusNotFound, "an id that names no installed Application is not found")

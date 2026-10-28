@@ -1288,7 +1288,7 @@ Navigation item keys:
 | `route` | path | Must have a real handler in `internal/web/router.go` (gated by `TestNavigationRoutesAreRegistered`) |
 | `group` | string | Presentational label. First group declared stays inline; later ones collapse into a dropdown |
 | `priority` | int | Orders the menu. The first four (`rendering.appMenuTabLimit`) are tabs on desktop; the rest collapse behind a "More" dropdown (hardcoded count -- no per-item overflow declaration exists yet, 007 §12.2). An Application with four or fewer items never shows it |
-| `badge` | closed set | Only `approval_inbox_pending` today |
+| `badge` | closed set, or a Dataset id | `approval_inbox_pending`, or (2026-10-28, Fase 8c) `ds_x`: a Dataset of the Application's Machines that lists records (`select: records`); the menu shows how many it selects for the viewer now (`$current_user`, `$today` as on a page), nothing while there are none, and the count is asked of `/api/nav-badge/<nav id>`, which answers 404 for an Application or item the viewer is not offered. A Dataset that names no Machine of the Application is a load error |
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
 | `page` | node tree | Optional (2026-10-07): declares the screen's **body**, so no Go renders it. The `route` must then be `/pages/<this id>`. See **`page:` — declaring a screen's body** below |

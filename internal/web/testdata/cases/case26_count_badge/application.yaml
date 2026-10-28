@@ -1,0 +1,50 @@
+id: app_orders_counted
+name: Pesanan
+machines:
+  - mch_order
+roles:
+  - clerk
+  - auditor
+description: A menu item that counts what waits.
+icon: board
+color: blue
+summary_machine: mch_order
+navigation:
+  - id: nav_orders
+    label: Orders
+    title: Orders
+    route: /pages/nav_orders
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Orders
+          empty: No order yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_orders, rows: records }
+  - id: nav_pending
+    label: Pending
+    title: Pending orders
+    route: /pages/nav_pending
+    priority: 2
+    badge: ds_pending
+    visible_to: [clerk]
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Pending
+          empty: Nothing pending.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_pending, rows: records }
