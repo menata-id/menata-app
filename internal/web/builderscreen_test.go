@@ -456,3 +456,48 @@ func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
 		t.Errorf("a Field was added to a part that is not a Machine: %d", code)
 	}
 }
+
+// A status choice's colour is written after a bar ("Closed | done"): a new choice carries one into the Machine's status_categories, a Field added as a status
+// can colour its choices, the box shows the colours back, and a colour that is not one of the five, or a change to a choice already there, writes nothing.
+func TestBuilderEditTabColoursTheChoicesOfAStatus(t *testing.T) {
+	s := newInstallTestSetup(t, "bcolour")
+	machine := "app_document_tracking/machines/mch_document"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	add := func(form url.Values) int {
+		return s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
+	}
+	if code := add(url.Values{"name": {"Stage"}, "type": {"status"}, "options": {"Open | start\r\nClosed | done"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a coloured status: %d", code)
+	}
+	if got := read(); !strings.Contains(got, "status_categories") || !strings.Contains(got, "Closed: done") || !strings.Contains(got, "Open: start") {
+		t.Fatalf("the colours are not in the file:\n%s", got)
+	}
+	field := machine + "/fields/fld_stage"
+	if body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(field)).Body.String(); !strings.Contains(body, "Closed | done") {
+		t.Errorf("the box does not show the colours back:\n%s", body)
+	}
+	edit := func(lines string) int {
+		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Stage"}, "options": {lines}}).Code
+	}
+	if code := edit("Open | start\r\nClosed | done\r\nLate | attention"); code != http.StatusSeeOther {
+		t.Fatalf("a new coloured choice: %d", code)
+	}
+	if !strings.Contains(read(), "Late: attention") {
+		t.Errorf("the new choice's colour is not in the file:\n%s", read())
+	}
+	before := read()
+	for name, lines := range map[string]string{
+		"an unknown colour":              "Open | start\r\nClosed | done\r\nLate | attention\r\nX | purple",
+		"a colour changed":               "Open | stopped\r\nClosed | done\r\nLate | attention",
+		"a colour given to a plain one":  "Open\r\nClosed | done\r\nLate | attention",
+		"a colour taken from a coloured": "Open | start\r\nClosed\r\nLate | attention",
+	} {
+		if code := edit(lines); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+		if read() != before {
+			t.Errorf("%s wrote the file", name)
+		}
+	}
+}

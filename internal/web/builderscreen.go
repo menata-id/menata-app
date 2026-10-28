@@ -87,7 +87,7 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 						detail += ", required"
 					}
 					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail,
-						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", strings.Join(f.Options, "\n")})
+						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", choiceLines(m, f)})
 				}
 			}
 			for _, item := range app.AllNavigation {
@@ -215,4 +215,18 @@ func builderRolesProvider() composition.RuntimeProvider {
 		}
 		return out, nil
 	}
+}
+
+// choiceLines is a Field's choices as the Edit tab's box shows them, one a line, each followed by "| category" when the Machine colours it.
+func choiceLines(m *domain.Machine, f domain.Field) string {
+	lines := make([]string, len(f.Options))
+	for i, o := range f.Options {
+		lines[i] = o
+		if m.StatusCategories != nil && m.StatusCategories.Field == f.ID {
+			if c, ok := m.StatusCategories.Values[o]; ok {
+				lines[i] += " | " + string(c)
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }

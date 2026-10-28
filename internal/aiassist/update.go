@@ -218,6 +218,22 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 			return err
 		}
 	}
+	if m.StatusCategories != nil && old.StatusCategories != nil {
+		// Entries for options that were not there before join the mapping; PlanUpdate has already refused any other difference.
+		var values *yaml.Node
+		if sc := mapValue(doc, "status_categories"); sc != nil {
+			values = mapValue(sc, "values")
+		}
+		had := map[string]bool{}
+		for _, v := range old.StatusCategories.Values {
+			had[v.Option] = true
+		}
+		for _, v := range m.StatusCategories.Values {
+			if !had[v.Option] && values != nil {
+				values.Content = append(values.Content, scalar(v.Option), scalar(v.Category))
+			}
+		}
+	}
 	oldViews := map[string]GeneratedView{}
 	for _, v := range old.Views {
 		oldViews[v.ID] = v

@@ -294,6 +294,8 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	switch {
 	case m.StatusCategories != nil && old.StatusCategories == nil:
 		p.add("status colours on %q: each option of %s is given a category", m.Name, m.StatusCategories.Field)
+	case m.StatusCategories != nil && old.StatusCategories != nil && categoriesOnlyGrowForNewOptions(old, m):
+		p.add("status colours on %q: the new options of %s are given a category", m.Name, m.StatusCategories.Field)
 	case !sameStatusCategories(old.StatusCategories, m.StatusCategories):
 		p.refuse("status_categories on %s cannot be changed or removed once declared: a status the person has learned to read would change colour", m.ID)
 	}
@@ -562,6 +564,46 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 	if !slices.Equal(oldOrder, newOrder) {
 		p.change("the views on %q are reordered: the first now opens by default", m.Name)
 	}
+}
+
+// categoriesOnlyGrowForNewOptions says whether m's status categories are old's plus entries for options that did not exist before: nothing a
+// person has learned to read changes colour, because an option that was not there had no colour to learn. An entry that changes, or one for an option
+// that was already there, is not this and is refused as it always was.
+func categoriesOnlyGrowForNewOptions(old, m GeneratedMachine) bool {
+	if old.StatusCategories.Field != m.StatusCategories.Field {
+		return false
+	}
+	had := map[string]string{}
+	for _, v := range old.StatusCategories.Values {
+		had[v.Option] = v.Category
+	}
+	var oldOptions []string
+	for _, f := range old.Fields {
+		if f.ID == old.StatusCategories.Field {
+			oldOptions = f.Options
+		}
+	}
+	grew := false
+	now := map[string]string{}
+	for _, v := range m.StatusCategories.Values {
+		now[v.Option] = v.Category
+		if c, ok := had[v.Option]; ok {
+			if c != v.Category {
+				return false
+			}
+			continue
+		}
+		if slices.Contains(oldOptions, v.Option) {
+			return false
+		}
+		grew = true
+	}
+	for o := range had {
+		if _, ok := now[o]; !ok {
+			return false
+		}
+	}
+	return grew
 }
 
 func sameStatusCategories(a, b *GeneratedStatusCategories) bool {

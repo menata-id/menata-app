@@ -401,3 +401,66 @@ func TestUnchangedKeysAreRefusedByThePolicy(t *testing.T) {
 		}
 	}
 }
+
+// An option's colour is the category its Machine's status_categories gives it. A new option can be given one, a Field added with options can colour them,
+// and the policy that a status someone has learned to read never changes colour still holds: only options that were not there can gain an entry.
+func TestANewOptionCanBeColouredAndAnOldOneCannotChange(t *testing.T) {
+	manifest := installed(t)
+	diffOf := func(ops []Op) string {
+		t.Helper()
+		plan, err := Review(manifest, appID, ops)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var d string
+		for _, f := range plan.Files {
+			d += f.Diff
+		}
+		return d
+	}
+	if d := diffOf([]Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "done", Category: "done"}}); !strings.Contains(d, "status_categories") || !strings.Contains(d, "done: done") {
+		t.Errorf("a new coloured option does not reach status_categories:\n%s", d)
+	}
+	if d := diffOf([]Op{{Kind: OpAddField, Machine: "mch_catat", Field: "fld_stage", Value: "Stage", Type: "status", Options: []string{"open", "closed"}, Categories: map[string]string{"closed": "done"}}}); !strings.Contains(d, "closed: done") {
+		t.Errorf("a status added with a colour does not carry it:\n%s", d)
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_judul", Value: "x", Category: "done"}}); err == nil {
+		t.Error("a colour was given to an option of a Field that is not a status")
+	}
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "late", Category: "purple"}}); err == nil {
+		t.Error("a category outside the closed five was accepted")
+	}
+
+	// Once the Machine colours its status: a second new option may join, and nothing already there may change or go.
+	if _, err := Review(manifest, appID, []Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "done", Category: "done"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Commit(manifest, appID, []Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "done", Category: "done"}}, mustVersion(t, manifest), nil); err != nil {
+		t.Fatal(err)
+	}
+	if d := diffOf([]Op{{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "late", Category: "attention"}}); !strings.Contains(d, "late: attention") {
+		t.Errorf("a second coloured option is not accepted:\n%s", d)
+	}
+	old := current(t, manifest)
+	for name, edit := range map[string]func(m *aiassist.GeneratedMachine){
+		"an existing option's colour changed": func(m *aiassist.GeneratedMachine) { m.StatusCategories.Values[0].Category = "stopped" },
+		"an option that was already there coloured": func(m *aiassist.GeneratedMachine) {
+			m.StatusCategories.Values = append(m.StatusCategories.Values, aiassist.GeneratedStatusCategory{Option: "draft", Category: "start"})
+		},
+	} {
+		next := current(t, manifest)
+		edit(&next.Machines[0])
+		if r := aiassist.PlanUpdate(old, next).Refusals; len(r) == 0 {
+			t.Errorf("%s was not refused", name)
+		}
+	}
+}
+
+func mustVersion(t *testing.T, manifest string) string {
+	t.Helper()
+	v, err := Version(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}

@@ -184,9 +184,26 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	if required := req.PostForm.Get("required") != ""; required != current.Required {
 		ops = append(ops, builder.Op{Kind: builder.OpSetRequired, Machine: parts[1], Field: parts[3], Flag: required})
 	}
+	want, err := parseChoices(req.PostForm.Get("options"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return "", false
+	}
 	if len(current.Options) > 0 {
-		ops = append(ops, optionOps(parts[1], parts[3], current.Options, req.PostForm.Get("options"))...)
-	} else if strings.TrimSpace(req.PostForm.Get("options")) != "" {
+		m := machinesFor(ctx)[parts[1]]
+		haveCategory := func(o string) string {
+			if m.StatusCategories != nil && m.StatusCategories.Field == current.ID {
+				return string(m.StatusCategories.Values[o])
+			}
+			return ""
+		}
+		more, err := optionOps(parts[1], parts[3], current.Options, haveCategory, want)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return "", false
+		}
+		ops = append(ops, more...)
+	} else if len(want) > 0 {
 		http.Error(w, "this Field offers no choices to edit", http.StatusBadRequest)
 		return "", false
 	}
@@ -209,31 +226,56 @@ func fieldOf(m *domain.Machine, id string) *domain.Field {
 	return nil
 }
 
-// optionOps are the operations that turn a Field's choices into the lines typed: a line not there yet is added (at the end, in the order typed) and a
-// choice no line names is removed. A blank line and a repeated one say nothing. Typing no line at all would remove every choice, which
-// is not an edit but a different Field, so it makes no operation.
-func optionOps(machine, field string, have []string, typed string) []builder.Op {
-	var want []string
+// choice is one line of a choices box: a choice and, after a bar, the category it is drawn in ("Approved | done").
+type choice struct{ Name, Category string }
+
+// parseChoices reads a choices box: one choice a line, a blank or repeated line says nothing, and a category after "|" must be one of the closed five.
+func parseChoices(typed string) ([]choice, error) {
+	var out []choice
+	seen := map[string]bool{}
 	for _, line := range strings.Split(typed, "\n") {
-		if line = strings.TrimSpace(line); line != "" && !slices.Contains(want, line) {
-			want = append(want, line)
+		name, cat, _ := strings.Cut(line, "|")
+		name, cat = strings.TrimSpace(name), strings.TrimSpace(cat)
+		if name == "" || seen[name] {
+			continue
 		}
+		if cat != "" && !domain.KnownStatusCategories[domain.StatusCategory(cat)] {
+			return nil, fmt.Errorf("%q is not a colour a status can have (start, active, attention, done or stopped)", cat)
+		}
+		seen[name] = true
+		out = append(out, choice{name, cat})
 	}
+	return out, nil
+}
+
+// optionOps are the operations that turn a Field's choices into the lines typed: a line not there yet is added (at the end, in the order typed, with its
+// category) and a choice no line names is removed. A colour typed against a choice that already exists, or one that differs from the one it has, is an
+// error: a status someone has learned to read does not change colour. Typing no line at all would remove every choice, which is not an edit but a
+// different Field, so it makes no operation.
+func optionOps(machine, field string, have []string, haveCategory func(string) string, want []choice) ([]builder.Op, error) {
 	if len(want) == 0 {
-		return nil
+		return nil, nil
+	}
+	names := make([]string, len(want))
+	for i, c := range want {
+		names[i] = c.Name
 	}
 	var ops []builder.Op
 	for _, o := range have {
-		if !slices.Contains(want, o) {
+		if !slices.Contains(names, o) {
 			ops = append(ops, builder.Op{Kind: builder.OpRemoveOption, Machine: machine, Field: field, Value: o})
 		}
 	}
-	for _, o := range want {
-		if !slices.Contains(have, o) {
-			ops = append(ops, builder.Op{Kind: builder.OpAddOption, Machine: machine, Field: field, Value: o})
+	for _, c := range want {
+		if slices.Contains(have, c.Name) {
+			if c.Category != haveCategory(c.Name) {
+				return nil, fmt.Errorf("%q keeps the colour it has: a status someone has learned to read does not change colour", c.Name)
+			}
+			continue
 		}
+		ops = append(ops, builder.Op{Kind: builder.OpAddOption, Machine: machine, Field: field, Value: c.Name, Category: c.Category})
 	}
-	return ops
+	return ops, nil
 }
 
 // runAddField is the Edit tab of a Machine: the record is the Machine's part ("<app>/machines/<machine>") and the form says the new Field's name, type,
@@ -258,10 +300,17 @@ func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		http.Error(w, "a new Field needs a name and one of the types offered", http.StatusBadRequest)
 		return "", false
 	}
+	choices, err := parseChoices(req.PostForm.Get("options"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return "", false
+	}
 	var options []string
-	for _, line := range strings.Split(req.PostForm.Get("options"), "\n") {
-		if line = strings.TrimSpace(line); line != "" && !slices.Contains(options, line) {
-			options = append(options, line)
+	categories := map[string]string{}
+	for _, c := range choices {
+		options = append(options, c.Name)
+		if c.Category != "" {
+			categories[c.Name] = c.Category
 		}
 	}
 	if typ == domain.FieldTypeStatus && len(options) == 0 {
@@ -269,9 +318,9 @@ func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		return "", false
 	}
 	if typ != domain.FieldTypeStatus {
-		options = nil
+		options, categories = nil, nil
 	}
-	op := builder.Op{Kind: builder.OpAddField, Machine: m.ID, Field: newFieldID(m, name), Value: name, Type: string(typ), Flag: req.PostForm.Get("required") != "", Options: options}
+	op := builder.Op{Kind: builder.OpAddField, Machine: m.ID, Field: newFieldID(m, name), Value: name, Type: string(typ), Flag: req.PostForm.Get("required") != "", Options: options, Categories: categories}
 	field := record + "/fields/" + op.Field
 	return commitBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {field}, "tab": {"edit"}}.Encode())
 }

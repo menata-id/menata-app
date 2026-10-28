@@ -41,6 +41,10 @@ type Op struct {
 	Type    string   `json:"type,omitempty"`
 	Options []string `json:"options,omitempty"`
 	Action  string   `json:"action,omitempty"`
+	// Category, on add_option and add_field, is the colour-meaning (start, active, attention, done, stopped) the new option is drawn in; it is
+	// written into the Machine's status_categories. add_field takes it for its Options through Categories (option -> category).
+	Category   string            `json:"category,omitempty"`
+	Categories map[string]string `json:"categories,omitempty"`
 }
 
 // capabilityOf maps each operation to the registry.Capabilities entry of the key it writes.
@@ -108,6 +112,14 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			return fmt.Errorf("field %q already exists on machine %s", op.Field, m.ID)
 		}
 		m.Fields = append(m.Fields, aiassist.GeneratedField{ID: op.Field, Name: op.Value, Type: op.Type, Required: op.Flag, Options: slices.Clone(op.Options)})
+		nf := &m.Fields[len(m.Fields)-1]
+		for _, o := range nf.Options {
+			if c := op.Categories[o]; c != "" {
+				if err := categorise(m, nf, o, c); err != nil {
+					return err
+				}
+			}
+		}
 	case OpRemoveField:
 		i := slices.IndexFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field })
 		if i < 0 {
@@ -132,6 +144,11 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 				return fmt.Errorf("option %q already exists on %s", op.Value, f.ID)
 			}
 			f.Options = append(f.Options, op.Value)
+			if op.Category != "" {
+				if err := categorise(m, f, op.Value, op.Category); err != nil {
+					return err
+				}
+			}
 		case OpRemoveOption:
 			j := slices.Index(f.Options, op.Value)
 			if j < 0 {
@@ -142,6 +159,22 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 	default:
 		return fmt.Errorf("unknown operation kind %q", op.Kind)
 	}
+	return nil
+}
+
+// categorise gives an option of a status Field the category it is drawn in, in the Machine's status_categories. A Machine tracks one status that way
+// (the one its status_categories names, or the first it is given), so a second status cannot be coloured here.
+func categorise(m *aiassist.GeneratedMachine, f *aiassist.GeneratedField, option, category string) error {
+	if f.Type != "status" {
+		return fmt.Errorf("%s is not a status, so its options have no colour", f.ID)
+	}
+	if m.StatusCategories == nil {
+		m.StatusCategories = &aiassist.GeneratedStatusCategories{Field: f.ID}
+	}
+	if m.StatusCategories.Field != f.ID {
+		return fmt.Errorf("machine %s colours the options of %s, not of %s", m.ID, m.StatusCategories.Field, f.ID)
+	}
+	m.StatusCategories.Values = append(m.StatusCategories.Values, aiassist.GeneratedStatusCategory{Option: option, Category: category})
 	return nil
 }
 
@@ -164,6 +197,9 @@ func clone(a aiassist.GeneratedApplication) aiassist.GeneratedApplication {
 			m.Fields[j].Options = slices.Clone(m.Fields[j].Options)
 		}
 		m.Permissions = slices.Clone(m.Permissions)
+		if sc := m.StatusCategories; sc != nil {
+			m.StatusCategories = &aiassist.GeneratedStatusCategories{Field: sc.Field, Values: slices.Clone(sc.Values)}
+		}
 	}
 	return a
 }
