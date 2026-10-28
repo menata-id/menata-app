@@ -137,6 +137,7 @@ var Capabilities = []Capability{
 	key("fieldDoc", "stamp", "structure", "domain", true, ""),
 	key("fieldDoc", "required_when", "structure", "domain", true, ""),
 	key("fieldDoc", "default_from", "structure", "domain", true, ""),
+	key("fieldDoc", "show_when", "presentation", "experience", true, ""),
 	key("fieldDoc", "editable_by", "authorization", "behavior", true, ""),
 	key("fieldDoc", "locked_when", "behaviour", "behavior", false, editRuleReason),
 	key("fieldDoc", "numbering", "behaviour", "behavior", false, "a number the runtime assigns on create (2026-10-18, plan A4: CTR/C/026, PP-0146); the assistant gains it with the edit/delete rules"),

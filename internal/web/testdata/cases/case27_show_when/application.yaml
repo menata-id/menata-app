@@ -1,0 +1,32 @@
+id: app_papers
+name: Berkas
+machines:
+  - mch_paper
+roles:
+  - clerk
+description: A Field that is asked only for one kind of record.
+icon: board
+color: blue
+summary_machine: mch_paper
+navigation:
+  - id: nav_papers
+    label: Papers
+    title: Papers
+    route: /pages/nav_papers
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Form
+          submit: Add paper
+          binding: { dataset: ds_papers, write: create }
+        - component: Table
+          label: Papers
+          empty: No paper yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_papers, rows: records }

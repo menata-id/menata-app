@@ -1332,6 +1332,27 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputMachineConditions:
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			_, rest, _ := strings.Cut(recordID, "/")
+			parts := strings.Split(rest, "/")
+			options := []string{domain.InputChoiceSep + "Always"}
+			if len(parts) == 4 {
+				if m := l.Machine(parts[1]); m != nil {
+					for _, f := range m.Fields {
+						if f.Type != domain.FieldTypeStatus || f.ID == parts[3] || f.ShowWhen != nil {
+							continue
+						}
+						for _, o := range f.Options {
+							options = append(options, f.ID+":"+o+domain.InputChoiceSep+f.Name+" is "+o)
+						}
+					}
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Default: here})
 		case registry.ActionInputRecordPosition:
 			count, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Count)
 			if err != nil {
@@ -1356,7 +1377,7 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				}
 				for _, id := range app.Machines {
 					if m := l.Machine(id); m != nil {
-						options = append(options, id+"="+m.Name)
+						options = append(options, id+domain.InputChoiceSep+m.Name)
 					}
 				}
 			}
@@ -1364,7 +1385,7 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 		case registry.ActionInputFieldType:
 			var types []string
 			for _, t := range domain.AddableFieldTypes {
-				types = append(types, string(t)+"="+domain.AddableFieldTypeLabel(t))
+				types = append(types, string(t)+domain.InputChoiceSep+domain.AddableFieldTypeLabel(t))
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: types, Default: string(domain.FieldTypeText), Required: in.Required})
 		case registry.ActionInputLines:

@@ -57,6 +57,9 @@ func composableSurface() string {
   field of the same machine holds that option, e.g. a reference file when the format is a banner; "required"
   stays false). A date that starts as today plus some days chosen by a status field's value ("default_from":
   {field, days: [{value, days}]}, e.g. a due date from the priority; not together with a default).
+- A field asked for only while another has one value ("show_when": {field, equals}: a STATUS field of the same machine and one of
+  its options, e.g. the contract number, asked only when the kind is Contract). While it is not shown it is not required.
+  Not together with required_when.
 - A field that only some roles may change after it is written ("editable_by": [role, ...], roles this application
   declares; e.g. only the reviewer sets an amount). Everyone who may edit the record still sees it. Leave it out
   for a field anyone may change.

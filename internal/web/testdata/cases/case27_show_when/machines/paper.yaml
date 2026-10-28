@@ -1,0 +1,12 @@
+id: mch_paper
+name: Paper
+fields:
+  - { id: fld_title, name: Title, type: text, required: true }
+  - { id: fld_kind, name: Kind, type: status, required: true, default: Other, options: [Contract, Invoice, Other] }
+  - { id: fld_reference, name: Contract number, type: text, required: true, show_when: { field: fld_kind, equals: Contract } }
+card_fields:
+  - { field: fld_title, role: title }
+permissions:
+  - { id: prm_create_paper, action: create, roles: [clerk] }
+datasets:
+  - { id: ds_papers, select: records, sort: [{ field: fld_title }], limit: 100 }

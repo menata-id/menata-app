@@ -67,7 +67,7 @@ func fieldTypeEnum() []string {
 }
 
 var generatedFieldSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp", "required_when", "default_from", "editable_by"},
+	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute", "default", "stamp", "required_when", "default_from", "editable_by", "show_when"},
 	Type:             "OBJECT",
 	Required:         []string{"id", "name", "type", "required"},
 	Properties: map[string]geminiSchema{
@@ -88,6 +88,13 @@ var generatedFieldSchema = geminiSchema{
 		"required_when": {
 			Type:             "OBJECT",
 			Description:      "Only on a field that must be filled when another field has one value (e.g. a reference file required when the format is a banner). Then \"required\" must be false. The other field is a status field of this same machine; \"equals\" is one of its options.",
+			Required:         []string{"field", "equals"},
+			PropertyOrdering: []string{"field", "equals"},
+			Properties:       map[string]geminiSchema{"field": stringSchema, "equals": stringSchema},
+		},
+		"show_when": {
+			Type:             "OBJECT",
+			Description:      "Only on a field that is asked for just when another field has one value (e.g. a contract number, asked only when the kind is Contract). The other field is a status field of this same machine; \"equals\" is one of its options. A field that is not shown is not required, so it may be \"required\": true. Not together with required_when.",
 			Required:         []string{"field", "equals"},
 			PropertyOrdering: []string{"field", "equals"},
 			Properties:       map[string]geminiSchema{"field": stringSchema, "equals": stringSchema},

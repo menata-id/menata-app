@@ -169,6 +169,21 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 						if (el.value !== "") { el.value = moneyText(el, moneyParts(el, true), true); }
 					});
 				}
+				// A Field asked only while another holds a value (`show_when:`): its wrapper carries data-show-when-name / data-show-when; it is shown, and its
+				// controls enabled so they are sent and judged, only while the named control of the same form holds the value.
+				function showWhenApply(w) {
+					var form = w.closest("form"), c = form ? form.elements[w.dataset.showWhenName] : null;
+					var on = !!c && c.value === w.dataset.showWhen;
+					w.hidden = !on;
+					w.querySelectorAll("input, select, textarea").forEach(function (x) { x.disabled = !on; });
+				}
+				function showWhenReady(root) { (root || document).querySelectorAll("[data-show-when-name]").forEach(showWhenApply); }
+				document.addEventListener("DOMContentLoaded", function () { showWhenReady(); });
+				document.addEventListener("htmx:load", function (e) { showWhenReady(e.target); });
+				document.addEventListener("change", function (e) {
+					var el = e.target, form = el.form;
+					if (form && el.name) { form.querySelectorAll("[data-show-when-name]").forEach(function (w) { if (w.dataset.showWhenName === el.name) { showWhenApply(w); } }); }
+				});
 				document.addEventListener("DOMContentLoaded", function () { moneyReady(); });
 				document.addEventListener("htmx:load", function (e) { moneyReady(e.target); });
 				document.addEventListener("input", function (e) {

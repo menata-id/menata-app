@@ -222,6 +222,15 @@ type GeneratedField struct {
 	// EditableBy names the roles of the Application that may change the Field once it is written ("only the reviewer decides the amount"); nothing
 	// here means anyone who may edit the record. The roles are the Application's own (Roles of the change, or the installed Application's).
 	EditableBy []string `json:"editable_by,omitempty"`
+	// ShowWhen asks for the Field only while a status Field of the record holds one value ("the contract number, for a Contract"); until then it is not
+	// shown, not required and not judged. It may be added, changed or removed later: a value already stored is kept.
+	ShowWhen *GeneratedShowWhen `json:"show_when,omitempty"`
+}
+
+// GeneratedShowWhen mirrors domain.Field.ShowWhen.
+type GeneratedShowWhen struct {
+	Field  string `json:"field"`
+	Equals string `json:"equals"`
 }
 
 type GeneratedRequiredWhen struct {

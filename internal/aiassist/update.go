@@ -179,6 +179,14 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		if f.Default != of.Default {
 			setOrDelete(node, "default", f.Default, of.Default)
 		}
+		if !sameShowWhen(f.ShowWhen, of.ShowWhen) {
+			deleteKey(node, "show_when")
+			if f.ShowWhen != nil {
+				if err := setEncoded(node, "show_when", requiredWhenDoc{Field: f.ShowWhen.Field, Equals: f.ShowWhen.Equals}); err != nil {
+					return err
+				}
+			}
+		}
 		if !slices.Equal(sortedCopy(f.EditableBy), sortedCopy(of.EditableBy)) {
 			deleteKey(node, "editable_by")
 			if len(f.EditableBy) > 0 {

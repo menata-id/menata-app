@@ -42,6 +42,9 @@ type FormInput struct {
 	// Note and Flag belong to a proposed value (a document reader's answer): Note is where it was read, Flag the words of a
 	// warning when it was inferred rather than quoted or could not be matched. Both empty is an ordinary control.
 	Note, Flag string
+	// ShowWhen, when set, asks for this control only while another control of the form holds one value (the Field's `show_when:`): it is drawn hidden and
+	// disabled until the form's own watcher holds the value, and the shell's listener shows it as the person changes that control.
+	ShowWhen *FieldCondition
 }
 
 // Empty says a reading found nothing: no Field holds a value and no row was proposed. A document that is not the kind the form
@@ -269,7 +272,7 @@ func (m *Machine) TransitionInputs(e Transition) []FormInput {
 
 // formInputOf is the control a Field is drawn as, before any starting value.
 func formInputOf(f Field) FormInput {
-	in := FormInput{FieldID: f.ID, Label: f.Name, Required: f.Required && f.Type != FieldTypeBoolean}
+	in := FormInput{FieldID: f.ID, Label: f.Name, Required: f.Required && f.Type != FieldTypeBoolean, ShowWhen: f.ShowWhen}
 	if f.IsReference() {
 		in.Kind, in.Reference = InputSelect, f.RelatedMachine
 		return in

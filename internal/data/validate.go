@@ -53,7 +53,8 @@ func ValidateRecordAgainst(m *domain.Machine, values, stored map[string]any) err
 		if text, isText := v.(string); isText && strings.TrimSpace(text) == "" {
 			blank = true
 		}
-		if blank && (f.Required || requiredNow(f, values)) {
+		// A Field the record does not show (`show_when:`) is not asked for, so it is not missing.
+		if blank && (f.Required || requiredNow(f, values)) && f.ShownFor(values) {
 			issues = append(issues, fmt.Sprintf("field %q is required (%s)", f.ID, f.Name))
 			continue
 		}

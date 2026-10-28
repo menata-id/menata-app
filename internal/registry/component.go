@@ -912,6 +912,11 @@ var fieldContract = domain.ComponentContract{
 		{Name: "flag", Kind: "string"},
 		// node is the metadata path of the Field the control edits; lowering writes it for a declared form, and a builder preview names the part by it.
 		{Name: "node", Kind: "string"},
+		// watch, when and hidden carry a Field's `show_when:` (asked only while the control named watch holds the value when); lowering writes them from the
+		// Field, and hidden from the value the form starts with. Nobody types them.
+		{Name: "watch", Kind: "string"},
+		{Name: "when", Kind: "string"},
+		{Name: "hidden", Kind: "bool"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"control"},

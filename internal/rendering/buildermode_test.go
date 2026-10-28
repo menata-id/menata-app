@@ -31,7 +31,7 @@ func TestActiveMenuNode_isTheEntryThePageIsAndNeverTheStandIn(t *testing.T) {
 func TestField_namesItsMetadataPathOnlyInABuilderPreview(t *testing.T) {
 	draw := func(ctx context.Context) string {
 		var buf bytes.Buffer
-		if err := field("c1", "Name", "", "", "machines/mch_x/fields/fld_name").Render(ctx, &buf); err != nil {
+		if err := field("c1", "Name", "", "", "machines/mch_x/fields/fld_name", "", "", false).Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
 		return buf.String()

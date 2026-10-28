@@ -421,6 +421,12 @@ func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
 	if strings.Contains(body, "edit_field") {
 		t.Errorf("a Machine is offered the form that edits a Field")
 	}
+	// The pickers send the value, not the words: a select's option is `value` with its label, never "value=label" as its value.
+	for _, want := range []string{`<option value="text"`, `>Text</option>`, `<option value="status"`, `>Choice list (or status)</option>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the type picker does not offer %q:\n%s", want, body)
+		}
+	}
 	add := func(form url.Values) int {
 		return s.postBuilder(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
 	}
@@ -891,6 +897,9 @@ func TestBuilderMenuEditorAddsRenamesMovesAndRemoves(t *testing.T) {
 			t.Errorf("a menu item's Edit tab is missing %q", want)
 		}
 	}
+	if body := tabEdit(app + "/navigation"); !strings.Contains(body, `<option value="mch_document">Tracked Document</option>`) {
+		t.Errorf("the Machine picker sends its words instead of the Machine's id:\n%s", body)
+	}
 	if body := tabEdit(app + "/navigation"); !strings.Contains(body, "/runtime-actions/add_menu_item?record=") || !strings.Contains(body, "Tracked Document") || !strings.Contains(body, "Add to the menu") {
 		t.Errorf("the menu's Edit tab does not offer a new item over the Application's Machines:\n%s", body)
 	}
@@ -947,5 +956,45 @@ func TestBuilderMenuEditorAddsRenamesMovesAndRemoves(t *testing.T) {
 	publish()
 	if strings.Contains(read(), "Papers") || !strings.Contains(read(), "Everything") {
 		t.Errorf("the wrong item was taken out:\n%s", read())
+	}
+}
+
+// A Field's Edit tab says when it is asked for: "Always", or while a status Field of its Machine holds one of its options. Saving stages the operation and
+// Publish writes `show_when`; a pairing the loader would refuse (the Field watching itself, an option that is not there) is refused at the form.
+func TestBuilderEditTabSetsWhenAFieldIsAskedFor(t *testing.T) {
+	s := newInstallTestSetup(t, "bshowwhen")
+	app := "app_document_tracking"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"  - id: fld_kind\n    name: Kind\n    type: status\n    options: [Contract, Invoice]\n  - id: fld_ref\n    name: Contract number\n    type: text\n")
+	s.reloadWorkspace(t)
+	field := app + "/machines/mch_document/fields/fld_ref"
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(field)).Body.String()
+	for _, want := range []string{`name="show_when"`, `<option value="fld_kind:Contract"`, "Kind is Contract", `<option value=""`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Edit tab does not offer %q", want)
+		}
+	}
+	if strings.Contains(body, `value="fld_ref:`) {
+		t.Error("a Field is offered itself as what it waits for")
+	}
+	save := func(when string) int {
+		return s.postBuilder(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), url.Values{"name": {"Contract number"}, "show_when": {when}}).Code
+	}
+	if code := save("fld_kind:Contract"); code != http.StatusSeeOther || !strings.Contains(read(), "show_when") {
+		t.Fatalf("asking only for a Contract: %d\n%s", code, read())
+	}
+	if body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(field)).Body.String(); !strings.Contains(body, `<option value="fld_kind:Contract" selected`) {
+		t.Errorf("the form does not start from the condition the Field has:\n%s", body)
+	}
+	before := read()
+	for name, when := range map[string]string{"itself": "fld_ref:x", "an option that is not there": "fld_kind:Receipt", "a Field that is not there": "fld_nope:Contract"} {
+		if code := save(when); code < 400 || read() != before {
+			t.Errorf("%s was accepted or wrote (status %d)", name, code)
+		}
+	}
+	if code := save(""); code != http.StatusSeeOther || strings.Contains(read(), "show_when") {
+		t.Errorf("asking always again: %d\n%s", code, read())
 	}
 }

@@ -153,6 +153,7 @@ type fieldDoc struct {
 	RequiredWhen *requiredWhenDoc `yaml:"required_when,omitempty"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from,omitempty"`
 	EditableBy   []string         `yaml:"editable_by,omitempty"`
+	ShowWhen     *requiredWhenDoc `yaml:"show_when,omitempty"`
 }
 
 type requiredWhenDoc struct {
@@ -464,6 +465,9 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 			fd.RequiredWhen = &requiredWhenDoc{Field: f.RequiredWhen.Field, Equals: f.RequiredWhen.Equals}
 		}
 		fd.EditableBy = f.EditableBy
+		if f.ShowWhen != nil {
+			fd.ShowWhen = &requiredWhenDoc{Field: f.ShowWhen.Field, Equals: f.ShowWhen.Equals}
+		}
 		if f.DefaultFrom != nil {
 			days := make(map[string]int, len(f.DefaultFrom.Days))
 			for _, d := range f.DefaultFrom.Days {

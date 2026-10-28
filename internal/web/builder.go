@@ -212,6 +212,14 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	if !slices.Equal(slices.Sorted(slices.Values(editors)), slices.Sorted(slices.Values(current.EditableBy))) {
 		ops = append(ops, builder.Op{Kind: builder.OpSetEditableBy, Machine: parts[1], Field: parts[3], Roles: editors})
 	}
+	watch, watchValue, _ := strings.Cut(req.PostForm.Get("show_when"), ":")
+	haveWatch, haveValue := "", ""
+	if current.ShowWhen != nil {
+		haveWatch, haveValue = current.ShowWhen.Field, current.ShowWhen.Equals
+	}
+	if watch != haveWatch || watchValue != haveValue {
+		ops = append(ops, builder.Op{Kind: builder.OpSetShowWhen, Machine: parts[1], Field: parts[3], Watch: watch, Value: watchValue})
+	}
 	want, err := parseChoices(req.PostForm.Get("options"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

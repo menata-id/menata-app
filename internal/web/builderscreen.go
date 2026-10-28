@@ -96,7 +96,7 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 						detail += ", required"
 					}
 					add(place+"/"+builderPlaceName(f.Name), "machines/"+m.ID+"/fields/"+f.ID, "Field", detail,
-						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", choiceLines(m, f)}, [2]string{"fld_editable_by", strings.Join(f.EditableBy, "\n")})
+						[2]string{"fld_name", f.Name}, [2]string{"fld_required", strconv.FormatBool(f.Required)}, [2]string{"fld_options", choiceLines(m, f)}, [2]string{"fld_editable_by", strings.Join(f.EditableBy, "\n")}, [2]string{"fld_show_when", showWhenText(f.ShowWhen)})
 				}
 			}
 			for _, m := range owned {
@@ -138,6 +138,10 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 									if r.ID == selected {
 										r.Values["fld_name"], r.Values["fld_required"] = f.Name, strconv.FormatBool(f.Required)
 										r.Values["fld_options"], r.Values["fld_editable_by"] = stagedChoiceLines(m, f), strings.Join(f.EditableBy, "\n")
+										r.Values["fld_show_when"] = ""
+										if f.ShowWhen != nil {
+											r.Values["fld_show_when"] = f.ShowWhen.Field + ":" + f.ShowWhen.Equals
+										}
 									}
 								}
 							}
@@ -343,4 +347,12 @@ func builderChecks(app domain.Application, owned []*domain.Machine) []builderChe
 		}
 	}
 	return out
+}
+
+// showWhenText is a Field's `show_when:` as the Edit tab's picker holds it, "<field>:<option>", empty for a Field asked always.
+func showWhenText(c *domain.FieldCondition) string {
+	if c == nil {
+		return ""
+	}
+	return c.Field + ":" + c.Equals
 }

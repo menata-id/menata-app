@@ -17,6 +17,7 @@ fields:
   - { id: fld_editable_by, name: Who may change, type: long_text }
   - { id: fld_position, name: Place, type: text }
   - { id: fld_count, name: Items, type: text }
+  - { id: fld_show_when, name: Asked for, type: text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
   - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, Fixed, Ask, Code] }

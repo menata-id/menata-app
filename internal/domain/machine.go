@@ -167,6 +167,10 @@ type Field struct {
 	// Enforced by internal/data.ValidateRecord on every write, so an update that changes the other Field
 	// into the value is refused until this one is filled.
 	RequiredWhen *FieldCondition
+	// ShowWhen (`show_when: {field, equals}`, 2026-10-28, Apps Builder Fase 8d) asks for this Field only while another status Field of the record holds
+	// one value ("the contract number, for a Contract"). A form draws it hidden and unasked until then (the shell's listener shows it as the other Field
+	// changes), and while it is not shown it is not required and a value is neither judged nor needed. A value already stored is kept. Nil is a Field asked always.
+	ShowWhen *FieldCondition
 	// DefaultFrom fills a date Field on create from another Field's value plus a number of days
 	// ("priority decides the due date"). Nil for none. Applied by internal/data.ApplyDefaults only where the
 	// submitter left the Field empty, and only on create, like Default.
@@ -221,6 +225,11 @@ func (m *Machine) LockedField(f Field, stored map[string]any) (bool, string) {
 		return true, fmt.Sprintf("%s cannot change once the record is %s", f.Name, c.Equals)
 	}
 	return false, ""
+}
+
+// ShownFor says whether this Field is asked for by a record holding values: always, unless it declares ShowWhen and the Field it watches does not hold the value.
+func (f Field) ShownFor(values map[string]any) bool {
+	return f.ShowWhen == nil || fmt.Sprint(values[f.ShowWhen.Field]) == f.ShowWhen.Equals
 }
 
 // LockedFieldFor is LockedField for one person: the Field is also kept as it is when it names who may change it (EditableBy) and the actor holds none of

@@ -176,6 +176,7 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateNumbering(f, fieldsByID)...)
 		issues = append(issues, validateStamp(f)...)
 		issues = append(issues, validateRequiredWhen(f, fieldsByID)...)
+		issues = append(issues, validateShowWhen(f, fieldsByID)...)
 		issues = append(issues, validateLocks(f, fieldsByID)...)
 		issues = append(issues, validateFieldCategories(m, f)...)
 		if f.Currency != "" {
@@ -1907,6 +1908,36 @@ func validateRequiredWhen(f domain.Field, fieldsByID map[string]domain.Field) []
 	return issues
 }
 
+// validateShowWhen holds a conditionally shown Field to what its form assumes: another status Field of this Machine to watch and one of its own options (a value it
+// can never hold would hide the Field forever), a Field a person writes, and no required_when beside it (one says when it is asked, the other when it is demanded).
+func validateShowWhen(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	sw := f.ShowWhen
+	if sw == nil {
+		return nil
+	}
+	var issues []string
+	if f.RequiredWhen != nil {
+		issues = append(issues, fmt.Sprintf("field %q: show_when and required_when together -- a Field is asked for while %q holds a value and is then required if it is `required`", f.ID, sw.Field))
+	}
+	if f.Compute != nil || f.Stamp != "" || f.Numbering != nil {
+		issues = append(issues, fmt.Sprintf("field %q: a computed, stamped or numbered field is written by the runtime, so show_when would hide nothing a person is asked", f.ID))
+	}
+	other, ok := fieldsByID[sw.Field]
+	switch {
+	case sw.Field == f.ID:
+		issues = append(issues, fmt.Sprintf("field %q: show_when names itself", f.ID))
+	case !ok:
+		issues = append(issues, fmt.Sprintf("field %q: show_when.field %q is not a field of this machine", f.ID, sw.Field))
+	case other.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("field %q: show_when.field %q must be a status field, got %q -- a comparison needs a closed set of values", f.ID, sw.Field, other.Type))
+	case !slices.Contains(other.Options, sw.Equals):
+		issues = append(issues, fmt.Sprintf("field %q: show_when.equals %q is not one of %q's own options %v -- it would never be shown", f.ID, sw.Equals, sw.Field, other.Options))
+	case other.ShowWhen != nil:
+		issues = append(issues, fmt.Sprintf("field %q: show_when watches %q, which is itself shown conditionally -- one step, no chains", f.ID, sw.Field))
+	}
+	return issues
+}
+
 // validateDefaultFrom holds a derived default to its shape: a date Field, a status Field of this Machine to read,
 // a non-negative day count for options that exist, at least one entry, and no second default beside it.
 func validateDefaultFrom(f domain.Field, fieldsByID map[string]domain.Field) []string {
@@ -2620,7 +2651,7 @@ func validateFrozenWhen(machines []*domain.Machine) error {
 }
 
 func validateDerivedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
-	return validateFieldsAreGenericallyWritten(machines, "conditionally required or derived", func(f domain.Field) bool { return f.RequiredWhen != nil || f.DefaultFrom != nil })
+	return validateFieldsAreGenericallyWritten(machines, "conditionally required or derived", func(f domain.Field) bool { return f.RequiredWhen != nil || f.DefaultFrom != nil || f.ShowWhen != nil })
 }
 
 func validateNumberedFieldsAreGenericallyWritten(machines []*domain.Machine) error {

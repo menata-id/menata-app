@@ -275,6 +275,9 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		}
 		f.Stamp = domain.FieldStamp(gf.Stamp)
 		f.EditableBy = slices.Clone(gf.EditableBy)
+		if gf.ShowWhen != nil {
+			f.ShowWhen = &domain.FieldCondition{Field: gf.ShowWhen.Field, Equals: gf.ShowWhen.Equals}
+		}
 		if gf.RequiredWhen != nil {
 			f.RequiredWhen = &domain.FieldCondition{Field: gf.RequiredWhen.Field, Equals: gf.RequiredWhen.Equals}
 		}

@@ -1,0 +1,25 @@
+case: 27
+title: A Field asked only for one kind of record
+# The contract number is asked only while the Kind is Contract (`show_when:`). The form draws it hidden until then, and carries the condition for the shell's
+# listener; a record of another kind is not asked for it (so a required Field that is not shown is not missing), and a Contract still needs it.
+actors:
+  - { name: sari, role: clerk }
+steps:
+  - id: the-form-carries-the-condition-and-starts-hidden
+    as: sari
+    view:
+      path: /pages/nav_papers
+      shows: ['data-show-when-name="fld_kind"', 'data-show-when="Contract" hidden', "Contract number"]
+    expect: ok
+  - id: an-invoice-needs-no-contract-number
+    as: sari
+    create: { machine: mch_paper, values: { fld_title: Invoice 1, fld_kind: Invoice } }
+    expect: ok
+  - id: a-contract-without-its-number
+    as: sari
+    create: { machine: mch_paper, values: { fld_title: Contract 1, fld_kind: Contract } }
+    expect: refused
+  - id: a-contract-with-its-number
+    as: sari
+    create: { machine: mch_paper, values: { fld_title: Contract 2, fld_kind: Contract, fld_reference: C-001 } }
+    expect: ok

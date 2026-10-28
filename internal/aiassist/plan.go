@@ -64,6 +64,9 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 			gf.RequiredWhen = &GeneratedRequiredWhen{Field: f.RequiredWhen.Field, Equals: f.RequiredWhen.Equals}
 		}
 		gf.EditableBy = slices.Clone(f.EditableBy)
+		if f.ShowWhen != nil {
+			gf.ShowWhen = &GeneratedShowWhen{Field: f.ShowWhen.Field, Equals: f.ShowWhen.Equals}
+		}
 		if f.DefaultFrom != nil {
 			df := &GeneratedDefaultFrom{Field: f.DefaultFrom.Field}
 			for value, days := range f.DefaultFrom.Days {
@@ -428,6 +431,13 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	}
 	if !sameRequiredWhen(f.RequiredWhen, of.RequiredWhen) || !sameDefaultFrom(f.DefaultFrom, of.DefaultFrom) {
 		p.refuse("field %s on %s cannot change when it is required or what its date starts as -- the file edit only appends; add a new field instead", f.ID, m.ID)
+	}
+	switch {
+	case sameShowWhen(f.ShowWhen, of.ShowWhen):
+	case f.ShowWhen == nil:
+		p.change("field %q on %q is now asked for always", f.Name, m.Name)
+	default:
+		p.change("field %q on %q is now asked for only while %s is %q", f.Name, m.Name, f.ShowWhen.Field, f.ShowWhen.Equals)
 	}
 	switch {
 	case slices.Equal(sortedCopy(f.EditableBy), sortedCopy(of.EditableBy)):
@@ -867,4 +877,11 @@ func sortedCopy(in []string) []string {
 	out := slices.Clone(in)
 	slices.Sort(out)
 	return out
+}
+
+func sameShowWhen(a, b *GeneratedShowWhen) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }

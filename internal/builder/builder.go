@@ -28,6 +28,7 @@ const (
 	OpSetDefault         = "set_default"
 	OpAddPermission      = "add_permission"
 	OpSetEditableBy      = "set_editable_by"
+	OpSetShowWhen        = "set_show_when"
 	OpRenameMenuItem     = "rename_menu_item"
 	OpMoveMenuItem       = "move_menu_item"
 	OpRemoveMenuItem     = "remove_menu_item"
@@ -54,7 +55,9 @@ type Op struct {
 	Category string `json:"category,omitempty"`
 	// Item is a menu item's id (the menu operations) and Position the place it takes among the items, 1 for the first; add_menu_item takes Machine (the
 	// Machine its new item opens) and Value (its label).
-	Item       string            `json:"item,omitempty"`
+	Item string `json:"item,omitempty"`
+	// Watch, on set_show_when, is the status Field of the Machine whose value (Value) asks for the Field Field.
+	Watch      string            `json:"watch,omitempty"`
 	Position   int               `json:"position,omitempty"`
 	Categories map[string]string `json:"categories,omitempty"`
 }
@@ -72,6 +75,7 @@ var capabilityOf = map[string]string{
 	OpSetDefault:         "fieldDoc.default",
 	OpAddPermission:      "machineDoc.permissions",
 	OpSetEditableBy:      "fieldDoc.editable_by",
+	OpSetShowWhen:        "fieldDoc.show_when",
 	OpRenameMenuItem:     "navItemDoc.label",
 	OpMoveMenuItem:       "navItemDoc.priority",
 	OpRemoveMenuItem:     "navItemDoc.id",
@@ -170,7 +174,7 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
 		}
 		m.Fields = slices.Delete(m.Fields, i, i+1)
-	case OpRenameField, OpSetRequired, OpSetDefault, OpAddOption, OpRemoveOption, OpSetEditableBy:
+	case OpRenameField, OpSetRequired, OpSetDefault, OpAddOption, OpRemoveOption, OpSetEditableBy, OpSetShowWhen:
 		i := slices.IndexFunc(m.Fields, func(f aiassist.GeneratedField) bool { return f.ID == op.Field })
 		if i < 0 {
 			return fmt.Errorf("field %q is not on machine %s", op.Field, m.ID)
@@ -185,6 +189,12 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			f.Default = op.Value
 		case OpSetEditableBy:
 			f.EditableBy = slices.Clone(op.Roles)
+		case OpSetShowWhen:
+			// Watch is the status Field watched and Value the option that shows this one; an empty Watch clears it.
+			f.ShowWhen = nil
+			if op.Watch != "" {
+				f.ShowWhen = &aiassist.GeneratedShowWhen{Field: op.Watch, Equals: op.Value}
+			}
 		case OpAddOption:
 			if slices.Contains(f.Options, op.Value) {
 				return fmt.Errorf("option %q already exists on %s", op.Value, f.ID)

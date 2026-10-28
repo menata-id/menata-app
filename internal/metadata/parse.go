@@ -319,6 +319,8 @@ type fieldDoc struct {
 	// RequiredWhen and DefaultFrom: see domain.Field.
 	RequiredWhen *requiredWhenDoc `yaml:"required_when"`
 	DefaultFrom  *defaultFromDoc  `yaml:"default_from"`
+	// ShowWhen: see domain.Field.ShowWhen.
+	ShowWhen *requiredWhenDoc `yaml:"show_when"`
 	// LockedWhen, SetOnce and OnParentDelete: see domain.Field.
 	// Currency: see domain.Field.Currency.
 	Currency string `yaml:"currency"`
@@ -646,6 +648,10 @@ func Parse(data []byte) (*domain.Machine, error) {
 		if fd.RequiredWhen != nil {
 			requiredWhen = &domain.FieldCondition{Field: fd.RequiredWhen.Field, Equals: fd.RequiredWhen.Equals}
 		}
+		var showWhen *domain.FieldCondition
+		if fd.ShowWhen != nil {
+			showWhen = &domain.FieldCondition{Field: fd.ShowWhen.Field, Equals: fd.ShowWhen.Equals}
+		}
 		var defaultFrom *domain.FieldDefaultFrom
 		if fd.DefaultFrom != nil {
 			defaultFrom = &domain.FieldDefaultFrom{Field: fd.DefaultFrom.Field, Days: fd.DefaultFrom.Days}
@@ -669,6 +675,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			EditableBy:     fd.EditableBy,
 			OnParentDelete: domain.ParentDelete(fd.OnParentDelete),
 			RequiredWhen:   requiredWhen,
+			ShowWhen:       showWhen,
 			DefaultFrom:    defaultFrom,
 			ID:             fd.ID,
 			Name:           fd.Name,
