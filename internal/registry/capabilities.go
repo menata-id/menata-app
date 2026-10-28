@@ -148,6 +148,12 @@ var Capabilities = []Capability{
 	key("applicationDoc", "view_groups", "presentation", "experience", false, "screens that are arrangements of one Machine's records sharing a header, a switch and a scope; like `page:` (UnwritableByTheAssistant) it is authored, and a generated Application has no Board, Table or Calendar of one Machine to group"),
 	key("applicationDoc", "companion_of", "structure", "experience", false, "ties a template to the one it is installed with; it is about the library's own packaging, which a generated Application is never part of"),
 	key("applicationDoc", "inactive", "structure", "runtime", false, "the Workspace admin's switch for an Application (the deactivate/reactivate runtime actions write it); not part of what a proposal describes, and a generated update must not switch an Application off"),
+	// A menu item the assistant and the builder write: its label, its place in the order, its removal (an item that opens a Machine), and a new item
+	// opening a Machine. Group, badge and who may open it (OpenTo) wait for their slots with the menu editor's next slices.
+	key("navItemDoc", "id", "identity", "experience", true, ""),
+	key("navItemDoc", "label", "identity", "experience", true, ""),
+	key("navItemDoc", "route", "structure", "experience", true, ""),
+	key("navItemDoc", "priority", "presentation", "experience", true, ""),
 	key("navItemDoc", "view_group", "presentation", "experience", false, "makes a screen one arrangement of an Application's view group; authored with the group"),
 	key("navItemDoc", "summary", "presentation", "experience", false, "words a view group's header with its counts; authored with the group"),
 

@@ -508,3 +508,47 @@ func TestRemovingAChoiceTakesItsColourWithIt(t *testing.T) {
 		t.Errorf("a choice added then removed in one draft: %v", err)
 	}
 }
+
+// The menu operations edit the Application's navigation in order: rename, move to a place among the items, take out, add one that opens a Machine; an item
+// that is not there, a place outside the list and a Machine the Application lacks are errors, and removing an item that opens no Machine is the plan's refusal.
+func TestMenuOperationsEditTheNavigationInOrder(t *testing.T) {
+	manifest := installed(t)
+	cur := current(t, manifest)
+	first := cur.Navigation[0].ID
+	out, err := Apply(cur, []Op{
+		{Kind: OpAddMenuItem, Machine: "mch_catat", Value: "Second"},
+		{Kind: OpAddMenuItem, Machine: "mch_catat", Value: "Third"},
+		{Kind: OpMoveMenuItem, Item: first, Position: 3},
+		{Kind: OpRenameMenuItem, Item: first, Value: "Last"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var labels []string
+	for _, n := range out.Navigation {
+		labels = append(labels, n.Label)
+	}
+	if strings.Join(labels, ",") != "Second,Third,Last" {
+		t.Errorf("menu order = %v, want Second,Third,Last", labels)
+	}
+	if len(cur.Navigation) != 1 {
+		t.Error("Apply edited its input")
+	}
+	for name, ops := range map[string][]Op{
+		"an item that is not there": {{Kind: OpRenameMenuItem, Item: "nav_nowhere", Value: "x"}},
+		"a place outside the list":  {{Kind: OpMoveMenuItem, Item: first, Position: 2}},
+		"place zero":                {{Kind: OpMoveMenuItem, Item: first, Position: 0}},
+		"a Machine the app lacks":   {{Kind: OpAddMenuItem, Machine: "mch_nowhere", Value: "x"}},
+	} {
+		if _, err := Apply(cur, ops); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+	plan, err := Review(manifest, appID, []Op{{Kind: OpAddMenuItem, Machine: "mch_catat", Value: "Second"}, {Kind: OpRemoveMenuItem, Item: first}})
+	if err != nil {
+		t.Fatalf("taking out the only item that opens a Machine while adding another: %v", err)
+	}
+	if len(plan.Plan.Items) == 0 {
+		t.Error("the plan says nothing of the menu change")
+	}
+}

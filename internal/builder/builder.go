@@ -28,6 +28,10 @@ const (
 	OpSetDefault         = "set_default"
 	OpAddPermission      = "add_permission"
 	OpSetEditableBy      = "set_editable_by"
+	OpRenameMenuItem     = "rename_menu_item"
+	OpMoveMenuItem       = "move_menu_item"
+	OpRemoveMenuItem     = "remove_menu_item"
+	OpAddMenuItem        = "add_menu_item"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -47,7 +51,11 @@ type Op struct {
 	Action  string   `json:"action,omitempty"`
 	// Category, on add_option and add_field, is the colour-meaning (start, active, attention, done, stopped) the new option is drawn in; it is
 	// written into the Machine's status_categories. add_field takes it for its Options through Categories (option -> category).
-	Category   string            `json:"category,omitempty"`
+	Category string `json:"category,omitempty"`
+	// Item is a menu item's id (the menu operations) and Position the place it takes among the items, 1 for the first; add_menu_item takes Machine (the
+	// Machine its new item opens) and Value (its label).
+	Item       string            `json:"item,omitempty"`
+	Position   int               `json:"position,omitempty"`
 	Categories map[string]string `json:"categories,omitempty"`
 }
 
@@ -64,6 +72,10 @@ var capabilityOf = map[string]string{
 	OpSetDefault:         "fieldDoc.default",
 	OpAddPermission:      "machineDoc.permissions",
 	OpSetEditableBy:      "fieldDoc.editable_by",
+	OpRenameMenuItem:     "navItemDoc.label",
+	OpMoveMenuItem:       "navItemDoc.priority",
+	OpRemoveMenuItem:     "navItemDoc.id",
+	OpAddMenuItem:        "navItemDoc.route",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -92,6 +104,33 @@ func Apply(current aiassist.GeneratedApplication, ops []Op) (aiassist.GeneratedA
 }
 
 func apply(app *aiassist.GeneratedApplication, op Op) error {
+	switch op.Kind {
+	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem:
+		i := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == op.Item })
+		if i < 0 {
+			return fmt.Errorf("menu item %q is not in application %s", op.Item, app.ID)
+		}
+		switch op.Kind {
+		case OpRenameMenuItem:
+			app.Navigation[i].Label = op.Value
+		case OpRemoveMenuItem:
+			app.Navigation = slices.Delete(app.Navigation, i, i+1)
+		case OpMoveMenuItem:
+			if op.Position < 1 || op.Position > len(app.Navigation) {
+				return fmt.Errorf("position %d is not among the %d menu items", op.Position, len(app.Navigation))
+			}
+			item := app.Navigation[i]
+			app.Navigation = slices.Delete(app.Navigation, i, i+1)
+			app.Navigation = slices.Insert(app.Navigation, op.Position-1, item)
+		}
+		return nil
+	case OpAddMenuItem:
+		if machineByID(app, op.Machine) == nil {
+			return fmt.Errorf("machine %q is not in application %s", op.Machine, app.ID)
+		}
+		app.Navigation = append(app.Navigation, aiassist.GeneratedMenuItem{Label: op.Value, MachineID: op.Machine})
+		return nil
+	}
 	m := machineByID(app, op.Machine)
 	if m == nil {
 		return fmt.Errorf("machine %q is not in application %s", op.Machine, app.ID)
@@ -200,6 +239,7 @@ func machineByID(app *aiassist.GeneratedApplication, id string) *aiassist.Genera
 
 // clone copies the parts Apply edits so the caller's value is never touched.
 func clone(a aiassist.GeneratedApplication) aiassist.GeneratedApplication {
+	a.Navigation = slices.Clone(a.Navigation)
 	a.Machines = slices.Clone(a.Machines)
 	for i := range a.Machines {
 		m := &a.Machines[i]

@@ -66,6 +66,8 @@ var runtimeActionRunners = map[string]actionRunner{
 	"revoke_invite":          runRevokeInvite,
 	"edit_field":             runEditField,
 	"add_field":              runAddField,
+	"edit_menu_item":         runEditMenuItem,
+	"add_menu_item":          runAddMenuItem,
 	"publish_draft":          runPublishDraft,
 	"discard_draft":          runDiscardDraft,
 	"ask_assistant_about":    runAskAssistantAbout,

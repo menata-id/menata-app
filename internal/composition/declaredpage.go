@@ -1332,6 +1332,35 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputRecordPosition:
+			count, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Count)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			n, _ := strconv.Atoi(count)
+			var places []string
+			for i := 1; i <= n; i++ {
+				places = append(places, strconv.Itoa(i))
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: places, Default: here})
+		case registry.ActionInputAppMachine:
+			appID, _, _ := strings.Cut(recordID, "/")
+			var options []string
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if app.ID != appID {
+					continue
+				}
+				for _, id := range app.Machines {
+					if m := l.Machine(id); m != nil {
+						options = append(options, id+"="+m.Name)
+					}
+				}
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Required: in.Required})
 		case registry.ActionInputFieldType:
 			var types []string
 			for _, t := range domain.AddableFieldTypes {

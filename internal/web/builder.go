@@ -511,3 +511,70 @@ func runAskAssistantAbout(w http.ResponseWriter, req *http.Request, env actionEn
 	idea := "In the application \"" + appName + "\" (" + appID + "), about " + path + ": " + wish
 	return domain.RuntimeScreenRoute("nav_new_application") + "?" + url.Values{"idea": {idea}}.Encode(), true
 }
+
+// runEditMenuItem is the Edit tab of a screen the menu lists: the record is "<app>/navigation/<item>", and the form says its name in the menu, its place among
+// the items and whether to take it out. Compared with the menu as the admin's draft leaves it; the operations are the ones a conversation makes
+// (rename_menu_item, move_menu_item, remove_menu_item) and are staged. Taking an item out wins over the rest; the plan refuses taking out one that opens
+// something other than a Machine's records, for the reason it gives in a conversation.
+func runEditMenuItem(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	item, ok := strings.CutPrefix(rest, "navigation/")
+	if !ok || item == "" || strings.Contains(item, "/") || appID == "" {
+		http.Error(w, "this part is not a screen of the menu", http.StatusBadRequest)
+		return "", false
+	}
+	label := strings.TrimSpace(req.PostForm.Get("label"))
+	if label == "" {
+		http.Error(w, "a menu item needs a name", http.StatusBadRequest)
+		return "", false
+	}
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	at := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == item })
+	if at < 0 {
+		http.Error(w, "this screen is not in the menu of this Application", http.StatusNotFound)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
+	var ops []builder.Op
+	switch {
+	case req.PostForm.Get("remove") != "":
+		ops = append(ops, builder.Op{Kind: builder.OpRemoveMenuItem, Item: item})
+		back = "/builder/" + url.PathEscape(appID)
+	default:
+		if label != app.Navigation[at].Label {
+			ops = append(ops, builder.Op{Kind: builder.OpRenameMenuItem, Item: item, Value: label})
+		}
+		if place, err := strconv.Atoi(req.PostForm.Get("position")); err == nil && place != at+1 {
+			ops = append(ops, builder.Op{Kind: builder.OpMoveMenuItem, Item: item, Position: place})
+		}
+	}
+	if len(ops) == 0 {
+		return back, true
+	}
+	return stageBuilderOps(w, req, env, appID, ops, back)
+}
+
+// runAddMenuItem is the Edit tab of the menu itself: a new item with a name, opening the records of a Machine of the Application (add_menu_item). The Machine
+// must be one the draft has.
+func runAddMenuItem(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	appID, rest, _ := strings.Cut(record, "/")
+	if rest != "navigation" || appID == "" {
+		http.Error(w, "this part is not the menu", http.StatusBadRequest)
+		return "", false
+	}
+	label, machine := strings.TrimSpace(req.PostForm.Get("label")), req.PostForm.Get("machine")
+	if label == "" || machine == "" {
+		http.Error(w, "a menu item needs a name and the Machine it opens", http.StatusBadRequest)
+		return "", false
+	}
+	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
+	return stageBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpAddMenuItem, Machine: machine, Value: label}}, back)
+}

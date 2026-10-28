@@ -61,6 +61,10 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				id := app.ID + "/" + path
 				tab := tab
 				switch {
+				case tab == "Edit" && (kind == "Screen" || kind == "Declared page"):
+					tab = "MenuItem" // a screen the menu lists: its name, its place, taking it out
+				case tab == "Edit" && kind == "Menu":
+					tab = "MenuAdd" // the menu itself: a new item
 				case tab == "Edit" && kind == "Permission":
 					tab = "Access" // a Permission's Edit tab is the roles that may do what it governs
 				case tab == "Edit" && kind == "Machine":
@@ -101,12 +105,13 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 						strings.Join(p.Roles, ", "), [2]string{"fld_roles", strings.Join(p.Roles, "\n")})
 				}
 			}
-			for _, item := range app.AllNavigation {
+			for i, item := range app.AllNavigation {
 				kind := "Screen"
 				if item.Page != nil {
 					kind = "Declared page"
 				}
-				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route)
+				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route,
+					[2]string{"fld_name", item.Label}, [2]string{"fld_position", strconv.Itoa(i + 1)}, [2]string{"fld_count", strconv.Itoa(len(app.AllNavigation))})
 			}
 			for i, c := range builderChecks(app, owned) {
 				add(builderSectionChecks+"/"+builderPlaceName(c.Text), "checks/"+strconv.Itoa(i+1), "Check", c.Detail)

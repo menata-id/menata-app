@@ -308,7 +308,7 @@ func TestBuilderEditTabRenamesAndRequiresAField(t *testing.T) {
 	if body := edit("app_document_tracking/machines/mch_document"); strings.Contains(body, "edit_field") {
 		t.Errorf("a part that is not a Field is offered the Field form")
 	}
-	if body := edit("app_document_tracking/navigation"); !strings.Contains(body, "can be edited so far") {
+	if body := edit("app_document_tracking/navigation"); !strings.Contains(body, "add_menu_item") {
 		t.Errorf("a part that is not a Field does not say so:\n%s", body)
 	}
 
@@ -871,5 +871,81 @@ func TestEditableByAndTransitionSetsAreRefusedTogether(t *testing.T) {
 	err := s.deps.ReloadMetadata(s.slug)
 	if err == nil || !strings.Contains(err.Error(), "names who may change it") {
 		t.Errorf("a transition setting an editable_by Field loaded: %v", err)
+	}
+}
+
+// The menu is edited from the tree: the menu part adds an item that opens a Machine, and each screen the menu lists can be renamed, moved to another place or
+// taken out. The forms stage like the others and Publish writes the Application's file in the order the draft left.
+func TestBuilderMenuEditorAddsRenamesMovesAndRemoves(t *testing.T) {
+	s := newInstallTestSetup(t, "bmenu")
+	app := "app_document_tracking"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	tabEdit := func(node string) string {
+		return s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(node)).Body.String()
+	}
+	first := app + "/navigation/nav_document_tracking"
+	body := tabEdit(first)
+	for _, want := range []string{"/runtime-actions/edit_menu_item?record=", `name="label"`, `name="position"`, `name="remove"`, "Save menu item"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("a menu item's Edit tab is missing %q", want)
+		}
+	}
+	if body := tabEdit(app + "/navigation"); !strings.Contains(body, "/runtime-actions/add_menu_item?record=") || !strings.Contains(body, "Tracked Document") || !strings.Contains(body, "Add to the menu") {
+		t.Errorf("the menu's Edit tab does not offer a new item over the Application's Machines:\n%s", body)
+	}
+
+	publish := func() {
+		t.Helper()
+		if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+			t.Fatalf("publishing: %d", code)
+		}
+	}
+	if code := s.postTo(t, "/runtime-actions/add_menu_item?record="+url.QueryEscape(app+"/navigation"), url.Values{"label": {"Everything"}, "machine": {"mch_document"}}).Code; code != http.StatusSeeOther {
+		t.Fatalf("adding an item: %d", code)
+	}
+	if strings.Contains(read(), "Everything") {
+		t.Fatal("staging an item wrote the file")
+	}
+	publish()
+	if !strings.Contains(read(), "label: Everything") {
+		t.Fatalf("the new item is not in the Application's file:\n%s", read())
+	}
+	if strings.Index(read(), "Everything") < strings.Index(read(), "Document Tracking") {
+		t.Fatalf("the new item is not last:\n%s", read())
+	}
+
+	edit := func(node string, form url.Values) int {
+		return s.postTo(t, "/runtime-actions/edit_menu_item?record="+url.QueryEscape(node), form).Code
+	}
+	if code := edit(first, url.Values{"label": {"Papers"}, "position": {"2"}}); code != http.StatusSeeOther {
+		t.Fatalf("renaming and moving: %d", code)
+	}
+	publish()
+	text := read()
+	if !strings.Contains(text, "label: Papers") || strings.Index(text, "label: Papers") < strings.Index(text, "label: Everything") {
+		t.Errorf("the item was not renamed and moved after the other:\n%s", text)
+	}
+	before := read()
+	if code := edit(first, url.Values{"label": {"Papers"}, "position": {"2"}}); code != http.StatusSeeOther || strings.Contains(s.getAs(t, "/builder/"+app).Body.String(), "not published") {
+		t.Errorf("a form nobody changed staged something (status %d)", code)
+	}
+	for name, form := range map[string]url.Values{"a blank name": {"label": {" "}}, "a place that is not there": {"label": {"Papers"}, "position": {"9"}}} {
+		if code := edit(first, form); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+	}
+	if read() != before {
+		t.Error("a refused form wrote the file")
+	}
+	if code := edit(app+"/navigation/nav_nowhere", url.Values{"label": {"X"}}); code < 400 {
+		t.Errorf("an item that is not there was accepted: %d", code)
+	}
+	if code := edit(first, url.Values{"label": {"Papers"}, "remove": {"on"}}); code != http.StatusSeeOther {
+		t.Fatalf("taking an item out: %d", code)
+	}
+	publish()
+	if strings.Contains(read(), "Papers") || !strings.Contains(read(), "Everything") {
+		t.Errorf("the wrong item was taken out:\n%s", read())
 	}
 }

@@ -36,6 +36,8 @@ type ActionInput struct {
 	Kind string
 	// Field, with Kind ActionInputRecordText, is the field of the record whose text the input starts as (a file's content).
 	Field string
+	// Count, with Kind ActionInputRecordPosition, is the field of the record holding how many places there are to choose from.
+	Count string
 }
 
 // The two dynamic input kinds an action may ask.
@@ -67,6 +69,10 @@ const (
 	ActionInputFlag      = "flag"
 	// ActionInputPartRoles is the roles the Application of a builder part declares as ticked choices, starting as the roles the part's `fld_roles` holds.
 	ActionInputPartRoles = "part_roles"
+	// ActionInputRecordPosition is a select of the places 1..N an item can take, starting as the record's own place (`Field`), N read from `fld_count`.
+	// ActionInputAppMachine is a select of the Machines of the Application the record belongs to, named as they are.
+	ActionInputRecordPosition = "record_position"
+	ActionInputAppMachine     = "app_machine"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -116,6 +122,15 @@ var RuntimeActions = map[string]RuntimeAction{
 		Doc: "opens the assistant's conversation with what the person wants written about one part of the builder tree, naming the part (its kind, its place and its path -- structure only, never a record's contents); writes nothing, the assistant proposes and the person reviews before anything is applied"},
 	"publish_draft": {ID: "publish_draft", Source: "builder_drafts", Admin: true, Doc: "writes the changes the viewer staged in the Application Builder for one Application together, through the builder's one write path (snapshot first, load-verified, the Workspace reloaded), and drops the draft; if the plan refuses them now, nothing is written and the draft stays"},
 	"discard_draft": {ID: "discard_draft", Source: "builder_drafts", Admin: true, Doc: "drops the changes the viewer staged in the Application Builder for one Application; nothing was written"},
+	"edit_menu_item": {ID: "edit_menu_item", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "label", Label: "Name in the menu", Required: true, Kind: ActionInputRecordLine, Field: "fld_name"},
+		{Name: "position", Label: "Place in the menu", Kind: ActionInputRecordPosition, Field: "fld_position", Count: "fld_count"},
+		{Name: "remove", Label: "Take it out of the menu (the screen's records stay; only an item that opens a Machine can be taken out)", Kind: ActionInputFlag}},
+		Doc: "renames a menu item, moves it to another place or takes it out, as the rename_menu_item, move_menu_item and remove_menu_item operations a conversation uses; about a part of the builder tree that is a screen the menu lists"},
+	"add_menu_item": {ID: "add_menu_item", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "label", Label: "Name in the menu", Required: true},
+		{Name: "machine", Label: "Opens the records of", Required: true, Kind: ActionInputAppMachine}},
+		Doc: "adds a menu item opening a Machine of the Application, as the add_menu_item operation a conversation uses; about the menu part of the builder tree"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }
