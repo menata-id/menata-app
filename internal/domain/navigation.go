@@ -110,6 +110,10 @@ type NavigationItem struct {
 	// from Application.Roles by internal/composition/appsettings.go, so an Application emptying its
 	// roles cannot leave a dead-looking row behind.
 	SettingsHubMember bool
+	// Parent (`parent: nav_x`, 2026-10-28, Apps Builder Fase 8a) hangs this item under another item of the same Application, one level only: the menu
+	// draws it in its parent's own list and not in the row of top-level tabs, and the page it opens marks its parent as where you are. The parent is a
+	// top-level item of the same list (never itself, never an item that has a parent), which also rules out a cycle. Empty is a top-level item.
+	Parent string
 	// NotInMenu (`in_menu: false`, 2026-10-17) is a screen reached from another screen rather than from the menu: the
 	// "New contract" form a list's action opens (mockup K01b). It keeps its route and is resolved by id like any item
 	// (Application.AllNavigation); only the Application's menu leaves it out.

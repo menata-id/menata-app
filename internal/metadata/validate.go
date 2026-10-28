@@ -88,6 +88,27 @@ func validateNavigation(items []domain.NavigationItem) []string {
 			}
 		}
 	}
+	// A second level is one level: a parent is another item of this list that has no parent itself (which also rules out a cycle), and a hub is not nested.
+	byID := make(map[string]domain.NavigationItem, len(items))
+	for _, n := range items {
+		byID[n.ID] = n
+	}
+	for _, n := range items {
+		if n.Parent == "" {
+			continue
+		}
+		parent, ok := byID[n.Parent]
+		switch {
+		case n.Parent == n.ID:
+			issues = append(issues, fmt.Sprintf("navigation item %q: parent names the item itself", n.ID))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("navigation item %q: parent %q is not an item of this list", n.ID, n.Parent))
+		case parent.Parent != "":
+			issues = append(issues, fmt.Sprintf("navigation item %q: parent %q is itself under %q -- the menu has one level under an item, no more", n.ID, n.Parent, parent.Parent))
+		case n.SettingsHub || n.SettingsHubMember || parent.SettingsHub || parent.SettingsHubMember:
+			issues = append(issues, fmt.Sprintf("navigation item %q: a settings hub and its members belong to the Settings link and are not nested in the menu", n.ID))
+		}
+	}
 	return issues
 }
 

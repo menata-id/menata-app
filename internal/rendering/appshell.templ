@@ -352,6 +352,9 @@ type navMenuItem struct {
 	Active bool
 	// Fallback marks the entry made active only because no entry matched the page (the first one stands in), so it is not what the page is.
 	Fallback bool
+	// Children are the items hung under this one (`parent:`), in menu order; Within says this entry is where you are because one of them is the page.
+	Children []navMenuItem
+	Within   bool
 }
 
 // defaultAppMenu turns an Application's own declared navigation into appShell's menu, sorted by
@@ -392,19 +395,76 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 	copy(sorted, filtered)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Priority < sorted[j].Priority })
 
-	menu := make([]navMenuItem, len(sorted))
+	// Priority order is for the whole list; items hung under a parent (`parent:`) are drawn in their parent's own list, in that order, and not among the tabs.
+	flat := make([]navMenuItem, len(sorted))
 	matched := -1
 	for i, item := range sorted {
 		active := navItemActive(item, path, rawQuery)
 		if active && matched == -1 {
 			matched = i
 		}
-		menu[i] = navMenuItem{ID: item.ID, Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
+		flat[i] = navMenuItem{ID: item.ID, Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
 	}
-	if matched == -1 && len(menu) > 0 {
+	var menu []navMenuItem
+	at := map[string]int{}
+	for i, item := range sorted {
+		if item.Parent == "" {
+			at[item.ID] = len(menu)
+			menu = append(menu, flat[i])
+		}
+	}
+	for i, item := range sorted {
+		if item.Parent == "" {
+			continue
+		}
+		if p, ok := at[item.Parent]; ok {
+			menu[p].Children = append(menu[p].Children, flat[i])
+			if i == matched {
+				menu[p].Within = true
+			}
+		}
+	}
+	// Exactly one entry is the page: the first that matched, or the first tab when none did (and then it is a stand-in).
+	for i := range menu {
+		menu[i].Active = false
+		for j := range menu[i].Children {
+			menu[i].Children[j].Active = false
+		}
+	}
+	if matched >= 0 {
+		id := sorted[matched].ID
+		for i := range menu {
+			if menu[i].ID == id {
+				menu[i].Active = true
+			}
+			for j := range menu[i].Children {
+				if menu[i].Children[j].ID == id {
+					menu[i].Children[j].Active = true
+				}
+			}
+		}
+	} else if len(menu) > 0 {
 		menu[0].Active, menu[0].Fallback = true, true
 	}
 	return menu
+}
+
+// sheetRows flattens a menu for a list that has no room for a second level (the "More" dropdown and sheet): each entry, then its children, which read
+// "Parent › Child" so a row says whose it is.
+func sheetRows(items []navMenuItem, withSelf bool) []navMenuItem {
+	var rows []navMenuItem
+	for _, item := range items {
+		if withSelf {
+			self := item
+			self.Children = nil
+			rows = append(rows, self)
+		}
+		for _, child := range item.Children {
+			child.Label = item.Label + " › " + child.Label
+			rows = append(rows, child)
+		}
+	}
+	return rows
 }
 
 // settingsHubItem finds app's own SettingsHub-marked item, if it declares one (development-history.md "In
@@ -455,7 +515,8 @@ func bottomBarItems(menu []navMenuItem) []navMenuItem {
 
 // bottomBarOverflow is the rest of the Application's menu, the screens the three tabs have no room for: the "More" sheet's rows.
 func bottomBarOverflow(menu []navMenuItem) []navMenuItem {
-	return menu[min(3, len(menu)):]
+	// The three tabs have no room for a second level, so the sheet holds it: the rest of the menu, each with its children, then the children of the three.
+	return append(sheetRows(menu[min(3, len(menu)):], true), sheetRows(menu[:min(3, len(menu))], false)...)
 }
 
 // appMenuTabLimit is how many of an Application's menu items applicationMenuRow draws as tabs
@@ -480,7 +541,7 @@ func splitAppMenu(menu []navMenuItem) (tabs, overflow []navMenuItem) {
 // you are on lives inside it, so the strip never shows nothing selected.
 func anyActive(items []navMenuItem) bool {
 	for _, item := range items {
-		if item.Active {
+		if item.Active || item.Within {
 			return true
 		}
 	}
@@ -516,7 +577,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<a
 				href={ templ.SafeURL(item.Href) }
 				{ nodeAttrs(ctx, "navigation/"+item.ID)... }
-				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !item.Active) }
+				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), item.Active || item.Within), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !item.Active && !item.Within) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -524,18 +585,33 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				{ item.Label }
 				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden")
 			</a>
+			if len(item.Children) > 0 {
+				@menuTrigger("menata-app-sub-"+item.ID, item.Label+" submenu", "-ml-1 flex cursor-pointer items-center "+radiusClass(ctx, domain.RadiusControl)+" border-0 bg-transparent px-1 py-1.5 font-sans "+inkClass(ctx, domain.InkSecondary)+" "+hoverWashClass(ctx)+" "+inkHoverClass(ctx, domain.InkStrong)) {
+					@icon("chevron-down", "size-3.5")
+				}
+				@sheetPanel("menata-app-sub-"+item.ID, true, "tabs") {
+					for _, child := range item.Children {
+						<a
+							href={ templ.SafeURL(child.Href) }
+							{ nodeAttrs(ctx, "navigation/"+child.ID)... }
+							class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "px-3 py-2", textClass(ctx, domain.RoleBody), hoverWashClass(ctx), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), child.Active), templ.KV(inkClass(ctx, domain.InkBody), !child.Active) }
+							if child.Active {
+								aria-current="page"
+							}
+						>
+							{ child.Label }
+						</a>
+					}
+				}
+			}
 		}
 		if len(overflow) > 0 {
-			<button
-				type="button"
-				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans", textClass(ctx, domain.RoleBody), templ.KV(weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx), anyActive(overflow)), templ.KV(inkClass(ctx, domain.InkSecondary) + " "+hoverWashClass(ctx)+" " + inkHoverClass(ctx, domain.InkStrong), !anyActive(overflow)) }
-			>
+			@menuTrigger("menata-app-more-menu", "", "ml-auto flex cursor-pointer items-center "+layoutGap(ctx, domain.GapMicro)+" "+radiusClass(ctx, domain.RadiusControl)+" border-0 bg-transparent px-2.5 py-1.5 font-sans "+textClass(ctx, domain.RoleBody)+" "+triggerInk(ctx, anyActive(overflow))) {
 				More
 				@icon("chevron-down", "size-3.5")
-			</button>
+			}
 			@sheetPanel("menata-app-more-menu", true, "tabs") {
-				for _, item := range overflow {
+				for _, item := range sheetRows(overflow, true) {
 					<a
 						href={ templ.SafeURL(item.Href) }
 						{ nodeAttrs(ctx, "navigation/"+item.ID)... }
@@ -560,6 +636,29 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		}
 	</nav>
 	</div>
+}
+
+// menuTrigger is the one button that opens one of the header's popover menus (the "More" list, a parent item's own list): control behaviour
+// (`popovertarget`, 007 §12.3 `actions`, unbuilt) that `button` must not accept, written once so a second menu is not a second hand-written button.
+templ menuTrigger(target, label, class string) {
+	<button
+		type="button"
+		popovertarget={ target }
+		class={ class }
+		if label != "" {
+			aria-label={ label }
+		}
+	>
+		{ children... }
+	</button>
+}
+
+// triggerInk is the ink a header menu's trigger takes: the accent weight while the page lives inside the menu it opens, the quiet ink otherwise.
+func triggerInk(ctx context.Context, inside bool) string {
+	if inside {
+		return weightClass(ctx, domain.WeightEmphasis) + " " + accentActiveClass(ctx)
+	}
+	return inkClass(ctx, domain.InkSecondary) + " " + hoverWashClass(ctx) + " " + inkHoverClass(ctx, domain.InkStrong)
 }
 
 // navBadge is the live count a navigation item declares, drawn wherever that item is (the header
@@ -1022,6 +1121,11 @@ func activeMenuNode(menu []navMenuItem) string {
 	for _, item := range menu {
 		if item.Active && !item.Fallback && item.ID != "" {
 			return "navigation/" + item.ID
+		}
+		for _, child := range item.Children {
+			if child.Active && child.ID != "" {
+				return "navigation/" + child.ID
+			}
 		}
 	}
 	return ""

@@ -1,0 +1,85 @@
+id: app_orders
+name: Pesanan
+machines:
+  - mch_order
+roles:
+  - clerk
+description: One level under a menu item.
+icon: board
+color: blue
+summary_machine: mch_order
+navigation:
+  - id: nav_orders
+    label: Orders
+    title: Orders
+    route: /pages/nav_orders
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Orders
+          empty: No order yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_orders, rows: records }
+  - id: nav_pending
+    label: Pending
+    title: Pending orders
+    route: /pages/nav_pending
+    priority: 2
+    parent: nav_orders
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Pending
+          empty: Nothing pending.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_pending, rows: records }
+  - id: nav_archive
+    label: Archive
+    title: Archived orders
+    route: /pages/nav_archive
+    priority: 3
+    parent: nav_orders
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Archive
+          empty: Nothing archived.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_archived, rows: records }
+  - id: nav_reports
+    label: Reports
+    title: Reports
+    route: /pages/nav_reports
+    priority: 4
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Reports
+          empty: No order yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_orders, rows: records }

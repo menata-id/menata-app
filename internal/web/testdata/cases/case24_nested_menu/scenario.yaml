@@ -1,0 +1,19 @@
+case: 24
+title: A menu item with a second level under it
+# Pending and Archive hang under Orders (`parent:`); Reports stays a top-level item. The menu draws the two as Orders' own list and keeps them out of the
+# row of top-level tabs, and the page a child opens still marks its parent as where you are.
+actors:
+  - { name: sari, role: clerk }
+steps:
+  - id: the-top-level-row-holds-orders-and-reports
+    as: sari
+    view:
+      path: /pages/nav_orders
+      shows: ['aria-label="Orders submenu"', "Pending", "Archive", "Reports"]
+    expect: ok
+  - id: a-child-opens-and-its-parent-stays-marked
+    as: sari
+    view:
+      path: /pages/nav_pending
+      shows: ['href="/pages/nav_pending"', 'aria-current="page"']
+    expect: ok

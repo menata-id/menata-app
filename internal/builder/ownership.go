@@ -56,6 +56,7 @@ var Ownership = map[string]Owner{
 	"viewDoc.column_actions":     {EditorView, "a board column's menu"},
 	"viewDoc.add_column":         {EditorView, "a board's add-list tile"},
 	"applicationDoc.view_groups": {EditorView, "screens that share a header and a scope"},
+	"navItemDoc.parent":          {EditorMenu, "a menu item under another, one level"},
 	"navItemDoc.view_group":      {EditorView, "which group a screen belongs to"},
 	"navItemDoc.summary":         {EditorView, "the words of a group's header"},
 
