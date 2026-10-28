@@ -97,6 +97,13 @@ func TestBuilderPreviewNamesItsPartsOnlyForAnAdminWhoAsks(t *testing.T) {
 // mode, names only parts the builder's own tree lists for that Application -- the same ids, so a click in the preview always finds its row.
 func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 	h, cookie, fx := newPerRecordSweepSetup(t, "bsweep")
+	machines := map[string]map[string]bool{}
+	for _, m := range fx.ws.Machines {
+		machines[m.ID] = map[string]bool{}
+		for _, f := range m.Fields {
+			machines[m.ID][f.ID] = true
+		}
+	}
 	listed := func(appID, path string) bool {
 		for _, app := range fx.ws.Applications {
 			if app.ID != appID {
@@ -111,7 +118,10 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 				}
 			}
 			for _, id := range app.Machines {
-				if path == "machines/"+id || strings.HasPrefix(path, "machines/"+id+"/") {
+				if path == "machines/"+id {
+					return true
+				}
+				if field, ok := strings.CutPrefix(path, "machines/"+id+"/fields/"); ok && machines[id][field] {
 					return true
 				}
 			}
@@ -119,30 +129,47 @@ func TestBuilderPreviewNamesOnlyPartsTheTreeLists(t *testing.T) {
 		return false
 	}
 	pattern := regexp.MustCompile(`data-node-path="([^"]*)"`)
-	swept, named := 0, 0
+	swept, named, fields := 0, 0, 0
 	for _, app := range fx.ws.Applications {
-		if app.Inactive || app.HomeRoute == "" {
+		if app.Inactive {
 			continue
 		}
-		req := httptest.NewRequest(http.MethodGet, builderPreviewRoute(app, ""), nil)
-		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			continue // a screen that does not draw for this fixture is the route sweep's business
-		}
-		swept++
-		for _, m := range pattern.FindAllStringSubmatch(rec.Body.String(), -1) {
-			named++
-			appID, path, ok := strings.Cut(m[1], "/")
-			if !ok || appID != app.ID || !listed(appID, path) {
-				t.Errorf("%s names %q, which the builder's tree does not list for that Application", app.HomeRoute, m[1])
+		for _, item := range app.AllNavigation {
+			if item.Route == "" || strings.ContainsAny(item.Route, "{}") {
+				continue
+			}
+			u, err := url.Parse(item.Route)
+			if err != nil {
+				continue
+			}
+			q := u.Query()
+			q.Set("builder", "1")
+			u.RawQuery = q.Encode()
+			req := httptest.NewRequest(http.MethodGet, u.String(), nil)
+			req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				continue // a screen that does not draw for this fixture is the route sweep's business
+			}
+			swept++
+			for _, m := range pattern.FindAllStringSubmatch(rec.Body.String(), -1) {
+				named++
+				appID, path, ok := strings.Cut(m[1], "/")
+				if strings.Contains(path, "/fields/") {
+					fields++
+				}
+				// A screen of a Machine another Application shares is named by the Application the request resolved to; every name must be one of its parts.
+				if !ok || !listed(appID, path) {
+					t.Errorf("%s names %q, which the builder's tree does not list for that Application", item.Route, m[1])
+				}
 			}
 		}
 	}
-	if swept < 2 || named < swept {
-		t.Fatalf("swept %d Applications and %d named parts -- the sweep measures too little", swept, named)
+	if swept < 10 || named < swept {
+		t.Fatalf("swept %d screens and %d named parts -- the sweep measures too little", swept, named)
 	}
+	t.Logf("swept %d screens, %d named parts, %d of them Fields", swept, named, fields)
 }
 
 // The preview is the one response that may be framed, and only by this origin; every other response still refuses a frame. (Without this the

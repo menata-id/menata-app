@@ -371,6 +371,9 @@ type SourceResolver func(datasetID string) (machineID string, ok bool)
 // pages hide a "New" button, rather than drawn and refused. The route still refuses on its own, so this is
 // courtesy and not enforcement.
 type FormSpec struct {
+	// Machine is the Machine whose Fields the controls edit (a create or update Form), "" for a Form of a runtime action; lowering names each control's
+	// Field by it, so a builder preview can tell which part of the Application's metadata a control is.
+	Machine string
 	// Reader is the document reader a Form with `extract:` offers above itself: a small form that sends a document to be
 	// read. nil is a host or a viewer with none (and every Form without `extract:`).
 	Reader *FormReader
@@ -2429,7 +2432,11 @@ func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string)
 		form.Children = append(form.Children, UINode{Kind: NodeStatic, Type: string(domain.StaticCaption), Props: map[string]string{"text": spec.Document}})
 	}
 	for i, in := range spec.Inputs {
-		form.Children = append(form.Children, formField(formControlID(path, i), in.FieldID, in))
+		field := formField(formControlID(path, i), in.FieldID, in)
+		if spec.Machine != "" {
+			field.Props["node"] = "machines/" + spec.Machine + "/fields/" + in.FieldID
+		}
+		form.Children = append(form.Children, field)
 	}
 	// Proposed child records ride the same submit: each kind is one Table -- one header row, a row per proposed record, a total
 	// -- whose cells are the row's controls, named rows.<kind>.<n>.<field>, and a last tick that keeps or leaves out the row.

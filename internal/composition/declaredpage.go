@@ -169,6 +169,7 @@ func bindingForm(ctx context.Context, l *Loader, viewer domain.Actor, params map
 		}
 	}
 	spec := ir.FormSpec{
+		Machine:   src.ID,
 		Route:     domain.FormRoute(src.ID),
 		Permitted: createPermitted(src, viewer),
 		Inputs:    inputs,
@@ -706,6 +707,7 @@ func listedOptions(records []*data.Record, fields map[string]string, labels map[
 // its route refuses every write. It costs no query: the record is already in hand.
 func recordEditForm(src *domain.Machine, r *data.Record, viewer domain.Actor) ir.FormSpec {
 	return ir.FormSpec{
+		Machine:   src.ID,
 		Route:     RecordRoute(src.ID, r.ID),
 		Method:    domain.FormMethodPatch,
 		Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer),

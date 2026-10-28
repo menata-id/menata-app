@@ -58,10 +58,10 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
 				@staticText(domain.StaticPanelHeading, "Document")
-				@field("doc_title", "Title", "", "") {
+				@field("doc_title", "Title", "", "", "") {
 					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ fieldClasses(ctx) }/>
 				}
-				@field("doc_type", documentType.Name, "", "") {
+				@field("doc_type", documentType.Name, "", "", "") {
 					<select
 						id="doc_type"
 						name={ documentType.ID }
@@ -79,7 +79,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 						}
 					</select>
 				}
-				@field("doc_file", "PDF file", "", "") {
+				@field("doc_file", "PDF file", "", "", "") {
 					<input id="doc_file" type="file" name="fld_file" accept="application/pdf" required?={ draft.ID == "" } class={ textClass(ctx, domain.RoleBody) }/>
 					if draft.ID != "" {
 						@staticText(domain.StaticCaption, "Current file: " + draft.FileName + " — choose a new file to replace it.")
@@ -212,9 +212,10 @@ templ modeFieldsetContent(mode domain.Field, selected string) {
 //
 // `note` and `flag` are the two things a *proposed* value carries (a document reader's answer, which a person checks
 // before it is saved): `note` is the line under the control saying where it was read, `flag` is the words of a warning
-// beside the label ("needs review") when the value was inferred rather than quoted. Both empty is the plain Field.
-templ field(forID, label, note, flag string) {
-	<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
+// beside the label ("needs review") when the value was inferred rather than quoted. Both empty is the plain Field. `node` is the metadata path of the
+// Field the control edits (a declared form lowers it), named in a builder preview and otherwise unused.
+templ field(forID, label, note, flag, node string) {
+	<div { nodeAttrs(ctx, node)... } class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<label for={ forID } class={ textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ label }</label>
 			if flag != "" {

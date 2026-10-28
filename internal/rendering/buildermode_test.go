@@ -1,6 +1,9 @@
 package rendering
 
 import (
+	"bytes"
+	"context"
+	"strings"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -21,5 +24,24 @@ func TestActiveMenuNode_isTheEntryThePageIsAndNeverTheStandIn(t *testing.T) {
 	}
 	if menu = defaultAppMenu(items, "/b", ""); menu[1].Fallback || !menu[1].Active {
 		t.Errorf("a path an entry matches is that entry, not a stand-in: %+v", menu)
+	}
+}
+
+// A Field names the metadata path it edits in a builder preview and says nothing otherwise.
+func TestField_namesItsMetadataPathOnlyInABuilderPreview(t *testing.T) {
+	draw := func(ctx context.Context) string {
+		var buf bytes.Buffer
+		if err := field("c1", "Name", "", "", "machines/mch_x/fields/fld_name").Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	app := domain.Application{ID: "app_x"}
+	in := WithBuilderMode(WithCurrentApplication(context.Background(), app))
+	if got := draw(in); !strings.Contains(got, `data-node-path="app_x/machines/mch_x/fields/fld_name"`) {
+		t.Errorf("builder preview: %s", got)
+	}
+	if got := draw(WithCurrentApplication(context.Background(), app)); strings.Contains(got, "data-node-path") {
+		t.Errorf("an ordinary request: %s", got)
 	}
 }

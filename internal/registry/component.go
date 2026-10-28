@@ -910,6 +910,8 @@ var fieldContract = domain.ComponentContract{
 		// warning when it was inferred rather than quoted. Lowering derives them; nobody types them.
 		{Name: "note", Kind: "string"},
 		{Name: "flag", Kind: "string"},
+		// node is the metadata path of the Field the control edits; lowering writes it for a declared form, and a builder preview names the part by it.
+		{Name: "node", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"control"},

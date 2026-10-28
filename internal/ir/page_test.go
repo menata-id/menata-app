@@ -2004,3 +2004,23 @@ func TestLower_aLinkIconIsForAButtonOrAPlainLinkOnly(t *testing.T) {
 		t.Errorf("a mark outside the closed set: err = %v", err)
 	}
 }
+
+// A form of a Machine's records names the Field each control edits (a builder preview needs it); a form of a runtime action has no Machine, so its
+// controls name nothing.
+func TestLower_formControlsNameTheFieldTheyEdit(t *testing.T) {
+	inputs := []domain.FormInput{{FieldID: "fld_name", Label: "Name", Kind: domain.InputText}}
+	got, err := Lower(formPage(formBound(map[string]string{"submit": "Add"})), formResolver(FormSpec{Machine: "mch_x", Route: "/machines/mch_x/records", Permitted: true, Inputs: inputs}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node := got.Children[0].Children[0].Props["node"]; node != "machines/mch_x/fields/fld_name" {
+		t.Errorf("node = %q", node)
+	}
+	got, err = Lower(formPage(formBound(map[string]string{"submit": "Add"})), formResolver(FormSpec{Route: "/runtime-actions/x", Permitted: true, Inputs: inputs}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node, has := got.Children[0].Children[0].Props["node"]; has {
+		t.Errorf("a runtime action's control names a Field: %q", node)
+	}
+}
