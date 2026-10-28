@@ -27,6 +27,7 @@ const (
 	builderSectionViews    = "Views"
 	builderSectionMenu     = "Menu"
 	builderSectionWorkflow = "Workflow"
+	builderSectionChecks   = "Needs checking"
 )
 
 // builderPlaceName is a name as one segment of a part's place: a slash would read as a folder.
@@ -49,6 +50,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			tab = "Code"
 		case "edit":
 			tab = "Edit"
+		case "ask":
+			tab = "Ask"
 		}
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
@@ -104,6 +107,9 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					kind = "Declared page"
 				}
 				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route)
+			}
+			for i, c := range builderChecks(app, owned) {
+				add(builderSectionChecks+"/"+builderPlaceName(c.Text), "checks/"+strconv.Itoa(i+1), "Check", c.Detail)
 			}
 			add(builderSectionMenu+"/Application menu", "navigation", "Menu", strconv.Itoa(len(app.Navigation))+" entries in the menu")
 			for _, m := range owned {
@@ -237,4 +243,60 @@ func choiceLines(m *domain.Machine, f domain.Field) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// builderCheck is one thing about an Application that loads and runs but is worth a look (the mockups' "1 hal perlu dicek"): not a fault -- a fault does
+// not load -- but a thing declared and doing nothing. Detail is what to do about it, in a line.
+type builderCheck struct{ Text, Detail string }
+
+// builderChecks lists what is worth a look in an Application, in a stable order: a status choice the Machine does not give a colour to, and a role that
+// no permission, transition or event of the Application names (so holding it changes nothing). Each is derived from the metadata alone, so the list is
+// never a second record of anything.
+func builderChecks(app domain.Application, owned []*domain.Machine) []builderCheck {
+	var out []builderCheck
+	for _, m := range owned {
+		sf := statusFieldOf(m)
+		if sf == nil || m.StatusCategories == nil || m.StatusCategories.Field != sf.ID {
+			continue
+		}
+		var plain []string
+		for _, o := range sf.Options {
+			if _, ok := m.StatusCategories.Values[o]; !ok {
+				plain = append(plain, o)
+			}
+		}
+		if len(plain) > 0 {
+			out = append(out, builderCheck{Text: builderPlaceName(m.Name) + ": no colour for " + strings.Join(plain, ", "),
+				Detail: "These choices of " + sf.Name + " are drawn plain while the others carry a colour; write them as `Choice | done` in the field's Edit tab when they are added."})
+		}
+	}
+	named := map[string]bool{}
+	for _, m := range owned {
+		for _, p := range m.Permissions {
+			for _, r := range p.Roles {
+				named[r] = true
+			}
+		}
+		for _, t := range m.Transitions {
+			for _, r := range t.Roles {
+				named[r] = true
+			}
+		}
+		for _, e := range m.Events {
+			if e.Then.Notify != nil {
+				named[e.Then.Notify.RecipientRole] = true
+			}
+		}
+		for _, f := range m.Fields {
+			for _, r := range f.EditableBy {
+				named[r] = true
+			}
+		}
+	}
+	for _, r := range app.Roles {
+		if !named[r] {
+			out = append(out, builderCheck{Text: "Role " + r + " is named by nothing", Detail: "No permission, transition, event or field of this application names the role " + r + ", so holding it changes nothing."})
+		}
+	}
+	return out
 }

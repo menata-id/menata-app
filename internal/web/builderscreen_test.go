@@ -593,3 +593,65 @@ func TestBuilderEditTabSetsWhoMayChangeAField(t *testing.T) {
 		t.Errorf("an unchanged form must write nothing (status %d)", code)
 	}
 }
+
+// The Ask AI tab opens the assistant's conversation about the selected part: the wish arrives with the part's Application, place and path in it, so the
+// assistant is asked about that Field; it sends structure only, writes nothing, and wants a wish.
+func TestBuilderAskTabOpensTheConversationAboutThePart(t *testing.T) {
+	s := newInstallTestSetup(t, "bask")
+	part := "app_document_tracking/machines/mch_document/fields/fld_title"
+	body := s.getAs(t, "/builder/app_document_tracking?tab=ask&node="+url.QueryEscape(part)).Body.String()
+	for _, want := range []string{"/runtime-actions/ask_assistant_about?record=", `name="wish"`, "Ask the assistant"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the Ask AI tab is missing %q", want)
+		}
+	}
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	before, _ := os.ReadFile(file)
+	rec := s.postTo(t, "/runtime-actions/ask_assistant_about?record="+url.QueryEscape(part), url.Values{"wish": {"make it a long text"}})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("asking: %d %s", rec.Code, rec.Body.String())
+	}
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil || loc.Path != "/new-application" {
+		t.Fatalf("the person is not sent to the conversation: %q", rec.Header().Get("Location"))
+	}
+	idea := loc.Query().Get("idea")
+	for _, want := range []string{"app_document_tracking", "machines/mch_document/fields/fld_title", "make it a long text"} {
+		if !strings.Contains(idea, want) {
+			t.Errorf("the idea does not name %q: %s", want, idea)
+		}
+	}
+	if after, _ := os.ReadFile(file); string(after) != string(before) {
+		t.Error("asking the assistant wrote a file")
+	}
+	if rec := s.postTo(t, "/runtime-actions/ask_assistant_about?record="+url.QueryEscape(part), url.Values{"wish": {"  "}}); rec.Code < 400 {
+		t.Errorf("an empty wish was accepted: %d", rec.Code)
+	}
+}
+
+// "Needs checking" lists what an Application declares and nothing uses -- a role no permission, transition, event or field names; a status choice with no
+// colour beside coloured ones -- as parts of the tree, derived from the metadata, so the list is empty for an Application with nothing to look at and
+// grows when something is declared and left alone.
+func TestBuilderListsWhatNeedsChecking(t *testing.T) {
+	s := newInstallTestSetup(t, "bchecks")
+	tree := func() string { return s.getAs(t, "/builder/app_document_tracking").Body.String() }
+	if body := tree(); strings.Contains(body, "Needs checking") {
+		t.Errorf("an Application with nothing to look at lists checks:\n%s", body)
+	}
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	appLive, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, janitor]\n"+string(appLive))
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"  - id: fld_stage\n    name: Stage\n    type: status\n    options: [Open, Closed]\npermissions:\n  - id: prm_create_doc\n    action: create\n    roles: [author]\nstatus_categories:\n  field: fld_stage\n  values:\n    Open: start\n")
+	s.reloadWorkspace(t)
+	body := tree()
+	for _, want := range []string{"Needs checking", "Role janitor is named by nothing", "no colour for Closed"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the tree does not list %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Role author is named by nothing") {
+		t.Error("a role a permission names is listed as unused")
+	}
+}

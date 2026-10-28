@@ -18,6 +18,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/installer"
+	"menata.app/internal/rendering"
 )
 
 // maxBuilderBody bounds a request of operations; a list of edits is a few hundred bytes.
@@ -435,4 +436,25 @@ func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionE
 		return back, true
 	}
 	return commitBuilderOps(w, req, env, appID, []builder.Op{{Kind: builder.OpSetPermissionRoles, Machine: parts[1], Permission: parts[3], Roles: roles}}, back)
+}
+
+// runAskAssistantAbout is the Ask AI tab of any part: it opens the assistant's conversation with what the person wants, in words that name the part -- its
+// kind, its place in the tree and its metadata path, and the Application's name -- so the assistant is asked about this Field and not "a field". Only
+// structure goes: names and ids the builder's tree already shows, never a record's contents. It writes nothing; whatever the assistant proposes is
+// reviewed and applied by the person in the conversation, through the same writer as every other change.
+func runAskAssistantAbout(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	wish := strings.TrimSpace(req.PostForm.Get("wish"))
+	if wish == "" {
+		http.Error(w, "say what should change", http.StatusBadRequest)
+		return "", false
+	}
+	appID, path, _ := strings.Cut(record, "/")
+	appName := appID
+	for _, app := range rendering.CurrentWorkspace(req.Context()).Applications {
+		if app.ID == appID {
+			appName = app.Name
+		}
+	}
+	idea := "In the application \"" + appName + "\" (" + appID + "), about " + path + ": " + wish
+	return domain.RuntimeScreenRoute("nav_new_application") + "?" + url.Values{"idea": {idea}}.Encode(), true
 }

@@ -112,6 +112,8 @@ var RuntimeActions = map[string]RuntimeAction{
 	"set_permission_roles": {ID: "set_permission_roles", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
 		{Name: "roles", Label: "Who may do this", Required: true, Kind: ActionInputPartRoles, Field: "fld_roles"}},
 		Doc: "sets which of the Application's roles may do what one Permission of a Machine governs, as the set_permission_roles operation a conversation uses; at least one role stays, since a Permission with none would open the action to everyone; about a part of the builder tree that is a Permission"},
+	"ask_assistant_about": {ID: "ask_assistant_about", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{{Name: "wish", Label: "What should change?", Required: true}},
+		Doc: "opens the assistant's conversation with what the person wants written about one part of the builder tree, naming the part (its kind, its place and its path -- structure only, never a record's contents); writes nothing, the assistant proposes and the person reviews before anything is applied"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

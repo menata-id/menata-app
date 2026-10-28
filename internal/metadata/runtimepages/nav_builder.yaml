@@ -74,7 +74,7 @@ page:
                     - component: SegmentedControl
                       label: Inspector
                       query: tab
-                      options: "details=Details\nedit=Edit\ncode=Code"
+                      options: "details=Details\nedit=Edit\nask=Ask AI\ncode=Code"
                     - static: overline
                       from: { text: subtitle }
                     - static: heading
@@ -101,6 +101,10 @@ page:
                       when: { role: status, is: Add }
                       submit: Add field
                       binding: { write: action, action: add_field }
+                    - component: Form
+                      when: { role: status, is: Ask }
+                      submit: Ask the assistant
+                      binding: { write: action, action: ask_assistant_about }
                     - component: Form
                       when: { role: status, is: Access }
                       submit: Save who may
