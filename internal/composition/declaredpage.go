@@ -1335,7 +1335,7 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 		case registry.ActionInputFieldType:
 			var types []string
 			for _, t := range domain.AddableFieldTypes {
-				types = append(types, string(t))
+				types = append(types, string(t)+"="+domain.AddableFieldTypeLabel(t))
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: types, Default: string(domain.FieldTypeText), Required: in.Required})
 		case registry.ActionInputLines:

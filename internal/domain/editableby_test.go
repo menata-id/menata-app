@@ -37,3 +37,26 @@ func TestLockedFieldForKeepsAFieldFromWhoMayNotChangeIt(t *testing.T) {
 		t.Error("a locked Field says nothing about why")
 	}
 }
+
+// A list of values is a status Field no Transition names (the plan's Value List, measured composable): an edit form asks for it as a select of its
+// options, so an ordinary choice such as a document's kind is editable without becoming a lifecycle; once a Transition names it, it is the lifecycle's
+// and the form leaves it out.
+func TestAStatusNoTransitionNamesIsAChoiceListTheEditFormAsks(t *testing.T) {
+	m := &Machine{ID: "mch_x", Fields: []Field{
+		{ID: "fld_kind", Name: "Kind", Type: FieldTypeStatus, Options: []string{"Contract", "Invoice"}},
+		{ID: "fld_state", Name: "State", Type: FieldTypeStatus, Options: []string{"Open", "Closed"}},
+	}, Transitions: []Transition{{ID: "trn_close", Field: "fld_state", From: "Open", To: "Closed"}}}
+	asked := map[string]FormInput{}
+	for _, in := range m.EditFormInputs(map[string]any{"fld_kind": "Invoice"}, Actor{WorkspaceRole: WorkspaceRoleAdmin}) {
+		asked[in.FieldID] = in
+	}
+	if in, ok := asked["fld_kind"]; !ok || in.Kind != InputSelect || in.Default != "Invoice" || len(in.Options) != 2 {
+		t.Errorf("a status no Transition names is not asked as a select of its options: %+v", in)
+	}
+	if _, ok := asked["fld_state"]; ok {
+		t.Error("a status a Transition governs is asked as a free select")
+	}
+	if got := AddableFieldTypeLabel(FieldTypeStatus); got != "Choice list (or status)" {
+		t.Errorf("the picker does not say a status can be a choice list: %q", got)
+	}
+}

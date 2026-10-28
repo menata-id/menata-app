@@ -407,7 +407,7 @@ func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
 	machine := "app_document_tracking/machines/mch_document"
 	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
 	body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(machine)).Body.String()
-	for _, want := range []string{"/runtime-actions/add_field?record=", `name="type"`, `name="options"`, "Add field"} {
+	for _, want := range []string{"/runtime-actions/add_field?record=", `name="type"`, `name="options"`, "Add field", "Choice list (or status)"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("a Machine's Edit tab is missing %q", want)
 		}

@@ -1329,3 +1329,19 @@ func (m *Machine) StampedAuthorField() string {
 // AddableFieldTypes are the types of Field a person can add by choosing one, in the order a picker lists them. A relation needs a target Machine and a
 // group a Workspace Group, so each needs a choice of its own and is not in this list.
 var AddableFieldTypes = []FieldType{FieldTypeText, FieldTypeLongText, FieldTypeNumber, FieldTypeMoney, FieldTypeDate, FieldTypeBoolean, FieldTypeStatus, FieldTypePerson, FieldTypeFile}
+
+// AddableFieldTypeLabel is the words a picker uses for a type a person can add. A **choice list** is a `status` Field no Transition names: it is asked for
+// as a select on every form (EditFormInputs, "an ordinary choice") and drawn as a badge, so "a list of values" is not a second type but the status type left
+// ungoverned (the Apps Builder plan's Value List, measured composable on 2026-10-28, so not a new capability); the picker says so in its one entry.
+func AddableFieldTypeLabel(t FieldType) string {
+	switch t {
+	case FieldTypeLongText:
+		return "Long text"
+	case FieldTypeBoolean:
+		return "Yes / no"
+	case FieldTypeStatus:
+		return "Choice list (or status)"
+	}
+	s := strings.ReplaceAll(string(t), "_", " ")
+	return strings.ToUpper(s[:1]) + s[1:]
+}
