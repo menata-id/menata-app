@@ -97,6 +97,10 @@ page:
                       when: { role: status, is: Edit }
                       submit: Save field
                       binding: { write: action, action: edit_field }
+                    - component: Form
+                      when: { role: status, is: Add }
+                      submit: Add field
+                      binding: { write: action, action: add_field }
                     - static: caption
                       when: { role: status, is: Fixed }
-                      text: Only a field can be edited here so far.
+                      text: Only a field can be edited, and a field added to a machine, so far.

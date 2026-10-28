@@ -60,6 +60,11 @@ const (
 	ActionInputRecordFlag = "record_flag"
 	// ActionInputRecordLines is a box of lines, one thing per line, that starts as the lines one field of the record holds (a Field's options).
 	ActionInputRecordLines = "record_lines"
+	// ActionInputFieldType is a select of the types of Field a person can add by choosing one (domain.AddableFieldTypes); ActionInputLines is an empty box of
+	// lines and ActionInputFlag an unticked box, for a Form that makes something new rather than editing a record's own values.
+	ActionInputFieldType = "field_type"
+	ActionInputLines     = "lines"
+	ActionInputFlag      = "flag"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -95,6 +100,12 @@ var RuntimeActions = map[string]RuntimeAction{
 		{Name: "required", Label: "Must be filled in", Kind: ActionInputRecordFlag, Field: "fld_required"},
 		{Name: "options", Label: "Choices, one per line", Kind: ActionInputRecordLines, Field: "fld_options"}},
 		Doc: "changes the name of a Field, whether it is required and, for a Field that offers choices, which choices (added and removed as the same operations a conversation uses), as the same builder operations the assistant's changes use (reviewed against the installation's version, snapshotted, load-verified); about a part of the builder tree that is a Field"},
+	"add_field": {ID: "add_field", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
+		{Name: "name", Label: "Name", Required: true},
+		{Name: "type", Label: "Type", Required: true, Kind: ActionInputFieldType},
+		{Name: "options", Label: "Choices, one per line (for a status)", Kind: ActionInputLines},
+		{Name: "required", Label: "Must be filled in", Kind: ActionInputFlag}},
+		Doc: "adds a Field to the Machine the builder part names, as the add_field operation a conversation uses (its id is made from the name, the form, the lists and the boards offer it at once); about a part of the builder tree that is a Machine"},
 	"set_group_roles": {ID: "set_group_roles", Source: "groups", Admin: true, Inputs: []ActionInput{{Name: "roles", Label: "Application roles", Kind: ActionInputAppRoles}},
 		Doc: "sets the role a Group grants in each Application, from that Application's own declared roles"},
 }

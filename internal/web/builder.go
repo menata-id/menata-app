@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -170,20 +171,6 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 		http.Error(w, "a Field needs a name", http.StatusBadRequest)
 		return "", false
 	}
-	if env.reload == nil {
-		serverError(w, errors.New("builder: this process has no reload hook configured"))
-		return "", false
-	}
-	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
-	if err != nil {
-		serverError(w, err)
-		return "", false
-	}
-	version, err := builder.Version(manifestPath)
-	if err != nil {
-		serverError(w, err)
-		return "", false
-	}
 	current := fieldOf(machinesFor(ctx)[parts[1]], parts[3])
 	if current == nil {
 		http.Error(w, "this Field is not in this Workspace", http.StatusNotFound)
@@ -207,27 +194,7 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	if len(ops) == 0 {
 		return back, true
 	}
-	snapshotBeforeWrite(env.cfg, manifestPath)
-	err = builder.Commit(manifestPath, appID, ops, version, nil)
-	var rejected *installer.RejectedError
-	switch {
-	case errors.Is(err, builder.ErrStale):
-		http.Error(w, err.Error(), http.StatusConflict)
-		return "", false
-	case errors.As(err, &rejected):
-		http.Error(w, rejected.Error(), http.StatusUnprocessableEntity)
-		return "", false
-	case err != nil:
-		serverError(w, err)
-		return "", false
-	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
-	log.Printf("BUILDER-APPLY app=%s workspace=%s ops=%d", appID, workspaceID, len(ops))
-	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
-		serverError(w, fmt.Errorf("builder: written, but the live reload failed -- a restart will pick it up: %w", err))
-		return "", false
-	}
-	return back, true
+	return commitBuilderOps(w, req, env, appID, ops, back)
 }
 
 func fieldOf(m *domain.Machine, id string) *domain.Field {
@@ -267,4 +234,107 @@ func optionOps(machine, field string, have []string, typed string) []builder.Op 
 		}
 	}
 	return ops
+}
+
+// runAddField is the Edit tab of a Machine: the record is the Machine's part ("<app>/machines/<machine>") and the form says the new Field's name, type,
+// choices (a status needs them) and whether it is required. It is the `add_field` operation a conversation would make, written through builder.Commit
+// like every other builder write. The Field's id is made from its name ("fld_" and the name in lower case with words joined by "_"), made unique within
+// the Machine, so a person never types an id; a Machine's form, lists and boards offer the new Field as they do any other.
+func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
+	ctx := req.Context()
+	appID, rest, _ := strings.Cut(record, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 || parts[0] != "machines" || appID == "" {
+		http.Error(w, "this part is not a Machine", http.StatusBadRequest)
+		return "", false
+	}
+	m := machinesFor(ctx)[parts[1]]
+	if m == nil {
+		http.Error(w, "this Machine is not in this Workspace", http.StatusNotFound)
+		return "", false
+	}
+	name, typ := strings.TrimSpace(req.PostForm.Get("name")), domain.FieldType(req.PostForm.Get("type"))
+	if name == "" || !slices.Contains(domain.AddableFieldTypes, typ) {
+		http.Error(w, "a new Field needs a name and one of the types offered", http.StatusBadRequest)
+		return "", false
+	}
+	var options []string
+	for _, line := range strings.Split(req.PostForm.Get("options"), "\n") {
+		if line = strings.TrimSpace(line); line != "" && !slices.Contains(options, line) {
+			options = append(options, line)
+		}
+	}
+	if typ == domain.FieldTypeStatus && len(options) == 0 {
+		http.Error(w, "a status needs at least one choice", http.StatusBadRequest)
+		return "", false
+	}
+	if typ != domain.FieldTypeStatus {
+		options = nil
+	}
+	op := builder.Op{Kind: builder.OpAddField, Machine: m.ID, Field: newFieldID(m, name), Value: name, Type: string(typ), Flag: req.PostForm.Get("required") != "", Options: options}
+	field := record + "/fields/" + op.Field
+	return commitBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {field}, "tab": {"edit"}}.Encode())
+}
+
+// newFieldID makes a Field's id from its name and keeps it unique within the Machine ("fld_amount", then "fld_amount_2").
+func newFieldID(m *domain.Machine, name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case b.Len() > 0 && !strings.HasSuffix(b.String(), "_"):
+			b.WriteByte('_')
+		}
+	}
+	base := "fld_" + strings.Trim(b.String(), "_")
+	if base == "fld_" {
+		base = "fld_field"
+	}
+	id := base
+	for n := 2; fieldOf(m, id) != nil; n++ {
+		id = base + "_" + strconv.Itoa(n)
+	}
+	return id
+}
+
+// commitBuilderOps writes operations the way every builder form does -- the installation's version read just before, a snapshot, builder.Commit (which
+// load-verifies and rolls back), the Workspace reloaded -- and answers a refusal to w. It returns where the person goes next.
+func commitBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, appID string, ops []builder.Op, back string) (string, bool) {
+	ctx := req.Context()
+	if env.reload == nil {
+		serverError(w, errors.New("builder: this process has no reload hook configured"))
+		return "", false
+	}
+	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	version, err := builder.Version(manifestPath)
+	if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	snapshotBeforeWrite(env.cfg, manifestPath)
+	err = builder.Commit(manifestPath, appID, ops, version, nil)
+	var rejected *installer.RejectedError
+	switch {
+	case errors.Is(err, builder.ErrStale):
+		http.Error(w, err.Error(), http.StatusConflict)
+		return "", false
+	case errors.As(err, &rejected):
+		http.Error(w, rejected.Error(), http.StatusUnprocessableEntity)
+		return "", false
+	case err != nil:
+		serverError(w, err)
+		return "", false
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	log.Printf("BUILDER-APPLY app=%s workspace=%s ops=%d", appID, workspaceID, len(ops))
+	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
+		serverError(w, fmt.Errorf("builder: written, but the live reload failed -- a restart will pick it up: %w", err))
+		return "", false
+	}
+	return back, true
 }

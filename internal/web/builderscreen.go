@@ -57,8 +57,11 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			add := func(place, path, kind, detail string, own ...[2]string) {
 				id := app.ID + "/" + path
 				tab := tab
-				if tab == "Edit" && kind != "Field" {
-					tab = "Fixed" // the Edit tab has a form for a Field only, and says so for anything else
+				switch {
+				case tab == "Edit" && kind == "Machine":
+					tab = "Add" // a Machine's Edit tab is the form that adds a Field to it
+				case tab == "Edit" && kind != "Field":
+					tab = "Fixed" // the Edit tab has a form for a Field and a Machine only, and says so for anything else
 				}
 				out = append(out, &data.Record{ID: id, MachineID: "mch_builder_node", WorkspaceID: workspaceID, Values: map[string]any{
 					"fld_id": id, "fld_app": app.ID, "fld_title": place, "fld_about": kind + " · " + detail, "fld_kind": kind, "fld_path": path,

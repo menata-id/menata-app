@@ -65,6 +65,7 @@ var runtimeActionRunners = map[string]actionRunner{
 	"archive_workspace":      runArchiveWorkspace,
 	"revoke_invite":          runRevokeInvite,
 	"edit_field":             runEditField,
+	"add_field":              runAddField,
 }
 
 // runtimeAction is `POST /runtime-actions/{action}[?record=<id>]`, the one route a runtime page's Form or Button for a

@@ -1315,6 +1315,16 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				kind = domain.InputLongText
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: kind, Required: in.Required, Default: text})
+		case registry.ActionInputFieldType:
+			var types []string
+			for _, t := range domain.AddableFieldTypes {
+				types = append(types, string(t))
+			}
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: types, Default: string(domain.FieldTypeText), Required: in.Required})
+		case registry.ActionInputLines:
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputLongText})
+		case registry.ActionInputFlag:
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputBoolean})
 		case registry.ActionInputTemplateRoles:
 			roles, err := sourceRecordRoles(ctx, l, viewer, a.Source, recordID)
 			if err != nil {

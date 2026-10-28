@@ -1303,3 +1303,7 @@ func (m *Machine) StampedAuthorField() string {
 	}
 	return ""
 }
+
+// AddableFieldTypes are the types of Field a person can add by choosing one, in the order a picker lists them. A relation needs a target Machine and a
+// group a Workspace Group, so each needs a choice of its own and is not in this list.
+var AddableFieldTypes = []FieldType{FieldTypeText, FieldTypeLongText, FieldTypeNumber, FieldTypeMoney, FieldTypeDate, FieldTypeBoolean, FieldTypeStatus, FieldTypePerson, FieldTypeFile}

@@ -399,3 +399,60 @@ func TestBuilderEditTabEditsTheChoicesOfAField(t *testing.T) {
 		t.Errorf("choices for a Field that offers none were accepted: %d", code)
 	}
 }
+
+// A Machine's Edit tab is a form that adds a Field to it: named, typed, with the choices a status needs. The id is made from the name and kept unique,
+// and the Machine's own page offers the new Field at once -- the point of the editor is that nothing else has to change.
+func TestBuilderEditTabAddsAFieldToAMachine(t *testing.T) {
+	s := newInstallTestSetup(t, "badd")
+	machine := "app_document_tracking/machines/mch_document"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	body := s.getAs(t, "/builder/app_document_tracking?tab=edit&node="+url.QueryEscape(machine)).Body.String()
+	for _, want := range []string{"/runtime-actions/add_field?record=", `name="type"`, `name="options"`, "Add field"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("a Machine's Edit tab is missing %q", want)
+		}
+	}
+	if strings.Contains(body, "edit_field") {
+		t.Errorf("a Machine is offered the form that edits a Field")
+	}
+	add := func(form url.Values) int {
+		return s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), form).Code
+	}
+	if code := add(url.Values{"name": {"Reference no."}, "type": {"text"}, "required": {"on"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a Field: status %d", code)
+	}
+	if code := add(url.Values{"name": {"Reference no."}, "type": {"number"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a second Field of the same name: status %d", code)
+	}
+	if code := add(url.Values{"name": {"Stage"}, "type": {"status"}, "options": {"Open\r\nClosed\r\nOpen"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding a status: status %d", code)
+	}
+	written, _ := os.ReadFile(file)
+	for _, want := range []string{"id: fld_reference_no", "id: fld_reference_no_2", "id: fld_stage", "Closed"} {
+		if !strings.Contains(string(written), want) {
+			t.Errorf("the file lacks %q:\n%s", want, written)
+		}
+	}
+	if page := s.getAs(t, "/machines/mch_document").Body.String(); !strings.Contains(page, "Reference no.") {
+		t.Errorf("the Machine's page does not offer the new Field")
+	}
+	if page := s.getAs(t, "/builder/app_document_tracking").Body.String(); !strings.Contains(page, "Stage") {
+		t.Errorf("the builder's tree does not list the new Field")
+	}
+	before := string(written)
+	for name, form := range map[string]url.Values{
+		"no name":              {"name": {" "}, "type": {"text"}},
+		"a type not offered":   {"name": {"X"}, "type": {"relation"}},
+		"a status with no one": {"name": {"Y"}, "type": {"status"}},
+	} {
+		if code := add(form); code < 400 {
+			t.Errorf("%s was accepted: %d", name, code)
+		}
+	}
+	if after, _ := os.ReadFile(file); string(after) != before {
+		t.Errorf("a refused Field wrote the file")
+	}
+	if code := s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine+"/fields/fld_title"), url.Values{"name": {"Z"}, "type": {"text"}}).Code; code < 400 {
+		t.Errorf("a Field was added to a part that is not a Machine: %d", code)
+	}
+}
