@@ -110,6 +110,10 @@ type NavigationItem struct {
 	// from Application.Roles by internal/composition/appsettings.go, so an Application emptying its
 	// roles cannot leave a dead-looking row behind.
 	SettingsHubMember bool
+	// VisibleTo (`visible_to: [role, ...]`, 2026-10-28, Apps Builder Fase 8b) limits who is offered this item and may open its address to the Application
+	// roles it names (the Application's own `roles:`); empty is everyone who may open the Application. The menu leaves the item out and the
+	// route answers 403 for anyone else, both reading this one declaration; a Workspace admin is not held back (they could rewrite it).
+	VisibleTo []string
 	// Parent (`parent: nav_x`, 2026-10-28, Apps Builder Fase 8a) hangs this item under another item of the same Application, one level only: the menu
 	// draws it in its parent's own list and not in the row of top-level tabs, and the page it opens marks its parent as where you are. The parent is a
 	// top-level item of the same list (never itself, never an item that has a parent), which also rules out a cycle. Empty is a top-level item.

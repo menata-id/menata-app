@@ -75,6 +75,9 @@ type Viewer struct {
 	// so neither offers an Application that would only answer 403 (S0.1, 2026-10-10). Presentation
 	// only, like WorkspaceRole: the middleware is the real gate.
 	Applications []domain.Application
+	// HiddenNav is the ids of the current Application's navigation items this viewer is not offered (`visible_to:`), left out of its menu and bottom bar.
+	// Presentation only: the route gate (web.requireApplicationAccess) is the real one.
+	HiddenNav map[string]bool
 }
 //
 // TWO PARAMETERS WERE REMOVED ON 2026-09-21, both dead the moment the launcher stopped listing
@@ -258,7 +261,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// neither row below renders.
 			{{ currentApp, inApp := CurrentApplication(ctx) }}
 			{{ path, rawQuery := CurrentPath(ctx) }}
-			{{ menu := defaultAppMenu(currentApp.AllNavigation, path, rawQuery) }}
+			{{ menu := defaultAppMenu(visibleNavigation(currentApp.AllNavigation, viewer.HiddenNav), path, rawQuery) }}
 			{{ hasAppMenu := inApp && len(menu) > 0 }}
 			// sticky, not static (owner request, 2026-09-24: "top bar dan bottom bar dibuat selalu
 			// terlihat di screen"). The bottom bar was already `fixed`; this is the half that was
@@ -355,6 +358,20 @@ type navMenuItem struct {
 	// Children are the items hung under this one (`parent:`), in menu order; Within says this entry is where you are because one of them is the page.
 	Children []navMenuItem
 	Within   bool
+}
+
+// visibleNavigation is items without the ones this viewer is not offered (`visible_to:`, web.hiddenNavItems).
+func visibleNavigation(items []domain.NavigationItem, hidden map[string]bool) []domain.NavigationItem {
+	if len(hidden) == 0 {
+		return items
+	}
+	out := make([]domain.NavigationItem, 0, len(items))
+	for _, item := range items {
+		if !hidden[item.ID] {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 // defaultAppMenu turns an Application's own declared navigation into appShell's menu, sorted by

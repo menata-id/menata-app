@@ -1,0 +1,14 @@
+id: mch_order
+name: Order
+fields:
+  - { id: fld_title, name: Title, type: text, required: true }
+  - { id: fld_state, name: State, type: status, default: Pending, options: [Pending, Shipped, Archived] }
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_state, role: status }
+permissions:
+  - { id: prm_create_order, action: create, roles: [clerk, manager] }
+datasets:
+  - { id: ds_orders, select: records, sort: [{ field: fld_title }], limit: 100 }
+  - { id: ds_pending, select: records, where: { field: fld_state, op: equals, value: Pending }, sort: [{ field: fld_title }], limit: 100 }
+  - { id: ds_archived, select: records, where: { field: fld_state, op: equals, value: Archived }, sort: [{ field: fld_title }], limit: 100 }

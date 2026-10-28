@@ -436,6 +436,8 @@ type navItemDoc struct {
 	Summary   string `yaml:"summary"`
 	// Parent -- see domain.NavigationItem.Parent.
 	Parent string `yaml:"parent"`
+	// VisibleTo -- see domain.NavigationItem.VisibleTo.
+	VisibleTo []string `yaml:"visible_to"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -1096,6 +1098,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			OwnsHeading:       n.RecordOf != "",
 			ViewGroup:         n.ViewGroup,
 			Parent:            n.Parent,
+			VisibleTo:         n.VisibleTo,
 			SummaryCounts:     n.Summary == domain.SummaryCounts,
 		})
 	}

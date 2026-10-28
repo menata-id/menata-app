@@ -18,6 +18,8 @@ import (
 // from the one mch_user record this function already loads, so Email costs nothing new and Name
 // is exposed rather than only its derived Initials.
 type shellChrome struct {
+	// HiddenNav is the ids of the current Application's navigation items this viewer is not offered (`visible_to:`); presentation only.
+	HiddenNav     map[string]bool
 	WorkspaceName string
 	Name          string
 	Email         string
@@ -69,7 +71,11 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		if _, previewing := rendering.PreviewRole(ctx); previewing {
 			role = domain.WorkspaceRoleMember // the shell of a preview is an ordinary member's, with no Administration rows
 		}
-		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role, Applications: apps}, nil
+		var hidden map[string]bool
+		if app, in := rendering.CurrentApplication(ctx); in {
+			hidden = hiddenNavItems(app, asPreviewRole(ctx, id.Actor(ctx), cfg), cfg)
+		}
+		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role, Applications: apps, HiddenNav: hidden}, nil
 	}
 
 	// Fallback for a handler mounted without resolveIdentity -- in this repo, a test mounting one
@@ -94,13 +100,17 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 	}
 
 	apps := openableApplications(rendering.CurrentWorkspace(ctx), currentActor(req, store, cfg), cfg)
-	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole, Applications: apps}, nil
+	var hidden map[string]bool
+	if app, in := rendering.CurrentApplication(ctx); in {
+		hidden = hiddenNavItems(app, currentActor(req, store, cfg), cfg)
+	}
+	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole, Applications: apps, HiddenNav: hidden}, nil
 }
 
 // Viewer is shellChrome's three identity fields as rendering.appShell's own parameter type, so
 // every call site builds it the same way instead of repeating the field-by-field literal.
 func (c shellChrome) Viewer() rendering.Viewer {
-	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials, WorkspaceRole: c.WorkspaceRole, Applications: c.Applications}
+	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials, WorkspaceRole: c.WorkspaceRole, Applications: c.Applications, HiddenNav: c.HiddenNav}
 }
 
 // viewerWorkspaceContext resolves two per-viewer facts. switchWorkspaceHref (the launcher's "All

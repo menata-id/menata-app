@@ -1640,6 +1640,15 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 	}
 
 	var issues []string
+	for _, app := range applications {
+		for _, n := range app.AllNavigation {
+			for _, role := range n.VisibleTo {
+				if !vocabulary[app.ID][role] {
+					issues = append(issues, fmt.Sprintf("application %q: navigation item %q visible_to names role %q, which the application does not declare in its roles: vocabulary -- nobody can hold it, so nobody would be offered the item", app.ID, n.ID, role))
+				}
+			}
+		}
+	}
 	for _, m := range machines {
 		for _, p := range m.Permissions {
 			if len(p.Roles) == 0 {

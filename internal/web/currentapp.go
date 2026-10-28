@@ -198,9 +198,58 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 				http.Error(w, noRoleMessage(app, actor), http.StatusForbidden)
 				return
 			}
+			// An item that names who may see it (`visible_to:`) is not served to anyone else either, at its address or on its record pages.
+			if item, found := navItemOfRequest(app, req.URL.Path); found && !navItemVisible(app, item, actor, cfg) {
+				http.Error(w, "this screen is not open to your role in this application", http.StatusForbidden)
+				return
+			}
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// navItemVisible is the rule `visible_to:` states, for one item and one viewer: an item that names no roles is everyone's; otherwise the viewer holds one of
+// them in the Application, or is a Workspace admin or the configured admin (who could rewrite the declaration). The menu and the route both ask it.
+func navItemVisible(app domain.Application, item domain.NavigationItem, actor domain.Actor, cfg config.Config) bool {
+	if len(item.VisibleTo) == 0 || actor.WorkspaceRole == domain.WorkspaceRoleAdmin || (actor.ID != "" && actor.ID == cfg.AdminUserID) {
+		return true
+	}
+	for _, role := range item.VisibleTo {
+		if actor.HasRole(app.ID, role) {
+			return true
+		}
+	}
+	return false
+}
+
+// hiddenNavItems is the ids of app's items this viewer is not offered (presentation only: the route gate answers for the address).
+func hiddenNavItems(app domain.Application, actor domain.Actor, cfg config.Config) map[string]bool {
+	var hidden map[string]bool
+	for _, item := range app.AllNavigation {
+		if !navItemVisible(app, item, actor, cfg) {
+			if hidden == nil {
+				hidden = map[string]bool{}
+			}
+			hidden[item.ID] = true
+		}
+	}
+	return hidden
+}
+
+// navItemOfRequest is the navigation item whose address the request path is: the item's route (query dropped), or the list a record's page hangs under
+// (`/pages/<id>/<record>`), so a record page is as visible as its list.
+func navItemOfRequest(app domain.Application, path string) (domain.NavigationItem, bool) {
+	if rest, ok := strings.CutPrefix(path, "/pages/"); ok {
+		if navID, tail, found := strings.Cut(rest, "/"); found && navID != "" && tail != "" {
+			path = "/pages/" + navID
+		}
+	}
+	for _, item := range app.AllNavigation {
+		if route, _, _ := strings.Cut(item.Route, "?"); route == path {
+			return item, true
+		}
+	}
+	return domain.NavigationItem{}, false
 }
 
 // canOpenApplication is requireApplicationAccess's rule as a predicate, so the lists that offer an

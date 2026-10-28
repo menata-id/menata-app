@@ -1,0 +1,31 @@
+case: 25
+title: A menu item only some roles see
+# Reports declares `visible_to: [manager]`. A clerk's menu does not list it and its address answers 403 to a clerk; a manager sees both. The menu and the
+# route read the same declaration, so a hidden entry is never one you can still open by typing it.
+actors:
+  - { name: sari, role: clerk }
+  - { name: dewi, role: manager }
+steps:
+  - id: the-clerks-menu-has-no-reports
+    as: sari
+    view:
+      path: /pages/nav_orders
+      shows: ['href="/pages/nav_orders"']
+      hides: ['href="/pages/nav_reports"']
+    expect: ok
+  - id: the-clerk-cannot-open-reports-by-its-address
+    as: sari
+    view:
+      path: /pages/nav_reports
+    expect: refused
+  - id: the-managers-menu-has-both
+    as: dewi
+    view:
+      path: /pages/nav_orders
+      shows: ['href="/pages/nav_orders"', 'href="/pages/nav_reports"']
+    expect: ok
+  - id: the-manager-opens-reports
+    as: dewi
+    view:
+      path: /pages/nav_reports
+    expect: ok

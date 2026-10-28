@@ -1,0 +1,67 @@
+id: app_orders_by_role
+name: Pesanan
+machines:
+  - mch_order
+roles:
+  - clerk
+  - manager
+description: A menu item only some roles see.
+icon: board
+color: blue
+summary_machine: mch_order
+navigation:
+  - id: nav_orders
+    label: Orders
+    title: Orders
+    route: /pages/nav_orders
+    priority: 1
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Orders
+          empty: No order yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_orders, rows: records }
+  - id: nav_pending
+    label: Pending
+    title: Pending orders
+    route: /pages/nav_pending
+    priority: 2
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Pending
+          empty: Nothing pending.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_pending, rows: records }
+  - id: nav_reports
+    label: Reports
+    title: Reports
+    route: /pages/nav_reports
+    priority: 4
+    visible_to: [manager]
+    icon: board
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Table
+          label: Reports
+          empty: No order yet.
+          framed: true
+          complete: true
+          columns:
+            - { header: Title, field: fld_title }
+          binding: { dataset: ds_orders, rows: records }
