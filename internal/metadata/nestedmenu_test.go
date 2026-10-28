@@ -84,17 +84,14 @@ func TestShowWhenCannotWatchAStatusTransitionsGovern(t *testing.T) {
 	}
 }
 
-// Items at one address are one screen offered twice, so they must agree on who is offered it; and a parent is an item the menu lists.
-func TestNavigationItemsAtOneAddressAgreeOnVisibleTo(t *testing.T) {
+// A parent is an item the menu lists: a child of an item with in_menu: false would be listed nowhere. Two items at one address are allowed (the address is open
+// when either entry is offered).
+func TestNavigationParentMustBeInTheMenuAndAddressesMayRepeat(t *testing.T) {
 	item := func(id, route string, roles ...string) domain.NavigationItem {
 		return domain.NavigationItem{ID: id, Label: id, Route: route, VisibleTo: roles}
 	}
-	if issues := validateNavigation([]domain.NavigationItem{item("nav_a", "/inbox?tab=mine"), item("nav_b", "/inbox?tab=assigned", "manager")}); len(issues) != 0 {
-		t.Errorf("two tabs of one path were refused: %v", issues)
-	}
-	issues := strings.Join(validateNavigation([]domain.NavigationItem{item("nav_a", "/machines/mch_x", "manager"), item("nav_b", "/machines/mch_x")}), "\n")
-	if !strings.Contains(issues, "shares the address") {
-		t.Errorf("two items at one address with different visible_to were accepted: %q", issues)
+	if issues := validateNavigation([]domain.NavigationItem{item("nav_a", "/machines/mch_x", "manager"), item("nav_b", "/machines/mch_x")}); len(issues) != 0 {
+		t.Errorf("two entries to one address were refused: %v", issues)
 	}
 	hidden := item("nav_p", "/p")
 	hidden.NotInMenu = true

@@ -33,6 +33,9 @@ const (
 	OpMoveMenuItem       = "move_menu_item"
 	OpRemoveMenuItem     = "remove_menu_item"
 	OpAddMenuItem        = "add_menu_item"
+	OpSetMenuParent      = "set_menu_parent"
+	OpSetMenuVisibleTo   = "set_menu_visible_to"
+	OpSetMenuBadge       = "set_menu_badge"
 )
 
 // Op is one edit. Machine, Field and Permission are ids (a name is never an identity); Value is a new name or
@@ -80,6 +83,9 @@ var capabilityOf = map[string]string{
 	OpMoveMenuItem:       "navItemDoc.priority",
 	OpRemoveMenuItem:     "navItemDoc.id",
 	OpAddMenuItem:        "navItemDoc.route",
+	OpSetMenuParent:      "navItemDoc.parent",
+	OpSetMenuVisibleTo:   "navItemDoc.visible_to",
+	OpSetMenuBadge:       "navItemDoc.badge",
 }
 
 // Capability is the catalogue id of the key an operation of this kind edits, or "" for an unknown kind.
@@ -109,7 +115,7 @@ func Apply(current aiassist.GeneratedApplication, ops []Op) (aiassist.GeneratedA
 
 func apply(app *aiassist.GeneratedApplication, op Op) error {
 	switch op.Kind {
-	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem:
+	case OpRenameMenuItem, OpMoveMenuItem, OpRemoveMenuItem, OpSetMenuParent, OpSetMenuVisibleTo, OpSetMenuBadge:
 		i := slices.IndexFunc(app.Navigation, func(n aiassist.GeneratedMenuItem) bool { return n.ID == op.Item })
 		if i < 0 {
 			return fmt.Errorf("menu item %q is not in application %s", op.Item, app.ID)
@@ -119,6 +125,12 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 			app.Navigation[i].Label = op.Value
 		case OpRemoveMenuItem:
 			app.Navigation = slices.Delete(app.Navigation, i, i+1)
+		case OpSetMenuParent:
+			app.Navigation[i].Parent = op.Value
+		case OpSetMenuVisibleTo:
+			app.Navigation[i].VisibleTo = slices.Clone(op.Roles)
+		case OpSetMenuBadge:
+			app.Navigation[i].Badge = op.Value
 		case OpMoveMenuItem:
 			if op.Position < 1 || op.Position > len(app.Navigation) {
 				return fmt.Errorf("position %d is not among the %d menu items", op.Position, len(app.Navigation))

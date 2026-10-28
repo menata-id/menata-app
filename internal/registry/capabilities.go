@@ -155,8 +155,9 @@ var Capabilities = []Capability{
 	key("navItemDoc", "label", "identity", "experience", true, ""),
 	key("navItemDoc", "route", "structure", "experience", true, ""),
 	key("navItemDoc", "priority", "presentation", "experience", true, ""),
-	key("navItemDoc", "parent", "structure", "experience", false, "hangs a menu item under another (one level); the slot lands with the menu editor that sets it (Fase 5b), which is the first thing that writes a nested menu"),
-	key("navItemDoc", "visible_to", "authorization", "experience", false, "which Application roles are offered a menu item and may open its address; the slot lands with the menu editor that sets it (Fase 5b), which is the first thing that writes it"),
+	key("navItemDoc", "parent", "structure", "experience", true, ""),
+	key("navItemDoc", "badge", "presentation", "experience", true, ""),
+	key("navItemDoc", "visible_to", "authorization", "experience", true, ""),
 	key("navItemDoc", "view_group", "presentation", "experience", false, "makes a screen one arrangement of an Application's view group; authored with the group"),
 	key("navItemDoc", "summary", "presentation", "experience", false, "words a view group's header with its counts; authored with the group"),
 

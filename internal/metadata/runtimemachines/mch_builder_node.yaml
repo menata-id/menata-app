@@ -18,6 +18,9 @@ fields:
   - { id: fld_position, name: Place, type: text }
   - { id: fld_count, name: Items, type: text }
   - { id: fld_show_when, name: Asked for, type: text }
+  - { id: fld_parent, name: Under, type: text }
+  - { id: fld_visible_to, name: Offered to, type: long_text }
+  - { id: fld_badge, name: Count, type: text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
   - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Edit, Add, Access, MenuItem, MenuAdd, Fixed, Ask, Code] }

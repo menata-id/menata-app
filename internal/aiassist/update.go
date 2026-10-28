@@ -373,6 +373,14 @@ func rebuildMenu(seq *yaml.Node, desired GeneratedApplication, ids []string, lis
 	for i, n := range desired.Navigation {
 		if node, ok := byID[ids[i]]; ok {
 			setScalar(node, "label", n.Label)
+			setOrDeleteKey(node, "parent", n.Parent)
+			if len(n.VisibleTo) > 0 {
+				deleteKey(node, "visible_to")
+				if err := setEncoded(node, "visible_to", n.VisibleTo); err != nil {
+					return err
+				}
+			}
+			setOrDeleteKey(node, "badge", n.Badge)
 			rebuilt = append(rebuilt, node)
 			delete(byID, ids[i])
 			continue
@@ -664,4 +672,14 @@ func reshapeViews(doc *yaml.Node, old, m GeneratedMachine) error {
 	}
 	slices.SortStableFunc(views.Content, func(a, b *yaml.Node) int { return rank(a) - rank(b) })
 	return nil
+}
+
+// setOrDeleteKey writes a scalar key when the desired value is not empty and removes the key when it is, leaving a node that never had it untouched.
+func setOrDeleteKey(node *yaml.Node, key, value string) {
+	switch {
+	case value != "":
+		setScalar(node, key, value)
+	case mapValue(node, key) != nil:
+		deleteKey(node, key)
+	}
 }

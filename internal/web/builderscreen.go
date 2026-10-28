@@ -111,7 +111,8 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					kind = "Declared page"
 				}
 				add(builderSectionViews+"/"+builderPlaceName(item.Label), "navigation/"+item.ID, kind, item.Route,
-					[2]string{"fld_name", item.Label}, [2]string{"fld_position", strconv.Itoa(i + 1)}, [2]string{"fld_count", strconv.Itoa(len(app.AllNavigation))})
+					[2]string{"fld_name", item.Label}, [2]string{"fld_position", strconv.Itoa(i + 1)}, [2]string{"fld_count", strconv.Itoa(len(app.AllNavigation))},
+					[2]string{"fld_parent", item.Parent}, [2]string{"fld_visible_to", strings.Join(item.VisibleTo, "\n")}, [2]string{"fld_badge", item.Badge})
 			}
 			for i, c := range builderChecks(app, owned) {
 				add(builderSectionChecks+"/"+builderPlaceName(c.Text), "checks/"+strconv.Itoa(i+1), "Check", c.Detail)
@@ -120,6 +121,27 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 			for _, m := range owned {
 				if f := statusFieldOf(m); f != nil {
 					add(builderSectionWorkflow+"/"+builderPlaceName(m.Name), "machines/"+m.ID+"/workflow", "Workflow", plural2(len(f.Options), "status"))
+				}
+			}
+		}
+		// A menu item's Edit tab likewise starts from the menu as the viewer's draft leaves it.
+		if tab == "Edit" {
+			appID, rest, _ := strings.Cut(selected, "/")
+			if item, ok := strings.CutPrefix(rest, "navigation/"); ok && item != "" {
+				if raw, err := store.ListAppDrafts(ctx, workspaceID, viewer.ID, "the menu item form"); err == nil && raw[appID] != nil {
+					if app, err := stagedApplication(ctx, store, cfg, appID, viewer.ID); err == nil {
+						for at, n := range app.Navigation {
+							if n.ID != item {
+								continue
+							}
+							for _, r := range out {
+								if r.ID == selected {
+									r.Values["fld_name"], r.Values["fld_position"], r.Values["fld_count"] = n.Label, strconv.Itoa(at+1), strconv.Itoa(len(app.Navigation))
+									r.Values["fld_parent"], r.Values["fld_visible_to"], r.Values["fld_badge"] = n.Parent, strings.Join(n.VisibleTo, "\n"), n.Badge
+								}
+							}
+						}
+					}
 				}
 			}
 		}

@@ -103,6 +103,11 @@ type GeneratedMenuItem struct {
 	Queue *GeneratedQueue `json:"queue,omitempty"`
 	// detail marks the second page a ByStatus entry expands into; set by the writer, never by the model.
 	detail *GeneratedByStatus
+	// Parent hangs the item under another top-level item (one level), VisibleTo limits who is offered it and may open its address to those roles, and
+	// Badge makes it show how many records a Dataset of this application selects. All three belong to an item that already exists: set them on an update.
+	Parent    string   `json:"parent,omitempty"`
+	VisibleTo []string `json:"visible_to,omitempty"`
+	Badge     string   `json:"badge,omitempty"`
 }
 
 // GeneratedByStatus is the status filter: tiles counting the Machine's records per option of StatusField,

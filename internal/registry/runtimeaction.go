@@ -76,6 +76,11 @@ const (
 	// ActionInputMachineConditions is a select of "always" and one entry per option of each status Field of the record's Machine ("Kind is Contract"), the
 	// value written "<field>=<option>"; it starts as the record's `Field`. It is how a Field says it is asked only while another holds a value.
 	ActionInputMachineConditions = "machine_conditions"
+	// ActionInputMenuParents is a select of "no parent" and the top-level items of the record's Application (not the record itself, and none at all when other
+	// items hang under it), starting as the record's `Field`. ActionInputAppDatasets is a select of "no count" and the Datasets of the Application's Machines
+	// that list records, starting as the record's `Field`.
+	ActionInputMenuParents = "menu_parents"
+	ActionInputAppDatasets = "app_datasets"
 )
 
 // RuntimeActions is the closed set a binding's `action:` may name.
@@ -129,6 +134,9 @@ var RuntimeActions = map[string]RuntimeAction{
 	"edit_menu_item": {ID: "edit_menu_item", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{
 		{Name: "label", Label: "Name in the menu", Required: true, Kind: ActionInputRecordLine, Field: "fld_name"},
 		{Name: "position", Label: "Place in the menu", Kind: ActionInputRecordPosition, Field: "fld_position", Count: "fld_count"},
+		{Name: "parent", Label: "Under", Kind: ActionInputMenuParents, Field: "fld_parent"},
+		{Name: "visible_to", Label: "Offered to (none ticked: everyone who may open the application; once set it cannot be emptied again)", Kind: ActionInputPartRoles, Field: "fld_visible_to"},
+		{Name: "badge", Label: "Shows a count of", Kind: ActionInputAppDatasets, Field: "fld_badge"},
 		{Name: "remove", Label: "Take it out of the menu (the screen's records stay; only an item that opens a Machine can be taken out)", Kind: ActionInputFlag}},
 		Doc: "renames a menu item, moves it to another place or takes it out, as the rename_menu_item, move_menu_item and remove_menu_item operations a conversation uses; about a part of the builder tree that is a screen the menu lists"},
 	"add_menu_item": {ID: "add_menu_item", Source: "builder_nodes", Admin: true, Inputs: []ActionInput{

@@ -63,6 +63,9 @@ func composableSurface() string {
 - A field that only some roles may change after it is written ("editable_by": [role, ...], roles this application
   declares; e.g. only the reviewer sets an amount). Everyone who may edit the record still sees it. Leave it out
   for a field anyone may change.
+- An existing menu item can be hung under another top-level item ("parent": that item's id; one level), offered only to some roles
+  ("visible_to": roles this application declares; it cannot be emptied again) and made to show a count ("badge": the id of a Dataset
+  of this application that lists records). Never on a new item: add it first.
 - How a machine's records are arranged ("views"): "board" (one column per option of a STATUS field named in
   "group_by"; this is what people usually mean by kanban or papan), "table", or "cards". The first view is
   what opens by default, so put the board first when the person wants one. When updating, a view may be

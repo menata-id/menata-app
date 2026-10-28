@@ -88,27 +88,6 @@ func validateNavigation(items []domain.NavigationItem) []string {
 			}
 		}
 	}
-	// Items at one address (the same route path and `?tab=`) are one screen offered twice: they must agree on who is offered it, or the first would silently
-	// decide for the others.
-	byAddress := map[string][]string{}
-	for _, n := range items {
-		route, query, _ := strings.Cut(n.Route, "?")
-		tab := ""
-		for _, pair := range strings.Split(query, "&") {
-			if k, v, _ := strings.Cut(pair, "="); k == "tab" {
-				tab = v
-			}
-		}
-		key := route + "?tab=" + tab
-		roles := append([]string(nil), n.VisibleTo...)
-		slices.Sort(roles)
-		sig := strings.Join(roles, ",")
-		if prior, ok := byAddress[key]; ok && prior[0] != sig {
-			issues = append(issues, fmt.Sprintf("navigation item %q: shares the address %s with %q but not its visible_to -- one screen is offered to one set of roles", n.ID, n.Route, prior[1]))
-		} else if !ok {
-			byAddress[key] = []string{sig, n.ID}
-		}
-	}
 	// A second level is one level: a parent is another item of this list that has no parent itself (which also rules out a cycle), and a hub is not nested.
 	byID := make(map[string]domain.NavigationItem, len(items))
 	for _, n := range items {

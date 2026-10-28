@@ -1013,3 +1013,90 @@ func TestBuilderMenuRefusesTakingOutAnItemOthersHangUnder(t *testing.T) {
 		t.Errorf("taking out a parent: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+// A menu item's Edit tab also hangs it under another item, says which roles are offered it and which Dataset it counts -- the three the runtime now has
+// (parent, visible_to, badge) -- through the same operations a conversation would make; clearing who is offered an item is refused, and a count the menu declares
+// that no Dataset is (approval_inbox_pending) is kept rather than replaced by the first choice.
+func TestBuilderMenuEditorSetsParentVisibleToAndBadge(t *testing.T) {
+	s := newInstallTestSetup(t, "bmenu3")
+	app := "app_document_tracking"
+	dir := filepath.Join(filepath.Dir(s.manifestPath), s.slug)
+	appFile, docFile := filepath.Join(dir, "applications", "tracking.yaml"), filepath.Join(dir, "document.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, reviewer]\n"+string(live))
+	doc, _ := os.ReadFile(docFile)
+	writeTestFile(t, docFile, string(doc)+"datasets:\n  - id: ds_all\n    select: records\n    limit: 50\n")
+	s.reloadWorkspace(t)
+	read := func() string { b, _ := os.ReadFile(appFile); return string(b) }
+	post := func(path string, form url.Values) int { return s.postBuilder(t, path, form).Code }
+	first, second := app+"/navigation/nav_document_tracking", ""
+	if code := post("/runtime-actions/add_menu_item?record="+url.QueryEscape(app+"/navigation"), url.Values{"label": {"Everything"}, "machine": {"mch_document"}}); code != http.StatusSeeOther {
+		t.Fatalf("adding an item: %d", code)
+	}
+	// The writer names the new item; find it.
+	text := read()
+	i := strings.Index(text, "label: Everything")
+	if i < 0 {
+		t.Fatalf("the new item is missing:\n%s", text)
+	}
+	idLine := text[strings.LastIndex(text[:i], "id: "):i]
+	second = app + "/navigation/" + strings.TrimSpace(strings.TrimPrefix(strings.Split(idLine, "\n")[0], "id: "))
+
+	body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(second)).Body.String()
+	for _, want := range []string{`name="parent"`, `<option value="nav_document_tracking"`, `name="visible_to"`, `value="reviewer"`, `name="badge"`, `<option value="ds_all"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the item's Edit tab is missing %q", want)
+		}
+	}
+	edit := func(form url.Values) int {
+		form.Set("label", "Everything")
+		form.Set("position", "2")
+		return post("/runtime-actions/edit_menu_item?record="+url.QueryEscape(second), form)
+	}
+	// Two items at one address are offered to the same roles, so the first is set in the same draft and both are published together.
+	stage := func(node string, form url.Values) int {
+		return s.postTo(t, "/runtime-actions/edit_menu_item?record="+url.QueryEscape(node), form).Code
+	}
+	if stage(first, url.Values{"label": {"Document Tracking"}, "position": {"1"}, "visible_to": {"reviewer"}}) != http.StatusSeeOther ||
+		stage(second, url.Values{"label": {"Everything"}, "position": {"2"}, "parent": {"nav_document_tracking"}, "visible_to": {"reviewer"}, "badge": {"ds_all"}}) != http.StatusSeeOther {
+		t.Fatal("staging the two items was refused")
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Fatalf("setting parent, visible_to and badge: %d", code)
+	}
+	for _, want := range []string{"parent: nav_document_tracking", "visible_to:", "reviewer", "badge: ds_all"} {
+		if !strings.Contains(read(), want) {
+			t.Errorf("the Application's file lacks %q:\n%s", want, read())
+		}
+	}
+	if body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(second)).Body.String(); !strings.Contains(body, `<option value="nav_document_tracking" selected`) || !strings.Contains(body, `<option value="ds_all" selected`) {
+		t.Errorf("the form does not start from what the item has:\n%s", body)
+	}
+	before := read()
+	if code := edit(url.Values{"parent": {"nav_document_tracking"}, "badge": {"ds_all"}}); code < 400 || read() != before {
+		t.Errorf("clearing who is offered an item was accepted or wrote (status %d)", code)
+	}
+	_ = edit
+	if code := edit(url.Values{"parent": {"nav_nowhere"}, "visible_to": {"reviewer"}, "badge": {"ds_all"}}); code < 400 || read() != before {
+		t.Errorf("a parent that is not an item was accepted or wrote (status %d)", code)
+	}
+	if code := edit(url.Values{"visible_to": {"reviewer"}, "badge": {"ds_all"}}); code != http.StatusSeeOther || strings.Contains(read(), "parent:") {
+		t.Errorf("making the item a top-level one again: %d\n%s", code, read())
+	}
+	_ = first
+}
+
+// A count the menu declares that no Dataset is (`badge: approval_inbox_pending`) is kept by the item's form: the picker offers it, selected, so saving the form does not
+// replace it with the first choice.
+func TestBuilderMenuFormKeepsADeclaredKindOfCount(t *testing.T) {
+	s := newInstallTestSetup(t, "bmenubadge")
+	app := "app_document_tracking"
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	live, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, strings.Replace(string(live), "    route: /machines/mch_document\n", "    route: /machines/mch_document\n    badge: approval_inbox_pending\n", 1))
+	s.reloadWorkspace(t)
+	body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(app+"/navigation/nav_document_tracking")).Body.String()
+	if !strings.Contains(body, `<option value="approval_inbox_pending" selected`) {
+		t.Errorf("the picker does not keep the declared kind of count selected:\n%s", body)
+	}
+}

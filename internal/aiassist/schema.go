@@ -429,11 +429,14 @@ var generatedQueueSchema = geminiSchema{
 }
 
 var generatedMenuItemSchema = geminiSchema{
-	PropertyOrdering: []string{"id", "label", "machine_id", "list", "by_status", "queue"},
+	PropertyOrdering: []string{"id", "label", "machine_id", "list", "by_status", "queue", "parent", "visible_to", "badge"},
 	Type:             "OBJECT",
 	Required:         []string{"label"},
 	Properties: map[string]geminiSchema{
 		"id":         {Type: "STRING", Description: "Only for a menu item that already exists: keep its id exactly, so it keeps where it leads. Leave empty for a new item."},
+		"parent":     {Type: "STRING", Description: "Only for a menu item that already exists: the id of another top-level item of this menu to hang it under (one level only; an item that others hang under cannot itself hang under one). Empty keeps it a top-level item."},
+		"visible_to": {Type: "ARRAY", Items: &stringSchema, Description: "Only for a menu item that already exists: roles this application declares; only they are offered the item and may open its screen. Once set it cannot be emptied again."},
+		"badge":      {Type: "STRING", Description: "Only for a menu item that already exists: the id of a Dataset of this application's machines that lists records (ds_...); the item then shows how many it selects for the viewer."},
 		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
 		"machine_id": {Type: "STRING", Description: "Required for a new item: one of this application's own machine ids; the entry opens that machine's list."},
 		"list":       withDescription(generatedListSchema, "Only for a NEW item: makes the entry a list page of that machine's records (all of them, or only the viewer's own). Needs the machine to have a card_fields entry with role title. Never on an existing item."),

@@ -32,7 +32,7 @@ func DescribeApplication(id string, a ExistingApplicationState) GeneratedApplica
 		}
 	}
 	for _, n := range a.Navigation {
-		g.Navigation = append(g.Navigation, GeneratedMenuItem{ID: n.ID, Label: n.Label, MachineID: machineOfRoute(n.Route)})
+		g.Navigation = append(g.Navigation, GeneratedMenuItem{ID: n.ID, Label: n.Label, MachineID: machineOfRoute(n.Route), Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge})
 	}
 	return g
 }
@@ -469,6 +469,9 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	var keptOrder []string
 	for _, n := range desired {
 		old, exists := byID[n.ID]
+		if (n.ID == "" || !exists) && (n.Parent != "" || len(n.VisibleTo) > 0 || n.Badge != "") {
+			p.refuse("menu item %q is new, so it cannot also name a parent, who may see it or a count -- add the item, then set those", n.Label)
+		}
 		if n.ID == "" || !exists {
 			if n.ByStatus != nil {
 				p.add("menu item %q, a tile per status of %s, and %q for the records in one", n.Label, n.MachineID, n.ByStatus.DetailLabel)
@@ -491,6 +494,27 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 		}
 		if n.Label != old.Label {
 			p.change("menu item %q is now %q", old.Label, n.Label)
+		}
+		if n.Parent != old.Parent {
+			if n.Parent == "" {
+				p.change("menu item %q is a top-level item again", n.Label)
+			} else {
+				p.change("menu item %q now hangs under %s", n.Label, n.Parent)
+			}
+		}
+		switch {
+		case slices.Equal(sortedCopy(n.VisibleTo), sortedCopy(old.VisibleTo)):
+		case len(n.VisibleTo) == 0:
+			p.refuse("menu item %s cannot be offered to everyone again: who may see it was a decision about access, and clearing it would grant what it held back", n.ID)
+		default:
+			p.change("menu item %q is offered only to %s", n.Label, strings.Join(n.VisibleTo, ", "))
+		}
+		if n.Badge != old.Badge {
+			if n.Badge == "" {
+				p.change("menu item %q no longer shows a count", n.Label)
+			} else {
+				p.change("menu item %q shows how many records %s selects", n.Label, n.Badge)
+			}
 		}
 	}
 	var currentOrder []string

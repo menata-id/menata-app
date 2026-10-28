@@ -1332,6 +1332,56 @@ func bindingAction(ctx context.Context, l *Loader, viewer domain.Actor, b domain
 				return ir.FormSpec{}, fmt.Errorf("composition: %q names no Application of this Workspace", appID)
 			}
 			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputMultiSelect, Options: appRoles, Default: strings.ReplaceAll(text, "\n", domain.InputOptionsSep)})
+		case registry.ActionInputMenuParents:
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			appID, rest, _ := strings.Cut(recordID, "/")
+			self := strings.TrimPrefix(rest, "navigation/")
+			options := []string{domain.InputChoiceSep + "No one (a top-level item)"}
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if app.ID != appID {
+					continue
+				}
+				hasChildren := false
+				for _, item := range app.AllNavigation {
+					hasChildren = hasChildren || item.Parent == self
+				}
+				if hasChildren {
+					break // an item others hang under stays at the top
+				}
+				for _, item := range app.AllNavigation {
+					if item.ID != self && item.Parent == "" && !item.NotInMenu && !item.SettingsHub && !item.SettingsHubMember {
+						options = append(options, item.ID+domain.InputChoiceSep+item.Label)
+					}
+				}
+			}
+			options = keepDeclared(options, here)
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Default: here})
+		case registry.ActionInputAppDatasets:
+			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
+			if err != nil {
+				return ir.FormSpec{}, err
+			}
+			appID, _, _ := strings.Cut(recordID, "/")
+			options := []string{domain.InputChoiceSep + "Nothing"}
+			for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+				if app.ID != appID {
+					continue
+				}
+				for _, id := range app.Machines {
+					if m := l.Machine(id); m != nil {
+						for _, ds := range m.Datasets {
+							if ds.Select == domain.SelectRecords {
+								options = append(options, ds.ID+domain.InputChoiceSep+m.Name+": "+ds.ID)
+							}
+						}
+					}
+				}
+			}
+			options = keepDeclared(options, here)
+			spec.Inputs = append(spec.Inputs, domain.FormInput{FieldID: in.Name, Label: in.Label, Kind: domain.InputSelect, Options: options, Default: here})
 		case registry.ActionInputMachineConditions:
 			here, err := sourceRecordText(ctx, l, viewer, a.Source, recordID, in.Field)
 			if err != nil {
@@ -1513,4 +1563,18 @@ func recordAppRoles(ctx context.Context, l *Loader, source, recordID string) (ma
 func storageKey(files *storage.Store, key string) bool {
 	_, err := files.Path(key)
 	return err == nil
+}
+
+// keepDeclared adds the value a record already holds to a picker's options when the picker does not offer it (a menu item's `badge: approval_inbox_pending`, a kind of
+// count no Dataset is), so saving the form does not quietly replace what is declared with the first choice.
+func keepDeclared(options []string, here string) []string {
+	if here == "" {
+		return options
+	}
+	for _, o := range options {
+		if v, _, _ := strings.Cut(o, domain.InputChoiceSep); v == here {
+			return options
+		}
+	}
+	return append(options, here+domain.InputChoiceSep+here+" (as declared)")
 }

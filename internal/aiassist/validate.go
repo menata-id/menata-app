@@ -55,6 +55,10 @@ type ExistingNavItem struct {
 	ID    string
 	Label string
 	Route string
+	// Parent, VisibleTo and Badge are the item's `parent:`, `visible_to:` and `badge:` as declared.
+	Parent    string
+	VisibleTo []string
+	Badge     string
 }
 
 // ExistingStateFrom is the one way to build an ExistingState from a loaded Workspace, used by
@@ -87,7 +91,7 @@ func ExistingStateFrom(ws domain.Workspace) ExistingState {
 		}
 		nav := make([]ExistingNavItem, 0, len(app.AllNavigation))
 		for _, n := range app.AllNavigation {
-			nav = append(nav, ExistingNavItem{ID: n.ID, Label: n.Label, Route: n.Route})
+			nav = append(nav, ExistingNavItem{ID: n.ID, Label: n.Label, Route: n.Route, Parent: n.Parent, VisibleTo: slices.Clone(n.VisibleTo), Badge: n.Badge})
 			state.NavIDs[n.ID] = true
 		}
 		state.Applications[app.ID] = ExistingApplicationState{

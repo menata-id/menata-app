@@ -571,6 +571,21 @@ func runEditMenuItem(w http.ResponseWriter, req *http.Request, env actionEnv, re
 		if place, err := strconv.Atoi(req.PostForm.Get("position")); err == nil && place != at+1 {
 			ops = append(ops, builder.Op{Kind: builder.OpMoveMenuItem, Item: item, Position: place})
 		}
+		if parent := req.PostForm.Get("parent"); parent != app.Navigation[at].Parent {
+			ops = append(ops, builder.Op{Kind: builder.OpSetMenuParent, Item: item, Value: parent})
+		}
+		var offered []string
+		for _, r := range req.PostForm["visible_to"] {
+			if r = strings.TrimSpace(r); r != "" && !slices.Contains(offered, r) {
+				offered = append(offered, r)
+			}
+		}
+		if !slices.Equal(slices.Sorted(slices.Values(offered)), slices.Sorted(slices.Values(app.Navigation[at].VisibleTo))) {
+			ops = append(ops, builder.Op{Kind: builder.OpSetMenuVisibleTo, Item: item, Roles: offered})
+		}
+		if badge := req.PostForm.Get("badge"); badge != app.Navigation[at].Badge {
+			ops = append(ops, builder.Op{Kind: builder.OpSetMenuBadge, Item: item, Value: badge})
+		}
 	}
 	if len(ops) == 0 {
 		return back, true
