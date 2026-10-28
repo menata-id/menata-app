@@ -82,7 +82,7 @@ In order. Each stage is broken into small, finished steps.
   card actions.
 
 **5. Process map and Application Builder**
-- A process map that draws a model's statuses and transitions, then the Application Builder screens on it.
+- An Application Builder to edit an application's fields, menu, lists, workflow and rules with changes published together (in progress), and a process map that draws a model's statuses and transitions.
 
 **Alongside**
 - A privacy policy and terms page; installable as an app (Play Store ready).
