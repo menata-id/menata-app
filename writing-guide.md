@@ -455,7 +455,8 @@ deletable_unless:
   edit forms show it as text, a Workspace admin is not held back, and a Field that names no one stays open. It is judged against **who
   is asking**, which the other two are not. A role the Application does not declare is a load error; clearing it again through a
   proposal is refused (it would open what was held back). Not on a computed, stamped or numbered Field. Create is not judged: whoever
-  may create sets the first value.
+  may create sets the first value. An edge (`transitions:`) that `sets:` such a Field is a load error, since the edge would be
+  refused for everyone without the role. What is written is always the stored spelling of an unchanged value.
 - `on_parent_delete: restrict` (a relation Field only) refuses deleting the record it points at while any record points at
   it (409: "cannot be deleted while 3 Instalment record(s) point at it"). `cascade` and `clear` are not built and are refused.
 - `deletable_unless` refuses deleting a record while its status Field holds the value, with the reason given.

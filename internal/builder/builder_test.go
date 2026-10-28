@@ -496,3 +496,15 @@ func TestSetEditableByWritesRolesAndRefusesClearing(t *testing.T) {
 		t.Errorf("clearing who may change a Field was not refused: %v", err)
 	}
 }
+
+// A coloured choice added and removed again in one draft leaves nothing behind; an installed coloured choice is still refused, once, for the real reason.
+func TestRemovingAChoiceTakesItsColourWithIt(t *testing.T) {
+	manifest := installed(t)
+	if _, err := Review(manifest, appID, []Op{
+		{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "late", Category: "attention"},
+		{Kind: OpAddOption, Machine: "mch_catat", Field: "fld_status", Value: "done", Category: "done"},
+		{Kind: OpRemoveOption, Machine: "mch_catat", Field: "fld_status", Value: "late"},
+	}); err != nil {
+		t.Errorf("a choice added then removed in one draft: %v", err)
+	}
+}

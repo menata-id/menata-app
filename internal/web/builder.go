@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/builder"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -155,10 +156,10 @@ func applyBuilderOperations(store *data.Store, cfg config.Config, reload func(sl
 	}
 }
 
-// runEditField is the Edit tab of the builder for a Field: the record is the part the tree names ("<app>/machines/<machine>/fields/<field>"),
-// and the form says the Field's new name and whether it is required. It makes the same two operations a conversation would
-// (rename_field, set_required) and writes them through builder.Commit -- the one write path, which load-verifies and rolls back -- after a
-// snapshot, then reloads the Workspace and returns to the part, so the person sees it renamed in the tree and in the preview.
+// runEditField is the Edit tab of a Field: the record is the part the tree names ("<app>/machines/<machine>/fields/<field>"), and the form says the Field's
+// new name, whether it is required, who may change it and, for a Field that offers choices, which choices. The form is compared with the Field **as the
+// admin's draft leaves it** (stagedApplication), not as installed, so undoing a staged change stages the undoing. The operations are the ones a conversation
+// would make (rename_field, set_required, set_editable_by, add_option/remove_option) and are staged (stageBuilderOps); Publish writes them.
 func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
 	ctx := req.Context()
 	appID, rest, _ := strings.Cut(record, "/")
@@ -172,12 +173,29 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 		http.Error(w, "a Field needs a name", http.StatusBadRequest)
 		return "", false
 	}
-	current := fieldOf(machinesFor(ctx)[parts[1]], parts[3])
-	if current == nil {
-		http.Error(w, "this Field is not in this Workspace", http.StatusNotFound)
+	app, err := stagedApplication(ctx, env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
 		return "", false
 	}
-	// Only what differs is an operation: saving a form nobody changed writes nothing (the writer refuses an identical Application).
+	machine := stagedMachine(app, parts[1])
+	var current *aiassist.GeneratedField
+	if machine != nil {
+		for i := range machine.Fields {
+			if machine.Fields[i].ID == parts[3] {
+				current = &machine.Fields[i]
+			}
+		}
+	}
+	if current == nil {
+		http.Error(w, "this Field is not in this Application", http.StatusNotFound)
+		return "", false
+	}
+	// Only what differs is an operation: saving a form nobody changed stages nothing (the writer refuses an identical Application).
 	var ops []builder.Op
 	if name != current.Name {
 		ops = append(ops, builder.Op{Kind: builder.OpRenameField, Machine: parts[1], Field: parts[3], Value: name})
@@ -200,10 +218,13 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 		return "", false
 	}
 	if len(current.Options) > 0 {
-		m := machinesFor(ctx)[parts[1]]
 		haveCategory := func(o string) string {
-			if m.StatusCategories != nil && m.StatusCategories.Field == current.ID {
-				return string(m.StatusCategories.Values[o])
+			if machine.StatusCategories != nil && machine.StatusCategories.Field == current.ID {
+				for _, v := range machine.StatusCategories.Values {
+					if v.Option == o {
+						return v.Category
+					}
+				}
 			}
 			return ""
 		}
@@ -224,33 +245,28 @@ func runEditField(w http.ResponseWriter, req *http.Request, env actionEnv, recor
 	return stageBuilderOps(w, req, env, appID, ops, back)
 }
 
-func fieldOf(m *domain.Machine, id string) *domain.Field {
-	if m == nil {
-		return nil
-	}
-	for i := range m.Fields {
-		if m.Fields[i].ID == id {
-			return &m.Fields[i]
-		}
-	}
-	return nil
-}
-
 // choice is one line of a choices box: a choice and, after a bar, the category it is drawn in ("Approved | done").
 type choice struct{ Name, Category string }
 
-// parseChoices reads a choices box: one choice a line, a blank or repeated line says nothing, and a category after "|" must be one of the closed five.
+// parseChoices reads a choices box: one choice a line, a blank or repeated line says nothing, and a category after the **last** "|" must be one of the closed
+// five when it is the last thing on the line. A line whose tail after a bar is not a category is a choice whose name holds a bar ("a|b"), so such a
+// name round-trips through the box.
 func parseChoices(typed string) ([]choice, error) {
 	var out []choice
 	seen := map[string]bool{}
 	for _, line := range strings.Split(typed, "\n") {
-		name, cat, _ := strings.Cut(line, "|")
-		name, cat = strings.TrimSpace(name), strings.TrimSpace(cat)
+		name, cat := strings.TrimSpace(line), ""
+		if i := strings.LastIndex(line, "|"); i >= 0 {
+			tail := strings.TrimSpace(line[i+1:])
+			switch {
+			case domain.KnownStatusCategories[domain.StatusCategory(tail)]:
+				name, cat = strings.TrimSpace(line[:i]), tail
+			case strings.Contains(line, " | "):
+				return nil, fmt.Errorf("%q is not a colour a status can have (start, active, attention, done or stopped)", tail)
+			}
+		}
 		if name == "" || seen[name] {
 			continue
-		}
-		if cat != "" && !domain.KnownStatusCategories[domain.StatusCategory(cat)] {
-			return nil, fmt.Errorf("%q is not a colour a status can have (start, active, attention, done or stopped)", cat)
 		}
 		seen[name] = true
 		out = append(out, choice{name, cat})
@@ -300,9 +316,18 @@ func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		http.Error(w, "this part is not a Machine", http.StatusBadRequest)
 		return "", false
 	}
-	m := machinesFor(ctx)[parts[1]]
+	app, err := stagedApplication(ctx, env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	m := stagedMachine(app, parts[1])
 	if m == nil {
-		http.Error(w, "this Machine is not in this Workspace", http.StatusNotFound)
+		http.Error(w, "this Machine is not in this Application", http.StatusNotFound)
 		return "", false
 	}
 	name, typ := strings.TrimSpace(req.PostForm.Get("name")), domain.FieldType(req.PostForm.Get("type"))
@@ -331,12 +356,13 @@ func runAddField(w http.ResponseWriter, req *http.Request, env actionEnv, record
 		options, categories = nil, nil
 	}
 	op := builder.Op{Kind: builder.OpAddField, Machine: m.ID, Field: newFieldID(m, name), Value: name, Type: string(typ), Flag: req.PostForm.Get("required") != "", Options: options, Categories: categories}
-	field := record + "/fields/" + op.Field
-	return stageBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {field}, "tab": {"edit"}}.Encode())
+	// Back to the Machine: the new Field is staged, not yet a part of the tree, so there is nothing of it to select until Publish.
+	return stageBuilderOps(w, req, env, appID, []builder.Op{op}, "/builder/"+url.PathEscape(appID)+"?"+url.Values{"node": {record}, "tab": {"edit"}}.Encode())
 }
 
-// newFieldID makes a Field's id from its name and keeps it unique within the Machine ("fld_amount", then "fld_amount_2").
-func newFieldID(m *domain.Machine, name string) string {
+// newFieldID makes a Field's id from its name ("fld_" and the name in lower case with words joined by "_") and keeps it unique within the Machine as the draft
+// would leave it, ignoring case ("fld_amount", then "fld_amount_2"). A name with no letter or digit in it ("é", "!!!") is "fld_field" and counts up the same way.
+func newFieldID(m *aiassist.GeneratedMachine, name string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(name) {
 		switch {
@@ -350,16 +376,20 @@ func newFieldID(m *domain.Machine, name string) string {
 	if base == "fld_" {
 		base = "fld_field"
 	}
+	taken := func(id string) bool {
+		return slices.ContainsFunc(m.Fields, func(f aiassist.GeneratedField) bool { return strings.EqualFold(f.ID, id) })
+	}
 	id := base
-	for n := 2; fieldOf(m, id) != nil; n++ {
+	for n := 2; taken(id); n++ {
 		id = base + "_" + strconv.Itoa(n)
 	}
 	return id
 }
 
-// commitBuilderOps writes operations the way every builder form does -- the installation's version read just before, a snapshot, builder.Commit (which
-// load-verifies and rolls back), the Workspace reloaded -- and answers a refusal to w. It returns where the person goes next.
-func commitBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, appID string, ops []builder.Op, back string) (string, bool) {
+// commitBuilderOpsAt writes operations the way every builder write does -- the installation's version read just before (or the one a draft was made against,
+// refused with 409 when the installation is no longer it), a snapshot, builder.Commit (which load-verifies and rolls back), then afterWrite, then the Workspace
+// reloaded -- and answers a refusal to w. It returns where the person goes next.
+func commitBuilderOpsAt(w http.ResponseWriter, req *http.Request, env actionEnv, appID string, ops []builder.Op, base string, afterWrite func() error, back string) (string, bool) {
 	ctx := req.Context()
 	if env.reload == nil {
 		serverError(w, errors.New("builder: this process has no reload hook configured"))
@@ -370,17 +400,19 @@ func commitBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, a
 		serverError(w, err)
 		return "", false
 	}
-	version, err := builder.Version(manifestPath)
-	if err != nil {
-		serverError(w, err)
-		return "", false
+	version := base
+	if version == "" {
+		if version, err = builder.Version(manifestPath); err != nil {
+			serverError(w, err)
+			return "", false
+		}
 	}
 	snapshotBeforeWrite(env.cfg, manifestPath)
 	err = builder.Commit(manifestPath, appID, ops, version, nil)
 	var rejected *installer.RejectedError
 	switch {
 	case errors.Is(err, builder.ErrStale):
-		http.Error(w, err.Error(), http.StatusConflict)
+		http.Error(w, "the application changed since this draft began: discard it and make the changes again", http.StatusConflict)
 		return "", false
 	case errors.As(err, &rejected):
 		http.Error(w, rejected.Error(), http.StatusUnprocessableEntity)
@@ -391,6 +423,12 @@ func commitBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, a
 	}
 	workspaceID, _ := data.WorkspaceScope(ctx)
 	log.Printf("BUILDER-APPLY app=%s workspace=%s ops=%d", appID, workspaceID, len(ops))
+	if afterWrite != nil {
+		if err := afterWrite(); err != nil {
+			serverError(w, err)
+			return "", false
+		}
+	}
 	if err := reloadCurrentWorkspace(ctx, env.store, env.reload); err != nil {
 		serverError(w, fmt.Errorf("builder: written, but the live reload failed -- a restart will pick it up: %w", err))
 		return "", false
@@ -419,8 +457,17 @@ func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionE
 		http.Error(w, "at least one role must be able to do this: with none, everyone would", http.StatusBadRequest)
 		return "", false
 	}
-	var current *domain.Permission
-	if m := machinesFor(req.Context())[parts[1]]; m != nil {
+	app, err := stagedApplication(req.Context(), env.store, env.cfg, appID, currentActorID(req, env))
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		http.Error(w, rejected.Error(), http.StatusNotFound)
+		return "", false
+	} else if err != nil {
+		serverError(w, err)
+		return "", false
+	}
+	var current *aiassist.GeneratedPermission
+	if m := stagedMachine(app, parts[1]); m != nil {
 		for i := range m.Permissions {
 			if m.Permissions[i].ID == parts[3] {
 				current = &m.Permissions[i]
@@ -428,7 +475,7 @@ func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionE
 		}
 	}
 	if current == nil {
-		http.Error(w, "this Permission is not in this Workspace", http.StatusNotFound)
+		http.Error(w, "this Permission is not in this Application", http.StatusNotFound)
 		return "", false
 	}
 	back := "/builder/" + url.PathEscape(appID) + "?" + url.Values{"node": {record}, "tab": {"edit"}}.Encode()
@@ -444,16 +491,22 @@ func runSetPermissionRoles(w http.ResponseWriter, req *http.Request, env actionE
 // reviewed and applied by the person in the conversation, through the same writer as every other change.
 func runAskAssistantAbout(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
 	wish := strings.TrimSpace(req.PostForm.Get("wish"))
-	if wish == "" {
-		http.Error(w, "say what should change", http.StatusBadRequest)
+	if wish == "" || len(wish) > 1000 {
+		http.Error(w, "say in a few words (up to 1000 characters) what should change", http.StatusBadRequest)
 		return "", false
 	}
 	appID, path, _ := strings.Cut(record, "/")
-	appName := appID
+	appName, known := "", false
 	for _, app := range rendering.CurrentWorkspace(req.Context()).Applications {
 		if app.ID == appID {
-			appName = app.Name
+			appName, known = app.Name, true
 		}
+	}
+	// The record must be a part the tree lists: an application of this Workspace and a path of the shapes it gives its parts, so nothing else is ever put in a
+	// sentence addressed to the assistant.
+	if !known || path == "" || len(path) > 200 || strings.ContainsAny(path, "\"\n\r\\") || strings.Contains(path, "..") {
+		http.Error(w, "this is not a part of an application of this Workspace", http.StatusBadRequest)
+		return "", false
 	}
 	idea := "In the application \"" + appName + "\" (" + appID + "), about " + path + ": " + wish
 	return domain.RuntimeScreenRoute("nav_new_application") + "?" + url.Values{"idea": {idea}}.Encode(), true

@@ -1640,6 +1640,19 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 		}
 	}
 	for _, m := range machines {
+		editable := map[string]bool{}
+		for _, f := range m.Fields {
+			if len(f.EditableBy) > 0 {
+				editable[f.ID] = true
+			}
+		}
+		for _, t := range m.Transitions {
+			for field := range t.Sets {
+				if editable[field] {
+					issues = append(issues, fmt.Sprintf("machine %q: transition %q sets field %q, which names who may change it (editable_by) -- the edge would be refused for everyone who lacks that role; let the edge write a field anyone may change", m.ID, t.ID, field))
+				}
+			}
+		}
 		for _, f := range m.Fields {
 			for _, role := range f.EditableBy {
 				switch {

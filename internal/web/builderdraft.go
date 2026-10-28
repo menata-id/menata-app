@@ -6,15 +6,19 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/builder"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/installer"
+	"menata.app/internal/rendering"
 )
 
 // The Application Builder's forms do not write: they stage. What an admin does in a form is kept as pending operations for that admin and that
@@ -23,35 +27,87 @@ import (
 // the Workspace reloaded) and drops the draft; discarding drops it. A form is checked against what is already staged when it is submitted, so a
 // change the plan would refuse is refused there, with the plan's own words, and never sits in a draft to fail later.
 
-// loadDraft is the operations one admin has staged for one Application.
-func loadDraft(ctx context.Context, store *data.Store, appID, userID string) ([]builder.Op, error) {
+// draftLocks serialise the load-modify-save of one admin's draft of one Application (two tabs staging at once would lose an operation) and publishing it
+// (a change staged between reading the draft and deleting it would be deleted unpublished). Within this process, like builder.Commit's own lock.
+var draftLocks sync.Map
+
+func lockDraft(workspaceID, appID, userID string) func() {
+	mu, _ := draftLocks.LoadOrStore(workspaceID+"\x00"+appID+"\x00"+userID, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
+}
+
+// loadDraft is the operations one admin has staged for one Application, and the installation version they began against.
+func loadDraft(ctx context.Context, store *data.Store, appID, userID string) ([]builder.Op, string, error) {
 	workspaceID, _ := data.WorkspaceScope(ctx)
-	raw, err := store.GetAppDraft(ctx, workspaceID, appID, userID)
+	raw, base, err := store.GetAppDraft(ctx, workspaceID, appID, userID)
 	if err != nil || raw == nil {
-		return nil, err
+		return nil, "", err
 	}
 	var ops []builder.Op
 	if err := json.Unmarshal(raw, &ops); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return ops, nil
+	return ops, base, nil
+}
+
+// stagedApplication is the Application as the admin's draft would leave it: what the forms start from and are compared with, so a form that undoes a staged
+// change stages the undoing instead of vanishing against what is installed.
+func stagedApplication(ctx context.Context, store *data.Store, cfg config.Config, appID, userID string) (aiassist.GeneratedApplication, error) {
+	ops, _, err := loadDraft(ctx, store, appID, userID)
+	if err != nil {
+		return aiassist.GeneratedApplication{}, err
+	}
+	manifestPath, _, err := workspaceInstallation(ctx, store, cfg)
+	if err != nil {
+		return aiassist.GeneratedApplication{}, err
+	}
+	return builder.Staged(manifestPath, appID, ops)
+}
+
+// stagedMachine is one Machine of stagedApplication, nil when the draft has no such Machine.
+func stagedMachine(app aiassist.GeneratedApplication, machineID string) *aiassist.GeneratedMachine {
+	for i := range app.Machines {
+		if app.Machines[i].ID == machineID {
+			return &app.Machines[i]
+		}
+	}
+	return nil
 }
 
 // stageBuilderOps adds ops to the admin's draft of the Application, after the plan accepts the draft with them. It answers like a write would -- 422 with the
-// plan's refusal, 409 when the installation changed under the draft -- and redirects to back.
+// plan's refusal -- and redirects to back. The first change of a draft records the installation it was made against.
 func stageBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, appID string, ops []builder.Op, back string) (string, bool) {
 	ctx := req.Context()
 	userID := currentActorID(req, env)
-	staged, err := loadDraft(ctx, env.store, appID, userID)
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	defer lockDraft(workspaceID, appID, userID)()
+	staged, base, err := loadDraft(ctx, env.store, appID, userID)
 	if err != nil {
 		serverError(w, err)
 		return "", false
 	}
-	all := append(staged, ops...)
 	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
 	if err != nil {
 		serverError(w, err)
 		return "", false
+	}
+	if len(staged) == 0 || base == "" {
+		if base, err = builder.AppVersion(manifestPath, appID); err != nil {
+			serverError(w, err)
+			return "", false
+		}
+	}
+	all := append(staged, ops...)
+	// Changes that undo one another leave the Application as it is installed: that is an empty draft, not a plan to refuse as "identical".
+	if now, err := builder.Staged(manifestPath, appID, all); err == nil {
+		if installed, err := builder.Staged(manifestPath, appID, nil); err == nil && reflect.DeepEqual(now, installed) {
+			if err := env.store.DeleteAppDraft(ctx, workspaceID, appID, userID); err != nil {
+				serverError(w, err)
+				return "", false
+			}
+			return back, true
+		}
 	}
 	var rejected *installer.RejectedError
 	if _, err := builder.Review(manifestPath, appID, all); errors.As(err, &rejected) {
@@ -63,8 +119,7 @@ func stageBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, ap
 	}
 	raw, err := json.Marshal(all)
 	if err == nil {
-		workspaceID, _ := data.WorkspaceScope(ctx)
-		err = env.store.SaveAppDraft(ctx, workspaceID, appID, userID, raw)
+		err = env.store.SaveAppDraft(ctx, workspaceID, appID, userID, raw, base)
 	}
 	if err != nil {
 		serverError(w, err)
@@ -73,11 +128,16 @@ func stageBuilderOps(w http.ResponseWriter, req *http.Request, env actionEnv, ap
 	return back, true
 }
 
-// runPublishDraft is the Publish button: the record is the Application's id. The staged operations are written together, or none is and the draft stays.
+// runPublishDraft is the Publish button: the record is the Application's id. The staged operations are written together, or none is and the draft stays. A
+// draft whose installation has changed since it began (another admin published, the assistant updated it) is refused with 409 and kept, to be discarded
+// and made again: replaying it would silently overwrite what changed. The draft is dropped as soon as the files are written, before the reload, so a reload
+// that fails never leaves a draft that would replay on what it already wrote.
 func runPublishDraft(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
 	ctx := req.Context()
 	userID := currentActorID(req, env)
-	ops, err := loadDraft(ctx, env.store, record, userID)
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	defer lockDraft(workspaceID, record, userID)()
+	ops, base, err := loadDraft(ctx, env.store, record, userID)
 	if err != nil {
 		serverError(w, err)
 		return "", false
@@ -86,23 +146,28 @@ func runPublishDraft(w http.ResponseWriter, req *http.Request, env actionEnv, re
 		http.Error(w, "there is nothing staged to publish", http.StatusConflict)
 		return "", false
 	}
-	back := "/builder/" + url.PathEscape(record)
-	next, ok := commitBuilderOps(w, req, env, record, ops, back)
-	if !ok {
-		return "", false
-	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
-	if err := env.store.DeleteAppDraft(ctx, workspaceID, record, userID); err != nil {
+	manifestPath, _, err := workspaceInstallation(ctx, env.store, env.cfg)
+	if err != nil {
 		serverError(w, err)
 		return "", false
 	}
-	return next, true
+	if live, err := builder.AppVersion(manifestPath, record); err != nil {
+		serverError(w, err)
+		return "", false
+	} else if base != "" && live != base {
+		http.Error(w, "the application changed since this draft began: discard it and make the changes again", http.StatusConflict)
+		return "", false
+	}
+	drop := func() error { return env.store.DeleteAppDraft(ctx, workspaceID, record, userID) }
+	return commitBuilderOpsAt(w, req, env, record, ops, "", drop, "/builder/"+url.PathEscape(record))
 }
 
 // runDiscardDraft is the Discard button: the staged operations go and nothing was written.
 func runDiscardDraft(w http.ResponseWriter, req *http.Request, env actionEnv, record string) (string, bool) {
 	workspaceID, _ := data.WorkspaceScope(req.Context())
-	if err := env.store.DeleteAppDraft(req.Context(), workspaceID, record, currentActorID(req, env)); err != nil {
+	userID := currentActorID(req, env)
+	defer lockDraft(workspaceID, record, userID)()
+	if err := env.store.DeleteAppDraft(req.Context(), workspaceID, record, userID); err != nil {
 		serverError(w, err)
 		return "", false
 	}
@@ -114,13 +179,20 @@ func runDiscardDraft(w http.ResponseWriter, req *http.Request, env actionEnv, re
 func builderDraftsProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
 	return func(ctx context.Context, l *composition.Loader, viewer domain.Actor) ([]*data.Record, error) {
 		workspaceID, _ := data.WorkspaceScope(ctx)
-		drafts, err := store.ListAppDrafts(ctx, workspaceID, viewer.ID)
+		drafts, err := store.ListAppDrafts(ctx, workspaceID, viewer.ID, "the draft bar")
 		if err != nil || len(drafts) == 0 {
 			return nil, err
 		}
 		manifestPath, _, manifestErr := workspaceInstallation(ctx, store, cfg)
 		var out []*data.Record
+		installed := map[string]bool{}
+		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+			installed[app.ID] = true
+		}
 		for appID, raw := range drafts {
+			if !installed[appID] {
+				continue // a draft of an Application that is gone is not offered (and does not follow a later Application of the same id: its base version differs)
+			}
 			var ops []builder.Op
 			if json.Unmarshal(raw, &ops) != nil || len(ops) == 0 {
 				continue

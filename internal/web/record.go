@@ -1255,6 +1255,12 @@ func keepsLockedFields(w http.ResponseWriter, req *http.Request, store *data.Sto
 			http.Error(w, why, http.StatusUnprocessableEntity)
 			return false
 		}
+		// Equal is not identical ("007" and "7" parse alike): what is written is what is stored, never the spelling the request sent.
+		if stored, ok := existing.Values[f.ID]; ok {
+			values[f.ID] = stored
+		} else {
+			delete(values, f.ID)
+		}
 	}
 	return true
 }

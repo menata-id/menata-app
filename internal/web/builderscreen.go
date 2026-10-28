@@ -43,7 +43,7 @@ func builderPlaceName(name string) string {
 // them. The id of a part is the Application's id and the part's metadata path, so one part of one Application is one record whichever Applications
 // share a Machine; the address selects it with `?node=`. Nothing here is written: the builder's writes are `builder.Apply` through its own routes.
 func builderNodesProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
-	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+	return func(ctx context.Context, l *composition.Loader, viewer domain.Actor) ([]*data.Record, error) {
 		selected, tab := l.SourceParam("builder_nodes", "node"), "Details"
 		switch l.SourceParam("builder_nodes", "tab") {
 		case "code":
@@ -118,8 +118,47 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 				}
 			}
 		}
+		// The Edit tab starts from the Field as the viewer's draft leaves it, so a form shows what is staged and a change staged earlier can be undone.
+		if tab == "Edit" {
+			appID, rest, _ := strings.Cut(selected, "/")
+			if p := strings.Split(rest, "/"); len(p) == 4 && p[0] == "machines" && p[2] == "fields" {
+				if raw, err := store.ListAppDrafts(ctx, workspaceID, viewer.ID, "the field form"); err == nil && raw[appID] != nil {
+					if app, err := stagedApplication(ctx, store, cfg, appID, viewer.ID); err == nil {
+						if m := stagedMachine(app, p[1]); m != nil {
+							for _, f := range m.Fields {
+								if f.ID != p[3] {
+									continue
+								}
+								for _, r := range out {
+									if r.ID == selected {
+										r.Values["fld_name"], r.Values["fld_required"] = f.Name, strconv.FormatBool(f.Required)
+										r.Values["fld_options"], r.Values["fld_editable_by"] = stagedChoiceLines(m, f), strings.Join(f.EditableBy, "\n")
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		return out, nil
 	}
+}
+
+// stagedChoiceLines is choiceLines for a Field as the draft leaves it.
+func stagedChoiceLines(m *aiassist.GeneratedMachine, f aiassist.GeneratedField) string {
+	lines := make([]string, len(f.Options))
+	for i, o := range f.Options {
+		lines[i] = o
+		if m.StatusCategories != nil && m.StatusCategories.Field == f.ID {
+			for _, v := range m.StatusCategories.Values {
+				if v.Option == o {
+					lines[i] += " | " + v.Category
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // statusFieldOf is the Machine's status Field, nil when it has none.

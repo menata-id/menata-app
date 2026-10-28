@@ -404,6 +404,9 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			return
 		}
 		carryForwardMissingFields(machine, values, existing.Values)
+		if !keepsLockedFields(w, req, store, machine, id, values, actor) {
+			return
+		}
 		// The *value* is still a literal, deliberately: "submit this draft" shares the `edit` Action
 		// with every ordinary field change, so declaring it as edit's effect would set in_review on
 		// every edit. See mch_document's own actions: block, and development-history.md's Stage B note on what it

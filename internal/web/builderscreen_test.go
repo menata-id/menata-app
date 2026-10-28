@@ -710,10 +710,10 @@ func TestBuilderFormsStageAndPublishWritesTheDraft(t *testing.T) {
 			t.Errorf("the draft bar is missing %q:\n%s", want, bar)
 		}
 	}
-	if mine, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, s.actorID); err != nil || mine == nil {
+	if mine, _, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, s.actorID); err != nil || mine == nil {
 		t.Errorf("the draft is not kept under the admin who staged it: %v %v", mine, err)
 	}
-	if other, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, "someone-else"); err != nil || other != nil {
+	if other, _, err := s.store.GetAppDraft(data.WithWorkspaceScope(context.Background(), s.wsID), s.wsID, app, "someone-else"); err != nil || other != nil {
 		t.Errorf("another admin sees this draft: %v %v", other, err)
 	}
 
@@ -734,5 +734,142 @@ func TestBuilderFormsStageAndPublishWritesTheDraft(t *testing.T) {
 	}
 	if !strings.Contains(read(), "Headline") || strings.Contains(page(), "not published") {
 		t.Errorf("Publish did not write the draft or did not clear it:\n%s", read())
+	}
+}
+
+// The forms start from, and are compared with, the Field as the admin's draft leaves it: ticking a box and unticking it again stages the unticking (and
+// Publish leaves the Field as it was), a rename and its reversal likewise, and the form shows what is staged.
+func TestBuilderFormsCompareWithTheDraftNotTheInstallation(t *testing.T) {
+	s := newInstallTestSetup(t, "bdiffdraft")
+	app := "app_document_tracking"
+	field := app + "/machines/mch_document/fields/fld_title"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	read := func() string { b, _ := os.ReadFile(file); return string(b) }
+	stage := func(form url.Values) int {
+		return s.postTo(t, "/runtime-actions/edit_field?record="+url.QueryEscape(field), form).Code
+	}
+	before := read()
+	stage(url.Values{"name": {"Headline"}, "required": {"on"}})
+	if body := s.getAs(t, "/builder/"+app+"?tab=edit&node="+url.QueryEscape(field)).Body.String(); !strings.Contains(body, `value="Headline"`) {
+		t.Errorf("the form does not show the staged name:\n%s", body)
+	}
+	if code := stage(url.Values{"name": {"Title"}}); code != http.StatusSeeOther { // back to the old name, unticked: everything undone
+		t.Fatalf("undoing the staged changes: %d", code)
+	}
+	if strings.Contains(s.getAs(t, "/builder/"+app).Body.String(), "not published") {
+		t.Error("a draft whose changes undo one another is still offered for publishing")
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusConflict || read() != before {
+		t.Errorf("publishing an undone draft: %d, file changed: %v", code, read() != before)
+	}
+	// Half undone: the rename reversed, the requirement kept.
+	stage(url.Values{"name": {"Headline"}, "required": {"on"}})
+	stage(url.Values{"name": {"Title"}, "required": {"on"}})
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Fatalf("publishing: %d", code)
+	}
+	if strings.Contains(read(), "Headline") || !strings.Contains(read(), "required: true") {
+		t.Errorf("the half-undone draft was published wrongly:\n%s", read())
+	}
+}
+
+// A Field added twice, or under a name that differs only in case or has no letter in it, gets its own id each time -- among the Fields the draft already
+// holds -- and the page returns to the Machine, the one part that exists, rather than to a Field that is only staged.
+func TestBuilderAddFieldKeepsIdsUniqueAmongStagedFields(t *testing.T) {
+	s := newInstallTestSetup(t, "badduniq")
+	app := "app_document_tracking"
+	machine := app + "/machines/mch_document"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	for _, name := range []string{"Amount", "Amount", "AMOUNT", "é", "é"} {
+		rec := s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), url.Values{"name": {name}, "type": {"text"}})
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("adding %q: %d %s", name, rec.Code, rec.Body.String())
+		}
+		if loc := rec.Header().Get("Location"); strings.Contains(loc, "fields%2Ffld") || strings.Contains(loc, "/fields/") {
+			t.Errorf("the page returns to a Field that is only staged: %q", loc)
+		}
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Fatalf("publishing: %d", code)
+	}
+	b, _ := os.ReadFile(file)
+	for _, want := range []string{"fld_amount", "fld_amount_2", "fld_amount_3", "fld_field", "fld_field_2"} {
+		if !strings.Contains(string(b), "id: "+want+"\n") {
+			t.Errorf("the file lacks %s:\n%s", want, b)
+		}
+	}
+}
+
+// A draft is the admin's until Publish and belongs to the Application as it was when the draft began: if that Application changed meanwhile the draft is
+// refused (409) and kept, not replayed over what changed; and a draft dropped at publish does not come back.
+func TestBuilderPublishRefusesADraftOfAnApplicationThatChanged(t *testing.T) {
+	s := newInstallTestSetup(t, "bstale")
+	app := "app_document_tracking"
+	machine := app + "/machines/mch_document"
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	if code := s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), url.Values{"name": {"Note"}, "type": {"text"}}).Code; code != http.StatusSeeOther {
+		t.Fatalf("staging: %d", code)
+	}
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"  - id: fld_other\n    name: Other\n    type: text\n") // another admin published something
+	s.reloadWorkspace(t)
+	before, _ := os.ReadFile(file)
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusConflict {
+		t.Errorf("publishing a stale draft: %d, want 409", code)
+	}
+	if after, _ := os.ReadFile(file); string(after) != string(before) {
+		t.Error("a stale draft was written")
+	}
+	if code := s.postTo(t, "/runtime-actions/discard_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Errorf("discarding: %d", code)
+	}
+	if code := s.postTo(t, "/runtime-actions/add_field?record="+url.QueryEscape(machine), url.Values{"name": {"Note"}, "type": {"text"}}).Code; code != http.StatusSeeOther {
+		t.Fatalf("staging again: %d", code)
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusSeeOther {
+		t.Errorf("publishing the fresh draft: %d", code)
+	}
+	if code := s.postTo(t, "/runtime-actions/publish_draft?record="+app, url.Values{}).Code; code != http.StatusConflict {
+		t.Errorf("publishing twice: %d, want 409 (nothing staged)", code)
+	}
+}
+
+// A choice whose name holds a bar reads back from its own box, a colour is taken from the last bar only when it is one of the five, and a wish is held to
+// a size and a part to the Workspace's own parts.
+func TestBuilderChoiceBoxAndAskTabHoldTheirInputsToShape(t *testing.T) {
+	got, err := parseChoices("a|b\nplain | done\nx | purple extra")
+	if err == nil {
+		t.Errorf("a stray bar tail was read as a name: %+v", got)
+	}
+	got, err = parseChoices("a|b\nplain | done\n  spaced  ")
+	if err != nil || len(got) != 3 || got[0].Name != "a|b" || got[0].Category != "" || got[1].Name != "plain" || got[1].Category != "done" || got[2].Name != "spaced" {
+		t.Errorf("parseChoices = %+v, %v", got, err)
+	}
+	s := newInstallTestSetup(t, "bshape")
+	part := "app_document_tracking/machines/mch_document/fields/fld_title"
+	if rec := s.postTo(t, "/runtime-actions/ask_assistant_about?record="+url.QueryEscape(part), url.Values{"wish": {strings.Repeat("x", 1001)}}); rec.Code < 400 {
+		t.Errorf("an enormous wish was accepted: %d", rec.Code)
+	}
+	for _, record := range []string{"app_nowhere/machines/x", "app_document_tracking/", "app_document_tracking/../x", "app_document_tracking/a\"b"} {
+		if rec := s.postTo(t, "/runtime-actions/ask_assistant_about?record="+url.QueryEscape(record), url.Values{"wish": {"hi"}}); rec.Code < 400 {
+			t.Errorf("a part outside the tree was accepted: %q -> %d", record, rec.Code)
+		}
+	}
+}
+
+// A transition that writes a Field which names who may change it would be refused for everyone without that role, so the loader refuses the pairing; and a
+// choice added and removed again in one draft leaves no colour behind.
+func TestEditableByAndTransitionSetsAreRefusedTogether(t *testing.T) {
+	s := newInstallTestSetup(t, "bsetsby")
+	appFile := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "applications", "tracking.yaml")
+	appLive, _ := os.ReadFile(appFile)
+	writeTestFile(t, appFile, "roles: [author, reviewer]\n"+string(appLive))
+	file := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	live, _ := os.ReadFile(file)
+	writeTestFile(t, file, string(live)+"  - id: fld_stage\n    name: Stage\n    type: status\n    options: [Open, Closed]\n  - id: fld_closed_on\n    name: Closed on\n    type: date\n    editable_by: [reviewer]\n"+
+		"transitions:\n  - id: trn_close\n    name: Close\n    field: fld_stage\n    from: Open\n    to: Closed\n    action: edit\n    sets: {fld_closed_on: today}\n")
+	err := s.deps.ReloadMetadata(s.slug)
+	if err == nil || !strings.Contains(err.Error(), "names who may change it") {
+		t.Errorf("a transition setting an editable_by Field loaded: %v", err)
 	}
 }

@@ -1,6 +1,9 @@
 package builder
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -159,6 +162,10 @@ func apply(app *aiassist.GeneratedApplication, op Op) error {
 				return fmt.Errorf("option %q is not on %s", op.Value, f.ID)
 			}
 			f.Options = slices.Delete(f.Options, j, j+1)
+			// The colour goes with the choice, so a choice added and removed in one draft leaves nothing behind (an installed one is refused by the plan).
+			if sc := m.StatusCategories; sc != nil && sc.Field == f.ID {
+				sc.Values = slices.DeleteFunc(sc.Values, func(v aiassist.GeneratedStatusCategory) bool { return v.Option == op.Value })
+			}
 		}
 	default:
 		return fmt.Errorf("unknown operation kind %q", op.Kind)
@@ -287,4 +294,41 @@ func Commit(workspaceManifestPath, appID string, ops []Op, version string, confi
 	plan.Change.ConfirmedRemovals = confirmed
 	_, err = aiassist.Write(workspaceManifestPath, plan.Change, aiassist.FileMachineResolver{WorkspaceManifestPath: workspaceManifestPath})
 	return err
+}
+
+// Staged is the Application as installed with ops applied and nothing else -- no validation, no write -- so a form can start from, and be compared with,
+// what the admin's draft already says rather than what is installed.
+func Staged(workspaceManifestPath, appID string, ops []Op) (aiassist.GeneratedApplication, error) {
+	loaded, err := metadata.LoadApplication(workspaceManifestPath)
+	if err != nil {
+		return aiassist.GeneratedApplication{}, fmt.Errorf("load workspace: %w", err)
+	}
+	cur, ok := aiassist.ExistingStateFrom(loaded.Workspace).Applications[appID]
+	if !ok {
+		return aiassist.GeneratedApplication{}, installer.Rejected(fmt.Errorf("application %q is not installed in this workspace", appID))
+	}
+	desired, err := Apply(aiassist.DescribeApplication(appID, cur), ops)
+	if err != nil {
+		return aiassist.GeneratedApplication{}, installer.Rejected(err)
+	}
+	return desired, nil
+}
+
+// AppVersion names the state of one Application as the builder edits it: a hash of its description (its Machines, Fields, options, permissions, menu), not of the
+// Workspace's files, so a draft is stale when *its Application* changed under it and not whenever anything in the Workspace was published.
+func AppVersion(workspaceManifestPath, appID string) (string, error) {
+	loaded, err := metadata.LoadApplication(workspaceManifestPath)
+	if err != nil {
+		return "", fmt.Errorf("load workspace: %w", err)
+	}
+	cur, ok := aiassist.ExistingStateFrom(loaded.Workspace).Applications[appID]
+	if !ok {
+		return "", installer.Rejected(fmt.Errorf("application %q is not installed in this workspace", appID))
+	}
+	raw, err := json.Marshal(aiassist.DescribeApplication(appID, cur))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
 }
