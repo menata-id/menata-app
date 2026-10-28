@@ -194,3 +194,13 @@ func TestBuilderInspectorCodeTabShowsTheFileThatDeclaresThePart(t *testing.T) {
 		t.Errorf("only the selected part's file is read, and the Application's file is not the Machine's")
 	}
 }
+
+// The way in is where the mockup puts it: each row of Workspace settings' Applications section links to that Application's builder ("Buka di builder",
+// WorkspaceApps), built from the Application's id by the source's record route and never typed.
+func TestWorkspaceSettingsLinksEachApplicationToItsBuilder(t *testing.T) {
+	s := newInstallTestSetup(t, "bentry")
+	body := s.getAs(t, "/workspace-settings").Body.String()
+	if !strings.Contains(body, `href="/builder/app_document_tracking"`) || !strings.Contains(body, "Open in builder") {
+		t.Errorf("the Applications section does not link the Application to its builder:\n%s", body)
+	}
+}

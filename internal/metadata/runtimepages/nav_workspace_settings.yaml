@@ -82,6 +82,9 @@ page:
                   children:
                     - component: StatusBadge
                       from: { label: status, tone: "status:tone" }
+                    - static: link
+                      text: Open in builder
+                      from: { href: record }
                     - component: Button
                       label: Switch off
                       variant: secondary
