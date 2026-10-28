@@ -8,16 +8,18 @@ fields:
   - { id: fld_id, name: Id, type: text }
   - { id: fld_app, name: Application, type: text }
   - { id: fld_title, name: Place, type: text, required: true }
-  - { id: fld_kind, name: Kind, type: text }
-  - { id: fld_detail, name: About it, type: text }
+  - { id: fld_about, name: About it, type: text }
   - { id: fld_path, name: Metadata path, type: text }
   - { id: fld_link, name: Select at, type: text }
+  - { id: fld_tab, name: Inspector tab, type: status, options: [Details, Code] }
+  - { id: fld_code, name: Metadata file, type: long_text }
 card_fields:
   - { field: fld_title, role: title }
-  - { field: fld_kind, role: subtitle }
-  - { field: fld_detail, role: detail }
+  - { field: fld_about, role: subtitle }
   - { field: fld_path, role: summary }
   - { field: fld_link, role: link }
+  - { field: fld_tab, role: status }
+  - { field: fld_code, role: detail }
 datasets:
   - id: ds_runtime_builder_nodes
     select: records

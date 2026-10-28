@@ -168,3 +168,29 @@ func TestBuilderPreviewRouteKeepsTheHomeRoutesOwnQuery(t *testing.T) {
 		}
 	}
 }
+
+// The inspector's Code tab shows the metadata file that declares the selected part -- the Machine's own file for a Field, the Application's file for a
+// screen -- and only on that tab, for only the selected part.
+func TestBuilderInspectorCodeTabShowsTheFileThatDeclaresThePart(t *testing.T) {
+	s := newInstallTestSetup(t, "bcode")
+	at := func(node, tab string) string {
+		q := "node=" + strings.ReplaceAll(node, "/", "%2F")
+		if tab != "" {
+			q += "&tab=" + tab
+		}
+		return s.getAs(t, "/builder/app_document_tracking?"+q).Body.String()
+	}
+	field := "app_document_tracking/machines/mch_document/fields/fld_title"
+	if body := at(field, "code"); !strings.Contains(body, "id: mch_document") || !strings.Contains(body, "Tracked Document") {
+		t.Errorf("the Code tab does not show the Machine's file:\n%s", body)
+	}
+	if body := at(field, ""); strings.Contains(body, "id: mch_document") {
+		t.Errorf("the Details tab shows the file:\n%s", body)
+	}
+	if body := at("app_document_tracking/navigation/nav_document_tracking", "code"); !strings.Contains(body, "id: app_document_tracking") || strings.Contains(body, "id: mch_document\n") {
+		t.Errorf("a screen's Code tab shows the Application's file, not a Machine's:\n%s", body)
+	}
+	if body := at(field, "code"); strings.Contains(body, "id: app_document_tracking") {
+		t.Errorf("only the selected part's file is read, and the Application's file is not the Machine's")
+	}
+}

@@ -55,11 +55,25 @@ page:
                 - layout: stack
                   gap: default
                   children:
+                    - component: SegmentedControl
+                      label: Inspector
+                      query: tab
+                      options: "details=Details\ncode=Code"
                     - static: overline
                       from: { text: subtitle }
                     - static: heading
                       from: { text: "title:leaf" }
-                    - static: paragraph
-                      from: { text: detail }
-                    - static: caption
-                      from: { text: summary }
+                    - layout: stack
+                      gap: default
+                      when: { role: status, is: Details }
+                      children:
+                        - static: caption
+                          from: { text: summary }
+                    - layout: stack
+                      gap: default
+                      when: { role: status, is: Code }
+                      children:
+                        - static: caption
+                          from: { text: summary }
+                        - static: code
+                          from: { text: detail }

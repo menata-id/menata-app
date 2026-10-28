@@ -4,14 +4,18 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/rendering"
 )
 
@@ -36,8 +40,12 @@ func builderPlaceName(name string) string {
 // builderNodesProvider is the reader of the `builder_nodes` source: for every Application of the Workspace, its parts in the order the tree shows
 // them. The id of a part is the Application's id and the part's metadata path, so one part of one Application is one record whichever Applications
 // share a Machine; the address selects it with `?node=`. Nothing here is written: the builder's writes are `builder.Apply` through its own routes.
-func builderNodesProvider() composition.RuntimeProvider {
-	return func(ctx context.Context, _ *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+func builderNodesProvider(store *data.Store, cfg config.Config) composition.RuntimeProvider {
+	return func(ctx context.Context, l *composition.Loader, _ domain.Actor) ([]*data.Record, error) {
+		selected, tab := l.SourceParam("builder_nodes", "node"), "Details"
+		if l.SourceParam("builder_nodes", "tab") == "code" {
+			tab = "Code"
+		}
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
 		var out []*data.Record
@@ -45,8 +53,9 @@ func builderNodesProvider() composition.RuntimeProvider {
 			add := func(place, path, kind, detail string) {
 				id := app.ID + "/" + path
 				out = append(out, &data.Record{ID: id, MachineID: "mch_builder_node", WorkspaceID: workspaceID, Values: map[string]any{
-					"fld_id": id, "fld_app": app.ID, "fld_title": place, "fld_kind": kind, "fld_detail": detail, "fld_path": path,
-					"fld_link": "/builder/" + url.PathEscape(app.ID) + "?" + url.Values{"node": {id}}.Encode(),
+					"fld_id": id, "fld_app": app.ID, "fld_title": place, "fld_about": kind + " · " + detail, "fld_path": path,
+					"fld_link": "/builder/" + url.PathEscape(app.ID) + "?" + url.Values{"node": {id}}.Encode(), "fld_tab": tab,
+					"fld_code": codeOf(wantsCode(id, selected, tab), ctx, store, cfg, app.ID, path),
 				}})
 			}
 			var owned []*domain.Machine
@@ -113,4 +122,38 @@ func builderMode(store *data.Store, cfg config.Config) func(http.Handler) http.H
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// codeOf is the text of the metadata file that declares a part, for the Code tab of the one part the request selected: the Application's file for its
+// screens and menu, the Machine's own file for a Machine, a Field or a workflow. "" when the tab is not Code or the file cannot be found (the tab then
+// says so); only the selected part's file is read.
+func codeOf(wanted bool, ctx context.Context, store *data.Store, cfg config.Config, appID, path string) string {
+	if !wanted || cfg.MetadataPath == "" {
+		return ""
+	}
+	manifest, _, err := workspaceInstallation(ctx, store, cfg)
+	if err != nil {
+		return ""
+	}
+	var rel string
+	if machineID, ok := strings.CutPrefix(path, "machines/"); ok {
+		machineID, _, _ = strings.Cut(machineID, "/")
+		rel, err = aiassist.FileMachineResolver{WorkspaceManifestPath: manifest}.MachineFile(machineID)
+	} else {
+		rel, err = installer.ApplicationFileOf(manifest, appID)
+	}
+	if err != nil {
+		return ""
+	}
+	text, err := os.ReadFile(filepath.Join(filepath.Dir(manifest), rel))
+	if err != nil {
+		return ""
+	}
+	return string(text)
+}
+
+// wantsCode says whether a part's file is read: only the one part the request selected, and only on the Code tab, so a tree of hundreds of parts reads at
+// most one file.
+func wantsCode(id, selected, tab string) bool {
+	return selected != "" && id == selected && tab == "Code"
 }

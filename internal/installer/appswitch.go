@@ -69,6 +69,12 @@ func SetApplicationInactive(workspaceManifestPath, appID string, inactive bool) 
 	return true, nil
 }
 
+// ApplicationFileOf is applicationFileOf for a caller outside the package (the builder's Code view): the path of the file that declares the
+// Application, relative to the manifest.
+func ApplicationFileOf(workspaceManifestPath, appID string) (string, error) {
+	return applicationFileOf(workspaceManifestPath, appID)
+}
+
 // applicationFileOf is the path, relative to the manifest, of the file that declares the Application.
 func applicationFileOf(workspaceManifestPath, appID string) (string, error) {
 	manifest, err := os.ReadFile(workspaceManifestPath)
