@@ -193,6 +193,30 @@ navigation:
               variant: danger
               confirm: Delete this contract?
               binding: { write: delete }
+        # Cancelled contracts are kept in sight but apart: no figure, total or chip above counts them.
+        - component: Collection
+          heading: Cancelled contracts
+          hint: not counted in the totals above
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding: { dataset: ds_contracts_cancelled, rows: records }
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from: { text: title, href: record }
+                    - static: caption
+                      from: { text: subtitle }
+                - static: caption
+                  from: { text: money }
   # New contract: the form the list's action opens. Not a menu entry of its own.
   - id: nav_new_contract
     label: New contract

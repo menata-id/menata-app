@@ -109,14 +109,22 @@ datasets:
   # Every contract by number, for the Overview's table. A window of 200, not a claim to be complete.
   - id: ds_contracts_table
     select: records
+    where: { field: fld_status, op: not_equals, value: Cancelled }
     sort: [{ field: fld_contract_no, direction: asc }]
     limit: 200
+  # Cancelled contracts: listed apart, on the Contracts screen, and in no figure or total (they are no longer owed).
+  - id: ds_contracts_cancelled
+    select: records
+    where: { field: fld_status, op: equals, value: Cancelled }
+    sort: [{ field: fld_contract_no, direction: asc }]
+    limit: 100
   # The contract list (K01b): its chips, the category drop-down and the search box are optional request parameters,
   # so an unset one lists every contract. A window of 100 (owner decision K2), said on the page when it bites.
   - id: ds_contracts
     select: records
     where:
       all:
+        - { field: fld_status, op: not_equals, value: Cancelled }
         - { field: fld_contract_kind, op: equals, value: $parameters.kind, optional: true }
         - { field: fld_payment_status, op: equals, value: $parameters.payment, optional: true }
         - { field: fld_category, op: equals, value: $parameters.category, optional: true }
@@ -129,11 +137,11 @@ datasets:
   - id: ds_contracts_by_kind
     dimension: fld_contract_kind
     measures:
-      - { id: msr_contracts_by_kind, aggregate: count }
+      - { id: msr_contracts_by_kind, aggregate: count, where: { field: fld_status, op: not_equals, value: Cancelled } }
   - id: ds_contracts_by_payment
     dimension: fld_payment_status
     measures:
-      - { id: msr_contracts_by_payment, aggregate: count }
+      - { id: msr_contracts_by_payment, aggregate: count, where: { field: fld_status, op: not_equals, value: Cancelled } }
   # One contract's page (record_of): the record the route names; and the one an instalment form was opened from.
   - id: ds_contract_one
     select: records
