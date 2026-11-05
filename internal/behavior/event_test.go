@@ -202,3 +202,19 @@ func TestMatchedScheduleEvents_guardNotEquals(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchedScheduleEvents_unless(t *testing.T) {
+	m := &domain.Machine{Events: []domain.Event{{ID: "evt_overdue", Schedule: &domain.Schedule{
+		DateField: "fld_due", When: domain.ScheduleWhenOverdue, GuardField: "fld_status", GuardNotEquals: "paid",
+		UnlessField: "fld_parent_status", UnlessEquals: "cancelled"}}}}
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		status, parent string
+		want           int
+	}{{"open", "active", 1}, {"open", "cancelled", 0}, {"paid", "active", 0}, {"open", "", 1}} {
+		r := &data.Record{Values: map[string]any{"fld_due": "2026-09-01", "fld_status": c.status, "fld_parent_status": c.parent}}
+		if got := MatchedScheduleEvents(m, r, now); len(got) != c.want {
+			t.Errorf("status %q parent %q: matched %d, want %d", c.status, c.parent, len(got), c.want)
+		}
+	}
+}

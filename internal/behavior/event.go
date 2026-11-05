@@ -75,6 +75,9 @@ func MatchedScheduleEvents(m *domain.Machine, record *data.Record, now time.Time
 		if s.GuardField != "" && s.GuardNotEquals != "" && fmt.Sprint(record.Values[s.GuardField]) == s.GuardNotEquals {
 			continue
 		}
+		if s.UnlessField != "" && fmt.Sprint(record.Values[s.UnlessField]) == s.UnlessEquals {
+			continue
+		}
 		out = append(out, e)
 	}
 	return out

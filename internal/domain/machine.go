@@ -784,6 +784,11 @@ type Schedule struct {
 	// GuardNotEquals is the other polarity of the same guard: the Field must NOT hold this value ("overdue and
 	// not yet resolved"). One of GuardEquals/GuardNotEquals with GuardField, never both.
 	GuardNotEquals string
+	// UnlessField/UnlessEquals are a second, negative guard (`unless:`): the schedule does not count while the Field
+	// holds the value. Pointed at an inherited Field (`compute: {parent: ...}`) it is a condition on the record's
+	// parent -- "an instalment is overdue unless its contract is cancelled" -- with no relation walk of its own.
+	UnlessField  string
+	UnlessEquals string
 }
 
 // ScheduleWhenOverdue is the only value Schedule.When accepts today.

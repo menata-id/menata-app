@@ -1129,6 +1129,13 @@ long-standing note that it was "the one deferred shape, waiting on their own sec
 (the SLA-breach reminder, replacing `internal/composition`'s own read-triggered
 `logSLABreaches`, 2026-09-27).
 
+**A second guard, `unless:` (2026-11-05).** `schedule: { ..., unless: { field: fld_x, equals: v } }` skips the
+record while Field `fld_x` holds `v`. Point it at an inherited Field (`compute: {parent: fld_via.fld_y}`) and it is a
+condition on the record's parent: an instalment is flagged overdue unless its contract is cancelled
+(`mch_contract_term`: `fld_contract_status` inherits the contract's status; the three overdue Events say
+`unless: {field: fld_contract_status, equals: Cancelled}`). `field` must be a Field of the Machine and `equals` one of
+its options. It has no assistant slot yet: the assistant writes `guard_field` guards only.
+
 **The other polarity, and writing a Field on a schedule (2026-10-16).** `guard_not_equals` is the guard
 turned round ("overdue and NOT resolved"); declare one of `guard_equals`/`guard_not_equals`. The
 `set_field` Service writes one option into a status Field of the record when a schedule fires —
@@ -2838,6 +2845,7 @@ events:
       when: overdue             # closed vocabulary; only value today
       guard_field: fld_*          # optional, must be set together with guard_equals or guard_not_equals
       guard_equals: <value>       # or guard_not_equals: <value>, never both
+      unless: { field: fld_*, equals: <option> }   # optional second guard: skipped while the Field holds the option
     then: { service: send_notification, recipient_field: fld_*, preference_key: <value>, summary: "..." }
 ```
 

@@ -775,3 +775,30 @@ steps:
       hides: ['name="fld_remark"', 'name="fld_paid_date"']
     expect: ok
 
+
+  # A cancelled contract owes nothing more: its instalment follows the contract's status, and the schedule leaves it alone
+  # (the instalment of a live contract, `signing-is-overdue`, is flagged).
+  - id: doomed-contract
+    as: silvia
+    create: { machine: mch_contract, values: { fld_contract_no: CTR/K/090, fld_party_name: Cancelled Party, fld_value: "90000" } }
+    expect: ok
+  - id: doomed-instalment
+    as: silvia
+    create: { machine: mch_contract_term, values: { fld_contract: $doomed-contract, fld_term_label: Signing, fld_gross: "30000", fld_due_date: "2026-01-05" } }
+    expect: ok
+    record: { fld_contract_status: Draft }
+  - id: the-contract-is-cancelled
+    as: silvia
+    update: { ref: doomed-contract, values: { fld_status: Cancelled } }
+    expect: ok
+    record: { fld_status: Cancelled }
+  - id: its-instalment-follows-the-cancellation
+    as: silvia
+    update: { ref: doomed-instalment, values: { fld_term_label: Signing again } }
+    expect: ok
+    record: { fld_contract_status: Cancelled }
+  - id: a-cancelled-contracts-instalment-is-not-overdue
+    tick: { days: 0, ref: doomed-instalment }
+    expect: ok
+    record: { fld_term_status: Scheduled }
+    count: { machine: mch_contract, where: { fld_contract_no: CTR/K/090, fld_payment_status: In progress }, equals: 1 }

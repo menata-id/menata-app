@@ -570,6 +570,16 @@ func validateSchedule(m *domain.Machine, e domain.Event, fieldsByID map[string]d
 			issues = append(issues, fmt.Sprintf("event %q: schedule.%s %q is not one of field %q's options %v", e.ID, guardKey, guardValue, s.GuardField, guardField.Options))
 		}
 	}
+	if (s.UnlessField == "") != (s.UnlessEquals == "") {
+		issues = append(issues, fmt.Sprintf("event %q: schedule.unless needs both field and equals", e.ID))
+	} else if s.UnlessField != "" {
+		unlessField, ok := fieldsByID[s.UnlessField]
+		if !ok {
+			issues = append(issues, fmt.Sprintf("event %q: schedule.unless.field %q is not a field of machine %q", e.ID, s.UnlessField, m.ID))
+		} else if unlessField.ViolatesOptions(s.UnlessEquals) {
+			issues = append(issues, fmt.Sprintf("event %q: schedule.unless.equals %q is not one of field %q's options %v", e.ID, s.UnlessEquals, s.UnlessField, unlessField.Options))
+		}
+	}
 
 	return issues
 }

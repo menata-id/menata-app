@@ -1079,6 +1079,9 @@ func TestValidate_scheduleGuardPolarities(t *testing.T) {
 	if err := Validate(mk(domain.Schedule{GuardField: "fld_status", GuardNotEquals: "done"})); err != nil {
 		t.Errorf("guard_not_equals on an option was refused: %v", err)
 	}
+	if err := Validate(mk(domain.Schedule{GuardField: "fld_status", GuardNotEquals: "done", UnlessField: "fld_status", UnlessEquals: "todo"})); err != nil {
+		t.Errorf("unless on an option was refused: %v", err)
+	}
 	for _, tc := range []struct {
 		s    domain.Schedule
 		want string
@@ -1086,6 +1089,9 @@ func TestValidate_scheduleGuardPolarities(t *testing.T) {
 		{domain.Schedule{GuardField: "fld_status", GuardEquals: "todo", GuardNotEquals: "done"}, "two polarities"},
 		{domain.Schedule{GuardField: "fld_status", GuardNotEquals: "zzz"}, "schedule.guard_not_equals"},
 		{domain.Schedule{GuardNotEquals: "done"}, "must be set together"},
+		{domain.Schedule{UnlessField: "fld_status"}, "schedule.unless needs both"},
+		{domain.Schedule{UnlessField: "fld_status", UnlessEquals: "zzz"}, "schedule.unless.equals"},
+		{domain.Schedule{UnlessField: "fld_nope", UnlessEquals: "done"}, "schedule.unless.field"},
 	} {
 		if err := Validate(mk(tc.s)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%+v: Validate = %v, want an error containing %q", tc.s, err, tc.want)

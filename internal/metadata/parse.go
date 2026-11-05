@@ -550,6 +550,11 @@ type eventDoc struct {
 		GuardEquals string `yaml:"guard_equals"`
 		// GuardNotEquals: the guard's other polarity (domain.Schedule.GuardNotEquals).
 		GuardNotEquals string `yaml:"guard_not_equals"`
+		// Unless: a second guard, negative (domain.Schedule.UnlessField/UnlessEquals).
+		Unless *struct {
+			Field  string `yaml:"field"`
+			Equals string `yaml:"equals"`
+		} `yaml:"unless"`
 	} `yaml:"schedule"`
 	Then struct {
 		Service             string `yaml:"service"`
@@ -780,6 +785,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				GuardEquals: ed.Schedule.GuardEquals,
 
 				GuardNotEquals: ed.Schedule.GuardNotEquals,
+			}
+			if u := ed.Schedule.Unless; u != nil {
+				schedule.UnlessField, schedule.UnlessEquals = u.Field, u.Equals
 			}
 		}
 		m.Events = append(m.Events, domain.Event{
