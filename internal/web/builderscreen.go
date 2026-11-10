@@ -66,6 +66,21 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		machines := machinesFor(ctx)
 		var out []*data.Record
+		// One read for every rule of every Application: the loop below visits each Application, and a
+		// read inside it repeats once per Application (a Workspace's Machine ids are unique, so one
+		// map serves them all).
+		var every []string
+		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+			for _, id := range app.Machines {
+				if machines[id] != nil {
+					every = append(every, id)
+				}
+			}
+		}
+		var latest map[string]data.EventRun
+		if len(every) > 0 {
+			latest, _ = store.LatestEventRuns(ctx, every)
+		}
 		for _, app := range rendering.CurrentWorkspace(ctx).Applications {
 			add := func(place, path, kind, detail string, own ...[2]string) {
 				id := app.ID + "/" + path
@@ -153,11 +168,6 @@ func builderNodesProvider(store *data.Store, cfg config.Config) composition.Runt
 					[2]string{"fld_parent", item.Parent}, [2]string{"fld_visible_to", strings.Join(item.VisibleTo, "\n")}, [2]string{"fld_badge", item.Badge})...)
 			}
 			if len(owned) > 0 {
-				ids := make([]string, len(owned))
-				for i, m := range owned {
-					ids[i] = m.ID
-				}
-				latest, _ := store.LatestEventRuns(ctx, ids)
 				for _, m := range owned {
 					for _, e := range m.Events {
 						last := "never ran"
