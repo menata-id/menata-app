@@ -20,11 +20,10 @@ fields:
   - { id: fld_term_title, name: Instalment, type: text, compute: { join: { with: " — ", of: [fld_party, fld_term_label] } } }
   # A paid instalment's figures are the record of a payment: they stay as they were paid (owner decision K1).
   - { id: fld_gross, name: Gross, type: money, currency: IDR, required: true, locked_when: { field: fld_term_status, equals: Paid } }
-  # VAT is the gross times the rate beside it when "VAT applies" is ticked, kept by the runtime: nobody types it. New instalments
-  # start ticked at 11%; untick it for an instalment without VAT. (A boolean cannot be locked, so a paid instalment's tick can still be changed.)
-  - { id: fld_has_vat, name: VAT applies, type: boolean, default: true }
-  - { id: fld_vat_rate, name: VAT %, type: number, default: 11, locked_when: { field: fld_term_status, equals: Paid } }
-  - { id: fld_vat, name: VAT, type: money, currency: IDR, compute: { round: [{ divide: [{ multiply: [fld_gross, fld_vat_rate, fld_has_vat] }, 100] }, 2] } }
+  # VAT is 11% of the gross when "VAT 11% applies" is ticked, kept by the runtime: nobody types it. New instalments start ticked;
+  # untick it for an instalment without VAT. (A boolean cannot be locked, so a paid instalment's tick can still be changed.)
+  - { id: fld_has_vat, name: VAT 11% applies, type: boolean, default: true }
+  - { id: fld_vat, name: VAT, type: money, currency: IDR, compute: { round: [{ multiply: [fld_gross, 0.11, fld_has_vat] }, 2] } }
   # WHT is the gross times the percentage typed beside it, kept by the runtime: nobody types it. Empty percentage, no WHT.
   - { id: fld_wht_rate, name: WHT %, type: number, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_wht, name: WHT, type: money, currency: IDR, compute: { round: [{ divide: [{ multiply: [fld_gross, fld_wht_rate] }, 100] }, 2] } }

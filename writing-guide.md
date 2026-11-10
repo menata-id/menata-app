@@ -330,8 +330,8 @@ with its operands as a list, nested as deep as the value needs:
 ```yaml
   - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_wht, name: WHT, type: money, compute: { round: [{ multiply: [fld_gross, 0.02] }, 0] } }
-  # a rate typed per record, and a tick (boolean) that switches it on: a boolean operand is 1 ticked, 0 not
-  - { id: fld_vat, name: VAT, type: money, compute: { round: [{ divide: [{ multiply: [fld_gross, fld_vat_rate, fld_has_vat] }, 100] }, 2] } }
+  # a tick (boolean) that switches 11% on: a boolean operand is 1 ticked, 0 not
+  - { id: fld_vat, name: VAT, type: money, compute: { round: [{ multiply: [fld_gross, 0.11, fld_has_vat] }, 2] } }
   # on the contract, from the instalments pointing at it:
   - { id: fld_paid, name: Paid, type: money,
       compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_gross,

@@ -534,7 +534,6 @@ navigation:
             - { header: Due, field: fld_due_date }
             - { header: Planned, related: "rel_po_term_plans.fld_plan_date" }
             - { header: Gross, field: fld_gross, align: end, total: sum }
-            - { header: VAT %, field: fld_vat_rate, align: end }
             - { header: VAT, field: fld_vat, align: end, total: sum }
             - { header: WHT %, field: fld_wht_rate, align: end }
             - { header: WHT, field: fld_wht, align: end, total: sum }
