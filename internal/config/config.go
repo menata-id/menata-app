@@ -10,7 +10,11 @@ import (
 
 // Config holds process-level configuration.
 type Config struct {
-	Port         string
+	Port string
+	// ListenHost is the address the server binds to. Loopback by default: the app sits behind Caddy (TLS, its own rules),
+	// and a bind on every interface made :4000 reachable from the internet over plain HTTP. Set LISTEN_HOST only to
+	// expose it on purpose (a container, a LAN dev box).
+	ListenHost   string
 	DatabaseURL  string
 	MetadataPath string
 	// TemplatePath is the template library root: the *.yaml Machine files an Application is installed
@@ -111,6 +115,7 @@ func Load() Config {
 	port := getenv("PORT", "8080")
 	return Config{
 		Port:                    port,
+		ListenHost:              getenv("LISTEN_HOST", "127.0.0.1"),
 		DatabaseURL:             getenv("DATABASE_URL", ""),
 		MetadataPath:            getenv("METADATA_PATH", "metadata/workspaces"),
 		TemplatePath:            getenv("TEMPLATE_PATH", "metadata"),

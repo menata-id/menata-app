@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -75,8 +76,9 @@ func main() {
 	go runScheduler(ctx, dh, store, time.Duration(cfg.ScheduleIntervalMinutes)*time.Minute)
 	go sweepExtractions(ctx, store, files, extractionKeepFor, extractionSweepEvery)
 
-	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
-	if err := newServer(":"+cfg.Port, dh).ListenAndServe(); err != nil {
+	addr := net.JoinHostPort(cfg.ListenHost, cfg.Port)
+	log.Printf("menata-app listening on %s (metadata: %s)", addr, cfg.MetadataPath)
+	if err := newServer(addr, dh).ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

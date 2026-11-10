@@ -60,7 +60,7 @@ make run
 ```
 
 This runs `templ generate` then builds and starts `cmd/server`. The server listens on `PORT`
-(default `4000`).
+(default `4000`), on `LISTEN_HOST` (default `127.0.0.1`: reachable from this machine only, put a reverse proxy in front).
 
 ## 4. Confirm it's running
 
