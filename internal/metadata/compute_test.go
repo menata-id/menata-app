@@ -50,7 +50,7 @@ func TestValidate_computedFieldRefusesWhatItCannotEvaluate(t *testing.T) {
 		"not a number":     {"    type: number\n    compute:", "    type: text\n    compute:", "only valid on a number or money field"},
 		"required":         {"    type: number\n    compute:", "    type: number\n    required: true\n    compute:", "cannot be required"},
 		"repeated operand": {"fields: [fld_pdam, fld_well]", "fields: [fld_pdam, fld_pdam]", "more than once"},
-		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number, money or date field"},
+		"text operand":     {"  - id: fld_well\n    name: Well\n    type: number", "  - id: fld_well\n    name: Well\n    type: text", "must be a number, money, boolean or date field"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

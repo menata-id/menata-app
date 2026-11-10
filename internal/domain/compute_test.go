@@ -41,3 +41,25 @@ func TestComputeEdgesTheReviewFound(t *testing.T) {
 		t.Errorf("NaN read as the figure %v", n)
 	}
 }
+
+// A boolean Field is a figure in a computation, 1 ticked and 0 not: the switch that makes VAT the gross times its rate
+// when "VAT applies" is ticked and nothing when it is not. A boolean that was never stored is no value, like any operand.
+func TestABooleanIsOneOrZeroInAProduct(t *testing.T) {
+	field := func(id string) ComputeExpr { return ComputeExpr{Field: id} }
+	e := ComputeExpr{Op: ComputeMultiply, Args: []ComputeExpr{field("gross"), field("rate"), field("applies")}}
+	c := FieldCompute{Op: e.Op, Expr: &e}
+	for _, tc := range []struct {
+		name   string
+		values map[string]any
+		want   any
+		ok     bool
+	}{
+		{"ticked", map[string]any{"gross": 1000.0, "rate": 11.0, "applies": true}, 11000.0, true},
+		{"unticked", map[string]any{"gross": 1000.0, "rate": 11.0, "applies": false}, 0.0, true},
+		{"never stored", map[string]any{"gross": 1000.0, "rate": 11.0}, nil, false},
+	} {
+		if v, ok := c.Evaluate(tc.values); ok != tc.ok || v != tc.want {
+			t.Errorf("%s: %v %v, want %v %v", tc.name, v, ok, tc.want, tc.ok)
+		}
+	}
+}

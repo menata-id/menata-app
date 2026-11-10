@@ -255,7 +255,7 @@ navigation:
               - label: Instalments
                 machine: mch_contract_term
                 via: fld_contract
-                fields: [fld_term_label, fld_due_date, fld_gross, fld_vat, fld_wht_rate]
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_wht_rate]
           binding: { dataset: ds_contracts, write: create }
   # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
   # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.
@@ -501,6 +501,7 @@ navigation:
             - { header: Label, field: fld_term_label, total: count, total_label: instalments }
             - { header: Due date, field: fld_due_date }
             - { header: Gross, field: fld_gross, align: end, total: sum }
+            - { header: VAT %, field: fld_vat_rate, align: end }
             - { header: VAT, field: fld_vat, align: end, total: sum }
             - { header: WHT %, field: fld_wht_rate, align: end }
             - { header: WHT, field: fld_wht, align: end, total: sum }

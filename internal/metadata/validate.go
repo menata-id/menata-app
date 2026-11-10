@@ -2210,12 +2210,12 @@ func computeKind(f domain.Field, e domain.ComputeExpr, fieldsByID map[string]dom
 			return "", []string{fmt.Sprintf("field %q: compute: names itself", f.ID)}
 		case !ok:
 			return "", []string{fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, e.Field)}
-		case operand.Type.IsNumeric():
+		case operand.Type.IsNumeric() || operand.Type == domain.FieldTypeBoolean:
 			return "figure", nil
 		case operand.Type == domain.FieldTypeDate:
 			return "date", nil
 		}
-		return "", []string{fmt.Sprintf("field %q: compute: operand %q must be a number, money or date field, got type %q", f.ID, e.Field, operand.Type)}
+		return "", []string{fmt.Sprintf("field %q: compute: operand %q must be a number, money, boolean or date field, got type %q", f.ID, e.Field, operand.Type)}
 	case e.Op == domain.ComputeSumChildren || e.Op == domain.ComputeCountChildren:
 		if e.Children == nil || e.Children.Machine == "" || e.Children.Via == "" || (e.Op == domain.ComputeSumChildren && e.Children.Field == "") {
 			return "figure", []string{fmt.Sprintf("field %q: compute: %s names the machine, the relation (via) that points here and, for a sum, the field", f.ID, e.Op)}

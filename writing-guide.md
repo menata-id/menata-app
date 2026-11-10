@@ -330,6 +330,8 @@ with its operands as a list, nested as deep as the value needs:
 ```yaml
   - { id: fld_net, name: Net, type: money, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_wht, name: WHT, type: money, compute: { round: [{ multiply: [fld_gross, 0.02] }, 0] } }
+  # a rate typed per record, and a tick (boolean) that switches it on: a boolean operand is 1 ticked, 0 not
+  - { id: fld_vat, name: VAT, type: money, compute: { round: [{ divide: [{ multiply: [fld_gross, fld_vat_rate, fld_has_vat] }, 100] }, 2] } }
   # on the contract, from the instalments pointing at it:
   - { id: fld_paid, name: Paid, type: money,
       compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_gross,
@@ -349,7 +351,9 @@ with its operands as a list, nested as deep as the value needs:
 | `sum_children`, `count_children` | `{machine, via, field, where: {field, equals}}`: the records of `machine` whose relation `via` points here | a figure |
 | `join` | `{with: " — ", of: [fld_party, fld_term_label]}`: text or status Fields (or `parent:`) written one after another, empty ones skipped | text (on a `text` Field) |
 
-An operand is a Field id of the record, a number, `{parent: fld_contract.fld_value}` (a Field of the record a relation points
+A **boolean** Field is a figure in an expression, **1 when ticked and 0 when not** (a record that never stored it has no value, like any
+operand), so a tick can switch a product on or off; a boolean cannot be locked (`locked_when:`), so a figure it scales is not frozen by a
+status the way a typed one is. An operand is a Field id of the record, a number, `{parent: fld_contract.fld_value}` (a Field of the record a relation points
 at, which must not be computed itself), or another operation. A computed value may read another computed value of the same
 record (it is computed after it); two that read each other are refused, naming the ring. **An aggregate over children is
 stored on the parent and recomputed in the same transaction as every write of a child** -- create, edit, delete, a rollup or a

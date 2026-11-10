@@ -352,7 +352,8 @@ const (
 	ComputeAddDays ComputeOp = "add_days"
 	// ComputeSubtract is its first figure less every other one: an instalment's net is its gross less VAT and WHT.
 	ComputeSubtract ComputeOp = "subtract"
-	// ComputeMultiply is the product of its figures: a withholding of 2% of the gross.
+	// ComputeMultiply is the product of its figures: a withholding of 2% of the gross. A boolean Field is a figure here, 1 or 0:
+	// a tick that switches the product on or off.
 	ComputeMultiply ComputeOp = "multiply"
 	// ComputeDivide is its first figure over its second, and nothing when the second is zero.
 	ComputeDivide ComputeOp = "divide"
@@ -502,6 +503,14 @@ func (e ComputeExpr) Eval(values map[string]any, env ComputeEnv) (any, bool) {
 	}
 	figure := func(a ComputeExpr) (float64, bool) {
 		v, ok := a.Eval(values, env)
+		// A boolean Field is 1 when ticked and 0 when not, so a switch can scale a figure: VAT is the gross times its
+		// rate times "VAT applies".
+		if b, isBool := v.(bool); isBool {
+			if b {
+				return 1, ok
+			}
+			return 0, ok
+		}
 		n, isNum := FigureOf(v)
 		return n, ok && isNum
 	}
