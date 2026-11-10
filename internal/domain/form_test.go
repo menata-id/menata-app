@@ -13,10 +13,13 @@ func TestEditFormInputsStartAsTheRecordAndLeaveOutWhatPatchCannotDo(t *testing.T
 		{ID: "fld_by", Name: "By", Type: FieldTypeText, Stamp: "actor"},
 	}, Transitions: []Transition{{Field: "fld_status", From: "a", To: "b"}}}
 	got := m.EditFormInputs(map[string]any{"fld_name": "alpha", "fld_points": 3.5, "fld_done": true, "fld_status": "a", "fld_color": "rose"}, Actor{WorkspaceRole: WorkspaceRoleAdmin})
-	if len(got) != 3 || got[0].FieldID != "fld_name" || got[1].FieldID != "fld_points" || got[2].FieldID != "fld_color" {
-		t.Fatalf("inputs = %+v, want name, points and color (a boolean cannot be cleared by PATCH, a governed status moves along its edges, a file and a stamp are not typed; a status no Transition names is a plain choice)", got)
+	if len(got) != 4 || got[0].FieldID != "fld_name" || got[1].FieldID != "fld_points" || got[2].FieldID != "fld_done" || got[3].FieldID != "fld_color" {
+		t.Fatalf("inputs = %+v, want name, points, done and color (a boolean is a switch that always answers, a governed status moves along its edges, a file and a stamp are not typed; a status no Transition names is a plain choice)", got)
 	}
-	if c := got[2]; c.Kind != InputSelect || c.Default != "rose" || len(c.Options) != 2 {
+	if d := got[2]; d.Kind != InputSwitch || d.Default != "true" {
+		t.Errorf("a boolean must be a switch starting at the record's value: %+v", d)
+	}
+	if c := got[3]; c.Kind != InputSelect || c.Default != "rose" || len(c.Options) != 2 {
 		t.Errorf("an ungoverned status must be a select of its options starting at the record's value: %+v", c)
 	}
 	if got[0].Default != "alpha" || !got[0].Required || got[1].Default != "3.5" {

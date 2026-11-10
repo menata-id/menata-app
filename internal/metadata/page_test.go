@@ -620,7 +620,7 @@ func TestWriteBindingIssues(t *testing.T) {
 func TestUpdateBindingIssues(t *testing.T) {
 	text := domain.Field{ID: "f1", Name: "Name", Type: domain.FieldTypeText}
 	editable := &domain.Machine{ID: "mch_x", Fields: []domain.Field{text}}
-	boolOnly := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "f2", Name: "Done", Type: domain.FieldTypeBoolean}}}
+	fileOnly := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "f2", Name: "Proof", Type: domain.FieldTypeFile}}}
 	node := func(dataset string) domain.PageNode {
 		return domain.PageNode{Kind: "component", Type: "Form", Binding: &domain.PageBinding{Dataset: dataset, Write: domain.PageWriteUpdate}}
 	}
@@ -636,8 +636,8 @@ func TestUpdateBindingIssues(t *testing.T) {
 	if got := issues(node("ds_other"), editable); !strings.Contains(got, "takes no dataset") {
 		t.Errorf("an update Form naming a dataset: %q", got)
 	}
-	if got := issues(node(""), boolOnly); !strings.Contains(got, "no Field an edit form can ask for") {
-		t.Errorf("an update Form over a Machine with only booleans: %q", got)
+	if got := issues(node(""), fileOnly); !strings.Contains(got, "no Field an edit form can ask for") {
+		t.Errorf("an update Form over a Machine with only a file: %q", got)
 	}
 }
 

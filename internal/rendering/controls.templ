@@ -372,6 +372,9 @@ templ formControl(id, name, kind, options, value string, required, money bool) {
 			</div>
 		case domain.InputBoolean:
 			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class={ "size-4", controlAccentClass(ctx) }/>
+		case domain.InputSwitch:
+			<input type="hidden" name={ name } value="false"/>
+			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class={ "size-4", controlAccentClass(ctx) }/>
 		case domain.InputDate:
 			<input id={ id } type="date" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
 		case domain.InputFile:

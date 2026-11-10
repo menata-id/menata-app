@@ -213,8 +213,7 @@ func SelectInputs(inputs []FormInput, ids []string) []FormInput {
 // It is narrower than the create form on purpose, and each exclusion is a way the generic `PATCH` route would
 // otherwise do something the viewer did not mean:
 //
-//   - a **boolean** is left out, because an unticked checkbox sends nothing and `PATCH` changes only the Fields a
-//     request names, so a form could tick a box and never clear it;
+//   - a **boolean** is asked as a switch (InputSwitch), which names its Field whether ticked or not, so a PATCH can clear it;
 //   - a **status the Machine governs** (any `transitions:` names it) is left out, because it moves along those
 //     edges and is reserved to the Action that names one -- a free select would offer moves the route refuses. A
 //     status no Transition names is unrestricted (`GovernsTransitions`), so it is an ordinary choice and is asked
@@ -227,7 +226,7 @@ func (m *Machine) EditFormInputs(values map[string]any, actor Actor) []FormInput
 	var inputs []FormInput
 	for _, f := range m.Fields {
 		if f.Compute != nil || f.Stamp != "" || f.Numbering != nil || f.Type == FieldTypeFile || f.Type == FieldTypeGroup ||
-			f.Type == FieldTypeBoolean || (f.Type == FieldTypeStatus && m.GovernsTransitions(f.ID)) || f.IsReference() {
+			(f.Type == FieldTypeStatus && m.GovernsTransitions(f.ID)) || f.IsReference() {
 			continue
 		}
 		// A Field the Machine locks for this record (`locked_when:`, `set_once:`) is not asked: the route refuses a change.
@@ -240,6 +239,8 @@ func (m *Machine) EditFormInputs(values map[string]any, actor Actor) []FormInput
 			in.Default = v
 		case float64:
 			in.Default = strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			in.Default = strconv.FormatBool(v)
 		}
 		inputs = append(inputs, in)
 	}
@@ -287,7 +288,7 @@ func formInputOf(f Field) FormInput {
 	case FieldTypeDate:
 		in.Kind = InputDate
 	case FieldTypeBoolean:
-		in.Kind = InputBoolean
+		in.Kind = InputSwitch
 	default:
 		in.Kind = InputText
 	}

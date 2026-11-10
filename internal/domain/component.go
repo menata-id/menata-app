@@ -318,7 +318,10 @@ const (
 	InputNumber   InputKind = "number"
 	InputDate     InputKind = "date"
 	InputBoolean  InputKind = "boolean"
-	InputSelect   InputKind = "select"
+	// InputSwitch is a Machine's boolean Field: a checkbox that always answers. A hidden "false" is sent before the box, so an
+	// unticked box still names its Field and a PATCH (which changes only the Fields a request names) can clear it.
+	InputSwitch InputKind = "switch"
+	InputSelect InputKind = "select"
 	// InputMultiSelect is a set of choices each ticked or not: a checkbox per option, all under one name, so the request
 	// carries the ticked values. Its options are `value=Label` lines and its value the ticked values joined by
 	// InputOptionsSep. Unticking everything is a meaningful answer (an empty set), which a lone checkbox is not.
@@ -338,6 +341,7 @@ var KnownInputKinds = map[InputKind]bool{
 	InputNumber:      true,
 	InputDate:        true,
 	InputBoolean:     true,
+	InputSwitch:      true,
 	InputSelect:      true,
 	InputMultiSelect: true,
 	InputCode:        true,

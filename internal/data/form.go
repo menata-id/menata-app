@@ -19,7 +19,7 @@ func ValuesFromForm(m *domain.Machine, form url.Values) map[string]any {
 			continue // never an input; ApplyComputed derives it, ApplyStamps stamps it
 		}
 		if f.Type == domain.FieldTypeBoolean {
-			values[f.ID] = form.Has(f.ID)
+			values[f.ID] = ticked(form[f.ID])
 			continue
 		}
 
@@ -36,4 +36,16 @@ func ValuesFromForm(m *domain.Machine, form url.Values) map[string]any {
 		values[f.ID] = raw
 	}
 	return values
+}
+
+// ticked reads a checkbox's answer: absent is false (an unticked box sends nothing), and so is a lone "false" (the
+// hidden answer a switch sends first, InputSwitch); any other value -- "on", or "false" followed by the box's own --
+// is true.
+func ticked(sent []string) bool {
+	for _, v := range sent {
+		if v != "false" {
+			return true
+		}
+	}
+	return false
 }
