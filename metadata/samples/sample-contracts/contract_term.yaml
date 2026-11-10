@@ -21,7 +21,9 @@ fields:
   # A paid instalment's figures are the record of a payment: they stay as they were paid (owner decision K1).
   - { id: fld_gross, name: Gross, type: money, currency: IDR, required: true, locked_when: { field: fld_term_status, equals: Paid } }
   - { id: fld_vat, name: VAT, type: money, currency: IDR, locked_when: { field: fld_term_status, equals: Paid } }
-  - { id: fld_wht, name: WHT, type: money, currency: IDR, locked_when: { field: fld_term_status, equals: Paid } }
+  # WHT is the gross times the percentage typed beside it, kept by the runtime: nobody types it. Empty percentage, no WHT.
+  - { id: fld_wht_rate, name: WHT %, type: number, locked_when: { field: fld_term_status, equals: Paid } }
+  - { id: fld_wht, name: WHT, type: money, currency: IDR, compute: { round: [{ divide: [{ multiply: [fld_gross, fld_wht_rate] }, 100] }, 2] } }
   # Net is gross less VAT and WHT, kept by the runtime (plan A1, K-9): nobody types it.
   - { id: fld_net, name: Net, type: money, currency: IDR, compute: { subtract: [fld_gross, fld_vat, fld_wht] } }
   - { id: fld_due_date, name: Due date, type: date, required: true }
