@@ -11,7 +11,7 @@ TAILWIND_VERSION = v4.3.3
 TAILWIND_SHA256  = dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
 TAILWIND         = bin/tailwindcss
 
-.PHONY: deploy generate css build run test conformance threshold aieval vet tidy migrate-up migrate-down migrate-status check-generated install-hooks tokens
+.PHONY: deploy generate css build run test conformance threshold aieval vet tidy migrate-up migrate-down migrate-status check-generated install-hooks tokens audit
 
 # Builds the committed HEAD (not the working tree), restarts menata-app.service, checks the running
 # process executes the binary just built, and smokes five routes. scripts/deploy.sh says why it does not
@@ -60,6 +60,16 @@ conformance:
 # `go build ./cmd/server` working with neither Node nor the Tailwind binary present.
 check-generated: generate
 	git diff --exit-code -- '*_templ.go' static/css/app.css
+
+# Vulnerability and security scan. govulncheck reads the Go toolchain's own standard library too, so a stale toolchain
+# shows up as findings; both tools must be BUILT with the module's Go (the system `go` outside the project is older, and
+# a scanner built with it refuses this module: "requires newer Go version"):
+#   GOTOOLCHAIN=$(go env GOVERSION) go install golang.org/x/vuln/cmd/govulncheck@latest
+#   GOTOOLCHAIN=$(go env GOVERSION) go install github.com/securego/gosec/v2/cmd/gosec@latest
+# gosec: -exclude-dir=.claude keeps agent worktrees (copies of this tree) out of the count.
+audit:
+	govulncheck ./...
+	gosec -quiet -exclude-generated -exclude-dir=.claude -severity medium -confidence medium ./... || true
 
 # Exports the default Theme as W3C DTCG 2025.10 design tokens into design-system/dtcg/default (rencana 3.4),
 # read from the committed app.css. internal/rendering's TestCommittedDesignTokensAreFresh fails until this is rerun
