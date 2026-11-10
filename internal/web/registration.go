@@ -84,8 +84,8 @@ func validateRegistration(workspaceName, fullName, email, password string) (stri
 		return "Your name is required.", false
 	case email == "":
 		return "Email is required.", false
-	case len(password) < 8:
-		return "Password must be at least 8 characters.", false
+	case authorization.PasswordProblem(password) != "":
+		return "Password " + authorization.PasswordProblem(password) + ".", false
 	}
 	return "", true
 }

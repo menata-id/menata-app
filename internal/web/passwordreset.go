@@ -82,8 +82,8 @@ func submitResetPassword(store *data.Store, cfg config.Config) http.HandlerFunc 
 			http.Error(w, "invalid or expired reset link", http.StatusBadRequest)
 			return
 		}
-		if len(password) < 8 {
-			render(req.Context(), w, rendering.ResetPasswordPage(token, "Password must be at least 8 characters.", "Choose a new password", "/reset-password", "Set new password"))
+		if problem := authorization.PasswordProblem(password); problem != "" {
+			render(req.Context(), w, rendering.ResetPasswordPage(token, "Password "+problem+".", "Choose a new password", "/reset-password", "Set new password"))
 			return
 		}
 

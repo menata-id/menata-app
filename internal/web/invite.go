@@ -139,11 +139,11 @@ func confirmInviteIdentity(ctx context.Context, store *data.Store, email, fullNa
 		// This is where a brand-new person states their own full name, and it is written onto the
 		// credential rather than into any Workspace's record (migration 010): one profile, used by
 		// every Workspace they ever join, changeable only by them.
-		switch {
-		case fullName == "":
+		if fullName == "" {
 			return acceptInviteNewCredentialHeading, true, "Your full name is required.", nil
-		case len(password) < 8:
-			return acceptInviteNewCredentialHeading, true, "Password must be at least 8 characters.", nil
+		}
+		if problem := authorization.PasswordProblem(password); problem != "" {
+			return acceptInviteNewCredentialHeading, true, "Password " + problem + ".", nil
 		}
 		hash, hashErr := authorization.HashPassword(password)
 		if hashErr != nil {

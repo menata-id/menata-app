@@ -181,8 +181,8 @@ func applyPasswordChange(ctx context.Context, store *data.Store, email, current,
 	switch {
 	case !authorization.VerifyPassword(current, cred.PasswordHash):
 		return "Current password is incorrect.", nil
-	case len(newPassword) < 8:
-		return "New password must be at least 8 characters.", nil
+	case authorization.PasswordProblem(newPassword) != "":
+		return "New password " + authorization.PasswordProblem(newPassword) + ".", nil
 	case newPassword != confirm:
 		return "New password and confirmation do not match.", nil
 	}
