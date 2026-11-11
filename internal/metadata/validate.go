@@ -1084,7 +1084,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				switch {
 				case c.Value == expression.SentinelDone:
 					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, doneIssue(m, c)))
-				case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value) && !(c.Optional && expression.IsParameter(c.Value)):
+				case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value) && (!c.Optional || !expression.IsParameter(c.Value)):
 					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value an aggregate cannot resolve -- it has no viewer, and a request parameter only in an `optional: true` comparison (left out when the request sends none), otherwise only %s and %s", ds.ID, ms.ID, c.Value, expression.SentinelToday, expression.SentinelDone))
 				default:
 					for _, msg := range orderedComparisonIssues(whereField, c) {

@@ -2,6 +2,15 @@ version: "2"
 
 linters:
   default: standard
+  settings:
+    staticcheck:
+      # golangci-lint's own default list (all, minus ST1000/1003/1016/1020/1021/1022), plus two style checks left off on purpose:
+      #  ST1005 (an error string may not end in punctuation): a validation message here ends in the YAML key it names
+      #    ("a Table declares columns:"), the way writing-guide.md writes a key, and the case corpus and the AI prompts read them.
+      #  QF1001 (apply De Morgan's law): a quick-fix suggestion, not a defect; `!(a && b)` reads as "not this whole shape" in the
+      #    gates and validators that spell out a metadata form, and rewriting it as `!a || !b` hides that.
+      # Every other staticcheck finding stays on.
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-ST1005", "-QF1001"]
 
 run:
   timeout: 5m

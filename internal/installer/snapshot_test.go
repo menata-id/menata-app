@@ -34,7 +34,7 @@ func TestSnapshotWorkspace_capturesManifestAndCopiesAndPrunes(t *testing.T) {
 	}
 	got := map[string]string{}
 	f, _ := os.Open(first)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatal(err)

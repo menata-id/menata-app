@@ -184,9 +184,10 @@ func manifestPaths(t *testing.T, manifestPath string) (machines, applications []
 			section = "" // any other top-level key ends the list
 		case strings.HasPrefix(trimmed, "- "):
 			item := strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
-			if section == "machines" {
+			switch section {
+			case "machines":
 				machines = append(machines, item)
-			} else if section == "applications" {
+			case "applications":
 				applications = append(applications, item)
 			}
 		}

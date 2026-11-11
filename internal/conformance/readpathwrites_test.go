@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -87,18 +86,10 @@ func TestGetRoutesDoNotWrite(t *testing.T) {
 func collectFuncs(t *testing.T, dir string, out map[string]*ast.FuncDecl) {
 	t.Helper()
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		t.Fatalf("parse %s: %v", dir, err)
-	}
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
-					out[fn.Name.Name] = fn
-				}
+	for _, file := range parseNonTestFiles(t, fset, dir) {
+		for _, decl := range file.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
+				out[fn.Name.Name] = fn
 			}
 		}
 	}

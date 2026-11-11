@@ -62,9 +62,9 @@ func ParseColourValue(s string) (Colour, bool) {
 func (c Colour) srgb() (float64, float64, float64) {
 	a := c.C * math.Cos(c.H*math.Pi/180)
 	b := c.C * math.Sin(c.H*math.Pi/180)
-	l := math.Pow(c.L+0.3963377774*a+0.2158037573*b, 3)
-	m := math.Pow(c.L-0.1055613458*a-0.0638541728*b, 3)
-	s := math.Pow(c.L-0.0894841775*a-1.2914855480*b, 3)
+	l := cube(c.L + 0.3963377774*a + 0.2158037573*b)
+	m := cube(c.L - 0.1055613458*a - 0.0638541728*b)
+	s := cube(c.L - 0.0894841775*a - 1.2914855480*b)
 	enc := func(v float64) float64 {
 		v = math.Min(1, math.Max(0, v))
 		if v <= 0.0031308 {
@@ -90,9 +90,9 @@ func (c Colour) Over(beneath Colour, alpha float64) Colour {
 func (c Colour) Luminance() float64 {
 	a := c.C * math.Cos(c.H*math.Pi/180)
 	b := c.C * math.Sin(c.H*math.Pi/180)
-	l := math.Pow(c.L+0.3963377774*a+0.2158037573*b, 3)
-	m := math.Pow(c.L-0.1055613458*a-0.0638541728*b, 3)
-	s := math.Pow(c.L-0.0894841775*a-1.2914855480*b, 3)
+	l := cube(c.L + 0.3963377774*a + 0.2158037573*b)
+	m := cube(c.L - 0.1055613458*a - 0.0638541728*b)
+	s := cube(c.L - 0.0894841775*a - 1.2914855480*b)
 	clamp := func(v float64) float64 { return math.Min(1, math.Max(0, v)) }
 	r := clamp(4.0767416621*l - 3.3077115913*m + 0.2309699292*s)
 	g := clamp(-1.2684380046*l + 2.6097574011*m - 0.3413193965*s)
@@ -214,3 +214,6 @@ func BackgroundShadeColour(s BackgroundShade) Colour {
 		return Colour{L: 1}
 	}
 }
+
+// cube is x to the third power, the one exponent OKLab's matrices use.
+func cube(x float64) float64 { return x * x * x }

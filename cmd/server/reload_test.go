@@ -20,11 +20,17 @@ func reloadTree(t *testing.T, manifests map[string]string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(root, "user.yaml"), user, 0o644)
+	if err := os.WriteFile(filepath.Join(root, "user.yaml"), user, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	dir := filepath.Join(root, "workspaces")
-	os.Mkdir(dir, 0o755)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, body := range manifests {
-		os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644)
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return dir
 }
@@ -50,7 +56,9 @@ func TestReloadWorkspace(t *testing.T) {
 	}
 
 	// Break alpha on disk, then reload only beta: alpha is not re-read, so nothing changes for it.
-	os.WriteFile(filepath.Join(dir, "alpha.yaml"), []byte("workspace: [now broken"), 0o644)
+	if err := os.WriteFile(filepath.Join(dir, "alpha.yaml"), []byte("workspace: [now broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := dh.ReloadWorkspace("beta"); err != nil {
 		t.Fatalf("reloading beta was affected by alpha's broken file: %v", err)
 	}
@@ -67,7 +75,9 @@ func TestReloadWorkspace(t *testing.T) {
 	}
 
 	// Fix gamma: it becomes available, and the route table was rebuilt.
-	os.WriteFile(filepath.Join(dir, "gamma.yaml"), []byte(manifestFor("gamma")), 0o644)
+	if err := os.WriteFile(filepath.Join(dir, "gamma.yaml"), []byte(manifestFor("gamma")), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := dh.ReloadWorkspace("gamma"); err != nil {
 		t.Fatalf("reloading fixed gamma: %v", err)
 	}

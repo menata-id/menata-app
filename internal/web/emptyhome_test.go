@@ -48,10 +48,16 @@ func TestHomeOfAWorkspaceWithNoApplicationWelcomesAnAdminAndExplainsToAMember(t 
 
 	root := t.TempDir()
 	dir := filepath.Join(root, "workspaces")
-	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifest := filepath.Join(dir, ws.Slug+".yaml")
-	os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644)
+	if err := os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	cfg := config.Config{SessionSecret: "empty-home-secret", MetadataPath: dir, TemplatePath: realLibrary(t)}
 
 	home := func(userID string) string {

@@ -17,10 +17,16 @@ func stageFixture(t *testing.T) (manifest string) {
 	if err := os.MkdirAll(own, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(own, "doc.yaml"), []byte(stagedDoc), 0o644)
-	os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/doc.yaml\napplications: []\n"), 0o644)
+	if err := os.WriteFile(filepath.Join(own, "doc.yaml"), []byte(stagedDoc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/doc.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	// Another Workspace that must never be staged, and must not be able to break this one.
-	os.WriteFile(filepath.Join(filepath.Dir(manifest), "other.yaml"), []byte("this: is: not yaml"), 0o644)
+	if err := os.WriteFile(filepath.Join(filepath.Dir(manifest), "other.yaml"), []byte("this: is: not yaml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	return manifest
 }
 
@@ -111,7 +117,9 @@ func TestApplyFiles_replacesOnlyWhatLoadsAndPutsBackWhatDoesNot(t *testing.T) {
 		t.Errorf("a refused apply changed the live file: %q", got)
 	}
 
-	os.WriteFile(filepath.Join(own, "stray.yaml"), []byte("id: mch_stray\nname: Stray\nfields:\n  - id: fld_a\n    name: A\n    type: text\n"), 0o644)
+	if err := os.WriteFile(filepath.Join(own, "stray.yaml"), []byte("id: mch_stray\nname: Stray\nfields:\n  - id: fld_a\n    name: A\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for name, want := range map[string]string{
 		"brand-new.yaml": "not a file this workspace has", // adding is install's job
 		"stray.yaml":     "nothing in this workspace loads",
@@ -138,10 +146,16 @@ func TestValidateFiles_stagesAtTheSameDepthSoARelativePathOutsideTheRootStillRea
 			t.Fatal(err)
 		}
 	}
-	os.WriteFile(filepath.Join(top, "lib", "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
-	os.WriteFile(filepath.Join(root, "workspaces", "acme", "doc.yaml"), []byte(stagedDoc), 0o644)
+	if err := os.WriteFile(filepath.Join(top, "lib", "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "workspaces", "acme", "doc.yaml"), []byte(stagedDoc), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifest := filepath.Join(root, "workspaces", "acme.yaml")
-	os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../../lib/user.yaml\n  - acme/doc.yaml\napplications: []\n"), 0o644)
+	if err := os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../../lib/user.yaml\n  - acme/doc.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := ValidateFiles(manifest, map[string][]byte{"doc.yaml": []byte(stagedDoc)}); err != nil {
 		t.Fatalf("a manifest naming a file outside the metadata directory could not be validated: %v", err)

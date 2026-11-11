@@ -234,7 +234,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 
 	for _, cf := range m.CardFields {
 		if !slices.ContainsFunc(old.CardFields, func(o GeneratedCardField) bool { return o == cf }) {
-			if err := appendEncoded(ensureSeq(doc, "card_fields"), cardFieldDoc{Field: cf.Field, Role: cf.Role}); err != nil {
+			if err := appendEncoded(ensureSeq(doc, "card_fields"), cardFieldDoc(cf)); err != nil {
 				return err
 			}
 		}
@@ -272,7 +272,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 		ov, exists := oldViews[v.ID]
 		switch {
 		case !exists:
-			if err := appendEncoded(ensureSeq(doc, "views"), viewDoc{ID: v.ID, Name: v.Name, Type: v.Type, GroupBy: v.GroupBy}); err != nil {
+			if err := appendEncoded(ensureSeq(doc, "views"), viewDoc(v)); err != nil {
 				return err
 			}
 		case v.Name != ov.Name:
@@ -337,7 +337,7 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 	}
 	for _, x := range m.Ensure {
 		if !oldEnsure[x.ID] {
-			if err := appendEncoded(ensureSeq(doc, "ensure"), ensureDoc{ID: x.ID, SumOf: x.SumOf, Per: x.Per, AtLeast: x.AtLeast, AtMost: x.AtMost, Reason: x.Reason}); err != nil {
+			if err := appendEncoded(ensureSeq(doc, "ensure"), ensureDoc(x)); err != nil {
 				return err
 			}
 		}

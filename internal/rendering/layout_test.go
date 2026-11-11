@@ -1548,7 +1548,6 @@ func TestDialogShell_bothDialogsFollowTheTheme(t *testing.T) {
 		Padding: map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountThree},
 		Border:  map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined},
 	}
-	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
 	// The shell pinned whole under the default theme (the review of 2.3d: moving only radius, padding and border and then
 	// comparing each dialog with the reader itself let an ink, background, elevation or scrim swap through).
 	const defaultShell = "m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-slate-200 p-5 bg-white text-slate-900 shadow-lg backdrop:bg-[color-mix(in_oklab,_var(--color-slate-900)_40%,_transparent)]"
@@ -1556,7 +1555,7 @@ func TestDialogShell_bothDialogsFollowTheTheme(t *testing.T) {
 		t.Errorf("the dialog shell under the default theme changed:\n got %s\nwant %s", got, defaultShell)
 	}
 	th.Ink = map[domain.InkRole]domain.InkShade{domain.InkStrong: domain.InkShadeMedium}
-	ctx = WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
 	if got := resolveColourRoles(t, ctx, dialogClasses(ctx)); strings.Contains(got, "text-slate-900") {
 		t.Errorf("a moved theme.ink.strong must move the dialog's ink: %s", got)
 	}

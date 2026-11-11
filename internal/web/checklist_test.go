@@ -17,9 +17,9 @@ func checklistWrite(t *testing.T, h http.Handler, cookie, method, path string, f
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	for k, v := range fields {
-		mw.WriteField(k, v)
+		_ = mw.WriteField(k, v)
 	}
-	mw.Close()
+	_ = mw.Close()
 	req := httptest.NewRequest(method, path, &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("X-CSRF-Token", tok.value)

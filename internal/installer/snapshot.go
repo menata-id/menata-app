@@ -69,7 +69,7 @@ func SnapshotWorkspace(manifestPath, backupDir string, now time.Time) (string, e
 			if err != nil {
 				return err
 			}
-			defer src.Close()
+			defer func() { _ = src.Close() }()
 			_, err = io.Copy(tw, src)
 			return err
 		})
@@ -86,7 +86,7 @@ func SnapshotWorkspace(manifestPath, backupDir string, now time.Time) (string, e
 		}
 	}
 	if err != nil {
-		os.Remove(out)
+		_ = os.Remove(out)
 		return "", fmt.Errorf("snapshot %s: %w", slug, err)
 	}
 	pruneSnapshots(dir, SnapshotKeep)
@@ -106,7 +106,7 @@ func pruneSnapshots(dir string, keep int) {
 	}
 	sort.Strings(names) // timestamped names sort oldest first
 	for len(names) > keep {
-		os.Remove(filepath.Join(dir, names[0]))
+		_ = os.Remove(filepath.Join(dir, names[0]))
 		names = names[1:]
 	}
 }

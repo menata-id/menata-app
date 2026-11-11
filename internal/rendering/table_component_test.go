@@ -44,7 +44,7 @@ func TestTable_drawsTheHeaderRowAndOneRowPerRecord(t *testing.T) {
 		t.Errorf("%d body rows, want 2", rows)
 	}
 	// Row-major: the first row holds a1..a3 in that order, then the second b1..b3.
-	if !(strings.Index(body, "a1") < strings.Index(body, "a3") && strings.Index(body, "a3") < strings.Index(body, "b1") && strings.Index(body, "b1") < strings.Index(body, "b3")) {
+	if a1, a3, b1, b3 := strings.Index(body, "a1"), strings.Index(body, "a3"), strings.Index(body, "b1"), strings.Index(body, "b3"); a1 >= a3 || a3 >= b1 || b1 >= b3 {
 		t.Errorf("cells are not row-major:\n%s", body)
 	}
 	// The third column's header and each of its cells sit on the end edge; the first column's on the start edge.

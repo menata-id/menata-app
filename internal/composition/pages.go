@@ -44,7 +44,8 @@ const (
 	// own option list. It was briefly msr_active, until mch_project turned out to declare `active`
 	// as a literal status option -- the same word would then have meant "not done" in one dataset
 	// and "status == active" in another. A qualifier must not collide with a real option value.
-	measureTotal = "msr_total"
+	//
+	// (No Go constant names msr_total any more: every Dataset that uses the measure declares it.)
 )
 
 // UnreadNotificationCount is the bell badge's own count -- the same shape PendingApprovalCount

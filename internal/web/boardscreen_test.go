@@ -29,9 +29,9 @@ func TestBoardComposerCreatesACardInItsColumn(t *testing.T) {
 	tok := csrfTokenFor(t, h, "/machines/mch_task/records")
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
-	mw.WriteField("fld_title", "Composer card")
-	mw.WriteField("fld_list", list.ID)
-	mw.Close()
+	_ = mw.WriteField("fld_title", "Composer card")
+	_ = mw.WriteField("fld_list", list.ID)
+	_ = mw.Close()
 	req := httptest.NewRequest(http.MethodPost, "/machines/mch_task/records", &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("X-CSRF-Token", tok.value)
@@ -114,9 +114,9 @@ func patchCardFrom(t *testing.T, h http.Handler, cookie, id string, fields map[s
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	for k, v := range fields {
-		mw.WriteField(k, v)
+		_ = mw.WriteField(k, v)
 	}
-	mw.Close()
+	_ = mw.Close()
 	req := httptest.NewRequest(http.MethodPatch, "/machines/mch_task/records/"+id, &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	if csrf {

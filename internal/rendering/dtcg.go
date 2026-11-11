@@ -319,12 +319,15 @@ func oklchToOKLab(l, c, h float64) (float64, float64, float64) {
 	return l, c * math.Cos(h*math.Pi/180), c * math.Sin(h*math.Pi/180)
 }
 
+// cube is x to the third power, the one exponent OKLab's matrices use.
+func cube(x float64) float64 { return x * x * x }
+
 // oklchToSRGB converts to gamma-encoded sRGB, each channel clipped to [0, 1] (Björn Ottosson's OKLab matrices).
 func oklchToSRGB(L, C, H float64) (float64, float64, float64) {
 	_, a, b := oklchToOKLab(L, C, H)
-	l := math.Pow(L+0.3963377774*a+0.2158037573*b, 3)
-	m := math.Pow(L-0.1055613458*a-0.0638541728*b, 3)
-	s := math.Pow(L-0.0894841775*a-1.2914855480*b, 3)
+	l := cube(L + 0.3963377774*a + 0.2158037573*b)
+	m := cube(L - 0.1055613458*a - 0.0638541728*b)
+	s := cube(L - 0.0894841775*a - 1.2914855480*b)
 	enc := func(v float64) float64 {
 		v = math.Min(1, math.Max(0, v))
 		if v <= 0.0031308 {

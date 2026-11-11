@@ -668,7 +668,7 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 		var body bytes.Buffer
 		mw := multipart.NewWriter(&body)
 		for k, v := range values {
-			mw.WriteField(k, subst(v))
+			_ = mw.WriteField(k, subst(v))
 		}
 		for k, name := range fileFields {
 			fw, err := mw.CreateFormFile(k, name)
@@ -679,9 +679,9 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			if strings.HasSuffix(name, ".pdf") {
 				content = "%PDF-1.4\n" + content // what a reader accepts is judged by the bytes
 			}
-			fw.Write([]byte(content))
+			_, _ = fw.Write([]byte(content))
 		}
-		mw.Close()
+		_ = mw.Close()
 		req := httptest.NewRequest(method, path, &body)
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		req.Header.Set("X-CSRF-Token", tok.value)
@@ -758,7 +758,9 @@ func runScenario(t *testing.T, app *metadata.App, sc caseScenario) (int, []strin
 			}
 			body, ok := rec.Body.String(), true
 			if dir := os.Getenv("CASE_VIEW_DUMP"); dir != "" {
-				os.WriteFile(filepath.Join(dir, s.ID+".html"), []byte(body), 0o644)
+				if err := os.WriteFile(filepath.Join(dir, s.ID+".html"), []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
 			}
 			for _, want := range s.View.Shows {
 				if !strings.Contains(body, subst(want)) {

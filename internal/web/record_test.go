@@ -406,8 +406,8 @@ func TestParseRecordFormRefusesABodyOverTheCap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		part.Write(bytes.Repeat([]byte("x"), size))
-		writer.Close()
+		_, _ = part.Write(bytes.Repeat([]byte("x"), size))
+		_ = writer.Close()
 		req := httptest.NewRequest(http.MethodPost, "/", &body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		return req

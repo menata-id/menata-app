@@ -415,10 +415,10 @@ func linkOptionalReferences(t *testing.T, ctx context.Context, store *data.Store
 			if v, set := record.Values[f.ID]; set && v != nil && v != "" {
 				continue
 			}
-			switch {
-			case f.Type == domain.FieldTypePerson:
+			switch f.Type {
+			case domain.FieldTypePerson:
 				record.Values[f.ID], changed = actorID, true
-			case f.Type == domain.FieldTypeRelation:
+			case domain.FieldTypeRelation:
 				if target, ok := seeded[f.RelatedMachine]; ok {
 					record.Values[f.ID], changed = target, true
 				}

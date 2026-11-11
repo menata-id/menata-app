@@ -135,7 +135,7 @@ func readSnapshot(file, slug string) ([]snapshotFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("snapshot not found")
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot is not a readable archive: %w", err)

@@ -40,10 +40,10 @@ func submitValidateFiles(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 		case len(unreferenced) > 0:
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			fmt.Fprintf(w, "the file parses, but nothing in this workspace loads it, so it was not checked: %s\n", strings.Join(unreferenced, ", "))
+			_, _ = fmt.Fprintf(w, "the file parses, but nothing in this workspace loads it, so it was not checked: %s\n", strings.Join(unreferenced, ", "))
 		default:
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			fmt.Fprintln(w, "valid")
+			_, _ = fmt.Fprintln(w, "valid")
 		}
 	}
 }

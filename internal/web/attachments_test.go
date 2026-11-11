@@ -40,13 +40,13 @@ func TestTaskDetailAttachmentsUploadAndRemove(t *testing.T) {
 		var body bytes.Buffer
 		mw := multipart.NewWriter(&body)
 		for k, v := range fields {
-			mw.WriteField(k, v)
+			_ = mw.WriteField(k, v)
 		}
 		if filename != "" {
 			part, _ := mw.CreateFormFile("fld_file", filename)
-			part.Write([]byte("%PDF-1.4\n" + strings.Repeat("x", 2048)))
+			_, _ = part.Write([]byte("%PDF-1.4\n" + strings.Repeat("x", 2048)))
 		}
-		mw.Close()
+		_ = mw.Close()
 		req := httptest.NewRequest(method, path, &body)
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		req.Header.Set("X-CSRF-Token", tok.value)

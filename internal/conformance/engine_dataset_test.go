@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -258,20 +258,32 @@ func stringConstantsIn(t *testing.T, dir string) map[string]string {
 	return out
 }
 
-func parsePackage(t *testing.T, dir string) []*ast.File {
+// parseNonTestFiles parses every non-test Go file of dir. It replaces go/parser.ParseDir (deprecated since Go 1.25: it
+// ignores build tags); these gates read the sources as text, so a file is a file whatever its tags.
+func parseNonTestFiles(t *testing.T, fset *token.FileSet, dir string) []*ast.File {
 	t.Helper()
-	pkgs, err := parser.ParseDir(token.NewFileSet(), dir, func(fi fs.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("parse %s: %v", dir, err)
+		t.Fatalf("read %s: %v", dir, err)
 	}
 	var files []*ast.File
-	for _, pkg := range pkgs {
-		for _, f := range pkg.Files {
-			files = append(files, f)
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
 		}
+		f, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", filepath.Join(dir, name), err)
+		}
+		files = append(files, f)
 	}
+	return files
+}
+
+func parsePackage(t *testing.T, dir string) []*ast.File {
+	t.Helper()
+	files := parseNonTestFiles(t, token.NewFileSet(), dir)
 	if len(files) == 0 {
 		t.Fatalf("parse %s: no non-test Go files", dir)
 	}

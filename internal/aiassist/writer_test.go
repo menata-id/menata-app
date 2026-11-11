@@ -11,18 +11,6 @@ import (
 	"menata.app/internal/metadata"
 )
 
-// fixedResolver is a MachineFileResolver test fake -- see writer.go's own doc comment on why the
-// interface exists.
-type fixedResolver map[string]string
-
-func (r fixedResolver) MachineFile(machineID string) (string, error) {
-	path, ok := r[machineID]
-	if !ok {
-		return "", os.ErrNotExist
-	}
-	return path, nil
-}
-
 func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	dir := t.TempDir()
 	workspacesDir := filepath.Join(dir, "workspaces")

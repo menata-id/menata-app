@@ -129,7 +129,8 @@ func shadowSignature(t *testing.T, s string) string {
 	t.Helper()
 	s = regexp.MustCompile(`var\(--tw-shadow-color,\s*([^)]*)\)`).ReplaceAllString(s, "$1")
 	s = shadowColour.ReplaceAllStringFunc(s, func(c string) string {
-		var r, g, bl, a float64 = 0, 0, 0, 1
+		var r, g, bl float64
+		a := 1.0
 		switch {
 		case strings.HasPrefix(c, "#"):
 			h := strings.TrimPrefix(c, "#")

@@ -1,6 +1,7 @@
 package aiassist
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -347,13 +348,15 @@ func TestPreview_isTheWritersOwnOutputAndWritesNothingLive(t *testing.T) {
 	snapshotTree := func() map[string]string {
 		out := map[string]string{}
 		root := filepath.Dir(manifestPath)
-		filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 			if err == nil && !info.IsDir() {
 				b, _ := os.ReadFile(p)
 				out[p] = string(b)
 			}
 			return nil
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 		return out
 	}
 	before := snapshotTree()
@@ -365,6 +368,9 @@ func TestPreview_isTheWritersOwnOutputAndWritesNothingLive(t *testing.T) {
 	files, err := Preview(manifestPath, change)
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
+	}
+	if !maps.Equal(snapshotTree(), before) {
+		t.Errorf("Preview of a new Machine and a new Field wrote into the live tree")
 	}
 	byPath := map[string]FileChange{}
 	for _, f := range files {

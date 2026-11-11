@@ -4,20 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
-
-func task(id, project, assignee, status, due string) *data.Record {
-	return rec(id, map[string]any{
-		"fld_project":  project,
-		"fld_assignee": assignee,
-		"fld_status":   status,
-		"fld_due_date": due,
-	})
-}
-
-var projectLabels = map[string]string{"prj_1": "Apollo", "prj_2": "Borneo"}
 
 // A week's range says the year and month once when both ends share them and carries each end's own when they do
 // not -- the words `window:` writes over a Dataset's two bounds.
@@ -42,18 +30,6 @@ func TestCalendarRange(t *testing.T) {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // taskMachineForTest is mch_task reduced to the declaration My Tasks reads: its own card_fields, which

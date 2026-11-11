@@ -92,8 +92,12 @@ func TestSetApplicationInactive_refusesWhatIsNotInstalled(t *testing.T) {
 func TestSetApplicationInactive_putsTheFileBackWhenTheWorkspaceDoesNotLoad(t *testing.T) {
 	manifest, file := switchFixture(t)
 	broken := filepath.Join(filepath.Dir(manifest), "acme", "applications", "broken.yaml")
-	os.WriteFile(broken, []byte("id: app_broken\nname: Broken\nmachines: [mch_missing]\nnavigation: []\n"), 0o644)
-	os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/note.yaml\napplications:\n  - acme/applications/notes.yaml\n  - acme/applications/broken.yaml\n"), 0o644)
+	if err := os.WriteFile(broken, []byte("id: app_broken\nname: Broken\nmachines: [mch_missing]\nnavigation: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/note.yaml\napplications:\n  - acme/applications/notes.yaml\n  - acme/applications/broken.yaml\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	_, err := SetApplicationInactive(manifest, "app_notes", true)
 	var rejected *RejectedError
 	if !errors.As(err, &rejected) {
@@ -116,9 +120,15 @@ func twoApps(t *testing.T, related bool) (manifest, notesApp, notesMachine, othe
 	if related {
 		fields += "  - id: fld_note\n    name: Note\n    type: reference\n    machine: mch_note\n"
 	}
-	os.WriteFile(otherMachine, []byte("id: mch_task\nname: Task\nfields:\n"+fields), 0o644)
-	os.WriteFile(otherApp, []byte("id: app_tasks\nname: Tasks\nmachines: [mch_task]\nnavigation:\n  - id: nav_tasks\n    label: Tasks\n    route: /machines/mch_task\n"), 0o644)
-	os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/note.yaml\n  - acme/task.yaml\napplications:\n  - acme/applications/notes.yaml\n  - acme/applications/tasks.yaml\n"), 0o644)
+	if err := os.WriteFile(otherMachine, []byte("id: mch_task\nname: Task\nfields:\n"+fields), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(otherApp, []byte("id: app_tasks\nname: Tasks\nmachines: [mch_task]\nnavigation:\n  - id: nav_tasks\n    label: Tasks\n    route: /machines/mch_task\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../user.yaml\n  - acme/note.yaml\n  - acme/task.yaml\napplications:\n  - acme/applications/notes.yaml\n  - acme/applications/tasks.yaml\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	return
 }
 
@@ -188,10 +198,16 @@ func TestRemoveApplication_refusesWhatItDoesNotOwn(t *testing.T) {
 	// A Machine in a shared file (beside the Workspace, not inside it) is never removed with an Application that claims it.
 	dir := filepath.Dir(manifest)
 	shared := filepath.Join(filepath.Dir(dir), "shared.yaml")
-	os.WriteFile(shared, []byte("id: mch_shared\nname: Shared\nfields:\n  - id: fld_t\n    name: T\n    type: text\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "acme", "applications", "tasks.yaml"), []byte("id: app_tasks\nname: Tasks\nmachines: [mch_task, mch_shared]\nnavigation:\n  - id: nav_tasks\n    label: Tasks\n    route: /machines/mch_task\n"), 0o644)
+	if err := os.WriteFile(shared, []byte("id: mch_shared\nname: Shared\nfields:\n  - id: fld_t\n    name: T\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "acme", "applications", "tasks.yaml"), []byte("id: app_tasks\nname: Tasks\nmachines: [mch_task, mch_shared]\nnavigation:\n  - id: nav_tasks\n    label: Tasks\n    route: /machines/mch_task\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	m, _ := os.ReadFile(manifest)
-	os.WriteFile(manifest, []byte(strings.Replace(string(m), "  - acme/task.yaml\n", "  - acme/task.yaml\n  - ../shared.yaml\n", 1)), 0o644)
+	if err := os.WriteFile(manifest, []byte(strings.Replace(string(m), "  - acme/task.yaml\n", "  - acme/task.yaml\n  - ../shared.yaml\n", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	before := snapshotTree(t, filepath.Dir(dir))
 	if _, err := RemoveApplication(manifest, "app_tasks"); !errors.As(err, &rejected) {
 		t.Fatalf("an Application claiming a shared Machine: %v", err)
@@ -206,13 +222,15 @@ func TestRemoveApplication_refusesWhatItDoesNotOwn(t *testing.T) {
 func snapshotTree(t *testing.T, root string) map[string]string {
 	t.Helper()
 	out := map[string]string{}
-	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
 			b, _ := os.ReadFile(p)
 			out[p] = string(b)
 		}
 		return nil
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	return out
 }
 

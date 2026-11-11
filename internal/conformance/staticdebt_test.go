@@ -557,15 +557,15 @@ func tagAttrNames(tag string) []string {
 func parseAttrs(s string, i int, closer byte) ([]string, int) {
 	var names []string
 	skipValue := func() { // s[i] is the first byte of a value
-		switch c := s[i]; {
-		case c == '"' || c == '\'' || c == '`':
+		switch c := s[i]; c {
+		case '"', '\'', '`':
 			for i++; i < len(s) && s[i] != c; i++ {
 				if s[i] == '\\' && c != '`' {
 					i++
 				}
 			}
 			i++
-		case c == '{':
+		case '{':
 			i = skipBraces(s, i)
 		default: // a bare word
 			for i < len(s) && !strings.ContainsRune(" \t\r\n>", rune(s[i])) {
@@ -635,16 +635,16 @@ func parseAttrs(s string, i int, closer byte) ([]string, int) {
 func skipBraces(s string, i int) int {
 	depth := 0
 	for ; i < len(s); i++ {
-		switch c := s[i]; {
-		case c == '"' || c == '`' || c == '\'':
+		switch c := s[i]; c {
+		case '"', '`', '\'':
 			for i++; i < len(s) && s[i] != c; i++ {
 				if s[i] == '\\' && c != '`' {
 					i++
 				}
 			}
-		case c == '{':
+		case '{':
 			depth++
-		case c == '}':
+		case '}':
 			depth--
 			if depth == 0 {
 				return i + 1
@@ -836,7 +836,6 @@ var handWrittenSurfaceFloors = map[string]int{
 
 var (
 	surfaceClassAttr = regexp.MustCompile(`class="([^"]*)"`)
-	surfaceLiteral   = regexp.MustCompile(`"([^"]*)"`)
 )
 
 func TestHandWrittenSurfacesOnlyShrink(t *testing.T) {

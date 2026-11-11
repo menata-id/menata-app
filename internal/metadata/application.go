@@ -1525,9 +1525,7 @@ type stage struct {
 func runStages(stages []stage) error {
 	var issues []string
 	for _, st := range stages {
-		for _, msg := range runStage(st) {
-			issues = append(issues, msg)
-		}
+		issues = append(issues, runStage(st)...)
 	}
 	if len(issues) == 0 {
 		return nil

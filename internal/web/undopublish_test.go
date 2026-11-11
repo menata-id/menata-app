@@ -44,10 +44,16 @@ func TestUndoPublishTakesBackOnlyWhatIsRecentUnusedAndTheAssistants(t *testing.T
 	}
 	root := t.TempDir()
 	dir := filepath.Join(root, "workspaces")
-	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifest := filepath.Join(dir, ws.Slug+".yaml")
-	os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644)
+	if err := os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	cfg := config.Config{SessionSecret: "undo-publish-secret", MetadataPath: dir}
 
 	newApp := func(id string) aiassist.GeneratedChange {
@@ -73,8 +79,12 @@ func TestUndoPublishTakesBackOnlyWhatIsRecentUnusedAndTheAssistants(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content))
-		store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated)
+		if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated); err != nil {
+			t.Fatal(err)
+		}
 		r := chi.NewRouter()
 		r.Post("/new-application/{session}/publish", publishNewApplication(store, nil, cfg, func(string) error { return nil }))
 		req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
@@ -145,7 +155,9 @@ func TestUndoPublishTakesBackOnlyWhatIsRecentUnusedAndTheAssistants(t *testing.T
 		t.Errorf("undo of a hand-installed Application = %d, installed %v", rec.Code, installed("app_undo_d"))
 	}
 	t.Cleanup(func() {
-		pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, ws.ID)
+		if _, err := pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, ws.ID); err != nil {
+			t.Fatal(err)
+		}
 	})
 }
 
@@ -171,10 +183,16 @@ func TestPublishingASessionTwiceLeavesItPublishedAndTakeBackAlive(t *testing.T) 
 	}
 	root := t.TempDir()
 	dir := filepath.Join(root, "workspaces")
-	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifest := filepath.Join(dir, ws.Slug+".yaml")
-	os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644)
+	if err := os.WriteFile(manifest, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	cfg := config.Config{SessionSecret: "double-publish-secret", MetadataPath: dir}
 
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{
@@ -187,8 +205,12 @@ func TestPublishingASessionTwiceLeavesItPublishedAndTakeBackAlive(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content))
-	store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated)
+	if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated); err != nil {
+		t.Fatal(err)
+	}
 	post := func() *httptest.ResponseRecorder {
 		loaded, err := metadata.LoadApplication(manifest)
 		if err != nil {

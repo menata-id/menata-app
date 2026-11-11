@@ -49,9 +49,15 @@ func writeArchive(t *testing.T, backups, slug, id string, files map[string]strin
 			t.Fatal(err)
 		}
 	}
-	tw.Close()
-	gz.Close()
-	f.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRestoreSnapshot_putsTheInstallationBackAndIsItselfUndoable(t *testing.T) {
@@ -70,9 +76,15 @@ func TestRestoreSnapshot_putsTheInstallationBackAndIsItselfUndoable(t *testing.T
 	}
 
 	// The installation moves on: a changed manifest and a file the snapshot never had.
-	os.WriteFile(manifest, append(original, []byte("# edited\n")...), 0o644)
-	os.WriteFile(filepath.Join(own, "kept.txt"), []byte("after"), 0o644)
-	os.WriteFile(filepath.Join(own, "added.txt"), []byte("new"), 0o644)
+	if err := os.WriteFile(manifest, append(original, []byte("# edited\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(own, "kept.txt"), []byte("after"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(own, "added.txt"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	list, _ := ListSnapshots(manifest, backups)
 	if len(list) != 1 {
@@ -158,13 +170,19 @@ func TestSnapshotWorkspaceIfChanged_skipsWhatTheNewestSnapshotAlreadyHolds(t *te
 		t.Fatalf("an unchanged tree was snapshotted again: %q, %v", again, err)
 	}
 	body, _ := os.ReadFile(manifest)
-	os.WriteFile(manifest, append(body, []byte("# hand edit\n")...), 0o644)
+	if err := os.WriteFile(manifest, append(body, []byte("# hand edit\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if edited, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_200, 0)); err != nil || edited == "" {
 		t.Fatalf("a hand edit was not snapshotted: %q, %v", edited, err)
 	}
 	own := filepath.Join(filepath.Dir(manifest), "acme")
-	os.MkdirAll(own, 0o755)
-	os.WriteFile(filepath.Join(own, "new.txt"), []byte("x"), 0o644)
+	if err := os.MkdirAll(own, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(own, "new.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if added, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_300, 0)); err != nil || added == "" {
 		t.Fatalf("a new file in the Workspace's directory was not snapshotted: %q, %v", added, err)
 	}

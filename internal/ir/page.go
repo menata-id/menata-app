@@ -560,7 +560,7 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Each != "" {
 		return lowerEach(n, r, path, record, writes)
 	}
-	if n.Step != nil && !(NodeKind(n.Kind) == NodeStatic && n.Type == string(domain.StaticLink) && n.To != "") {
+	if n.Step != nil && (NodeKind(n.Kind) != NodeStatic || n.Type != string(domain.StaticLink) || n.To == "") {
 		return nil, fmt.Errorf("%s: step: moves a link's address, so it is valid only on a static: link with to:", path)
 	}
 	if len(n.Columns) > 0 && !(NodeKind(n.Kind) == NodeComponent && n.Type == string(domain.ComponentTable)) {

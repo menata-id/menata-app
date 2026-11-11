@@ -38,7 +38,7 @@ func StageWorkspace(manifestPath string) (stagedManifest string, cleanup func(),
 			return "", nil, err
 		}
 	}
-	cleanup = func() { os.RemoveAll(tmp) }
+	cleanup = func() { _ = os.RemoveAll(tmp) }
 	var total int64
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, werr error) error {
 		if werr != nil {
@@ -72,7 +72,7 @@ func StageWorkspace(manifestPath string) (stagedManifest string, cleanup func(),
 		if err != nil {
 			return err
 		}
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 		out, err := os.Create(dst)
 		if err != nil {
 			return err

@@ -491,7 +491,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.Completion = &completionDoc{Field: m.Completion.Field, Done: m.Completion.Done}
 	}
 	for _, cf := range m.CardFields {
-		doc.CardFields = append(doc.CardFields, cardFieldDoc{Field: cf.Field, Role: cf.Role})
+		doc.CardFields = append(doc.CardFields, cardFieldDoc(cf))
 	}
 	if sc := m.StatusCategories; sc != nil {
 		vals := map[string]string{}
@@ -501,7 +501,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.StatusCategories = &statusCategoriesDoc{Field: sc.Field, Values: vals}
 	}
 	for _, v := range m.Views {
-		doc.Views = append(doc.Views, viewDoc{ID: v.ID, Name: v.Name, Type: v.Type, GroupBy: v.GroupBy})
+		doc.Views = append(doc.Views, viewDoc(v))
 	}
 	for _, p := range m.Permissions {
 		pd := permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles, ActorField: p.ActorField}
@@ -517,7 +517,7 @@ func machineDocFor(m GeneratedMachine) machineDoc {
 		doc.FrozenWhen = &frozenWhenDoc{Via: m.FrozenWhen.Via, Field: m.FrozenWhen.Field, Equals: m.FrozenWhen.Equals}
 	}
 	for _, e := range m.Ensure {
-		doc.Ensure = append(doc.Ensure, ensureDoc{ID: e.ID, SumOf: e.SumOf, Per: e.Per, AtLeast: e.AtLeast, AtMost: e.AtMost, Reason: e.Reason})
+		doc.Ensure = append(doc.Ensure, ensureDoc(e))
 	}
 	for _, e := range m.Events {
 		var ed eventDoc

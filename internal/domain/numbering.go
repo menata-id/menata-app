@@ -36,8 +36,7 @@ func ParseNumbering(pattern string) (prefix []NumberPart, width int, err error) 
 	for rest != "" {
 		open := strings.IndexByte(rest, '{')
 		if open < 0 {
-			prefix = append(prefix, NumberPart{Literal: rest})
-			break
+			break // trailing text after the last token: no counter closes the pattern, reported below
 		}
 		if open > 0 {
 			prefix = append(prefix, NumberPart{Literal: rest[:open]})

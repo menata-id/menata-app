@@ -91,7 +91,7 @@ func TestRunStages_reportsEveryStageAndSurvivesAPanic(t *testing.T) {
 	err := runStages([]stage{
 		{"one", func() error { return &ValidationError{Issues: []string{"first fault", "second fault"}} }},
 		{"two", func() error { return errors.New("third fault") }},
-		{"three", func() error { var m map[string]int; m["x"] = 1; return nil }},
+		{"three", func() error { var s []int; i := 3; _ = s[i]; return nil }},
 		{"four", func() error { return nil }},
 	})
 	var ve *ValidationError
