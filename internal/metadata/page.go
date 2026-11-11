@@ -1143,14 +1143,15 @@ func countExtracts(n domain.PageNode) int {
 }
 
 // extractableType says a reader can propose a value for a Field of this type: words, numbers, dates, a choice among the
-// Field's options and a choice among another Machine's records (by their labels). A person, a file, a group and a
-// boolean are not asked of a document.
+// Field's options and a choice among another Machine's records (by their labels). A boolean is shown in the review, ticked
+// as its Field defaults (an instalment's "VAT applies"), but never asked of the reader: a document does not state a switch.
+// A person, a file and a group are not asked of a document.
 func extractableType(f domain.Field) bool {
 	if f.IsReference() {
 		return f.Type == domain.FieldTypeRelation
 	}
 	switch f.Type {
-	case domain.FieldTypeText, domain.FieldTypeLongText, domain.FieldTypeNumber, domain.FieldTypeMoney, domain.FieldTypeDate, domain.FieldTypeStatus:
+	case domain.FieldTypeText, domain.FieldTypeLongText, domain.FieldTypeNumber, domain.FieldTypeMoney, domain.FieldTypeDate, domain.FieldTypeStatus, domain.FieldTypeBoolean:
 		return true
 	}
 	return false

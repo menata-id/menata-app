@@ -1648,7 +1648,6 @@ func TestAnExtractNamesWhatADocumentMayFillAndWhereItsRowsLand(t *testing.T) {
 		"no review words":                 {func(x *domain.FormExtract) { x.Review = "" }, "review:"},
 		"a Field the form does not ask":   {func(x *domain.FormExtract) { x.Fields = []string{"fld_nope"} }, "is not a Field"},
 		"a person":                        {func(x *domain.FormExtract) { x.Fields = []string{"fld_owner"} }, "cannot propose"},
-		"a boolean":                       {func(x *domain.FormExtract) { x.Fields = []string{"fld_done"} }, "cannot propose"},
 		"a Field twice":                   {func(x *domain.FormExtract) { x.Fields = []string{"fld_name", "fld_name"} }, "listed twice"},
 		"nothing to propose":              {func(x *domain.FormExtract) { x.Fields, x.Rows = nil, nil }, "nothing to propose"},
 		"a Machine that is not installed": {func(x *domain.FormExtract) { x.Rows[0].Machine = "mch_zz" }, "not a machine of this workspace"},

@@ -255,7 +255,7 @@ navigation:
               - label: Instalments
                 machine: mch_contract_term
                 via: fld_contract
-                fields: [fld_term_label, fld_due_date, fld_gross, fld_wht_rate]
+                fields: [fld_term_label, fld_due_date, fld_gross, fld_has_vat, fld_wht_rate]
           binding: { dataset: ds_contracts, write: create }
   # One contract's page (K01d): its number and three badges (type, lifecycle, payment), the lifecycle as a Stepper, the
   # moves this viewer may take, its Fields, and its instalments -- added from here, already naming the contract.

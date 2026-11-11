@@ -78,7 +78,9 @@ func ExtractProposal(ctx context.Context, l *Loader, reader aiassist.Extractor, 
 	}
 	req := aiassist.ExtractRequest{Instruction: x.Instruction, Document: doc, MIME: mime}
 	for _, in := range fields {
-		req.Fields = append(req.Fields, question(in))
+		if in.Kind != domain.InputSwitch {
+			req.Fields = append(req.Fields, question(in))
+		}
 	}
 	rowInputs := make([][]domain.FormInput, len(x.Rows))
 	for i, r := range x.Rows {
@@ -91,7 +93,10 @@ func ExtractProposal(ctx context.Context, l *Loader, reader aiassist.Extractor, 
 		}
 		q := aiassist.ExtractRowsQuestion{Key: fmt.Sprint(i), Label: r.Label}
 		for _, in := range rowInputs[i] {
-			q.Fields = append(q.Fields, question(in))
+			// A switch (VAT applies) is a choice the person makes, not something a document states: it keeps its default.
+			if in.Kind != domain.InputSwitch {
+				q.Fields = append(q.Fields, question(in))
+			}
 		}
 		req.Rows = append(req.Rows, q)
 	}
