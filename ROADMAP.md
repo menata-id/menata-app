@@ -15,7 +15,7 @@ kept in a private companion repository.
   events (on change, on create, on a schedule) that log activity, notify a person, a role or a group, roll a status up to a parent record, or escalate an overdue record.
 - **Declared screens**: a navigation item can declare its whole screen as a tree of layouts, text and components,
   bound to declared data. Lists, metrics, forms that create and edit records, buttons that move, delete or change
-  the status of a record, and conditions on what a record shows; a form can choose its fields or be filled from a document an AI reads, and a page can be downloaded as a PDF. The board settings, dashboard, My Tasks and
+  the status of a record, and conditions on what a record shows; a form can choose its fields or be filled from a document an AI reads, and a page can be downloaded as a PDF, or drawn as a sheet of A4 paper for a printed document. The board settings, dashboard, My Tasks and
   calendar screens are drawn this way, and so are the Helpdesk, Accounting, Maintenance and Lending queues.
 - **Data definitions**: named datasets with filters, sorting, grouping, counts and relations between models.
 - **Status categories**: a model can say which of its statuses are a start, in progress, needing attention, done or
@@ -32,7 +32,7 @@ kept in a private companion repository.
 **Applications built on the runtime**
 - **Document Approval**: submission wizard, drafts and revisions, sequential or parallel approval, saved approval
   flows per document type, SLA tracking, an approval inbox, signature placement and signing onto the PDF.
-- **Project Management**: boards with lists and labels (each list has a menu to rename, move or delete it, and an Add list tile; a dragged card tilts and shows where it will land, and cards can be moved from the keyboard), a table of tasks in the board's order (completion circle, list, labels, due date, assignee), a calendar by week or month where a task card can be dragged to another day, one header over all three (the project's name, task counts, switch between Board, Table and Calendar, and a Switch project menu that narrows them), My Tasks, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders.
+- **Project Management**: boards with lists and labels (each list has a menu to rename, move or delete it, and an Add list tile; a dragged card tilts and shows where it will land, and cards can be moved from the keyboard), a table of tasks in the board's order (completion circle, list, labels, due date, assignee), a calendar by week or month where a task card can be dragged to another day, one header over all three (the project's name, task counts, switch between Board, Table and Calendar, and a Switch project menu that narrows them), My Tasks, dashboard, checklists. **Production Contracts and Instalments & Payments**: contracts, instalments, payment plans with approval and proof, printable purchase orders and a one-page A4 Time Card per contract (every instalment with what is paid, invoiced and still to come).
 
 **AI Metadata Assistant**
 - Describe an application in plain words; the review opens with the screens it built, says what it cannot do yet and asks who else can open it, then installs the generated metadata into a Workspace. A publication can be taken back for ten minutes, and an empty Workspace opens on a welcome to build or install its first application.

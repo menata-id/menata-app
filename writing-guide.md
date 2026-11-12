@@ -1442,7 +1442,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 | Key | Value | Meaning |
 |---|---|---|
-| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`, `tracks`; `grid` `columns`, `gap`, `mobile`; `panel` `density`; `row` `align`, `gap`, `justify`, `mark`, `tracks`, `wrap`; `section` `anchor`, `current`, `dropField`, `dropValue`, `gap`, `outside`; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap`, `move` |
+| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `sheet`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`, `tracks`; `grid` `columns`, `gap`, `mobile`; `panel` `density`, `frame`; `row` `align`, `gap`, `justify`, `mark`, `tracks`, `wrap`; `section` `anchor`, `current`, `dropField`, `dropValue`, `gap`, `outside`; `sheet` none; `split` `aside`, `gap`, `side`; `stack` `anchor`, `gap`, `move` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note`, `code`, `divider` | Text that is the same for everyone (`code` keeps its line breaks and spacing: a verdict or a file's content). Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph. `divider` (2026-10-22) is a thin rule that sets one region off from the next: it has **no text and no properties** (words on it are a load error), only a `when:` if the region it separates is not drawn for everyone |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, `EmptyState`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
@@ -2188,6 +2188,19 @@ with no browser draws no button and answers 404 on the route**: set `PDF_BROWSER
 `PATH` (`chrome-headless-shell`, `chromium`, `chromium-browser`, `google-chrome`); a path that does not exist is logged at start-up.
 Two prints run at a time, each limited to 30 seconds. This is any page's output, not the purchase order's: the second render target
 007 §12 and the audit's B5 call for, fed by the page the viewer already has.
+
+**A printed document: `layout: sheet` (2026-11-12, Case 22's Time Card, mockup K01h).** A page whose root is `{layout: sheet, children: [...]}` is
+drawn as a sheet of A4 paper: white, fixed black ink, a form's own small type, none of it a Theme role (a document is printed, so a
+Workspace's colours and dark mode do not reach it). It takes no property. What goes inside is the usual vocabulary, which the sheet
+dresses as a form: a `Table` gets ruled cells and a dark header row, a `static: caption` beside its value (a `layout: row` with
+`tracks: field fill`) is the small bold label of a field on paper, a `static: divider` is a ruled line, and a `layout: panel` takes
+**`frame:`** -- `box` (a ruled box: the attachment area, the signatures), `well` (the same on a pale fill: a group of blanks such as
+Payment information) or `plate` (a box whose first child is a dark title band and whose others sit centred under it: the TIMECARD
+number plate). A box inside a box is a blank to fill (dashed); a closing caption in a box is the italic note that names it. `frame:`
+means nothing outside a sheet. The application's chrome, the page's own heading and every button stay off the paper (`@media print`),
+and the sheet takes the whole A4 page. Print it with the ordinary `write: print` / `write: pdf` Buttons; they sit in the sheet and
+leave the paper. **Not yet:** a Table column cannot name its width, a money column keeps its Field's `currency:` symbol and two
+decimals, and there is no image node for a scanned card. An installed example: `nav_timecard` of Production Contracts.
 
 **A form filled from a document (`extract:`, 2026-10-18, K01c).** A create Form can be filled from a PDF or an image that an AI
 reads, a person checks, and only then is anything written. It is the same declaration whatever the document is -- a contract, an

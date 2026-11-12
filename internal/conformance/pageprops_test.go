@@ -17,11 +17,11 @@ import (
 // written in YAML. The guide's property table was a fourth hand-kept copy.
 
 // TestEveryDrawnLayoutKindAndContractInputIsWritable asserts the first half: every layout kind the vocabulary
-// closes has an `allowedProps` entry (even an empty one, as `panel` has), and every input a registered
+// closes has an `allowedProps` entry (even an empty one, as `sheet` has: a sheet is always A4), and every input a registered
 // Component's contract declares is a key a node of it may carry.
 func TestEveryDrawnLayoutKindAndContractInputIsWritable(t *testing.T) {
 	for kind := range domain.KnownLayoutKinds {
-		if ir.PermittedProps(ir.NodeLayout, string(kind)) == nil && kind != domain.LayoutPanel {
+		if ir.PermittedProps(ir.NodeLayout, string(kind)) == nil && kind != domain.LayoutPanel && kind != domain.LayoutSheet {
 			t.Errorf("layout kind %q is declared and drawn but no node of it may carry a property -- add layout/%s to ir.allowedProps", kind, kind)
 		}
 	}

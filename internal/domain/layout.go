@@ -84,6 +84,14 @@ const (
 	// padding ladder existed, two steps for one idea sat inside the token set itself, the case this comment's
 	// own earlier reasoning named as the one that would reopen it.
 	LayoutSection LayoutKind = "section"
+	// LayoutSheet is a sheet of paper: a white page of a fixed size (A4) that holds a printed document, and the one place the
+	// runtime draws in the **paper layer** -- black ink on white whatever the Theme and dark mode say, a form's own small type,
+	// ruled tables with a dark header row, and a label set small and bold above or beside its value (2026-11-12, mockup K01h's
+	// Time Card, which a business hands to a tax office and so must look like the paper it replaces). Everything inside a sheet is
+	// the page's ordinary vocabulary (rows, grids, panels, tables, text); the sheet only changes how those are drawn, so a printed
+	// document is declared like any other page and nothing in it is a per-document renderer. It takes no property: the size is A4,
+	// the only paper the runtime prints on (`@page`), and a second size would be a member no screen calls.
+	LayoutSheet LayoutKind = "sheet"
 )
 
 // PanelDensity is how much room a panel gives its content, a closed set: `regular` is the 20px surface a screen's sections sit in, `compact` the small
@@ -94,6 +102,22 @@ const (
 	PanelRegular PanelDensity = "regular"
 	PanelCompact PanelDensity = "compact"
 )
+
+// PanelFrame is how a panel is drawn **inside a sheet** (the paper layer), a closed set. It means nothing outside one: on a screen a
+// panel is the Theme's surface whatever its frame. `box` is a ruled box with its own thin edge, the kind a form draws round a region
+// (the attachment area, the signatures); `well` is the same box on a pale fill, for a group of labelled blanks (Payment
+// information); `plate` is a box whose first child is a dark title band and whose others sit centred under it (the TIMECARD
+// number plate). The empty value is the panel as it always was.
+type PanelFrame string
+
+const (
+	PanelFrameBox   PanelFrame = "box"
+	PanelFrameWell  PanelFrame = "well"
+	PanelFramePlate PanelFrame = "plate"
+)
+
+// KnownPanelFrames is the closed set.
+var KnownPanelFrames = map[PanelFrame]bool{PanelFrameBox: true, PanelFrameWell: true, PanelFramePlate: true}
 
 // KnownPanelDensities is the closed set.
 var KnownPanelDensities = map[PanelDensity]bool{PanelRegular: true, PanelCompact: true}
@@ -343,6 +367,7 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutRow:     true,
 	LayoutColumns: true,
 	LayoutSection: true,
+	LayoutSheet:   true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.

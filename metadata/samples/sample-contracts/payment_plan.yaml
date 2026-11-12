@@ -12,6 +12,7 @@ fields:
   # What a plan says of its instalment's contract (K02b): searched by counterparty and filtered by category, two hops down.
   - { id: fld_plan_party, name: Contracted party, type: text, compute: { parent: fld_term.fld_party } }
   - { id: fld_plan_category, name: Category, type: relation, machine: mch_category, compute: { parent: fld_term.fld_category } }
+  - { id: fld_plan_contract, name: Contract, type: relation, machine: mch_contract, compute: { parent: fld_term.fld_contract } }
   - { id: fld_plan_amount, name: Planned amount (net), type: money, currency: IDR, required: true, locked_when: { field: fld_plan_status, equals: Paid } }
   - { id: fld_plan_date, name: Planned payment date, type: date, required: true }
   - { id: fld_method, name: Method, type: status, default: Transfer, options: [Transfer, Cash] }

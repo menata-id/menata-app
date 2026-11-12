@@ -220,7 +220,8 @@ var allowedProps = map[string][]string{
 	"layout/split":               {"gap", "side", "aside"},
 	"layout/columns":             {"gap", "align", "tracks"},
 	"layout/section":             {"gap", "current", "anchor", "outside", "dropField", "dropValue"},
-	"layout/panel":               {"density"},
+	"layout/panel":               {"density", "frame"},
+	"layout/sheet":               {},
 	"static/eyebrow":             {"text"},
 	"static/heading":             {"text"},
 	"static/paragraph":           {"text", "tone"},
@@ -287,6 +288,7 @@ var layoutPropValues = map[string]func(string) bool{
 	"aside":           func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
 	"section/current": func(v string) bool { return v == "true" },
 	"panel/density":   func(v string) bool { return domain.KnownPanelDensities[domain.PanelDensity(v)] },
+	"panel/frame":     func(v string) bool { return domain.KnownPanelFrames[domain.PanelFrame(v)] },
 	// An anchor is a plain word: the id a `#fragment` link names, never a place for markup.
 	"anchor":  func(v string) bool { return anchorPattern.MatchString(v) },
 	"mobile":  gridColsKnown,

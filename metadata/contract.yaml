@@ -26,6 +26,15 @@ fields:
   - { id: fld_terms, name: Instalments, type: number, compute: { count_children: { machine: mch_contract_term, via: fld_contract } } }
   - { id: fld_terms_paid, name: Instalments paid, type: number,
       compute: { count_children: { machine: mch_contract_term, via: fld_contract, where: { field: fld_term_status, equals: Paid } } } }
+  - { id: fld_terms_invoiced, name: Instalments invoiced, type: number,
+      compute: { count_children: { machine: mch_contract_term, via: fld_contract, where: { field: fld_term_status, equals: Invoiced } } } }
+  - { id: fld_terms_ahead, name: Instalments ahead, type: number, compute: { subtract: [fld_terms, fld_terms_paid, fld_terms_invoiced] } }
+  - { id: fld_net_all, name: Net, type: money, currency: IDR, compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_net } } }
+  - { id: fld_net_paid, name: Net paid, type: money, currency: IDR,
+      compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_net, where: { field: fld_term_status, equals: Paid } } } }
+  - { id: fld_net_invoiced, name: Net invoiced, type: money, currency: IDR,
+      compute: { sum_children: { machine: mch_contract_term, via: fld_contract, field: fld_net, where: { field: fld_term_status, equals: Invoiced } } } }
+  - { id: fld_net_ahead, name: Net ahead, type: money, currency: IDR, compute: { subtract: [fld_net_all, fld_net_paid, fld_net_invoiced] } }
   - { id: fld_start_date, name: Start date, type: date, required: true }
   # What the fee covers, who bears transport, terms for schedule changes: the detail that has no other field.
   - { id: fld_description, name: Notes, type: long_text }

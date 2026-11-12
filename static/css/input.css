@@ -393,3 +393,250 @@
 		background: #fff !important;
 	}
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Sheet (2026-11-12, mockup K01h, `layout: sheet`): a printed document, drawn in the paper layer. Everything here is fixed ink
+   on white and a form's own scale -- never a Theme role, never a dark-mode step -- because a Time Card is handed to someone
+   who reads it on paper. The rules read the page's ordinary elements, so what is declared inside a sheet is the usual
+   vocabulary: a table, a caption, a paragraph, a panel with `data-frame`. The page's own heading and the application's
+   chrome are left off, and the sheet takes the whole A4 page with its own margins (`@page sheet`).
+   --------------------------------------------------------------------------------------------- */
+@page sheet {
+	size: A4;
+	margin: 0;
+}
+main:has(> .sheet) {
+	padding: 0;
+	max-width: none;
+	gap: 0;
+}
+main:has(> .sheet) > :not(.sheet) {
+	display: none;
+}
+.sheet {
+	page: sheet;
+	box-sizing: border-box;
+	width: 794px;
+	max-width: 100%;
+	min-height: 1123px;
+	margin: 0 auto;
+	padding: 36px 40px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	background: #fff;
+	color: #000;
+	font-size: 10.5px;
+	line-height: 14px;
+}
+.sheet :where(p, div, span, td, th, li, h1, h2, h3, a, label):where(:not([class*="app-"], [class*="app-"] *)) {
+	color: inherit !important;
+}
+.sheet [data-frame],
+.sheet .rounded-lg {
+	background-color: #fff;
+}
+.sheet [data-frame],
+.sheet table,
+.sheet .rounded-lg {
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+.sheet .flex-wrap {
+	flex-wrap: nowrap;
+}
+.sheet ul,
+.sheet li {
+	display: contents;
+	list-style: none;
+}
+.sheet h1,
+.sheet h2 {
+	margin: 0;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+.sheet h1 {
+	font-size: 15px;
+	line-height: 20px;
+}
+.sheet h2 {
+	font-size: 11px;
+	line-height: 16px;
+}
+.sheet p {
+	margin: 0;
+}
+/* A label: small, bold, upper case, set beside its value. */
+.sheet p.text-2xs,
+.sheet .sm\:w-42 p {
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	line-height: 12px;
+}
+.sheet .sm\:w-42 {
+	width: 124px;
+	margin-left: 0;
+}
+.sheet .text-sm {
+	font-size: 10.5px;
+	line-height: 14px;
+}
+.sheet [data-frame] {
+	box-sizing: border-box;
+	padding: 8px 12px;
+	border: 1px solid #94a3b8;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+.sheet [data-frame="well"] {
+	background-color: #f1f5f9;
+}
+/* The Print and Download buttons sit on the screen view only: a row holding nothing but buttons leaves the paper with them. */
+@media print {
+	.sheet div:has(> button):not(:has(> :not(button))) {
+		display: none;
+	}
+}
+.sheet [data-frame="plate"] {
+	padding: 0;
+	gap: 0;
+	border-color: #000;
+	text-align: center;
+	width: 200px;
+}
+.sheet [data-frame="plate"] > :first-child {
+	background-color: #000;
+	color: #fff !important;
+	padding: 4px 0;
+}
+.sheet [data-frame="plate"] > :first-child * {
+	color: #fff !important;
+}
+.sheet [data-frame="plate"] > :not(:first-child) {
+	padding: 3px 0;
+	font-weight: 700;
+}
+.sheet table {
+	width: 100%;
+	table-layout: auto;
+	border-collapse: collapse;
+	border: 1px solid #000;
+	font-size: 9px;
+	line-height: 12px;
+}
+.sheet thead th {
+	white-space: normal;
+}
+/* A status is plain words on paper, not a pill. */
+.sheet td [class*="rounded-full"] {
+	background-color: transparent;
+	padding: 0;
+}
+.sheet [data-frame] .text-sm {
+	white-space: nowrap;
+	font-size: 9.5px;
+}
+.sheet .overflow-x-auto {
+	overflow: visible;
+}
+.sheet thead th {
+	background-color: #000;
+	color: #fff !important;
+	padding: 5px 3px;
+	font-size: 8px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	line-height: 11px;
+	border: 0;
+	border-right: 1px solid rgb(255 255 255 / 0.35);
+}
+.sheet thead th * {
+	color: #fff !important;
+}
+.sheet tbody td,
+.sheet tfoot td {
+	padding: 4px 3px;
+	white-space: nowrap;
+	border-top: 1px solid #94a3b8;
+	border-right: 1px solid #cbd5e1;
+	vertical-align: middle;
+}
+.sheet tbody td:nth-child(3),
+.sheet tbody td:nth-child(8),
+.sheet tbody td:last-child {
+	white-space: normal;
+}
+/* The third column of a ruled ledger is the one that carries words (a description), so it is given the room a sentence needs; a
+   Table column that declares its own width would say so (Case 22, slice 2: `width:` on a column). */
+.sheet td:nth-child(3),
+.sheet th:nth-child(3) {
+	min-width: 120px;
+}
+.sheet td {
+	font-size: 9px;
+	line-height: 12px;
+}
+.sheet tbody tr:nth-child(even) td {
+	background-color: #f8fafc;
+}
+.sheet tfoot td {
+	background-color: #f1f5f9;
+	border-top: 2px solid #000;
+	font-weight: 700;
+}
+.sheet td * {
+	font-size: inherit !important;
+	line-height: inherit !important;
+}
+.sheet tbody td:nth-child(n + 4):nth-child(-n + 6),
+.sheet tfoot td:nth-child(n + 4):nth-child(-n + 6) {
+	font-size: 8px;
+	letter-spacing: -0.03em;
+}
+.sheet hr,
+.sheet [role="separator"] {
+	border: 0;
+	border-top: 1px solid #000;
+	margin: 0;
+	opacity: 1;
+}
+.sheet [data-frame="plate"] > :not(:first-child) {
+	justify-content: center;
+}
+/* A box inside a box is a blank to be filled (the KTP and NPWP copies); the caption closing the outer box names the area. */
+.sheet [data-frame="box"] [data-frame="box"] {
+	min-height: 78px;
+	border-style: dashed;
+	align-items: center;
+	justify-content: center;
+}
+.sheet [data-frame="box"] > p:last-child {
+	text-align: center;
+	font-weight: 400;
+	font-style: italic;
+	text-transform: none;
+	letter-spacing: 0;
+}
+/* The signatures: a label, room to sign, a line and the name beneath it. */
+.sheet [data-frame="box"] > .grid > :not([data-frame]) {
+	align-items: center;
+	text-align: center;
+	min-height: 92px;
+}
+.sheet [data-frame="box"] > .grid > :not([data-frame]) > hr,
+.sheet [data-frame="box"] > .grid > :not([data-frame]) > [role="separator"] {
+	margin-top: auto;
+	width: 160px;
+}
+@media screen {
+	.sheet {
+		margin: 24px auto;
+		border: 1px solid #cbd5e1;
+	}
+}

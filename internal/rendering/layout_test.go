@@ -444,7 +444,7 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 func TestPanelLayout_backgroundFollowsTheWorkspaceTheme(t *testing.T) {
 	render := func(ctx context.Context) string {
 		var buf bytes.Buffer
-		if err := panelLayout(domain.PanelRegular).Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
+		if err := panelLayout(domain.PanelRegular, "").Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return resolveColourRoles(t, templ.WithChildren(ctx, templ.Raw("x")), buf.String())
@@ -483,7 +483,7 @@ func TestPaddingFollowsTheWorkspaceTheme(t *testing.T) {
 		declared  map[domain.PaddingRole]domain.PaddingAmount
 		wantAfter string
 	}{
-		{"panel", panelLayout(domain.PanelRegular), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountFour}, "p-4"},
+		{"panel", panelLayout(domain.PanelRegular, ""), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountFour}, "p-4"},
 		{"section", sectionLayout(domain.GapDefault), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingSection: domain.PaddingAmountFour}, "p-4"},
 		{"badge", statusBadge("x", domain.ToneNeutral, domain.BadgeRegular), "px-2.5 py-1", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeX: domain.PaddingAmountThree, domain.PaddingBadgeY: domain.PaddingAmountTwo}, "px-3 py-2"},
 		{"compact badge", statusBadge("x", domain.ToneNeutral, domain.BadgeCompact), "px-2 py-0.5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeCompactX: domain.PaddingAmountOneHalf, domain.PaddingBadgeCompactY: domain.PaddingAmountOne}, "px-1.5 py-1"},
@@ -1028,7 +1028,7 @@ func TestSecondaryButtonOutlineReadsTheSurfaceBorder(t *testing.T) {
 // collection, neither of which the dev database holds.
 func TestSectionMigration_defaultsAreTheLiteralsEachSiteReplaced(t *testing.T) {
 	// was `<section class={ surfaceClasses(ctx), "p-5" }>` (inference.templ, newapplication.templ)
-	if got, want := renderWithTheme(t, domain.Theme{}, panelLayout(domain.PanelRegular)),
+	if got, want := renderWithTheme(t, domain.Theme{}, panelLayout(domain.PanelRegular, "")),
 		`<section class="rounded-lg border border-slate-200 bg-white p-5">x</section>`; got != want {
 		t.Errorf("panelLayout default = %q, want %q", got, want)
 	}
@@ -1674,5 +1674,38 @@ func TestCollection_reorderDrawsAGripOnlyOnRowsTheViewerMayMove(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "data-reorder") || strings.Contains(buf.String(), "menataReorder") {
 		t.Errorf("a list nothing in which may be moved draws no grip, no attribute and no script: %s", buf.String())
+	}
+}
+
+// TestSheetIsThePaperLayerAndAPanelFrameIsOnlyAnAttribute: `layout: sheet` draws one element carrying the `.sheet` class whose
+// look lives in static/css/input.css (so no Theme role can reach a printed document), and a panel's `frame:` reaches the page as a
+// `data-frame` attribute the sheet's rules read -- a panel with no frame has none, so every screen drawn before is unchanged.
+func TestSheetIsThePaperLayerAndAPanelFrameIsOnlyAnAttribute(t *testing.T) {
+	var buf bytes.Buffer
+	ctx := templ.WithChildren(context.Background(), templ.Raw("x"))
+	if err := sheetLayout().Render(ctx, &buf); err != nil {
+		t.Fatalf("sheetLayout: %v", err)
+	}
+	if got := buf.String(); !strings.Contains(got, `class="sheet"`) || strings.Contains(got, "bg-") || strings.Contains(got, "text-") {
+		t.Errorf("a sheet is one `.sheet` element and names no Theme-driven utility; got %q", got)
+	}
+	for _, c := range []struct {
+		frame domain.PanelFrame
+		want  string
+	}{{domain.PanelFrameWell, `data-frame="well"`}, {domain.PanelFramePlate, `data-frame="plate"`}, {domain.PanelFrameBox, `data-frame="box"`}} {
+		buf.Reset()
+		if err := panelLayout(domain.PanelRegular, c.frame).Render(ctx, &buf); err != nil {
+			t.Fatalf("panelLayout: %v", err)
+		}
+		if !strings.Contains(buf.String(), c.want) {
+			t.Errorf("a %q panel lacks %s; got %q", c.frame, c.want, buf.String())
+		}
+	}
+	buf.Reset()
+	if err := panelLayout(domain.PanelRegular, "").Render(ctx, &buf); err != nil {
+		t.Fatalf("panelLayout: %v", err)
+	}
+	if strings.Contains(buf.String(), "data-frame") {
+		t.Errorf("a panel with no frame must draw as it always did; got %q", buf.String())
 	}
 }

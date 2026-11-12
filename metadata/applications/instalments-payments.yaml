@@ -279,6 +279,13 @@ navigation:
                       from: { text: title }
                     - component: StatusBadge
                       from: { label: "field:fld_plan_status", tone: "tone:fld_plan_status" }
+                    # The Time Card of the whole contract this instalment belongs to (K02d), not of this instalment alone.
+                    - static: link
+                      to: nav_timecard
+                      in: app_production_contracts
+                      text: Time Card
+                      variant: secondary
+                      pass: { contract: "value:fld_plan_contract" }
                 - component: Stepper
                   label: Plan status
                   from: { steps: "steps:fld_plan_status" }

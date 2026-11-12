@@ -354,6 +354,11 @@ navigation:
                       variant: danger
                       confirm: Delete this contract?
                       binding: { write: delete }
+                    - static: link
+                      to: nav_timecard
+                      text: Time Card
+                      variant: secondary
+                      pass: { contract: "record:id" }
                 - layout: grid
                   gap: default
                   columns: 2
@@ -523,6 +528,349 @@ navigation:
               variant: danger
               confirm: Delete this instalment?
               binding: { write: delete }
+  # One contract's Time Card (K01h): a printed sheet (`layout: sheet`, A4) -- who is contracted, every instalment of the contract with
+  # its payment state (paid with its date, invoiced, still ahead), what each state adds up to, and the signature lines. Read from the
+  # contract and its instalments, none of it retyped, so it cannot differ from them. The contract comes in the request
+  # (`?contract=`), passed by the link on the contract's page and on each payment plan. What the Vendor will hold (address, NPWP, KTP,
+  # bank) is left blank until Vendors exist (Case 22, VD-1); the KTP/NPWP attachment area waits for an image primitive (slice 4).
+  - id: nav_timecard
+    label: Time Card
+    title: Time Card
+    route: /pages/nav_timecard
+    in_menu: false
+    page:
+      layout: sheet
+      children:
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_of_form, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      label: Print
+                      variant: secondary
+                      binding: { write: print }
+                    - component: Button
+                      label: Download PDF
+                      variant: secondary
+                      binding: { write: pdf }
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - layout: row
+                      gap: default
+                      align: center
+                      children:
+                        - component: IconTile
+                          icon: file-text
+                          color: blue
+                          size: lead
+                        - layout: stack
+                          gap: micro
+                          children:
+                            - static: heading
+                              text: Production house
+                            - static: caption
+                              text: Contract Time Card
+                    - layout: panel
+                      frame: plate
+                      children:
+                        - static: heading
+                          text: TIMECARD
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: paragraph
+                              text: "No:"
+                            - static: paragraph
+                              from: { text: title }
+                - static: divider
+                - layout: grid
+                  gap: comfortable
+                  columns: 2
+                  mobile: 1
+                  children:
+                    - layout: stack
+                      gap: tight
+                      children:
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Name
+                          - static: paragraph
+                            from: { text: "field:fld_party_name" }
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Position / service
+                          - static: paragraph
+                            from: { text: "field:fld_position" }
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Address / phone
+                          - static: paragraph
+                            text: "—"
+                    - layout: stack
+                      gap: tight
+                      children:
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Effective date
+                          - static: paragraph
+                            from: { text: "field:fld_start_date" }
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Est. end period
+                          - static: paragraph
+                            text: "—"
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Agreement number
+                          - static: paragraph
+                            from: { text: "field:fld_contract_no" }
+                      - layout: row
+                        gap: default
+                        align: center
+                        tracks: field fill
+                        children:
+                          - static: caption
+                            text: Total amount gross
+                          - static: paragraph
+                            from: { text: "field:fld_value" }
+                - static: subheading
+                  text: Payment information
+                - layout: panel
+                  frame: well
+                  children:
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: NPWP number
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: KTP number
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: WHT rate
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: Bank name
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: Account name
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: Account number
+                        - static: paragraph
+                          text: "—"
+                    - layout: row
+                      gap: default
+                      align: center
+                      tracks: field fill
+                      children:
+                        - static: caption
+                          text: Notes (if any)
+                        - static: paragraph
+                          text: "—"
+        - component: Table
+          label: Instalments, payment dates and status
+          empty: This contract has no instalment yet.
+          framed: true
+          density: compact
+          columns:
+            - { header: "Term no", from: "row:number" }
+            - { header: Paid date, related: "rel_timecard_plans.fld_paid_date" }
+            - { header: Description, field: fld_term_label, total: count, total_label: instalments }
+            - { header: Gross, field: fld_gross, align: end, total: sum }
+            - { header: WHT, field: fld_wht, align: end, total: sum }
+            - { header: Net, field: fld_net, align: end, total: sum }
+            - { header: Est. payment, field: fld_due_date }
+            - { header: Milestones, field: fld_milestone }
+            - { header: Status, field: fld_term_status }
+            - { header: Additional information, field: fld_term_note }
+          binding: { dataset: ds_timecard_terms, rows: records }
+        - component: Collection
+          gap: default
+          binding: { dataset: ds_contract_of_form, rows: records }
+          children:
+            - layout: stack
+              gap: default
+              children:
+                - layout: row
+                  gap: tight
+                  tracks: fill fill fill
+                  children:
+                    - layout: panel
+                      frame: box
+                      children:
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: paragraph
+                              text: Paid
+                            - static: paragraph
+                              from: { text: "field:fld_terms_paid" }
+                            - static: paragraph
+                              text: "of"
+                            - static: paragraph
+                              from: { text: "field:fld_terms" }
+                            - static: paragraph
+                              text: "· Net"
+                            - static: paragraph
+                              from: { text: "field:fld_net_paid" }
+                    - layout: panel
+                      frame: box
+                      children:
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: paragraph
+                              text: In billing
+                            - static: paragraph
+                              from: { text: "field:fld_terms_invoiced" }
+                            - static: paragraph
+                              text: "of"
+                            - static: paragraph
+                              from: { text: "field:fld_terms" }
+                            - static: paragraph
+                              text: "· Net"
+                            - static: paragraph
+                              from: { text: "field:fld_net_invoiced" }
+                    - layout: panel
+                      frame: box
+                      children:
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: paragraph
+                              text: Scheduled
+                            - static: paragraph
+                              from: { text: "field:fld_terms_ahead" }
+                            - static: paragraph
+                              text: "of"
+                            - static: paragraph
+                              from: { text: "field:fld_terms" }
+                            - static: paragraph
+                              text: "· Net"
+                            - static: paragraph
+                              from: { text: "field:fld_net_ahead" }
+                - layout: panel
+                  frame: box
+                  children:
+                    - layout: grid
+                      gap: comfortable
+                      columns: 2
+                      mobile: 1
+                      children:
+                        - layout: panel
+                          frame: box
+                          children:
+                            - static: caption
+                              text: KTP
+                        - layout: panel
+                          frame: box
+                          children:
+                            - static: caption
+                              text: NPWP
+                    - static: caption
+                      text: Copy KTP & NPWP attachment area
+                - layout: panel
+                  frame: box
+                  children:
+                    - layout: grid
+                      gap: comfortable
+                      columns: 2
+                      mobile: 1
+                      children:
+                        - layout: stack
+                          gap: tight
+                          children:
+                            - static: caption
+                              text: Prepared by
+                            - static: divider
+                            - static: caption
+                              from: { text: "field:fld_party_name" }
+                            - static: paragraph
+                              from: { text: "field:fld_position" }
+                        - layout: stack
+                          gap: tight
+                          children:
+                            - static: caption
+                              text: Approved by
+                            - static: divider
+                            - static: caption
+                              text: Name
+                            - static: paragraph
+                              text: Position
+        - static: caption
+          text: Paid dates are written by the system when a payment is confirmed.
   # The instalment form "Add instalment" opens: the contract comes from the request and is shown, not offered; the
   # instalments already entered for it are listed under the form, so several are added one after another.
   - id: nav_new_term

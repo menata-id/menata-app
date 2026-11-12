@@ -956,10 +956,20 @@ func controlHeightCompact() string { return "h-8 pointer-coarse:h-11" }
 //
 // **Measured 2026-10-06: it has one live caller.** The twelve sites above were rewritten into other shapes since
 // (the Case 19 restyles), so the panel/section padding difference is one site wide today.
-templ panelLayout(density domain.PanelDensity) {
-	<section class={ panelClasses(ctx, density) }>
+templ panelLayout(density domain.PanelDensity, frame domain.PanelFrame) {
+	<section class={ panelClasses(ctx, density) } if frame != "" { data-frame={ string(frame) } }>
 		{ children... }
 	</section>
+}
+
+// sheetLayout is a sheet of paper (`layout: sheet`): one element whose look is the `.sheet` rules of static/css/input.css, the
+// paper layer -- fixed black ink on white and a form's own scale, none of it a Theme role, so a Workspace's Theme and dark mode
+// cannot touch a document that is printed. The rules read the page's ordinary elements (a table, a caption, a panel's
+// `data-frame`), so a sheet is declared with the vocabulary every page has.
+templ sheetLayout() {
+	<div class="sheet">
+		{ children... }
+	</div>
 }
 
 // panelClasses is a panel's surface: the 20px section box, or (`density: compact`) the small card with the meta size for its words.
@@ -1569,7 +1579,11 @@ templ uiLayout(n ir.UINode) {
 				}
 			}
 		case domain.LayoutPanel:
-			@panelLayout(domain.PanelDensity(n.Props["density"])) {
+			@panelLayout(domain.PanelDensity(n.Props["density"]), domain.PanelFrame(n.Props["frame"])) {
+				@uiChildren(n)
+			}
+		case domain.LayoutSheet:
+			@sheetLayout() {
 				@uiChildren(n)
 			}
 		case domain.LayoutSection:
