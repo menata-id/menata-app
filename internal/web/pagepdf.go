@@ -115,7 +115,8 @@ func printable(page []byte, root string) ([]byte, error) {
 func readStatic(root, href string) ([]byte, error) {
 	for prefix, dir := range staticRoots {
 		if rest, ok := strings.CutPrefix(href, prefix); ok && !strings.Contains(rest, "..") {
-			return os.ReadFile(filepath.Join(root, dir, rest))
+			// The router serves a fingerprinted name (app.1a2b3c4d.css) from the plain file; so does a print.
+			return os.ReadFile(filepath.Join(root, dir, fingerprintPattern.ReplaceAllString(rest, "$1")))
 		}
 	}
 	return nil, errors.New("print: the page names a stylesheet outside the static roots: " + href)
