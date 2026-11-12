@@ -20,6 +20,22 @@ type recordEnv struct {
 	machine *domain.Machine
 	id      string
 	values  map[string]any
+	reads   *envReads
+}
+
+// envReads remembers what one recordEnv already read, so a record whose computed Fields name the same parent (or the
+// same children) several times reads it once. One recordEnv lives for one recompute of one record, and nothing it reads
+// is written meanwhile.
+type envReads struct {
+	parents  map[string]map[string]any
+	children map[domain.ChildAggregate][]map[string]any
+}
+
+func newEnv(ctx context.Context, store *data.Store, m *domain.Machine, id string, values map[string]any) recordEnv {
+	return recordEnv{ctx: ctx, store: store, machine: m, id: id, values: values, reads: &envReads{
+		parents:  map[string]map[string]any{},
+		children: map[domain.ChildAggregate][]map[string]any{},
+	}}
 }
 
 func (e recordEnv) Parent(via string) map[string]any {
@@ -28,10 +44,19 @@ func (e recordEnv) Parent(via string) map[string]any {
 	if !ok || id == "" || id == "<nil>" {
 		return nil
 	}
+	key := f.RelatedMachine + "/" + id
+	if e.reads != nil {
+		if v, ok := e.reads.parents[key]; ok {
+			return v
+		}
+	}
 	parent, err := e.store.GetRecord(e.ctx, f.RelatedMachine, id)
 	if err != nil {
 		log.Printf("compute %s %s: reading parent %s: %v", e.machine.ID, e.id, id, err)
 		return nil
+	}
+	if e.reads != nil {
+		e.reads.parents[key] = parent.Values
 	}
 	return parent.Values
 }
@@ -39,6 +64,11 @@ func (e recordEnv) Parent(via string) map[string]any {
 func (e recordEnv) Children(agg domain.ChildAggregate) []map[string]any {
 	if e.id == "" {
 		return nil
+	}
+	if e.reads != nil {
+		if v, ok := e.reads.children[agg]; ok {
+			return v
+		}
 	}
 	children, err := e.store.ListRecordsBy(e.ctx, agg.Machine, agg.Via, e.id)
 	if err != nil {
@@ -48,6 +78,9 @@ func (e recordEnv) Children(agg domain.ChildAggregate) []map[string]any {
 	out := make([]map[string]any, 0, len(children))
 	for _, c := range children {
 		out = append(out, c.Values)
+	}
+	if e.reads != nil {
+		e.reads.children[agg] = out
 	}
 	return out
 }
@@ -72,7 +105,7 @@ func ApplyComputed(ctx context.Context, store *data.Store, m *domain.Machine, id
 		data.ApplyComputed(m, values)
 		return
 	}
-	data.ApplyComputedWith(m, values, recordEnv{ctx: ctx, store: store, machine: m, id: id, values: values})
+	data.ApplyComputedWith(m, values, newEnv(ctx, store, m, id, values))
 }
 
 // RecomputeParents recomputes the records whose computed Fields aggregate records of child (`sum_children`,
@@ -139,7 +172,7 @@ func recomputeRecord(ctx context.Context, store *data.Store, m *domain.Machine, 
 			return nil // a record that is gone has nothing to recompute
 		}
 		next := maps.Clone(rec.Values)
-		data.ApplyComputedWith(m, next, recordEnv{ctx: ctx, store: store, machine: m, id: id, values: next})
+		data.ApplyComputedWith(m, next, newEnv(ctx, store, m, id, next))
 		if sameValues(rec.Values, next) {
 			return nil
 		}
@@ -258,7 +291,7 @@ func recomputePass(ctx context.Context, store *data.Store, ordered []*domain.Mac
 		err := store.EachRecordPage(ctx, m.ID, 200, func(records []*data.Record) error {
 			for _, r := range records {
 				next := maps.Clone(r.Values)
-				data.ApplyComputedWith(m, next, recordEnv{ctx: ctx, store: store, machine: m, id: r.ID, values: next})
+				data.ApplyComputedWith(m, next, newEnv(ctx, store, m, r.ID, next))
 				if sameValues(r.Values, next) {
 					continue
 				}

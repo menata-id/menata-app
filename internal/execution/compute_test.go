@@ -129,3 +129,44 @@ func TestRecomputeChildrenFollowsTheirParent(t *testing.T) {
 		t.Errorf("a parent whose read Field changed left its child at %v, want it recomputed to 40", got.Values["fld_tax"])
 	}
 }
+
+// TestRecordEnvReadsEachParentAndChildListOnce: a record whose computed Fields name the same parent several times (an
+// instalment taking a contract's category, number and status) reads that parent once per recompute. Proved by removing
+// the parent between two reads: the second answers from what the first read, so no second query ran.
+func TestRecordEnvReadsEachParentAndChildListOnce(t *testing.T) {
+	pool := testPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	ws, err := store.CreateWorkspace(ctx, "Env Reads Test", "env-reads-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupTest(t, pool, ws.ID, "env_reads_test@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	parent := &domain.Machine{ID: "mch_er_parent", Fields: []domain.Field{{ID: "fld_x", Type: domain.FieldTypeText}}}
+	child := &domain.Machine{ID: "mch_er_child", Fields: []domain.Field{
+		{ID: "fld_parent", Type: domain.FieldTypeRelation, RelatedMachine: parent.ID},
+	}}
+	p, err := store.CreateRecord(wsCtx, parent.ID, map[string]any{"fld_x": "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateRecord(wsCtx, child.ID, map[string]any{"fld_parent": p.ID}); err != nil {
+		t.Fatal(err)
+	}
+	values := map[string]any{"fld_parent": p.ID}
+	env := newEnv(wsCtx, store, child, "", values)
+	if env.Parent("fld_parent")["fld_x"] != "a" {
+		t.Fatal("first read did not find the parent")
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM records WHERE id = $1`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if env.Parent("fld_parent")["fld_x"] != "a" {
+		t.Error("second Parent read went to the store again")
+	}
+	if newEnv(wsCtx, store, child, "", values).Parent("fld_parent") != nil {
+		t.Error("a fresh env must read the store, not another env's memory")
+	}
+}
