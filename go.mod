@@ -3,7 +3,7 @@ module menata.app
 go 1.27.3
 
 require (
-	github.com/a-h/templ v0.3.1020
+	github.com/a-h/templ v0.3.1100
 	github.com/go-chi/chi/v5 v5.4.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
