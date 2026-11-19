@@ -126,31 +126,31 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 	if app == nil {
 		return fmt.Errorf("new_application change carries no application")
 	}
-	var issues []string
+	var issues []Issue
 
 	if !applicationIDPattern.MatchString(app.ID) {
-		issues = append(issues, fmt.Sprintf("application id %q must match %s", app.ID, applicationIDPattern.String()))
+		issues = append(issues, atf(AddressApplication, "application id %q must match %s", app.ID, applicationIDPattern.String()))
 	}
 	if existing.ApplicationIDs[app.ID] {
-		issues = append(issues, fmt.Sprintf("application id %q is already installed in this workspace", app.ID))
+		issues = append(issues, atf(AddressApplication, "application id %q is already installed in this workspace", app.ID))
 	}
 	if strings.TrimSpace(app.Name) == "" {
-		issues = append(issues, "application name is required")
+		issues = append(issues, at(AddressApplication, "application name is required"))
 	}
 	if app.Icon != "" && !domain.KnownIcons[app.Icon] {
-		issues = append(issues, fmt.Sprintf("icon %q is not a known icon", app.Icon))
+		issues = append(issues, atf(AddressApplication, "icon %q is not a known icon", app.Icon).allowing(declarableIconEnum()...))
 	}
 	if app.Color != "" && !domain.KnownApplicationColors[app.Color] {
-		issues = append(issues, fmt.Sprintf("color %q is not a known application color", app.Color))
+		issues = append(issues, atf(AddressApplication, "color %q is not a known application color", app.Color).allowing(applicationColorEnum()...))
 	}
 	seenRole := map[string]bool{}
 	for _, r := range app.Roles {
 		if strings.TrimSpace(r) == "" {
-			issues = append(issues, "roles entry is empty")
+			issues = append(issues, at(AddressApplication, "roles entry is empty"))
 			continue
 		}
 		if seenRole[r] {
-			issues = append(issues, fmt.Sprintf("role %q is declared more than once", r))
+			issues = append(issues, atf(AddressApplication, "role %q is declared more than once", r))
 		}
 		seenRole[r] = true
 	}
@@ -160,13 +160,13 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 	// (requireApplicationAccess's own len(app.Roles) == 0 check), so nobody needs one there.
 	if len(app.Roles) > 0 {
 		if strings.TrimSpace(app.PublisherRole) == "" {
-			issues = append(issues, "publisher_role is required when the application declares roles -- ask which one the person will hold themselves")
+			issues = append(issues, at(AddressApplication, "publisher_role is required when the application declares roles -- ask which one the person will hold themselves"))
 		} else if !seenRole[app.PublisherRole] {
-			issues = append(issues, fmt.Sprintf("publisher_role %q must be one of roles %v", app.PublisherRole, app.Roles))
+			issues = append(issues, atf(AddressApplication, "publisher_role %q must be one of roles %v", app.PublisherRole, app.Roles).allowing(app.Roles...))
 		}
 	}
 	if len(app.Machines) == 0 {
-		issues = append(issues, "an application needs at least one machine")
+		issues = append(issues, at(AddressApplication, "an application needs at least one machine"))
 	}
 	issues = append(issues, validateMenu(app)...)
 
@@ -187,28 +187,28 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		for _, p := range m.Permissions {
 			for _, r := range p.Roles {
 				if !seenRole[r] {
-					issues = append(issues, fmt.Sprintf("machine %q permission %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the permission would deny everyone while reading as a grant", m.ID, p.ID, r, app.Roles))
+					issues = append(issues, atf(permissionAt(m.ID, p.ID), "machine %q permission %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the permission would deny everyone while reading as a grant", m.ID, p.ID, r, app.Roles).allowing(app.Roles...))
 				}
 			}
 		}
 		for _, tr := range m.Transitions {
 			for _, r := range tr.Roles {
 				if !seenRole[r] {
-					issues = append(issues, fmt.Sprintf("machine %q step %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the step could be taken by no one", m.ID, tr.ID, r, app.Roles))
+					issues = append(issues, atf(transitionAt(m.ID, tr.ID), "machine %q step %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the step could be taken by no one", m.ID, tr.ID, r, app.Roles).allowing(app.Roles...))
 				}
 			}
 		}
 		issues = append(issues, frozenIssues(m, app.Machines)...)
 		for _, ev := range m.Events {
 			if ev.RecipientRole != "" && !seenRole[ev.RecipientRole] {
-				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which this application does not declare in its roles %v -- nobody holds it, so no one would be told", m.ID, ev.ID, ev.RecipientRole, app.Roles))
+				issues = append(issues, atf(eventAt(m.ID, ev.ID), "machine %q event %q tells role %q, which this application does not declare in its roles %v -- nobody holds it, so no one would be told", m.ID, ev.ID, ev.RecipientRole, app.Roles).allowing(app.Roles...))
 			}
 		}
 		if existing.MachineIDs[m.ID] {
-			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
+			issues = append(issues, atf(machineAt(m.ID), "machine id %q already exists in this workspace", m.ID))
 		}
 		if seenMachine[m.ID] {
-			issues = append(issues, fmt.Sprintf("machine id %q is declared more than once in this application", m.ID))
+			issues = append(issues, atf(machineAt(m.ID), "machine id %q is declared more than once in this application", m.ID))
 		}
 		seenMachine[m.ID] = true
 
@@ -219,7 +219,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 			continue // metadata.Validate would only pile on the same field-shape complaints
 		}
 		if err := metadata.Validate(domainMachine); err != nil {
-			issues = append(issues, fmt.Sprintf("machine %q: %v", m.ID, err))
+			issues = append(issues, atf(machineAt(m.ID), "machine %q: %v", m.ID, err))
 		}
 		built = append(built, domainMachine)
 	}
@@ -232,7 +232,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 			}
 		}
 		if err := metadata.ValidateEdgeRules(built); err != nil {
-			issues = append(issues, err.Error())
+			issues = append(issues, at(AddressApplication, err.Error()))
 		}
 	}
 
@@ -246,8 +246,8 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 // metadata.Validate has no way to express (a relation field naming a machine that will not exist,
 // since that's a Workspace-level constraint, not a per-Machine one). knownTargets names every
 // machine id a relation may point at: the ones this change declares and the ones already installed.
-func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*domain.Machine, []string) {
-	var issues []string
+func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*domain.Machine, []Issue) {
+	var issues []Issue
 	m := &domain.Machine{ID: gm.ID, Name: gm.Name}
 
 	for _, gf := range gm.Fields {
@@ -261,7 +261,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		if f.Type == domain.FieldTypeRelation {
 			f.RelatedMachine = gf.RelatedMachine
 			if !knownTargets[gf.RelatedMachine] {
-				issues = append(issues, fmt.Sprintf("machine %q field %q: relation target %q is neither a machine in this change nor one already in this workspace", gm.ID, gf.ID, gf.RelatedMachine))
+				issues = append(issues, atf(fieldAt(gm.ID, gf.ID), "machine %q field %q: relation target %q is neither a machine in this change nor one already in this workspace", gm.ID, gf.ID, gf.RelatedMachine).allowingSet(knownTargets))
 			}
 		}
 		if f.Type == domain.FieldTypePerson {
@@ -274,7 +274,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			// Judged exactly as the loader will judge the same text.
 			def, err := metadata.CoerceDefault(f.Type, gf.Default)
 			if err != nil {
-				issues = append(issues, fmt.Sprintf("machine %q field %q: default %q: %v", gm.ID, gf.ID, gf.Default, err))
+				issues = append(issues, atf(fieldAt(gm.ID, gf.ID), "machine %q field %q: default %q: %v", gm.ID, gf.ID, gf.Default, err))
 			} else {
 				f.Default = def
 			}
@@ -291,7 +291,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 			days := make(map[string]int, len(gf.DefaultFrom.Days))
 			for _, d := range gf.DefaultFrom.Days {
 				if _, dup := days[d.Value]; dup {
-					issues = append(issues, fmt.Sprintf("machine %q field %q: default_from names %q more than once", gm.ID, gf.ID, d.Value))
+					issues = append(issues, atf(fieldAt(gm.ID, gf.ID), "machine %q field %q: default_from names %q more than once", gm.ID, gf.ID, d.Value))
 				}
 				days[d.Value] = d.Days
 			}
@@ -301,7 +301,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 	}
 	for _, gp := range gm.Permissions {
 		if gp.Action == domain.ActionDecide || gp.Action == domain.ActionRevise {
-			issues = append(issues, fmt.Sprintf("machine %q permission %q: action %q is a hardcoded workflow action, not available to a generated machine", gm.ID, gp.ID, gp.Action))
+			issues = append(issues, atf(permissionAt(gm.ID, gp.ID), "machine %q permission %q: action %q is a hardcoded workflow action, not available to a generated machine", gm.ID, gp.ID, gp.Action))
 			continue
 		}
 		perm := domain.Permission{ID: gp.ID, Action: gp.Action, Roles: gp.Roles, ActorField: gp.ActorField}
@@ -317,7 +317,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		d := &domain.StatusCategories{Field: sc.Field, Values: map[string]domain.StatusCategory{}}
 		for _, v := range sc.Values {
 			if _, dup := d.Values[v.Option]; dup {
-				issues = append(issues, fmt.Sprintf("machine %q status_categories lists option %q more than once", gm.ID, v.Option))
+				issues = append(issues, atf(machineAt(gm.ID), "machine %q status_categories lists option %q more than once", gm.ID, v.Option))
 			}
 			d.Values[v.Option] = domain.StatusCategory(v.Category)
 		}
@@ -334,7 +334,7 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		seenSet := map[string]bool{}
 		for _, st := range gt.Sets {
 			if seenSet[st.Field] {
-				issues = append(issues, fmt.Sprintf("machine %q step %q: sets names %q more than once", gm.ID, gt.ID, st.Field))
+				issues = append(issues, atf(transitionAt(gm.ID, gt.ID), "machine %q step %q: sets names %q more than once", gm.ID, gt.ID, st.Field))
 			}
 			seenSet[st.Field] = true
 		}
@@ -357,36 +357,48 @@ func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*dom
 		switch ge.EventService() {
 		case EventServiceLogActivity:
 			if ge.RecipientField != "" || ge.RecipientRole != "" || ge.RecipientGroupField != "" || ge.PreferenceKey != "" {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: the recipient and preference_key belong to send_notification, not log_activity", gm.ID, ge.ID))
+				issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: the recipient and preference_key belong to send_notification, not log_activity", gm.ID, ge.ID))
 			}
 		case EventServiceSendNotification:
 			svc.Notify = &domain.Notify{RecipientField: ge.RecipientField, RecipientRole: ge.RecipientRole, RecipientGroupField: ge.RecipientGroupField, PreferenceKey: ge.PreferenceKey}
 			// The loader only asks that the recipient be a field; a notification to anything but a person
 			// reaches nobody and says nothing, so the assistant asks for more than the loader does.
 			if f := fieldOf(m, ge.RecipientField); f != nil && f.Type != domain.FieldTypePerson {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: recipient_field %q must be a person field, got %q -- otherwise the notification reaches nobody", gm.ID, ge.ID, ge.RecipientField, f.Type))
+				issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: recipient_field %q must be a person field, got %q -- otherwise the notification reaches nobody", gm.ID, ge.ID, ge.RecipientField, f.Type).allowing(fieldIDsOfType(gm, domain.FieldTypePerson)...))
 			}
 		case EventServiceSetField:
 			svc.Set = &domain.SetField{TargetField: ge.SetField, Value: ge.SetValue}
 			if ge.Schedule == nil {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: set_field runs on a schedule (a date that has passed), not on a write", gm.ID, ge.ID))
+				issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: set_field runs on a schedule (a date that has passed), not on a write", gm.ID, ge.ID))
 			}
 		default:
-			issues = append(issues, fmt.Sprintf("machine %q event %q: service %q is not one a generated event may name (log_activity, send_notification or set_field)", gm.ID, ge.ID, ge.Service))
+			issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: service %q is not one a generated event may name (log_activity, send_notification or set_field)", gm.ID, ge.ID, ge.Service).allowing(EventServiceLogActivity, EventServiceSendNotification, EventServiceSetField))
 		}
 		ev := domain.Event{ID: ge.ID, On: ge.On, WhenEquals: ge.WhenEquals, OnCreate: ge.OnCreate, Then: svc}
 		if s := ge.Schedule; s != nil {
 			if ge.On != "" || ge.OnCreate || ge.WhenEquals != "" {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: a rule on a schedule has no on, on_create or when_equals", gm.ID, ge.ID))
+				issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: a rule on a schedule has no on, on_create or when_equals", gm.ID, ge.ID))
 			}
 			if f := fieldOf(m, s.DateField); f == nil || f.Type != domain.FieldTypeDate {
-				issues = append(issues, fmt.Sprintf("machine %q event %q: schedule date_field %q must be a date field of this machine", gm.ID, ge.ID, s.DateField))
+				issues = append(issues, atf(eventAt(gm.ID, ge.ID), "machine %q event %q: schedule date_field %q must be a date field of this machine", gm.ID, ge.ID, s.DateField).allowing(fieldIDsOfType(gm, domain.FieldTypeDate)...))
 			}
 			ev.Schedule = &domain.Schedule{DateField: s.DateField, When: s.When, GuardField: s.GuardField, GuardEquals: s.GuardEquals, GuardNotEquals: s.GuardNotEquals}
 		}
 		m.Events = append(m.Events, ev)
 	}
 	return m, issues
+}
+
+// fieldIDsOfType are the ids of a Machine's fields of the given types, in declaration order: what an Issue offers as
+// "accepted" when a field of some type was wanted.
+func fieldIDsOfType(gm GeneratedMachine, types ...domain.FieldType) []string {
+	var ids []string
+	for _, f := range gm.Fields {
+		if slices.Contains(types, domain.FieldType(f.Type)) {
+			ids = append(ids, f.ID)
+		}
+	}
+	return ids
 }
 
 // cardRoleFieldTypes is the field type(s) each card role is generated over. The loader checks only the file,
@@ -403,8 +415,8 @@ var cardRoleFieldTypes = map[string][]domain.FieldType{
 // viewIssues holds a generated Machine's views and card_fields to what makes them show something: card roles
 // over fitting fields, a board grouped by a status field, and a card projection (with a title) before any
 // board or cards view, since a card over no projection renders empty cards.
-func viewIssues(gm GeneratedMachine) []string {
-	var issues []string
+func viewIssues(gm GeneratedMachine) []Issue {
+	var issues []Issue
 	types := map[string]domain.FieldType{}
 	for _, f := range gm.Fields {
 		types[f.ID] = domain.FieldType(f.Type)
@@ -420,7 +432,7 @@ func viewIssues(gm GeneratedMachine) []string {
 			hasTitle = true
 		}
 		if !slices.Contains(want, ft) {
-			issues = append(issues, fmt.Sprintf("machine %q card_fields: role %q needs a field of type %v, but %q is %q", gm.ID, cf.Role, want, cf.Field, ft))
+			issues = append(issues, atf(machineAt(gm.ID), "machine %q card_fields: role %q needs a field of type %v, but %q is %q", gm.ID, cf.Role, want, cf.Field, ft).allowing(fieldIDsOfType(gm, want...)...))
 		}
 	}
 	needsCards := false
@@ -429,23 +441,23 @@ func viewIssues(gm GeneratedMachine) []string {
 		case "board":
 			needsCards = true
 			if gt, ok := types[v.GroupBy]; ok && gt != domain.FieldTypeStatus {
-				issues = append(issues, fmt.Sprintf("machine %q view %q: a board is grouped by a status field, but %q is %q", gm.ID, v.ID, v.GroupBy, gt))
+				issues = append(issues, atf(viewAt(gm.ID, v.ID), "machine %q view %q: a board is grouped by a status field, but %q is %q", gm.ID, v.ID, v.GroupBy, gt).allowing(fieldIDsOfType(gm, domain.FieldTypeStatus)...))
 			}
 		case "cards":
 			needsCards = true
 			if v.GroupBy != "" {
-				issues = append(issues, fmt.Sprintf("machine %q view %q: group_by belongs to a board, not a %s view", gm.ID, v.ID, v.Type))
+				issues = append(issues, atf(viewAt(gm.ID, v.ID), "machine %q view %q: group_by belongs to a board, not a %s view", gm.ID, v.ID, v.Type))
 			}
 		case "table":
 			if v.GroupBy != "" {
-				issues = append(issues, fmt.Sprintf("machine %q view %q: group_by belongs to a board, not a table", gm.ID, v.ID))
+				issues = append(issues, atf(viewAt(gm.ID, v.ID), "machine %q view %q: group_by belongs to a board, not a table", gm.ID, v.ID))
 			}
 		default:
-			issues = append(issues, fmt.Sprintf("machine %q view %q: type %q is not one a generated machine may use (board, cards or table)", gm.ID, v.ID, v.Type))
+			issues = append(issues, atf(viewAt(gm.ID, v.ID), "machine %q view %q: type %q is not one a generated machine may use (board, cards or table)", gm.ID, v.ID, v.Type).allowing("board", "cards", "table"))
 		}
 	}
 	if needsCards && !hasTitle {
-		issues = append(issues, fmt.Sprintf("machine %q has a board or cards view, so it needs card_fields including a title -- cards over no projection render empty", gm.ID))
+		issues = append(issues, atf(machineAt(gm.ID), "machine %q has a board or cards view, so it needs card_fields including a title -- cards over no projection render empty", gm.ID))
 	}
 	return issues
 }
@@ -456,13 +468,13 @@ func viewIssues(gm GeneratedMachine) []string {
 const notificationMachineID = "mch_notification"
 
 // notificationIssues refuses a notifying Machine in a Workspace that has nowhere for the notice to land.
-func notificationIssues(gm GeneratedMachine, existing ExistingState) []string {
+func notificationIssues(gm GeneratedMachine, existing ExistingState) []Issue {
 	if existing.MachineIDs[notificationMachineID] {
 		return nil
 	}
 	for _, e := range gm.Events {
 		if e.EventService() == EventServiceSendNotification {
-			return []string{fmt.Sprintf("machine %q event %q sends a notification, but this workspace has no %s to hold it", gm.ID, e.ID, notificationMachineID)}
+			return []Issue{atf(eventAt(gm.ID, e.ID), "machine %q event %q sends a notification, but this workspace has no %s to hold it", gm.ID, e.ID, notificationMachineID)}
 		}
 	}
 	return nil
@@ -471,7 +483,7 @@ func notificationIssues(gm GeneratedMachine, existing ExistingState) []string {
 // frozenIssues is the cross-Machine half of frozen_when for a target in the same change: the loader checks it only at
 // load, after publishing, so the model is told here, while it can still fix it. A target already installed is left to
 // the writer's load-verify.
-func frozenIssues(gm GeneratedMachine, all []GeneratedMachine) []string {
+func frozenIssues(gm GeneratedMachine, all []GeneratedMachine) []Issue {
 	f := gm.FrozenWhen
 	if f == nil {
 		return nil
@@ -495,13 +507,13 @@ func frozenIssues(gm GeneratedMachine, all []GeneratedMachine) []string {
 			}
 			switch {
 			case of.Type != "status":
-				return []string{fmt.Sprintf("machine %q: frozen_when.field %q on %q must be a status field, got %q", gm.ID, f.Field, other.ID, of.Type)}
+				return []Issue{atf(machineAt(gm.ID), "machine %q: frozen_when.field %q on %q must be a status field, got %q", gm.ID, f.Field, other.ID, of.Type)}
 			case !contains(of.Options, f.Equals):
-				return []string{fmt.Sprintf("machine %q: frozen_when.equals %q is not one of %q's options %v -- it would freeze nothing", gm.ID, f.Equals, f.Field, of.Options)}
+				return []Issue{atf(machineAt(gm.ID), "machine %q: frozen_when.equals %q is not one of %q's options %v -- it would freeze nothing", gm.ID, f.Equals, f.Field, of.Options)}
 			}
 			return nil
 		}
-		return []string{fmt.Sprintf("machine %q: frozen_when.field %q is not a field of %q, which %q points at", gm.ID, f.Field, other.ID, f.Via)}
+		return []Issue{atf(machineAt(gm.ID), "machine %q: frozen_when.field %q is not a field of %q, which %q points at", gm.ID, f.Field, other.ID, f.Via)}
 	}
 	return nil
 }
@@ -555,37 +567,37 @@ func contains(list []string, want string) bool {
 // shape (one list, not fail-fast) -- so a conversation turn can name everything wrong at once
 // rather than the model having to guess-and-check one issue at a time.
 type ValidationError struct {
-	Issues []string
+	Issues []Issue
 }
 
 func (e *ValidationError) Error() string {
-	return fmt.Sprintf("%d issue(s): %s", len(e.Issues), strings.Join(e.Issues, "; "))
+	return fmt.Sprintf("%d issue(s): %s", len(e.Issues), strings.Join(Messages(e.Issues), "; "))
 }
 
 // validateMenu holds the person's answer to "which of these do you want in the menu": at least one
 // entry, each naming a Machine this Application declares, none twice. A Machine left out is allowed
 // -- that is the answer, not an omission -- and stays reachable by its own URL.
-func validateMenu(app *GeneratedApplication) []string {
+func validateMenu(app *GeneratedApplication) []Issue {
 	if len(app.Navigation) == 0 {
-		return []string{"navigation is required -- ask the person which of this application's machines they want in its menu, in what order, and what each entry should say"}
+		return []Issue{at(AddressApplication, "navigation is required -- ask the person which of this application's machines they want in its menu, in what order, and what each entry should say")}
 	}
 	own := map[string]bool{}
 	for _, m := range app.Machines {
 		own[m.ID] = true
 	}
-	var issues []string
+	var issues []Issue
 	seen := map[string]bool{}
 	for i, item := range app.Navigation {
 		if strings.TrimSpace(item.Label) == "" {
-			issues = append(issues, fmt.Sprintf("navigation entry %d has no label", i+1))
+			issues = append(issues, atf(menuAt(item.ID, i+1), "navigation entry %d has no label", i+1))
 		}
 		if !own[item.MachineID] {
-			issues = append(issues, fmt.Sprintf("navigation entry %q opens machine %q, which this application does not declare", item.Label, item.MachineID))
+			issues = append(issues, atf(menuAt(item.ID, i+1), "navigation entry %q opens machine %q, which this application does not declare", item.Label, item.MachineID).allowingSet(own))
 		}
 		// A list is a page of its own, so a Machine may have several; only its plain entry is unique.
 		if item.List == nil && item.ByStatus == nil && item.Queue == nil {
 			if seen[item.MachineID] {
-				issues = append(issues, fmt.Sprintf("machine %q has more than one navigation entry", item.MachineID))
+				issues = append(issues, atf(menuAt(item.ID, i+1), "machine %q has more than one navigation entry", item.MachineID))
 			}
 			seen[item.MachineID] = true
 		}

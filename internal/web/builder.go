@@ -31,9 +31,12 @@ const maxBuilderBody = 64 << 10
 type builderPlanView struct {
 	Items    []builderPlanItem `json:"items"`
 	Refusals []string          `json:"refusals,omitempty"`
-	Files    []builderFile     `json:"files,omitempty"`
-	Version  string            `json:"version,omitempty"`
-	Error    string            `json:"error,omitempty"`
+	// Issues are the same refusals with the part of the Application each is about (aiassist.Issue.Address, the tree's own
+	// paths) and what would have been accepted, for a control to show its own. The inspector does not read them yet.
+	Issues  []aiassist.Issue `json:"issues,omitempty"`
+	Files   []builderFile    `json:"files,omitempty"`
+	Version string           `json:"version,omitempty"`
+	Error   string           `json:"error,omitempty"`
 }
 
 type builderPlanItem struct {
@@ -98,7 +101,7 @@ func planBuilderOperations(store *data.Store, cfg config.Config) http.HandlerFun
 }
 
 func builderPlanViewOf(plan builder.Plan) builderPlanView {
-	view := builderPlanView{Items: []builderPlanItem{}, Refusals: plan.Plan.Refusals, Version: plan.Version}
+	view := builderPlanView{Items: []builderPlanItem{}, Refusals: aiassist.Messages(plan.Plan.Refusals), Issues: plan.Plan.Refusals, Version: plan.Version}
 	for _, it := range plan.Plan.Items {
 		view.Items = append(view.Items, builderPlanItem{Op: it.Op, What: it.What, Confirm: it.Confirm})
 	}

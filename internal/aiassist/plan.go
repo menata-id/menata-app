@@ -154,7 +154,7 @@ func expressiblePermission(p domain.Permission) bool {
 // Plan is what an update will do, in the order a person reads it, plus what it will not do.
 type Plan struct {
 	Items    []PlanItem
-	Refusals []string
+	Refusals []Issue
 }
 
 // PlanItem is one line of a plan: an added, changed or removed thing, in words.
@@ -189,8 +189,8 @@ func (p *Plan) change(what string, args ...any) {
 func (p *Plan) remove(what string, args ...any) {
 	p.Items = append(p.Items, PlanItem{Op: "remove", What: fmt.Sprintf(what, args...)})
 }
-func (p *Plan) refuse(what string, args ...any) {
-	p.Refusals = append(p.Refusals, fmt.Sprintf(what, args...))
+func (p *Plan) refuse(address, what string, args ...any) {
+	p.Refusals = append(p.Refusals, atf(address, what, args...))
 }
 
 // PlanUpdate compares an installed Application (DescribeApplication) with the state the model wants
@@ -213,7 +213,7 @@ func (p *Plan) refuse(what string, args ...any) {
 func PlanUpdate(current, desired GeneratedApplication) Plan {
 	var p Plan
 	if desired.ID != current.ID {
-		p.refuse("the application id must stay %q (got %q)", current.ID, desired.ID)
+		p.refuse(AddressApplication, "the application id must stay %q (got %q)", current.ID, desired.ID)
 	}
 	if desired.Name != current.Name {
 		p.change("rename the application from %q to %q", current.Name, desired.Name)
@@ -234,7 +234,7 @@ func PlanUpdate(current, desired GeneratedApplication) Plan {
 	}
 	for _, r := range current.Roles {
 		if !slices.Contains(desired.Roles, r) {
-			p.refuse("role %q cannot be removed: everyone holding it would lose access", r)
+			p.refuse(AddressApplication, "role %q cannot be removed: everyone holding it would lose access", r)
 		}
 	}
 
@@ -254,7 +254,7 @@ func PlanUpdate(current, desired GeneratedApplication) Plan {
 	}
 	for _, m := range current.Machines {
 		if !desiredMachines[m.ID] {
-			p.refuse("machine %s (%q) cannot be removed: its records would be lost", m.ID, m.Name)
+			p.refuse(machineAt(m.ID), "machine %s (%q) cannot be removed: its records would be lost", m.ID, m.Name)
 		}
 	}
 
@@ -299,7 +299,7 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	case m.Completion != nil && old.Completion == nil:
 		p.add("completion on %q: %q in %s means done", m.Name, m.Completion.Done, m.Completion.Field)
 	case !sameCompletion(old.Completion, m.Completion):
-		p.refuse("completion on %s cannot be changed or removed: records already finished by it would change meaning", m.ID)
+		p.refuse(machineAt(m.ID), "completion on %s cannot be changed or removed: records already finished by it would change meaning", m.ID)
 	}
 
 	switch {
@@ -308,7 +308,7 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	case m.StatusCategories != nil && old.StatusCategories != nil && categoriesOnlyGrowForNewOptions(old, m):
 		p.add("status colours on %q: the new options of %s are given a category", m.Name, m.StatusCategories.Field)
 	case !sameStatusCategories(old.StatusCategories, m.StatusCategories):
-		p.refuse("status_categories on %s cannot be changed or removed once declared: a status the person has learned to read would change colour", m.ID)
+		p.refuse(machineAt(m.ID), "status_categories on %s cannot be changed or removed once declared: a status the person has learned to read would change colour", m.ID)
 	}
 
 	planCards(p, old, m)
@@ -326,16 +326,16 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		case !exists:
 			p.add("permission: %s on %q for %v", x.Action, m.Name, x.Roles)
 		case x.Action != ox.Action:
-			p.refuse("permission %s cannot change its action from %s to %s -- add a new permission instead", x.ID, ox.Action, x.Action)
+			p.refuse(permissionAt(m.ID, x.ID), "permission %s cannot change its action from %s to %s -- add a new permission instead", x.ID, ox.Action, x.Action)
 		case x.ActorField != ox.ActorField || !sameParentActor(x.ParentActor, ox.ParentActor):
-			p.refuse("permission %s cannot change who it is limited to (the record's own person, or a related record's) -- add a new permission instead", x.ID)
+			p.refuse(permissionAt(m.ID, x.ID), "permission %s cannot change who it is limited to (the record's own person, or a related record's) -- add a new permission instead", x.ID)
 		case !sameSet(x.Roles, ox.Roles):
 			p.change("permission: %s on %q now for %v (was %v)", x.Action, m.Name, x.Roles, ox.Roles)
 		}
 	}
 	for _, x := range old.Permissions {
 		if !seen[x.ID] {
-			p.refuse("permission %s cannot be removed: %s on %s would become open to everyone", x.ID, x.Action, m.ID)
+			p.refuse(permissionAt(m.ID, x.ID), "permission %s cannot be removed: %s on %s would become open to everyone", x.ID, x.Action, m.ID)
 		}
 	}
 
@@ -354,12 +354,12 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		case !exists:
 			p.add("status move %q on %q: %s -> %s", x.Name, m.Name, x.From, x.To)
 		case x.Name != ox.Name || x.Field != ox.Field || x.From != ox.From || x.To != ox.To || x.ActorField != ox.ActorField || !sameSet(x.Roles, ox.Roles) || !sameSets(x.Sets, ox.Sets) || !reflect.DeepEqual(x.Balanced, ox.Balanced) || !reflect.DeepEqual(x.Generates, ox.Generates):
-			p.refuse("status move %s cannot be changed, only added -- who may take it included, because the file edit only appends", x.ID)
+			p.refuse(transitionAt(m.ID, x.ID), "status move %s cannot be changed, only added -- who may take it included, because the file edit only appends", x.ID)
 		}
 	}
 	for _, x := range old.Transitions {
 		if !seen[x.ID] {
-			p.refuse("status move %s cannot be removed", x.ID)
+			p.refuse(transitionAt(m.ID, x.ID), "status move %s cannot be removed", x.ID)
 		}
 	}
 
@@ -367,7 +367,7 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	case old.FrozenWhen == nil && m.FrozenWhen != nil:
 		p.add("freeze records of %q while %s is %s", m.Name, m.FrozenWhen.Field, m.FrozenWhen.Equals)
 	case old.FrozenWhen != nil && (m.FrozenWhen == nil || *m.FrozenWhen != *old.FrozenWhen):
-		p.refuse("the freeze rule of %s cannot be changed or removed, only added -- the file edit only appends and removing it would unfreeze records", m.ID)
+		p.refuse(machineAt(m.ID), "the freeze rule of %s cannot be changed or removed, only added -- the file edit only appends and removing it would unfreeze records", m.ID)
 	}
 	oldEnsure := map[string]GeneratedEnsure{}
 	for _, x := range old.Ensure {
@@ -381,12 +381,12 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 		case !exists:
 			p.add("limit %q on %q: the total of %s per %s", x.ID, m.Name, x.SumOf, x.Per)
 		case !sameEnsure(x, ox):
-			p.refuse("limit %s cannot be changed, only added -- the file edit only appends", x.ID)
+			p.refuse(machineAt(m.ID), "limit %s cannot be changed, only added -- the file edit only appends", x.ID)
 		}
 	}
 	for _, x := range old.Ensure {
 		if !seen[x.ID] {
-			p.refuse("limit %s cannot be removed: writes it refuses would be accepted", x.ID)
+			p.refuse(machineAt(m.ID), "limit %s cannot be removed: writes it refuses would be accepted", x.ID)
 		}
 	}
 
@@ -408,23 +408,23 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 				p.change("rule %q on %q is switched on again", x.ID, m.Name)
 			}
 		case x != ox:
-			p.refuse("event %s cannot be changed, only added -- except to switch it off or on", x.ID)
+			p.refuse(eventAt(m.ID, x.ID), "event %s cannot be changed, only added -- except to switch it off or on", x.ID)
 		}
 	}
 	for _, x := range old.Events {
 		if !seen[x.ID] {
-			p.refuse("event %s cannot be removed", x.ID)
+			p.refuse(eventAt(m.ID, x.ID), "event %s cannot be removed", x.ID)
 		}
 	}
 }
 
 func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	if f.Type != of.Type {
-		p.refuse("field %s on %s cannot change type from %s to %s: existing values would not fit", f.ID, m.ID, of.Type, f.Type)
+		p.refuse(fieldAt(m.ID, f.ID), "field %s on %s cannot change type from %s to %s: existing values would not fit", f.ID, m.ID, of.Type, f.Type)
 		return
 	}
 	if f.RelatedMachine != of.RelatedMachine {
-		p.refuse("field %s on %s cannot point at %s instead of %s: existing values name records of the old machine", f.ID, m.ID, f.RelatedMachine, of.RelatedMachine)
+		p.refuse(fieldAt(m.ID, f.ID), "field %s on %s cannot point at %s instead of %s: existing values name records of the old machine", f.ID, m.ID, f.RelatedMachine, of.RelatedMachine)
 	}
 	if f.Name != of.Name {
 		p.change("rename field %q on %q to %q", of.Name, m.Name, f.Name)
@@ -439,14 +439,14 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	}
 	for _, o := range of.Options {
 		if !slices.Contains(f.Options, o) {
-			p.refuse("option %q on %s cannot be removed: records may hold it", o, f.ID)
+			p.refuse(fieldAt(m.ID, f.ID), "option %q on %s cannot be removed: records may hold it", o, f.ID)
 		}
 	}
 	if f.Stamp != of.Stamp {
-		p.refuse("field %s on %s cannot gain, lose or change its stamp: records already stored would not match it", f.ID, m.ID)
+		p.refuse(fieldAt(m.ID, f.ID), "field %s on %s cannot gain, lose or change its stamp: records already stored would not match it", f.ID, m.ID)
 	}
 	if !sameRequiredWhen(f.RequiredWhen, of.RequiredWhen) || !sameDefaultFrom(f.DefaultFrom, of.DefaultFrom) {
-		p.refuse("field %s on %s cannot change when it is required or what its date starts as -- the file edit only appends; add a new field instead", f.ID, m.ID)
+		p.refuse(fieldAt(m.ID, f.ID), "field %s on %s cannot change when it is required or what its date starts as -- the file edit only appends; add a new field instead", f.ID, m.ID)
 	}
 	switch {
 	case sameShowWhen(f.ShowWhen, of.ShowWhen):
@@ -458,7 +458,7 @@ func planField(p *Plan, m GeneratedMachine, of, f GeneratedField) {
 	switch {
 	case slices.Equal(sortedCopy(f.EditableBy), sortedCopy(of.EditableBy)):
 	case len(f.EditableBy) == 0:
-		p.refuse("field %s on %s cannot be opened to everyone again: who may change it was a decision about access, and clearing it would grant what it held back", f.ID, m.ID)
+		p.refuse(fieldAt(m.ID, f.ID), "field %s on %s cannot be opened to everyone again: who may change it was a decision about access, and clearing it would grant what it held back", f.ID, m.ID)
 	case len(of.EditableBy) == 0:
 		p.add("only %s may change field %q on %q", strings.Join(f.EditableBy, ", "), f.Name, m.Name)
 	default:
@@ -483,17 +483,17 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	}
 	kept := map[string]bool{}
 	var keptOrder []string
-	for _, n := range desired {
+	for i, n := range desired {
 		old, exists := byID[n.ID]
 		if (n.ID == "" || !exists) && n.List == nil && n.ByStatus == nil && n.Queue == nil {
 			for _, other := range current {
 				if other.MachineID == n.MachineID && other.List == nil && len(other.VisibleTo) > 0 {
-					p.refuse("menu item %q would open the screens of %s to everyone, and %q restricts them to %s -- an address several entries name is open if any is offered", n.Label, n.MachineID, other.Label, strings.Join(other.VisibleTo, ", "))
+					p.refuse(menuAt(n.ID, i+1), "menu item %q would open the screens of %s to everyone, and %q restricts them to %s -- an address several entries name is open if any is offered", n.Label, n.MachineID, other.Label, strings.Join(other.VisibleTo, ", "))
 				}
 			}
 		}
 		if (n.ID == "" || !exists) && (n.Parent != "" || len(n.VisibleTo) > 0 || n.Badge != "") {
-			p.refuse("menu item %q is new, so it cannot also name a parent, who may see it or a count -- add the item, then set those", n.Label)
+			p.refuse(menuAt(n.ID, i+1), "menu item %q is new, so it cannot also name a parent, who may see it or a count -- add the item, then set those", n.Label)
 		}
 		if n.ID == "" || !exists {
 			if n.ByStatus != nil {
@@ -508,18 +508,18 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 			continue
 		}
 		if (n.List != nil && old.List == nil) || n.ByStatus != nil || n.Queue != nil {
-			p.refuse("menu item %s cannot be given a list -- add a new menu item with the list instead", n.ID)
+			p.refuse(menuAt(n.ID, i+1), "menu item %s cannot be given a list -- add a new menu item with the list instead", n.ID)
 		}
 		if n.List != nil && old.List != nil && !sameList(n.List, old.List) {
 			p.change("the list of menu item %q is changed: %s", n.Label, listChange(old.List, n.List))
 		}
 		if n.List == nil && old.List != nil {
-			p.refuse("menu item %s is a list and cannot stop being one -- remove it and add what you want instead", n.ID)
+			p.refuse(menuAt(n.ID, i+1), "menu item %s is a list and cannot stop being one -- remove it and add what you want instead", n.ID)
 		}
 		kept[n.ID] = true
 		keptOrder = append(keptOrder, n.ID)
 		if n.MachineID != "" && n.MachineID != old.MachineID {
-			p.refuse("menu item %s cannot be pointed somewhere else -- remove it and add a new one", n.ID)
+			p.refuse(menuAt(n.ID, i+1), "menu item %s cannot be pointed somewhere else -- remove it and add a new one", n.ID)
 		}
 		if n.Label != old.Label {
 			p.change("menu item %q is now %q", old.Label, n.Label)
@@ -534,7 +534,7 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 		switch {
 		case slices.Equal(sortedCopy(n.VisibleTo), sortedCopy(old.VisibleTo)):
 		case len(n.VisibleTo) == 0:
-			p.refuse("menu item %s cannot be offered to everyone again: who may see it was a decision about access, and clearing it would grant what it held back", n.ID)
+			p.refuse(menuAt(n.ID, i+1), "menu item %s cannot be offered to everyone again: who may see it was a decision about access, and clearing it would grant what it held back", n.ID)
 		default:
 			p.change("menu item %q is offered only to %s", n.Label, strings.Join(n.VisibleTo, ", "))
 		}
@@ -550,7 +550,7 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	for _, n := range current {
 		if !kept[n.ID] {
 			if n.MachineID == "" {
-				p.refuse("menu item %s (%q) cannot be removed: it opens a screen that could not be added back", n.ID, n.Label)
+				p.refuse(menuAt(n.ID, 0), "menu item %s (%q) cannot be removed: it opens a screen that could not be added back", n.ID, n.Label)
 			} else {
 				p.remove("menu item %q (the %s records stay)", n.Label, n.MachineID)
 			}
@@ -580,7 +580,7 @@ func planCards(p *Plan, old, m GeneratedMachine) {
 	}
 	for key := range oldBy {
 		if !seen[key] {
-			p.refuse("card entry %s on %s cannot be removed or re-roled, only added", key, m.ID)
+			p.refuse(machineAt(m.ID), "card entry %s on %s cannot be removed or re-roled, only added", key, m.ID)
 		}
 	}
 }
@@ -599,12 +599,12 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 		switch {
 		case !exists:
 			if i < len(old.Views) {
-				p.refuse("new view %s on %s must come after the existing views: the first view is what opens by default", v.ID, m.ID)
+				p.refuse(viewAt(m.ID, v.ID), "new view %s on %s must come after the existing views: the first view is what opens by default", v.ID, m.ID)
 				continue
 			}
 			p.add("%s view %q on %q", v.Type, v.Name, m.Name)
 		case v.Type != ov.Type || v.GroupBy != ov.GroupBy:
-			p.refuse("view %s on %s cannot change its type or grouping -- add a new view instead", v.ID, m.ID)
+			p.refuse(viewAt(m.ID, v.ID), "view %s on %s cannot change its type or grouping -- add a new view instead", v.ID, m.ID)
 		case v.Name != ov.Name:
 			p.change("view %q on %q is now called %q", ov.Name, m.Name, v.Name)
 		}
@@ -619,7 +619,7 @@ func planViews(p *Plan, old, m GeneratedMachine) {
 	// a view arranges records and holds none, so dropping one loses no data -- but a machine with no
 	// view has no screen, so one must remain
 	if removed > 0 && len(m.Views) == 0 {
-		p.refuse("machine %s needs at least one view: keep one, or add the view that should replace the others", m.ID)
+		p.refuse(machineAt(m.ID), "machine %s needs at least one view: keep one, or add the view that should replace the others", m.ID)
 	}
 	// the existing views may be reordered: the first is what opens by default, which is often exactly
 	// what a person asks for ("only the board")
@@ -754,21 +754,21 @@ func keepDeclared(desired, current *domain.Machine) {
 func validateUpdateApplication(change GeneratedChange, existing ExistingState) error {
 	current, ok := existing.Applications[change.TargetAppID]
 	if !ok {
-		return &ValidationError{Issues: []string{fmt.Sprintf("application %q is not installed in this workspace", change.TargetAppID)}}
+		return &ValidationError{Issues: []Issue{atf(AddressApplication, "application %q is not installed in this workspace", change.TargetAppID)}}
 	}
 	desired := change.Application
 	if desired == nil {
-		return &ValidationError{Issues: []string{"update_application carries no application -- return the whole application as it should be"}}
+		return &ValidationError{Issues: []Issue{at(AddressApplication, "update_application carries no application -- return the whole application as it should be")}}
 	}
-	var issues []string
+	var issues []Issue
 	if strings.TrimSpace(desired.Name) == "" {
-		issues = append(issues, "application name is required")
+		issues = append(issues, at(AddressApplication, "application name is required"))
 	}
 	if desired.Icon != "" && !domain.KnownIcons[desired.Icon] {
-		issues = append(issues, fmt.Sprintf("icon %q is not a known icon", desired.Icon))
+		issues = append(issues, atf(AddressApplication, "icon %q is not a known icon", desired.Icon).allowing(declarableIconEnum()...))
 	}
 	if desired.Color != "" && !domain.KnownApplicationColors[desired.Color] {
-		issues = append(issues, fmt.Sprintf("color %q is not a known application color", desired.Color))
+		issues = append(issues, atf(AddressApplication, "color %q is not a known application color", desired.Color).allowing(applicationColorEnum()...))
 	}
 
 	targets := relationTargets(existing)
@@ -782,29 +782,29 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 	own := map[string]bool{}
 	for _, m := range desired.Machines {
 		if own[m.ID] {
-			issues = append(issues, fmt.Sprintf("machine id %q is declared more than once", m.ID))
+			issues = append(issues, atf(machineAt(m.ID), "machine id %q is declared more than once", m.ID))
 		}
 		own[m.ID] = true
 		if _, installed := current.Machines[m.ID]; !installed && existing.MachineIDs[m.ID] {
-			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
+			issues = append(issues, atf(machineAt(m.ID), "machine id %q already exists in this workspace", m.ID))
 		}
 		issues = append(issues, frozenIssues(m, desired.Machines)...)
 		for _, ev := range m.Events {
 			if ev.RecipientRole != "" && !roles[ev.RecipientRole] {
-				issues = append(issues, fmt.Sprintf("machine %q event %q tells role %q, which the application does not declare in %v", m.ID, ev.ID, ev.RecipientRole, desired.Roles))
+				issues = append(issues, atf(eventAt(m.ID, ev.ID), "machine %q event %q tells role %q, which the application does not declare in %v", m.ID, ev.ID, ev.RecipientRole, desired.Roles).allowing(desired.Roles...))
 			}
 		}
 		for _, perm := range m.Permissions {
 			for _, r := range perm.Roles {
 				if !roles[r] {
-					issues = append(issues, fmt.Sprintf("machine %q permission %q names role %q, which the application does not declare in %v", m.ID, perm.ID, r, desired.Roles))
+					issues = append(issues, atf(permissionAt(m.ID, perm.ID), "machine %q permission %q names role %q, which the application does not declare in %v", m.ID, perm.ID, r, desired.Roles).allowing(desired.Roles...))
 				}
 			}
 		}
 		for _, tr := range m.Transitions {
 			for _, r := range tr.Roles {
 				if !roles[r] {
-					issues = append(issues, fmt.Sprintf("machine %q step %q names role %q, which the application does not declare in %v", m.ID, tr.ID, r, desired.Roles))
+					issues = append(issues, atf(transitionAt(m.ID, tr.ID), "machine %q step %q names role %q, which the application does not declare in %v", m.ID, tr.ID, r, desired.Roles).allowing(desired.Roles...))
 				}
 			}
 		}
@@ -814,7 +814,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		issues = append(issues, fieldIssues...)
 		if len(fieldIssues) == 0 {
 			if err := metadata.Validate(dm); err != nil {
-				issues = append(issues, fmt.Sprintf("machine %q: %v", m.ID, err))
+				issues = append(issues, atf(machineAt(m.ID), "machine %q: %v", m.ID, err))
 			}
 		}
 	}
@@ -822,12 +822,12 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 	for _, n := range current.Navigation {
 		currentNav[n.ID] = true
 	}
-	for _, n := range desired.Navigation {
+	for i, n := range desired.Navigation {
 		if strings.TrimSpace(n.Label) == "" {
-			issues = append(issues, "every menu item needs a label")
+			issues = append(issues, at(menuAt(n.ID, i+1), "every menu item needs a label"))
 		}
 		if (n.ID == "" || !currentNav[n.ID]) && !own[n.MachineID] {
-			issues = append(issues, fmt.Sprintf("new menu item %q must open one of this application's machines, got %q", n.Label, n.MachineID))
+			issues = append(issues, atf(menuAt(n.ID, i+1), "new menu item %q must open one of this application's machines, got %q", n.Label, n.MachineID).allowingSet(own))
 		}
 	}
 
@@ -850,7 +850,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 	plan := PlanUpdate(described, *desired)
 	issues = append(issues, plan.Refusals...)
 	if len(plan.Items) == 0 && len(plan.Refusals) == 0 {
-		issues = append(issues, "the returned application is identical to the installed one -- nothing would change. If the change the person asked for cannot be made, say so plainly in your message and why; do not tell them it is done")
+		issues = append(issues, at(AddressApplication, "the returned application is identical to the installed one -- nothing would change. If the change the person asked for cannot be made, say so plainly in your message and why; do not tell them it is done"))
 	}
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

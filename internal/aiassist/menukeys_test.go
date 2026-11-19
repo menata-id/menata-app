@@ -25,11 +25,11 @@ func TestPlanMenuKeys(t *testing.T) {
 	if p := plan(with(1, func(n *GeneratedMenuItem) { n.VisibleTo = []string{"manager", "reviewer"} })); len(p.Refusals) != 0 || len(p.Items) != 1 {
 		t.Errorf("widening who is offered an item: %+v", p)
 	}
-	if p := plan(with(1, func(n *GeneratedMenuItem) { n.VisibleTo = nil })); len(p.Refusals) != 1 || !strings.Contains(p.Refusals[0], "cannot be offered to everyone again") {
+	if p := plan(with(1, func(n *GeneratedMenuItem) { n.VisibleTo = nil })); len(p.Refusals) != 1 || !strings.Contains(p.Refusals[0].Message, "cannot be offered to everyone again") {
 		t.Errorf("emptying who is offered an item: %+v", p)
 	}
 	added := append(append([]GeneratedMenuItem(nil), cur...), GeneratedMenuItem{Label: "C", MachineID: "mch_y", Parent: "nav_a"})
-	if p := plan(added); len(p.Refusals) != 1 || !strings.Contains(p.Refusals[0], "is new") {
+	if p := plan(added); len(p.Refusals) != 1 || !strings.Contains(p.Refusals[0].Message, "is new") {
 		t.Errorf("a new item carrying a parent: %+v", p)
 	}
 }

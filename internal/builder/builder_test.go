@@ -138,7 +138,7 @@ func TestOperationsBreakingThePolicyAreRefusedLikeAConversationEdit(t *testing.T
 	hand := current(t, manifest)
 	hand.Machines[0].Fields[1].Options = []string{"draft"}
 	want := aiassist.PlanUpdate(current(t, manifest), hand).Refusals
-	if len(want) == 0 || !strings.Contains(err.Error(), want[0]) {
+	if len(want) == 0 || !strings.Contains(err.Error(), want[0].Message) {
 		t.Errorf("words differ: conversation %v, operations %v", want, err)
 	}
 

@@ -261,6 +261,8 @@ test's own doc comment is the authoritative explanation; read it before changing
   reason). **New capability pattern: write the case red first, build until it passes, then put real metadata in a
   Workspace.** AI prompt: `TestPromptNamesEveryRegisteredCapability`,
   `aiassist.TestComposableSurfaceRendersEveryFieldType` (naming ≠ truth; read `aiassist.GeneratedEvent`'s shape).
+  A fault the assistant's checks find is an `aiassist.Issue` (address = a part of the builder's tree, plus what would have been
+  accepted), made only by `at`/`atf`/`Plan.refuse`: `aiassist.TestEveryIssueIsMadeWithAnAddress` (reads the sources).
 - **`page:` block** (007 §12.4/§15, `writing-guide.md` §12.1a; validated by `metadata.validatePages`, lowered by
   `composition.DeclaredPage`, drawn by `web.showDeclaredPage` → `rendering.DeclaredScreen`):
   `TestBespokeScreensOnlyShrink` (directive ratchet over `templ …Page(`), `TestPageBlockDeferralStaysTrueAndLandsDocumented`,

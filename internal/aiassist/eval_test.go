@@ -187,8 +187,7 @@ func runEvalCase(client Client, prompt string, existing ExistingState, c evalCas
 				// One correction round, worded as internal/web's handler words it: the model answers once more.
 				r.FirstRefusal = err.Error()
 				raw, _ := json.Marshal(reply)
-				report := "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
-					err.Error() + "\n\nCorrect it, or ask me what you need to know."
+				report := CheckReport(err)
 				turns = append(turns, Turn{Role: "model", Text: string(raw)}, Turn{Role: "user", Text: report})
 				continue
 			}

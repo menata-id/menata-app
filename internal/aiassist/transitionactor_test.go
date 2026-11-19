@@ -74,7 +74,7 @@ func TestAnUpdateCannotChangeWhoMayTakeAStep(t *testing.T) {
 		change := update(t, manifestPath, func(a *GeneratedApplication) { edit(&a.Machines[1].Transitions[0]) })
 		state, _ := stateOf(t, manifestPath)
 		plan := PlanUpdate(DescribeApplication(change.TargetAppID, state.Applications[change.TargetAppID]), *change.Application)
-		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "trn_send") {
+		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0].Message, "trn_send") {
 			t.Errorf("%s: refusals = %v, want one naming trn_send", name, plan.Refusals)
 		}
 	}
@@ -218,7 +218,7 @@ func TestConditionalAndDerivedFieldsAreHeldToTheLoadersRulesAndCannotBeChanged(t
 		})
 		st, _ := stateOf(t, manifestPath)
 		plan := PlanUpdate(DescribeApplication(change.TargetAppID, st.Applications[change.TargetAppID]), *change.Application)
-		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "cannot change when it is required") {
+		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0].Message, "cannot change when it is required") {
 			t.Errorf("%s: refusals = %v, want exactly the field-source refusal", name, plan.Refusals)
 		}
 	}
@@ -259,7 +259,7 @@ func TestEnsureIsWrittenLoadedDescribedBackAndNotChangeable(t *testing.T) {
 	} {
 		change := update(t, manifestPath, func(a *GeneratedApplication) { edit(&a.Machines[1].Ensure[0]) })
 		plan := PlanUpdate(DescribeApplication(change.TargetAppID, state.Applications[change.TargetAppID]), *change.Application)
-		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "ens_tidak_negatif") {
+		if len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0].Message, "ens_tidak_negatif") {
 			t.Errorf("%s: refusals = %v", name, plan.Refusals)
 		}
 	}

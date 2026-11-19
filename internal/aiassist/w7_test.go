@@ -142,7 +142,7 @@ func TestW7_anUpdateCannotChangeAnExistingEdgeRule(t *testing.T) {
 	current := DescribeApplication("app_w7_jurnal", state.Applications["app_w7_jurnal"])
 	changed := DescribeApplication("app_w7_jurnal", state.Applications["app_w7_jurnal"])
 	changed.Machines[0].Transitions[0].Balanced.Credit = "fld_akun"
-	if plan := PlanUpdate(current, changed); len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0], "trn_posting") {
+	if plan := PlanUpdate(current, changed); len(plan.Refusals) != 1 || !strings.Contains(plan.Refusals[0].Message, "trn_posting") {
 		t.Errorf("a changed balance rule: refusals = %v, want one naming trn_posting", plan.Refusals)
 	}
 	removed := DescribeApplication("app_w7_jurnal", state.Applications["app_w7_jurnal"])

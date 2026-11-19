@@ -183,8 +183,7 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 			return nil
 		}
 		logAIReject(ctx, session.ID, "check", "pending", 1, problem)
-		report := "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
-			problem.Error() + "\n\nCorrect it, or ask me what you need to know."
+		report := aiassist.CheckReport(problem)
 		if err := store.AppendAISessionTurn(ctx, session.ID, "user", report); err != nil {
 			return err
 		}

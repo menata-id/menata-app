@@ -242,19 +242,19 @@ func queuePage(l listed, m GeneratedMachine) pageNodeDoc {
 
 // validateQueue holds a queue to what its recipe derives from: a status that says what is open, a title and a
 // status to draw rows by, and for a dated queue a date Field the card projects and a completion to close against.
-func validateQueue(item GeneratedMenuItem, m GeneratedMachine) []string {
+func validateQueue(item GeneratedMenuItem, addr string, m GeneratedMachine) []Issue {
 	q := item.Queue
 	where := fmt.Sprintf("queue on menu entry %q", item.Label)
-	var issues []string
+	var issues []Issue
 	if item.List != nil || item.ByStatus != nil {
-		issues = append(issues, where+": an entry is a list, a status filter or a queue, not more than one")
+		issues = append(issues, at(addr, where+": an entry is a list, a status filter or a queue, not more than one"))
 	}
 	if q.Limit < 1 || q.Limit > maxListLimit {
-		issues = append(issues, fmt.Sprintf("%s: limit must be between 1 and %d", where, maxListLimit))
+		issues = append(issues, atf(addr, "%s: limit must be between 1 and %d", where, maxListLimit))
 	}
 	for _, s := range []string{q.Words.Overdue, q.Words.DueToday, q.Words.NextWeek, q.Words.Later, q.Words.RecentlyDone, q.Words.Empty, q.Words.All, q.Words.Add} {
 		if strings.ContainsAny(s, "\r\n") {
-			issues = append(issues, where+": every word is one line")
+			issues = append(issues, at(addr, where+": every word is one line"))
 			break
 		}
 	}
@@ -262,32 +262,32 @@ func validateQueue(item GeneratedMenuItem, m GeneratedMachine) []string {
 		return slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == role && (field == "" || cf.Field == field) })
 	}
 	if !hasRole("title", "") {
-		issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\"", where, m.ID))
+		issues = append(issues, atf(addr, "%s: %s needs a card_fields entry with role \"title\"", where, m.ID))
 	}
 	if m.StatusCategories == nil {
-		return append(issues, fmt.Sprintf("%s: %s needs status_categories -- a queue is the records that are not finished, and the categories say which those are", where, m.ID))
+		return append(issues, atf(addr, "%s: %s needs status_categories -- a queue is the records that are not finished, and the categories say which those are", where, m.ID))
 	}
 	if q.DateField != "" {
 		isDate := slices.ContainsFunc(m.Fields, func(f GeneratedField) bool {
 			return f.ID == q.DateField && domain.FieldType(f.Type) == domain.FieldTypeDate
 		})
 		if !isDate {
-			issues = append(issues, fmt.Sprintf("%s: date_field must be a date field of %s", where, m.ID))
+			issues = append(issues, atf(addr, "%s: date_field must be a date field of %s", where, m.ID))
 		} else if !hasRole("date", q.DateField) {
-			issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"date\" on %s -- the rows show how late each is", where, m.ID, q.DateField))
+			issues = append(issues, atf(addr, "%s: %s needs a card_fields entry with role \"date\" on %s -- the rows show how late each is", where, m.ID, q.DateField))
 		}
 		if m.Completion == nil {
-			issues = append(issues, fmt.Sprintf("%s: a dated queue needs %s to declare completion, so \"not finished\" has one meaning", where, m.ID))
+			issues = append(issues, atf(addr, "%s: a dated queue needs %s to declare completion, so \"not finished\" has one meaning", where, m.ID))
 		} else if m.Completion.Field != m.StatusCategories.Field {
-			issues = append(issues, fmt.Sprintf("%s: completion and status_categories must be on the same status field", where))
+			issues = append(issues, atf(addr, "%s: completion and status_categories must be on the same status field", where))
 		}
 		return issues
 	}
 	if !hasRole("status", "") {
-		issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"status\"", where, m.ID))
+		issues = append(issues, atf(addr, "%s: %s needs a card_fields entry with role \"status\"", where, m.ID))
 	}
 	if len(queueSections(q, m)) == 0 {
-		issues = append(issues, fmt.Sprintf("%s: no status of %s is categorised start, active or attention, so there is nothing to queue", where, m.ID))
+		issues = append(issues, atf(addr, "%s: no status of %s is categorised start, active or attention, so there is nothing to queue", where, m.ID))
 	}
 	return issues
 }

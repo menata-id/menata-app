@@ -305,17 +305,18 @@ func pageFor(l listed, m GeneratedMachine) pageNodeDoc {
 // validateLists holds what a list needs from the Machine it lists. The loader would refuse most of this
 // too, but at publish, after a review the person already approved; refusing here lets the model correct it
 // in the same conversation.
-func validateLists(app *GeneratedApplication) []string {
+func validateLists(app *GeneratedApplication) []Issue {
 	machines := map[string]GeneratedMachine{}
 	for _, m := range app.Machines {
 		machines[m.ID] = m
 	}
-	var issues []string
-	for _, item := range app.Navigation {
-		issues = append(issues, validateByStatus(item, machines)...)
+	var issues []Issue
+	for i, item := range app.Navigation {
+		addr := menuAt(item.ID, i+1)
+		issues = append(issues, validateByStatus(item, addr, machines)...)
 		if item.Queue != nil {
 			if m, ok := machines[item.MachineID]; ok {
-				issues = append(issues, validateQueue(item, m)...)
+				issues = append(issues, validateQueue(item, addr, m)...)
 			}
 			continue
 		}
@@ -336,46 +337,46 @@ func validateLists(app *GeneratedApplication) []string {
 		case ListScopeMine:
 			f, ok := fields[l.PersonField]
 			if !ok || domain.FieldType(f.Type) != domain.FieldTypePerson {
-				issues = append(issues, fmt.Sprintf("%s: scope \"mine\" needs person_field to be a person field of %s -- ask which person field says whose record it is", where, m.ID))
+				issues = append(issues, atf(addr, "%s: scope \"mine\" needs person_field to be a person field of %s -- ask which person field says whose record it is", where, m.ID))
 			}
 		case ListScopeAll:
 			if l.PersonField != "" {
-				issues = append(issues, fmt.Sprintf("%s: scope \"all\" takes no person_field; to show only someone's records the scope is \"mine\"", where))
+				issues = append(issues, atf(addr, "%s: scope \"all\" takes no person_field; to show only someone's records the scope is \"mine\"", where))
 			}
 		default:
-			issues = append(issues, fmt.Sprintf("%s: scope must be \"mine\" or \"all\", not %q -- showing a list per role is not something the runtime can do yet, so record it as a runtime gap instead", where, l.Scope))
+			issues = append(issues, atf(addr, "%s: scope must be \"mine\" or \"all\", not %q -- showing a list per role is not something the runtime can do yet, so record it as a runtime gap instead", where, l.Scope))
 		}
 		if l.Limit < 1 || l.Limit > maxListLimit {
-			issues = append(issues, fmt.Sprintf("%s: limit must be between 1 and %d", where, maxListLimit))
+			issues = append(issues, atf(addr, "%s: limit must be between 1 and %d", where, maxListLimit))
 		}
 		if l.SortField != "" && l.SortField != "created_at" && l.SortField != "updated_at" {
 			if _, ok := fields[l.SortField]; !ok {
-				issues = append(issues, fmt.Sprintf("%s: sort_field %q is neither a field of %s nor created_at/updated_at", where, l.SortField, m.ID))
+				issues = append(issues, atf(addr, "%s: sort_field %q is neither a field of %s nor created_at/updated_at", where, l.SortField, m.ID))
 			}
 		}
 		if l.Direction != "" && l.Direction != "asc" && l.Direction != "desc" {
-			issues = append(issues, fmt.Sprintf("%s: direction must be \"asc\" or \"desc\"", where))
+			issues = append(issues, atf(addr, "%s: direction must be \"asc\" or \"desc\"", where))
 		}
 		if l.AddLabel != "" && !oneLine(l.AddLabel) {
-			issues = append(issues, fmt.Sprintf("%s: add_label must be words on one line, or left out", where))
+			issues = append(issues, atf(addr, "%s: add_label must be words on one line, or left out", where))
 		}
 		if l.AddLabel != "" {
 			// The loader refuses these at publish, after the person approved the review (writeBindingIssues); a file Field is skipped by
 			// the create form, so a required one could never be submitted either.
 			for _, f := range m.Fields {
 				if f.Required && (domain.FieldType(f.Type) == domain.FieldTypeGroup || domain.FieldType(f.Type) == domain.FieldTypeFile) {
-					issues = append(issues, fmt.Sprintf("%s: add_label puts a create form on the list, and the form cannot ask for %s (a required %s field) -- leave add_label out, or make that field optional", where, f.ID, f.Type))
+					issues = append(issues, atf(addr, "%s: add_label puts a create form on the list, and the form cannot ask for %s (a required %s field) -- leave add_label out, or make that field optional", where, f.ID, f.Type))
 				}
 			}
 		}
 		if l.isTable() {
-			issues = append(issues, validateTable(where, l, fields)...)
+			issues = append(issues, validateTable(addr, where, l, fields)...)
 		} else {
 			if len(l.SearchFields) > 0 || l.FilterField != "" {
-				issues = append(issues, where+": search_fields and filter_field belong to a table; give columns, or leave them out")
+				issues = append(issues, at(addr, where+": search_fields and filter_field belong to a table; give columns, or leave them out"))
 			}
 			if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
-				issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- a list draws each record by its title", where, m.ID))
+				issues = append(issues, atf(addr, "%s: %s needs a card_fields entry with role \"title\" -- a list draws each record by its title", where, m.ID))
 			}
 		}
 	}
@@ -391,65 +392,65 @@ func oneLine(name string) bool {
 // validateTable holds a table to what it can show: 1..8 distinct columns that are Fields of the Machine and of a
 // type a column can show, search over text Fields only, and chips over a status Field only with scope "all"
 // (the chips count every record, which for the viewer's own list would count what the table does not show).
-func validateTable(where string, l *GeneratedList, fields map[string]GeneratedField) []string {
-	var issues []string
+func validateTable(addr, where string, l *GeneratedList, fields map[string]GeneratedField) []Issue {
+	var issues []Issue
 	if n := len(l.Columns); n < 1 || n > maxTableColumns {
-		issues = append(issues, fmt.Sprintf("%s: a table has 1 to %d columns, not %d", where, maxTableColumns, n))
+		issues = append(issues, atf(addr, "%s: a table has 1 to %d columns, not %d", where, maxTableColumns, n))
 	}
 	seen := map[string]bool{}
 	for _, id := range l.Columns {
 		f, ok := fields[id]
 		switch {
 		case seen[id]:
-			issues = append(issues, fmt.Sprintf("%s: column %q is listed twice", where, id))
+			issues = append(issues, atf(addr, "%s: column %q is listed twice", where, id))
 		case !ok:
-			issues = append(issues, fmt.Sprintf("%s: column %q is not a field of this machine", where, id))
+			issues = append(issues, atf(addr, "%s: column %q is not a field of this machine", where, id))
 		case !tableColumnTypes[domain.FieldType(f.Type)]:
-			issues = append(issues, fmt.Sprintf("%s: column %q is a %s field, which a table column cannot show", where, id, f.Type))
+			issues = append(issues, atf(addr, "%s: column %q is a %s field, which a table column cannot show", where, id, f.Type))
 
 		case !oneLine(f.Name):
-			issues = append(issues, fmt.Sprintf("%s: column %q has no one-line name to be its header -- name the field first", where, id))
+			issues = append(issues, atf(addr, "%s: column %q has no one-line name to be its header -- name the field first", where, id))
 		}
 		seen[id] = true
 	}
 	if len(l.SearchFields) > maxSearchFields {
-		issues = append(issues, fmt.Sprintf("%s: a search box looks in at most %d fields", where, maxSearchFields))
+		issues = append(issues, atf(addr, "%s: a search box looks in at most %d fields", where, maxSearchFields))
 	}
 	seenSearch := map[string]bool{}
 	for _, id := range l.SearchFields {
 		f, ok := fields[id]
 		switch {
 		case seenSearch[id]:
-			issues = append(issues, fmt.Sprintf("%s: search field %q is listed twice", where, id))
+			issues = append(issues, atf(addr, "%s: search field %q is listed twice", where, id))
 		case !ok:
-			issues = append(issues, fmt.Sprintf("%s: search field %q is not a field of this machine", where, id))
+			issues = append(issues, atf(addr, "%s: search field %q is not a field of this machine", where, id))
 		case domain.FieldType(f.Type) != domain.FieldTypeText && domain.FieldType(f.Type) != domain.FieldTypeLongText:
-			issues = append(issues, fmt.Sprintf("%s: search field %q is a %s field; a search box looks in text or long_text fields", where, id, f.Type))
+			issues = append(issues, atf(addr, "%s: search field %q is a %s field; a search box looks in text or long_text fields", where, id, f.Type))
 
 		case !oneLine(f.Name):
-			issues = append(issues, fmt.Sprintf("%s: search field %q has no one-line name for the search box to name it by -- name the field first", where, id))
+			issues = append(issues, atf(addr, "%s: search field %q has no one-line name for the search box to name it by -- name the field first", where, id))
 		}
 		seenSearch[id] = true
 	}
 	if l.Density != "" && !domain.KnownTableDensities[domain.ListDensity(l.Density)] {
-		issues = append(issues, fmt.Sprintf("%s: density must be compact, regular or roomy, not %q", where, l.Density))
+		issues = append(issues, atf(addr, "%s: density must be compact, regular or roomy, not %q", where, l.Density))
 	}
 	if l.GroupBy != "" {
 		if f, ok := fields[l.GroupBy]; !ok || domain.FieldType(f.Type) == domain.FieldTypeFile || domain.FieldType(f.Type) == domain.FieldTypeGroup {
-			issues = append(issues, fmt.Sprintf("%s: group_by %q must be a field of this machine that rows can be folded by", where, l.GroupBy))
+			issues = append(issues, atf(addr, "%s: group_by %q must be a field of this machine that rows can be folded by", where, l.GroupBy))
 		}
 	}
 	if l.RowTone != "" && !domain.TableRowTones[l.RowTone] {
-		issues = append(issues, fmt.Sprintf("%s: row_tone must be date:tone or status:tone, not %q", where, l.RowTone))
+		issues = append(issues, atf(addr, "%s: row_tone must be date:tone or status:tone, not %q", where, l.RowTone))
 	}
 	if l.FilterField != "" {
 		if f, ok := fields[l.FilterField]; !ok || domain.FieldType(f.Type) != domain.FieldTypeStatus {
-			issues = append(issues, fmt.Sprintf("%s: filter_field %q must be a status field of this machine", where, l.FilterField))
+			issues = append(issues, atf(addr, "%s: filter_field %q must be a status field of this machine", where, l.FilterField))
 		} else if !oneLine(f.Name) {
-			issues = append(issues, fmt.Sprintf("%s: filter_field %q has no one-line name to label its chips -- name the field first", where, l.FilterField))
+			issues = append(issues, atf(addr, "%s: filter_field %q has no one-line name to label its chips -- name the field first", where, l.FilterField))
 		}
 		if l.Scope != ListScopeAll {
-			issues = append(issues, where+": filter chips count every record, so they go only on a table with scope \"all\"; for \"mine\" drop filter_field")
+			issues = append(issues, at(addr, where+": filter chips count every record, so they go only on a table with scope \"all\"; for \"mine\" drop filter_field"))
 		}
 	}
 	return issues
@@ -466,20 +467,20 @@ var tableColumnTypes = map[domain.FieldType]bool{
 
 // validateByStatus holds a status filter to what it needs: a status field to count by, a label for the page
 // a tile opens, a bounded limit, a title to draw each record by, and no list on the same entry.
-func validateByStatus(item GeneratedMenuItem, machines map[string]GeneratedMachine) []string {
+func validateByStatus(item GeneratedMenuItem, addr string, machines map[string]GeneratedMachine) []Issue {
 	st := item.ByStatus
 	if st == nil {
 		return nil
 	}
 	where := fmt.Sprintf("by_status on menu entry %q", item.Label)
 	if item.List != nil {
-		return []string{where + ": an entry is a list or a status filter, not both"}
+		return []Issue{at(addr, where+": an entry is a list or a status filter, not both")}
 	}
 	m, ok := machines[item.MachineID]
 	if !ok {
 		return nil // validateMenu already says so
 	}
-	var issues []string
+	var issues []Issue
 	isStatus := false
 	for _, f := range m.Fields {
 		if f.ID == st.StatusField && domain.FieldType(f.Type) == domain.FieldTypeStatus {
@@ -487,16 +488,16 @@ func validateByStatus(item GeneratedMenuItem, machines map[string]GeneratedMachi
 		}
 	}
 	if !isStatus {
-		issues = append(issues, fmt.Sprintf("%s: status_field must be a status field of %s", where, m.ID))
+		issues = append(issues, atf(addr, "%s: status_field must be a status field of %s", where, m.ID))
 	}
 	if strings.TrimSpace(st.DetailLabel) == "" || strings.ContainsAny(st.DetailLabel, "\r\n") {
-		issues = append(issues, where+": detail_label is the one-line menu label of the page a tile opens")
+		issues = append(issues, at(addr, where+": detail_label is the one-line menu label of the page a tile opens"))
 	}
 	if st.Limit < 1 || st.Limit > maxListLimit {
-		issues = append(issues, fmt.Sprintf("%s: limit must be between 1 and %d", where, maxListLimit))
+		issues = append(issues, atf(addr, "%s: limit must be between 1 and %d", where, maxListLimit))
 	}
 	if !slices.ContainsFunc(m.CardFields, func(cf GeneratedCardField) bool { return cf.Role == "title" }) {
-		issues = append(issues, fmt.Sprintf("%s: %s needs a card_fields entry with role \"title\" -- the page a tile opens draws each record by its title", where, m.ID))
+		issues = append(issues, atf(addr, "%s: %s needs a card_fields entry with role \"title\" -- the page a tile opens draws each record by its title", where, m.ID))
 	}
 	return issues
 }

@@ -34,7 +34,7 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 	current := DescribeApplication(change.TargetAppID, cur)
 	desired := *change.Application
 	if plan := PlanUpdate(current, desired); len(plan.Refusals) > 0 {
-		return installer.Rejected(fmt.Errorf("the update is refused: %s", strings.Join(plan.Refusals, "; ")))
+		return installer.Rejected(fmt.Errorf("the update is refused: %s", strings.Join(Messages(plan.Refusals), "; ")))
 	} else if open := plan.Unconfirmed(change.ConfirmedRemovals); len(open) > 0 {
 		return installer.Rejected(fmt.Errorf("removals not confirmed: %s", strings.Join(open, ", ")))
 	}
