@@ -801,6 +801,13 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 				}
 			}
 		}
+		for _, f := range m.Fields {
+			for _, r := range f.EditableBy {
+				if !roles[r] {
+					issues = append(issues, atf(fieldAt(m.ID, f.ID), "machine %q field %q editable_by names role %q, which the application does not declare in %v", m.ID, f.ID, r, desired.Roles).allowing(desired.Roles...))
+				}
+			}
+		}
 		for _, tr := range m.Transitions {
 			for _, r := range tr.Roles {
 				if !roles[r] {

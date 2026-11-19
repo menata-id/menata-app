@@ -191,6 +191,15 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 				}
 			}
 		}
+		// editable_by is judged the same way: the loader refuses a role the Application does not declare, but only at load
+		// (metadata.validate, after the review the person approved), so the assistant is told here, where it can still fix it.
+		for _, f := range m.Fields {
+			for _, r := range f.EditableBy {
+				if !seenRole[r] {
+					issues = append(issues, atf(fieldAt(m.ID, f.ID), "machine %q field %q editable_by names role %q, which this application does not declare in its roles %v -- nobody could hold it, so nobody could change the field", m.ID, f.ID, r, app.Roles).allowing(app.Roles...))
+				}
+			}
+		}
 		for _, tr := range m.Transitions {
 			for _, r := range tr.Roles {
 				if !seenRole[r] {

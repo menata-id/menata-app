@@ -148,6 +148,9 @@ func TestValidateSaysWhereEachFaultIs(t *testing.T) {
 			c.Application.Machines = append(c.Application.Machines, c.Application.Machines[0])
 		}, "is declared more than once in this application", "machines/mch_leave_request", nil},
 		{"no name", func(c *GeneratedChange) { c.Application.Name = " " }, "application name is required", "application", nil},
+		{"a field only a role nobody declares may change", func(c *GeneratedChange) {
+			c.Application.Machines[0].Fields[0].EditableBy = []string{"Intern"}
+		}, "editable_by names role", "machines/mch_leave_request/fields/fld_title", []string{"Employee", "Supervisor", "HR admin"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -271,5 +274,35 @@ func TestIssueCopiesWhatItOffers(t *testing.T) {
 	roles[0] = "changed"
 	if is.Allowed[0] != "a" {
 		t.Errorf("an issue aliased the caller's slice: %v", is.Allowed)
+	}
+}
+
+// editable_by names roles the Application declares. The loader refuses an undeclared one, but only at load -- after the
+// review the person approved (measured 2026-11-19: Validate let it through) -- so the assistant is told in the conversation,
+// on a new Application and on an update alike, and a declared role is not refused.
+func TestEditableByIsJudgedWhereTheAssistantCanStillFixIt(t *testing.T) {
+	change := validLeaveRequestChange()
+	change.Application.Machines[0].Fields[0].EditableBy = []string{"Supervisor"}
+	if err := Validate(change, ExistingState{}); err != nil {
+		t.Fatalf("a declared role was refused: %v", err)
+	}
+
+	manifest := installedWasteApp(t)
+	state, _ := stateOf(t, manifest)
+	ok := update(t, manifest, func(a *GeneratedApplication) {
+		if len(a.Roles) > 0 {
+			a.Machines[0].Fields[0].EditableBy = []string{a.Roles[0]}
+		}
+	})
+	if err := Validate(ok, state); err != nil && strings.Contains(err.Error(), "editable_by names role") {
+		t.Errorf("a declared role was refused on an update: %v", err)
+	}
+	bad := update(t, manifest, func(a *GeneratedApplication) { a.Machines[0].Fields[0].EditableBy = []string{"no-such-role"} })
+	got := findIssue(t, issuesOf(t, Validate(bad, state)), "editable_by names role")
+	if want := "machines/" + bad.Application.Machines[0].ID + "/fields/" + bad.Application.Machines[0].Fields[0].ID; got.Address != want {
+		t.Errorf("address = %q, want %q", got.Address, want)
+	}
+	if !slices.Equal(got.Allowed, bad.Application.Roles) {
+		t.Errorf("accepted values %v, want the application's roles %v", got.Allowed, bad.Application.Roles)
 	}
 }
