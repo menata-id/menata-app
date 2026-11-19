@@ -519,7 +519,13 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 		kept[n.ID] = true
 		keptOrder = append(keptOrder, n.ID)
 		if n.MachineID != "" && n.MachineID != old.MachineID {
-			p.refuse(menuAt(n.ID, i+1), "menu item %s cannot be pointed somewhere else -- remove it and add a new one", n.ID)
+			if old.MachineID == "" {
+				// An item that opens a screen the model cannot name again is not removable (below), so "remove it and add a new one" would send the
+				// model to a second refusal: measured in the log of 2026-10-27, where one session alternated between the two until it gave up.
+				p.refuse(menuAt(n.ID, i+1), "menu item %s opens a screen that cannot be named again, so it cannot be pointed somewhere else -- keep it as it is and add a new menu item that opens %s", n.ID, n.MachineID)
+			} else {
+				p.refuse(menuAt(n.ID, i+1), "menu item %s cannot be pointed somewhere else -- remove it and add a new one", n.ID)
+			}
 		}
 		if n.Label != old.Label {
 			p.change("menu item %q is now %q", old.Label, n.Label)
@@ -550,7 +556,7 @@ func planMenu(p *Plan, current, desired []GeneratedMenuItem) {
 	for _, n := range current {
 		if !kept[n.ID] {
 			if n.MachineID == "" {
-				p.refuse(menuAt(n.ID, 0), "menu item %s (%q) cannot be removed: it opens a screen that could not be added back", n.ID, n.Label)
+				p.refuse(menuAt(n.ID, 0), "menu item %s (%q) cannot be removed: it opens a screen that could not be added back -- keep it in the menu, and add what you want as a new item beside it", n.ID, n.Label)
 			} else {
 				p.remove("menu item %q (the %s records stay)", n.Label, n.MachineID)
 			}
