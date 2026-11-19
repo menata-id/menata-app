@@ -3,9 +3,12 @@ package aiassist
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"menata.app/internal/metadata"
 )
 
 // Issue is one thing wrong with a GeneratedChange, said where it is and, when the fault is a choice among known
@@ -130,4 +133,39 @@ func CheckReport(err error) string {
 	}
 	return "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
 		body + "\n\nCorrect it, or ask me what you need to know."
+}
+
+// loaderPlace reads where a loader message is. The loader (metadata.Validate, ValidateEdgeRules) states each fault as
+// one sentence that opens with what it is about and its id: `field "fld_x": ...`, `machine "mch_m": transition
+// "trn_t": ...`. Those openings are what the builder's tree is made of, so the address is read from them, not
+// guessed: a fault whose opening is not one of the known parts stays at its Machine.
+var loaderPlace = regexp.MustCompile(`^(?:machine "[^"]*": )?(field|permission|event|transition|view) "([^"]+)"`)
+
+var loaderPartAt = map[string]func(machine, id string) string{
+	"field": fieldAt, "permission": permissionAt, "event": eventAt, "transition": transitionAt, "view": viewAt,
+}
+
+// LoaderIssues are the faults the loader found in one Machine, each at its own address. A ValidationError from the
+// loader is split into its sentences (one Issue each) instead of being wrapped whole into one; any other error is one
+// Issue at the Machine. A sentence that does not already name the Machine is given its name, so it reads alone.
+func LoaderIssues(machine string, err error) []Issue {
+	var sentences []string
+	var le *metadata.ValidationError
+	if errors.As(err, &le) {
+		sentences = le.Issues
+	} else {
+		sentences = []string{err.Error()}
+	}
+	out := make([]Issue, 0, len(sentences))
+	for _, s := range sentences {
+		address := machineAt(machine)
+		if m := loaderPlace.FindStringSubmatch(s); m != nil {
+			address = loaderPartAt[m[1]](machine, m[2])
+		}
+		if !strings.HasPrefix(s, "machine ") {
+			s = fmt.Sprintf("machine %q: %s", machine, s)
+		}
+		out = append(out, Issue{Address: address, Message: s})
+	}
+	return out
 }

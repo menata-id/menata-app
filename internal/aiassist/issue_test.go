@@ -1,6 +1,7 @@
 package aiassist
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -10,6 +11,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
 )
 
 // addressShape is what an Issue.Address may be: the application, or a part the Apps Builder's tree names
@@ -304,5 +308,45 @@ func TestEditableByIsJudgedWhereTheAssistantCanStillFixIt(t *testing.T) {
 	}
 	if !slices.Equal(got.Allowed, bad.Application.Roles) {
 		t.Errorf("accepted values %v, want the application's roles %v", got.Allowed, bad.Application.Roles)
+	}
+}
+
+// TestLoaderFaultsAreSplitAndAddressed holds what LoaderIssues does with what the loader says: one Issue per sentence
+// (not the whole error wrapped into one), each at the part its opening names, and every sentence naming its Machine.
+// Real loader faults, not made-up sentences, so a change to the loader's wording that the reader no longer understands
+// fails here. Mutation-proved 2026-11-19 (see development-history.md).
+func TestLoaderFaultsAreSplitAndAddressed(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Name: "X", Fields: []domain.Field{
+		{ID: "fld_a", Name: "A", Type: domain.FieldTypeStatus},
+		{ID: "fld_b", Name: "B", Type: "no_such_type"},
+	}, Views: []domain.View{{ID: "vw_z", Name: "Z", Type: "no_such_view"}}}
+	issues := LoaderIssues(m.ID, metadata.Validate(m))
+	want := map[string]string{
+		"machines/mch_x/fields/fld_a": "requires at least one option",
+		"machines/mch_x/fields/fld_b": "unknown type",
+		"machines/mch_x/views/vw_z":   "unknown type",
+	}
+	got := map[string]string{}
+	for _, is := range issues {
+		if !addressShape.MatchString(is.Address) {
+			t.Errorf("address %q is not a part of the tree", is.Address)
+		}
+		if !strings.HasPrefix(is.Message, `machine "mch_x": `) {
+			t.Errorf("%q does not name its Machine", is.Message)
+		}
+		if strings.Contains(is.Message, "invalid metadata") {
+			t.Errorf("the loader's wrapper was not split: %q", is.Message)
+		}
+		got[is.Address] = is.Message
+	}
+	for address, words := range want {
+		if !strings.Contains(got[address], words) {
+			t.Errorf("%s: want a fault saying %q, got %q (all: %v)", address, words, got[address], got)
+		}
+	}
+	// An error that is not the loader's own list is one Issue at the Machine.
+	one := LoaderIssues("mch_x", errors.New("boom"))
+	if len(one) != 1 || one[0].Address != "machines/mch_x" || !strings.Contains(one[0].Message, "boom") {
+		t.Errorf("a plain error: %+v", one)
 	}
 }

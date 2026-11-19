@@ -228,7 +228,7 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 			continue // metadata.Validate would only pile on the same field-shape complaints
 		}
 		if err := metadata.Validate(domainMachine); err != nil {
-			issues = append(issues, atf(machineAt(m.ID), "machine %q: %v", m.ID, err))
+			issues = append(issues, LoaderIssues(m.ID, err)...)
 		}
 		built = append(built, domainMachine)
 	}

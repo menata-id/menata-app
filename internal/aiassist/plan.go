@@ -827,7 +827,7 @@ func validateUpdateApplication(change GeneratedChange, existing ExistingState) e
 		issues = append(issues, fieldIssues...)
 		if len(fieldIssues) == 0 {
 			if err := metadata.Validate(dm); err != nil {
-				issues = append(issues, atf(machineAt(m.ID), "machine %q: %v", m.ID, err))
+				issues = append(issues, LoaderIssues(m.ID, err)...)
 			}
 		}
 	}
