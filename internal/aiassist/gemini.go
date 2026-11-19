@@ -186,7 +186,7 @@ func (c GeminiClient) Generate(ctx context.Context, systemPrompt string, turns [
 		return Reply{}, fmt.Errorf("read gemini response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return Reply{}, fmt.Errorf("gemini returned %s: %s", resp.Status, truncate(string(respBody), 500))
+		return Reply{}, &ProviderError{StatusCode: resp.StatusCode, Status: resp.Status, Body: truncate(string(respBody), 500)}
 	}
 
 	var parsed geminiResponse

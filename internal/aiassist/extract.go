@@ -131,7 +131,7 @@ func (g GeminiExtractor) Extract(ctx context.Context, req ExtractRequest) (Extra
 		return ExtractResult{}, fmt.Errorf("read gemini response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return ExtractResult{}, fmt.Errorf("gemini returned %s: %s", resp.Status, truncate(string(raw), 500))
+		return ExtractResult{}, &ProviderError{StatusCode: resp.StatusCode, Status: resp.Status, Body: truncate(string(raw), 500)}
 	}
 	var parsed geminiResponse
 	if err := json.Unmarshal(raw, &parsed); err != nil || len(parsed.Candidates) == 0 || len(parsed.Candidates[0].Content.Parts) == 0 {

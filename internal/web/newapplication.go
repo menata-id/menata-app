@@ -206,8 +206,11 @@ func generateReply(ctx context.Context, aiClient aiassist.Client, prompt string,
 		if ctx.Err() != nil {
 			return aiassist.Reply{}, err
 		}
-		log.Printf("assistant turn failed, showing a retry message instead of an error page: %v", err)
-		reply = aiassist.Reply{Message: "Menata didn't get a response in time. Please try sending your message again."}
+		fault := aiassist.FaultOf(err)
+		// One line a script can read by name (guides/log-review.md): what failed, with which status, for which session.
+		log.Printf("AI-PROVIDER fault=%s status=%d session=%s", fault, aiassist.FaultStatus(err), session.ID)
+		log.Printf("assistant turn failed, showing a message instead of an error page: %v", err)
+		reply = aiassist.Reply{Message: aiassist.FaultMessage(fault)}
 	}
 	return reply, nil
 }
